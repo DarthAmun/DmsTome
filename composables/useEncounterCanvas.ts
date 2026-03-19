@@ -76,12 +76,6 @@ export function useEncounterCanvas(options: CanvasOptions) {
     if (!app || !worldContainer || !mapSprite) return
 
     let url = source
-    if (type === 'file') {
-      // Images stored as data URLs - use directly
-      url = source else {
-        url = `${source}`
-      }
-    }
 
     const texture = await PIXI.Assets.load(url)
     mapSprite.texture = texture
