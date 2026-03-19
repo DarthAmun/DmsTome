@@ -4,8 +4,9 @@
   "description": "DM Campaign Management Tool — PWA",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev":   "nuxt dev",
+    "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "generate": "nuxt generate"
