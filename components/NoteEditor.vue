@@ -67,7 +67,8 @@
                   <span class="text-sm">{{ item.name }}</span>
                   <span class="text-xs text-forge-muted ml-auto">{{ item.type }}</span>
                 </button>
-                <p v-if="autocomplete.items.length === 0" class="text-xs text-forge-muted p-2 italic font-ui">No matches — will link on save</p>
+                <p v-if="autocomplete.items.length === 0" class="text-xs text-forge-muted p-2 italic font-ui">No matches
+                  — will link on save</p>
               </div>
             </div>
           </div>
@@ -101,11 +102,8 @@
       <div v-if="pinnedOn.length > 0" class="links-section">
         <span class="f-label">Found in</span>
         <div class="links-list">
-          <NuxtLink
-            v-for="p in pinnedOn" :key="p.location.id"
-            :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`"
-            class="link-chip pinned-chip"
-          >
+          <NuxtLink v-for="p in pinnedOn" :key="p.location.id"
+            :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`" class="link-chip pinned-chip">
             <span class="link-dot" style="background:var(--forge-accent)" />
             <span class="text-sm">{{ p.location.name }}</span>
             <span class="text-xs text-forge-muted">map</span>
@@ -310,11 +308,9 @@ function onPreviewClick(e: MouseEvent) {
 const entityImageUrl = computed(() => {
   const attrs = entity.value?.attributes as any
   if (!attrs) return null
-  // Locations: prefer logo for banner
   const src = attrs.logoSource || attrs.portraitSource || (entity.value?.type !== 'location' ? attrs.imageSource : null)
-  const type = attrs.logoType || attrs.portraitType || (entity.value?.type !== 'location' ? attrs.imageType : null)
   if (!src) return null
-  return type
+  return src   // ← was: return type (wrong)
 })
 
 const entityMapUrl = computed(() => {
@@ -334,13 +330,17 @@ async function confirmDelete() {
 
 <style scoped>
 .note-editor {
-  display: flex; flex-direction: column;
-  height: 100%; overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
   background: var(--forge-base);
 }
 
 .editor-header {
-  display: flex; align-items: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 12px 16px;
   background: var(--forge-surface);
   border-bottom: 1px solid var(--forge-border);
@@ -348,105 +348,267 @@ async function confirmDelete() {
 }
 
 .entity-type-badge {
-  padding: 2px 10px; border-radius: 12px; border: 1px solid;
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.08em; flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
 }
 
 .editor-body {
-  flex: 1; overflow: hidden; display: flex; flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.attributes-pane { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.attributes-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
 
 /* ── Split layout ─────────────────────────────────────────────────── */
 .split-pane {
-  flex: 1; display: flex; overflow: hidden;
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
+
 .split-divider {
-  width: 1px; background: var(--forge-border); flex-shrink: 0;
+  width: 1px;
+  background: var(--forge-border);
+  flex-shrink: 0;
 }
+
 .edit-pane {
-  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
 }
+
 .preview-pane {
-  flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 /* ── Editor toolbar ───────────────────────────────────────────────── */
 .editor-toolbar {
-  display: flex; align-items: center; gap: 4px; padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
   background: var(--forge-surface);
   border-bottom: 1px solid var(--forge-border);
-  flex-shrink: 0; flex-wrap: wrap;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
-.tb-btn {
-  padding: 3px 8px; border-radius: 4px;
-  background: transparent; border: 1px solid var(--forge-border);
-  color: var(--forge-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s;
-}
-.tb-btn:hover { background: var(--forge-raised); color: var(--forge-text); }
-.tb-btn.entity-insert { font-weight: 700; font-size: 11px; }
-.tb-divider { width: 1px; height: 18px; background: var(--forge-border); margin: 0 4px; }
 
-.editor-area-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.tb-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--forge-border);
+  color: var(--forge-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tb-btn:hover {
+  background: var(--forge-raised);
+  color: var(--forge-text);
+}
+
+.tb-btn.entity-insert {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.tb-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--forge-border);
+  margin: 0 4px;
+}
+
+.editor-area-wrap {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .editor-textarea {
-  flex: 1; width: 100%; padding: 20px 24px;
-  background: var(--forge-base); border: none; outline: none; resize: none;
-  color: var(--forge-text); font-family: 'JetBrains Mono', monospace;
-  font-size: 14px; line-height: 1.7; caret-color: var(--forge-accent);
+  flex: 1;
+  width: 100%;
+  padding: 20px 24px;
+  background: var(--forge-base);
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--forge-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  caret-color: var(--forge-accent);
 }
 
 .autocomplete-dropdown {
-  position: absolute; bottom: 8px; left: 24px; z-index: 100;
-  background: var(--forge-raised); border: 1px solid var(--forge-border-l);
-  border-radius: 8px; width: 280px; overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  position: absolute;
+  bottom: 8px;
+  left: 24px;
+  z-index: 100;
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border-l);
+  border-radius: 8px;
+  width: 280px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+
 .autocomplete-item {
-  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-  width: 100%; background: transparent; border: none; cursor: pointer;
-  color: var(--forge-text); transition: background 0.1s; text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--forge-text);
+  transition: background 0.1s;
+  text-align: left;
 }
-.autocomplete-item:hover { background: var(--forge-border); }
-.autocomplete-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.autocomplete-item:hover {
+  background: var(--forge-border);
+}
+
+.autocomplete-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 /* ── Preview image ────────────────────────────────────────────────── */
-.preview-banner { flex-shrink: 0; padding: 20px 28px 0; display: flex; align-items: center; gap: 14px; }
+.preview-banner {
+  flex-shrink: 0;
+  padding: 20px 28px 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .preview-banner-img-circle {
-  width: 72px; height: 72px; border-radius: 50%;
-  object-fit: cover; border: 3px solid var(--forge-border-l); flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--forge-border-l);
+  flex-shrink: 0;
 }
+
 .preview-banner-img-wide {
-  width: 100%; max-height: 160px; object-fit: cover; border-radius: 10px;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 10px;
 }
-.preview-banner-meta { display: flex; flex-direction: column; gap: 4px; }
-.preview-banner-title { font-size: 13px; color: var(--forge-accent); font-style: italic; }
+
+.preview-banner-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-banner-title {
+  font-size: 13px;
+  color: var(--forge-accent);
+  font-style: italic;
+}
+
 .preview-banner-level {
-  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-  background: var(--forge-accent-dim, rgba(235,189,52,0.12)); color: var(--forge-accent);
-  border: 1px solid rgba(235,189,52,0.3); width: fit-content;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--forge-accent-dim, rgba(235, 189, 52, 0.12));
+  color: var(--forge-accent);
+  border: 1px solid rgba(235, 189, 52, 0.3);
+  width: fit-content;
 }
 
 /* ── Markdown preview ─────────────────────────────────────────────── */
-.preview-pane .markdown-body { padding: 20px 28px; flex: 1; }
+.preview-pane .markdown-body {
+  padding: 20px 28px;
+  flex: 1;
+}
 
 /* ── Links panel ──────────────────────────────────────────────────── */
 .links-panel {
-  flex-shrink: 0; border-top: 1px solid var(--forge-border); padding: 10px 16px;
-  background: var(--forge-surface); display: flex; gap: 24px; flex-wrap: wrap;
-  max-height: 120px; overflow-y: auto;
+  flex-shrink: 0;
+  border-top: 1px solid var(--forge-border);
+  padding: 10px 16px;
+  background: var(--forge-surface);
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  max-height: 120px;
+  overflow-y: auto;
 }
-.links-section { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
-.links-list { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.links-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.links-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .link-chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
-  border-radius: 20px; background: var(--forge-raised);
-  border: 1px solid var(--forge-border); cursor: pointer; transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border);
+  cursor: pointer;
+  transition: all 0.15s;
 }
-.link-chip:hover { background: var(--forge-border); }
-.link-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.link-meta { font-size: 10px; color: var(--forge-accent); font-style: italic; }
+
+.link-chip:hover {
+  background: var(--forge-border);
+}
+
+.link-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.link-meta {
+  font-size: 10px;
+  color: var(--forge-accent);
+  font-style: italic;
+}
 </style>
 
 <style>
@@ -574,17 +736,20 @@ async function confirmDelete() {
 /* Entity ref avatar inline image */
 .entity-ref-avatar {
   display: inline-block;
-  width: 16px; height: 16px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   object-fit: cover;
   vertical-align: middle;
   margin-right: 3px;
   margin-top: -2px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
 .entity-ref-dot {
   display: inline-block;
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   vertical-align: middle;
   margin-right: 4px;
