@@ -331,9 +331,8 @@ const pinPreviewImageUrl = computed(() => {
   const attrs = previewAttrs.value
   // Locations: prefer logo banner; NPCs: portrait; others: imageSource
   const src = attrs.logoSource || attrs.portraitSource || (previewEntity.value?.type !== 'location' ? attrs.imageSource : null)
-  const type = attrs.logoType || attrs.portraitType || (previewEntity.value?.type !== 'location' ? attrs.imageType : null)
   if (!src) return null
-  return type
+  return src
 })
 const canDrillDown = computed(() => {
   if (!previewEntity.value) return false
@@ -391,10 +390,9 @@ function pinImage(entityId: number): string | null {
   const e = pinEntity(entityId)
   if (!e) return null
   const attrs = e.attributes as any
-  const src = attrs.portraitSource || attrs.imageSource
-  const type = attrs.portraitType || attrs.imageType
+  const src = attrs.logoSource || attrs.portraitSource || attrs.imageSource
   if (!src) return null
-  return type
+  return src
 }
 
 function entityColor(type: string) {

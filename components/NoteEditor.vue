@@ -175,9 +175,8 @@ const entityImage = computed(() => {
   const attrs = entity.value?.attributes as any
   if (!attrs) return null
   const src = attrs.portraitSource || attrs.imageSource
-  const type = attrs.portraitType || attrs.imageType
   if (!src) return null
-  return type
+  return src
 })
 
 const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0 })
@@ -198,7 +197,7 @@ function entityLookup(type: string, name: string) {
   const attrs = entity.attributes as any
   const src = attrs.portraitSource || attrs.imageSource
   const srcType = attrs.portraitType || attrs.imageType
-  const imageUrl = src ? (srcType) : undefined
+  const imageUrl = src ? src : undefined
   const color = typeColorMap[entity.type] ?? '#888'
   const icon = entity.type
   return { imageUrl, icon, color }
