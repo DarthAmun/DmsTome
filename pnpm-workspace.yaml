@@ -1,6 +1,8 @@
-packages:
-  - "apps/backend"
-  - "apps/battlemap"
-  - "apps/sessionplaner"
-  - "apps/worldbuilder"
-  - "packages/*"
+ignoredBuiltDependencies:
+  - better-sqlite3
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - electron
+  - esbuild
+  - vue-demi
