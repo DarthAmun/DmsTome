@@ -1,8 +1,5 @@
-ignoredBuiltDependencies:
-  - better-sqlite3
-
+# Single-package workspace — no electron native deps to worry about
 onlyBuiltDependencies:
   - '@parcel/watcher'
-  - electron
   - esbuild
   - vue-demi
