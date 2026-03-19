@@ -85,6 +85,7 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
   tailwindcss: { configPath: '~/tailwind.config.ts' },
+  router: { options: { hashMode: true } },
   imports: { dirs: ['stores', 'composables'] },
   compatibilityDate: '2024-04-03',
 })

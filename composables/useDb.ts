@@ -317,7 +317,9 @@ export const dbApi = {
       return this._channel
     },
     openPlayer(encounterId: number): Promise<void> {
-      const url = `${location.origin}${location.pathname}#/encounter/${encounterId}/player`
+      // Hash mode routing: strip any existing hash from pathname, then append the player route
+      const base = location.origin + location.pathname.replace(/\/+$/, '')
+      const url = `${base}/#/encounter/${encounterId}/player`
       window.open(url, 'dmforge-player', 'width=1280,height=800')
       return Promise.resolve()
     },
