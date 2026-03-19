@@ -114,10 +114,7 @@ const modules = [
   { id: 'encounters', name: 'Encounters', icon: 'gi-broadsword', available: true },
   { id: 'notes', name: 'Notes', icon: 'gi-scroll-unfurled', available: true },
   { id: 'map', name: 'World Map', icon: 'gi-treasure-map', available: true },
-  { id: 'npcs', name: 'NPCs', icon: 'gi-person', available: false },
-  { id: 'locations', name: 'Locations', icon: 'gi-castle', available: false },
   { id: 'timeline', name: 'Timeline', icon: 'gi-sands-of-time', available: false },
-  { id: 'items', name: 'Items', icon: 'gi-open-treasure-chest', available: false },
 ]
 
 function moduleRoute(id: string) {
