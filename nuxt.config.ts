@@ -9,8 +9,6 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
   ],
 
-  // GitHub Pages deploys to /dm-forge/ — set base URL for production
-  // For local dev this is '/', for gh-pages it's '/dm-forge/'
   app: {
     baseURL: process.env.NUXT_APP_BASE_URL ?? '/',
     head: {
@@ -22,6 +20,7 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#ebbd34' },
       ],
       link: [
+        // Use absolute paths — Nuxt rewrites these with the baseURL automatically
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'apple-touch-icon', href: '/icons/icon-192.png' },
@@ -45,6 +44,9 @@ export default defineNuxtConfig({
       background_color: '#0d0d0d',
       display: 'standalone',
       orientation: 'landscape',
+      // @vite-pwa/nuxt automatically prepends the base URL to these
+      start_url: '/',
+      scope: '/',
       icons: [
         { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -52,29 +54,31 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
+      // navigateFallback must match where index.html is served from
       navigateFallback: '/',
+      navigateFallbackDenylist: [/^\/api\//],
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
-      // Cache Google Fonts
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
           handler: 'CacheFirst',
-          options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          options: {
+            cacheName: 'google-fonts-cache',
+            expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+          },
         },
         {
           urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
           handler: 'CacheFirst',
-          options: { cacheName: 'gstatic-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          options: {
+            cacheName: 'gstatic-fonts-cache',
+            expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+          },
         },
       ],
     },
-    client: {
-      installPrompt: true,
-      periodicSyncForUpdates: 3600, // check for updates every hour
-    },
     devOptions: {
-      enabled: true,
-      type: 'module',
+      enabled: false,
     },
   },
 
