@@ -1,3 +1,7 @@
+const baseURL = process.env.NUXT_APP_BASE_URL ?? '/'
+// Ensure trailing slash, then strip leading slash from asset path
+const asset = (path: string) => `${baseURL}${path}`.replace('//', '/')
+
 export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
@@ -10,7 +14,7 @@ export default defineNuxtConfig({
   ],
 
   app: {
-    baseURL: process.env.NUXT_APP_BASE_URL ?? '/',
+    baseURL,
     head: {
       title: 'DM Forge',
       meta: [
@@ -20,10 +24,9 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#ebbd34' },
       ],
       link: [
-        // Use absolute paths — Nuxt rewrites these with the baseURL automatically
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'apple-touch-icon', href: '/icons/icon-192.png' },
+        { rel: 'icon', type: 'image/x-icon', href: asset('favicon.ico') },
+        { rel: 'icon', type: 'image/svg+xml', href: asset('favicon.svg') },
+        { rel: 'apple-touch-icon', href: asset('icons/icon-192.png') },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
@@ -44,42 +47,32 @@ export default defineNuxtConfig({
       background_color: '#0d0d0d',
       display: 'standalone',
       orientation: 'landscape',
-      // @vite-pwa/nuxt automatically prepends the base URL to these
-      start_url: '/',
-      scope: '/',
+      start_url: baseURL,
+      scope: baseURL,
       icons: [
-        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: asset('icons/icon-192.png'), sizes: '192x192', type: 'image/png' },
+        { src: asset('icons/icon-512.png'), sizes: '512x512', type: 'image/png' },
+        { src: asset('icons/icon-512.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     workbox: {
-      // navigateFallback must match where index.html is served from
-      navigateFallback: '/',
+      navigateFallback: baseURL,
       navigateFallbackDenylist: [/^\/api\//],
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
           handler: 'CacheFirst',
-          options: {
-            cacheName: 'google-fonts-cache',
-            expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-          },
+          options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
         },
         {
           urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
           handler: 'CacheFirst',
-          options: {
-            cacheName: 'gstatic-fonts-cache',
-            expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-          },
+          options: { cacheName: 'gstatic-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
         },
       ],
     },
-    devOptions: {
-      enabled: false,
-    },
+    devOptions: { enabled: false },
   },
 
   primevue: {
