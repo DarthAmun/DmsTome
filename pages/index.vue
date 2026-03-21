@@ -155,6 +155,66 @@ async function deleteCampaign(id: number) {
   campaigns.value = campaigns.value.filter(c => c.id !== id)
   if (selectedCampaign.value?.id === id) { selectedCampaign.value = null; recentEncounters.value = [] }
 }
+
+async function exportData(campaignId: number) {
+  const { getDb } = await import('~/composables/useDb')
+  const db = getDb()
+  const camp = campaigns.value.find(c => c.id === campaignId)
+  const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
+  const encIds = encounters.map((e: any) => e.id as number)
+  const encounterTokens = encIds.length
+    ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray()
+    : []
+  const entities = await db.entities.where('campaign_id').equals(campaignId).toArray()
+  const entIds = entities.map((e: any) => e.id as number)
+  const entityLinks = entIds.length
+    ? await db.entityLinks.where('source_id').anyOf(entIds).toArray()
+    : []
+  const tokens = await db.tokens.toArray()
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    campaign: camp,
+    encounters,
+    encounterTokens,
+    entities,
+    entityLinks,
+    tokens,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `dm-forge-${camp?.name?.replace(/\s+/g, '-') ?? campaignId}-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function importData(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!confirm('Import this backup? Existing data with matching IDs will be overwritten.')) return
+  try {
+    const text = await file.text()
+    const payload = JSON.parse(text)
+    if (!payload.version || !payload.campaign) { alert('Invalid backup file'); return }
+    const { getDb } = await import('~/composables/useDb')
+    const db = getDb()
+    const now = new Date().toISOString()
+    await db.campaigns.put({ ...payload.campaign, updated_at: payload.campaign.updated_at ?? now, created_at: payload.campaign.created_at ?? now })
+    for (const t of payload.tokens ?? []) await db.tokens.put(t)
+    for (const enc of payload.encounters ?? []) await db.encounters.put(enc)
+    for (const et of payload.encounterTokens ?? []) await db.encounterTokens.put(et)
+    for (const ent of payload.entities ?? []) await db.entities.put(ent)
+    for (const lnk of payload.entityLinks ?? []) await db.entityLinks.put(lnk)
+    campaigns.value = await window.dmforge.campaigns.list()
+    if (campaigns.value.length > 0) await selectCampaign(campaigns.value[0])
+    alert('Import successful!')
+  } catch (err: any) {
+    alert('Import failed: ' + err.message)
+  }
+}
+
 function formatDate(dt: string) {
   return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

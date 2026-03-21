@@ -1,10 +1,22 @@
 <template>
   <div class="shell">
     <nav class="icon-rail">
-      <div class="icon-rail-logo">⚔</div>
+      <div class="icon-rail-logo">
+        <OhVueIcon name="gi-anvil-impact" />
+      </div>
       <NuxtLink to="/" class="rail-icon-btn" title="Back">
         <OhVueIcon name="md-arrowback" scale="0.95" />
       </NuxtLink>
+      <div class="rail-divider" />
+      <button
+        v-for="loc in locations" :key="loc.id"
+        class="rail-icon-btn"
+        :class="{ active: activeLocationId === loc.id }"
+        :title="loc.name"
+        @click="selectLocation(loc.id)"
+      >
+        <OhVueIcon name="gi-castle" scale="0.95" />
+      </button>
       <div class="rail-spacer" />
       <button class="rail-fab" title="New Location" @click="createLocation">+</button>
     </nav>
@@ -12,7 +24,7 @@
     <div class="shell-body">
       <header class="top-bar">
         <span class="top-bar-title">{{ campaignName }}</span>
-        <span class="top-bar-section" style="color:var(--secondary);font-size:14px;font-family:'DM Sans',sans-serif">/ World Map</span>
+        <span class="top-bar-section">/ World Map</span>
         <div class="top-bar-spacer" />
         <NuxtLink :to="`/campaign/${campaignId}/notes`" class="nav-pill">
           <OhVueIcon name="gi-scroll-unfurled" scale="0.85" /> Notes
@@ -22,7 +34,7 @@
       <!-- Active map view -->
       <div v-if="activeLocationId" class="map-view">
         <div class="map-view-header">
-          <button class="pill-btn" @click="activeLocationId = null">
+          <button class="pill-btn" @click="goBack">
             <OhVueIcon name="md-arrowback" scale="0.85" /> All Locations
           </button>
           <span class="map-view-name">{{ activeLocationName }}</span>
@@ -46,30 +58,24 @@
             class="loc-card v6-card"
             @click="openLocation(loc)"
           >
-            <!-- Banner: logo if set, else map image dimmed, else empty -->
             <div class="loc-card-banner">
               <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="w-full h-full object-cover" />
-              <img v-else-if="locMap(loc)" :src="locMap(loc)!" class="w-full h-full object-cover" style="filter:brightness(0.45) saturate(0.6)" />
+              <img v-else-if="locMap(loc)" :src="locMap(loc)!" class="w-full h-full object-cover"
+                style="filter:brightness(0.45) saturate(0.6)" />
               <div v-else class="loc-card-banner-empty">
                 <OhVueIcon name="gi-castle" scale="2.5" style="opacity:0.2" />
               </div>
-
-              <!-- Badges top-right -->
               <div class="loc-card-badges">
-                <span v-if="(locAttrs(loc)).status" class="loc-status-badge" :class="`status--${(locAttrs(loc)).status}`">
-                  {{ (locAttrs(loc)).status }}
-                </span>
+                <span v-if="locAttrs(loc).status" class="loc-status-badge"
+                  :class="`status--${locAttrs(loc).status}`">{{ locAttrs(loc).status }}</span>
                 <span v-if="locMap(loc)" class="loc-map-badge" title="Has map">
                   <OhVueIcon name="md-map" scale="0.75" />
                 </span>
               </div>
-
-              <!-- Type tag bottom-left -->
-              <span v-if="(locAttrs(loc)).locationType" class="loc-type-tag capitalize">
-                {{ (locAttrs(loc)).locationType }}
+              <span v-if="locAttrs(loc).locationType" class="loc-type-tag capitalize">
+                {{ locAttrs(loc).locationType }}
               </span>
             </div>
-
             <div class="loc-card-body">
               <div class="loc-card-name">{{ loc.name }}</div>
               <div class="loc-card-meta">
@@ -82,7 +88,8 @@
                 <button class="loc-action" @click.stop="openNotes(loc)">
                   <OhVueIcon name="md-editnote" scale="0.8" /> Note
                 </button>
-                <button v-if="locMap(loc)" class="loc-action loc-action--primary" @click.stop="openLocation(loc)">
+                <button v-if="locMap(loc)" class="loc-action loc-action--primary"
+                  @click.stop="openLocation(loc)">
                   <OhVueIcon name="md-map" scale="0.8" /> Open Map
                 </button>
                 <button v-else class="loc-action" @click.stop="openLocation(loc)">
@@ -92,7 +99,6 @@
             </div>
           </div>
 
-          <!-- New location card -->
           <div class="loc-card loc-card--new v6-card" @click="createLocation">
             <OhVueIcon name="md-add" scale="2" style="color:var(--muted);opacity:0.3;margin-bottom:8px" />
             <span style="color:var(--secondary);font-size:13px;font-weight:500">New Location</span>
@@ -103,7 +109,7 @@
           <OhVueIcon name="gi-treasure-map" scale="4" style="opacity:0.1;margin-bottom:16px" />
           <h2 style="font-size:22px;font-weight:900;text-transform:uppercase;margin-bottom:8px">No Locations Yet</h2>
           <p style="color:var(--secondary);font-size:13px;margin-bottom:20px">
-            Create locations, add a logo and map image, then pin NPCs and factions to them.
+            Create a location, add a map image, then pin entities to it.
           </p>
           <Button @click="createLocation">
             <template #icon><OhVueIcon name="md-add" scale="0.85" /></template>
@@ -123,9 +129,13 @@ const router = useRouter()
 const store = useNotesStore()
 const campaignId = Number(route.params.id)
 const campaignName = ref('Campaign')
-const activeLocationId = ref<number | null>(null)
 
 const locations = computed(() => store.byType['location'] ?? [])
+
+// All state lives in the URL — back button works automatically
+const activeLocationId = computed(() =>
+  route.query.locationId ? Number(route.query.locationId) : null
+)
 const activeLocationName = computed(() =>
   locations.value.find(l => l.id === activeLocationId.value)?.name ?? ''
 )
@@ -136,19 +146,41 @@ onMounted(async () => {
     const camps = await window.dmforge.campaigns.list()
     campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? 'Campaign'
   }
-  if (route.query.locationId) activeLocationId.value = Number(route.query.locationId)
 })
+
+function selectLocation(id: number) {
+  router.push({ query: { locationId: String(id) } })
+}
+
+function openLocation(loc: any) {
+  router.push({ query: { locationId: String(loc.id) } })
+}
+
+function goBack() {
+  router.push({ query: {} })
+}
+
+function openNotes(loc: any) {
+  router.push(`/campaign/${campaignId}/notes?id=${loc.id}&type=location`)
+}
+
+async function createLocation() {
+  const e = await store.createEntity(campaignId, 'location', 'New Location')
+  router.push(`/campaign/${campaignId}/notes?id=${e.id}&type=location`)
+}
+
+function navigateToEntity(entity: any) {
+  router.push(`/campaign/${campaignId}/notes?id=${entity.id}&type=${entity.type}`)
+}
 
 function locAttrs(loc: any) { return (loc.attributes ?? {}) as any }
 function locLogo(loc: any): string | null {
   const a = locAttrs(loc)
-  if (!a.logoSource) return null
-  return a.logoType === 'url' ? a.logoSource : `${a.logoSource}`
+  return a.logoSource || null
 }
 function locMap(loc: any): string | null {
   const a = locAttrs(loc)
-  if (!a.imageSource) return null
-  return a.imageType === 'url' ? a.imageSource : `${a.imageSource}`
+  return a.imageSource || null
 }
 function pinCount(loc: any): number {
   return (locAttrs(loc).mapPins ?? []).length
@@ -162,39 +194,23 @@ function formatDate(dt: string) {
   if (days < 7) return `${days}d ago`
   return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
-
-async function createLocation() {
-  const e = await store.createEntity(campaignId, 'location', 'New Location')
-  router.push(`/campaign/${campaignId}/notes?id=${e.id}&type=location`)
-}
-
-function openLocation(loc: any) {
-  activeLocationId.value = loc.id
-}
-
-function openNotes(loc: any) {
-  router.push(`/campaign/${campaignId}/notes?id=${loc.id}&type=location`)
-}
-
-function navigateToEntity(entity: any) {
-  router.push(`/campaign/${campaignId}/notes?id=${entity.id}&type=${entity.type}`)
-}
 </script>
 
 <style scoped>
 .shell { display: flex; height: 100vh; overflow: hidden; }
 .shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
 .top-bar-spacer { flex: 1; }
-.main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; background: var(--bg); }
-.section-eyebrow { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
+.top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
 
-/* Map view */
 .map-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .map-view-header { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .map-view-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
 .map-body { flex: 1; overflow: hidden; position: relative; }
 
-/* Location grid */
+.main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; background: var(--bg); }
+.section-eyebrow { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
+
 .loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .loc-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
 .loc-card-banner { height: 140px; background: var(--raised); position: relative; overflow: hidden; flex-shrink: 0; }
@@ -205,7 +221,7 @@ function navigateToEntity(entity: any) {
 .status--undiscovered { background: rgba(96,96,96,0.25);   color: var(--secondary); }
 .status--destroyed    { background: rgba(224,85,85,0.25);  color: var(--danger); }
 .loc-map-badge { width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.55); color: white; display: flex; align-items: center; justify-content: center; }
-.loc-type-tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,0.6); color: white; backdrop-filter: blur(2px); }
+.loc-type-tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,0.6); color: white; }
 .loc-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .loc-card-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
 .loc-card-meta { display: flex; align-items: center; gap: 10px; }
