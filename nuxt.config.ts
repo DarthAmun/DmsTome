@@ -31,7 +31,7 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap',
         },
       ],
     },
@@ -86,6 +86,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   tailwindcss: { configPath: '~/tailwind.config.ts' },
   router: { options: { hashMode: true } },
+  components: [{ path: '~/components', pathPrefix: false }, { path: '~/components/fields', pathPrefix: false }],
   imports: { dirs: ['stores', 'composables'] },
   compatibilityDate: '2024-04-03',
 })

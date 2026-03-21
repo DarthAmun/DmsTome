@@ -75,6 +75,27 @@ export interface DbEntityLink {
   metadata: string            // JSON
 }
 
+export interface DbSystem {
+  id?: number
+  name: string
+  shortId: string          // e.g. "pf2e" — used in type namespacing
+  description: string
+  version: string
+  entityTypes: string      // JSON: EntityTypeSchema[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DbRecord {
+  id?: number
+  systemId: number
+  entityTypeId: string     // e.g. "spell"
+  name: string
+  data: string             // JSON: field values keyed by field.key
+  createdAt: string
+  updatedAt: string
+}
+
 // ── Database class ─────────────────────────────────────────────────────────
 class DmForgeDb extends Dexie {
   campaigns!:      Table<DbCampaign>
@@ -83,6 +104,8 @@ class DmForgeDb extends Dexie {
   encounterTokens!:Table<DbEncounterToken>
   entities!:       Table<DbEntity>
   entityLinks!:    Table<DbEntityLink>
+  systems!:        Table<DbSystem>
+  records!:        Table<DbRecord>
 
   constructor() {
     super('dmforge')
@@ -93,6 +116,17 @@ class DmForgeDb extends Dexie {
       encounterTokens:'++id, encounter_id, token_id',
       entities:       '++id, campaign_id, type, name',
       entityLinks:    '++id, source_id, target_type, target_name',
+    })
+    // v2: add systems + records tables, add system_id to campaigns
+    this.version(2).stores({
+      campaigns:      '++id, updated_at, system_id',
+      encounters:     '++id, campaign_id, created_at',
+      tokens:         '++id, is_template, name',
+      encounterTokens:'++id, encounter_id, token_id',
+      entities:       '++id, campaign_id, type, name',
+      entityLinks:    '++id, source_id, target_type, target_name',
+      systems:        '++id, shortId, updatedAt',
+      records:        '++id, systemId, entityTypeId, name, updatedAt',
     })
   }
 }
@@ -339,6 +373,62 @@ export const dbApi = {
       this._getChannel().addEventListener('message', (e: MessageEvent) => {
         if (e.data?.type === 'sync') cb(e.data.data)
       })
+    },
+  },
+
+  // ── Systems ───────────────────────────────────────────────────────────
+  systems: {
+    async list() {
+      return getDb().systems.orderBy('updatedAt').reverse().toArray()
+    },
+    async get(id: number) {
+      return getDb().systems.get(id)
+    },
+    async create(data: Omit<DbSystem, 'id'>) {
+      const ts = now()
+      const id = await getDb().systems.add({ ...data, createdAt: ts, updatedAt: ts })
+      return getDb().systems.get(id)
+    },
+    async update(id: number, data: Partial<DbSystem>) {
+      await getDb().systems.update(id, { ...data, updatedAt: now() })
+      return getDb().systems.get(id)
+    },
+    async delete(id: number) {
+      const db = getDb()
+      await db.records.where('systemId').equals(id).delete()
+      await db.systems.delete(id)
+    },
+  },
+
+  // ── Records ────────────────────────────────────────────────────────────
+  records: {
+    async list(systemId: number, entityTypeId?: string) {
+      const db = getDb()
+      let q = db.records.where('systemId').equals(systemId)
+      const all = await q.toArray()
+      return entityTypeId ? all.filter(r => r.entityTypeId === entityTypeId) : all
+    },
+    async get(id: number) {
+      return getDb().records.get(id)
+    },
+    async create(data: { systemId: number; entityTypeId: string; name: string; data?: string }) {
+      const ts = now()
+      const id = await getDb().records.add({
+        systemId: data.systemId,
+        entityTypeId: data.entityTypeId,
+        name: data.name,
+        data: data.data ?? '{}',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      return getDb().records.get(id)
+    },
+    async update(id: number, data: Partial<DbRecord>) {
+      await getDb().records.update(id, { ...data, updatedAt: now() })
+      return getDb().records.get(id)
+    },
+    async delete(id: number) {
+      await getDb().records.delete(id)
     },
   },
 

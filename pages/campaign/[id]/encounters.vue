@@ -1,14 +1,5 @@
 <template>
-  <div class="shell">
-    <nav class="icon-rail">
-      <div class="icon-rail-logo">⚔</div>
-      <NuxtLink to="/" class="rail-icon-btn" title="Back to campaigns">
-        <OhVueIcon name="md-arrowback" scale="0.95" />
-      </NuxtLink>
-      <div class="rail-spacer" />
-      <button class="rail-fab" title="New Encounter" @click="showNew = true">+</button>
-    </nav>
-
+  <div class="page-content">
     <div class="shell-body">
       <header class="top-bar">
         <span class="top-bar-title">{{ campaignName }}</span>
@@ -103,12 +94,6 @@ function getMapThumb(enc: any) { return enc.map_type === 'url' ? enc.map_source 
 </script>
 
 <style scoped>
-.shell {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
 .shell-body {
   display: flex;
   flex-direction: column;
@@ -211,4 +196,5 @@ function getMapThumb(enc: any) { return enc.map_type === 'url' ? enc.map_source 
   border-color: var(--border-l);
   background: var(--card);
 }
+.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
 </style>

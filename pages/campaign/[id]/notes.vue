@@ -1,24 +1,5 @@
 <template>
-  <div class="shell">
-    <nav class="icon-rail">
-      <div class="icon-rail-logo">
-        <OhVueIcon name="gi-anvil-impact" />
-      </div>
-      <NuxtLink to="/" class="rail-icon-btn" title="Back">
-        <OhVueIcon name="md-arrowback" scale="0.95" />
-      </NuxtLink>
-      <div class="rail-divider" />
-      <button v-for="tab in typeTabs" :key="tab.type" class="rail-icon-btn"
-        :class="{ active: activeType === tab.type }"
-        :title="tab.plural"
-        :style="activeType === tab.type ? { color: tab.color, background: tab.color + '22' } : {}"
-        @click="selectType(tab.type)">
-        <OhVueIcon :name="tab.defaultIcon" scale="1" />
-      </button>
-      <div class="rail-spacer" />
-      <button class="rail-fab" title="New" @click="createNew">+</button>
-    </nav>
-
+  <div class="page-content">
     <div class="shell-body">
       <header class="top-bar">
         <span class="top-bar-title">{{ campaignName }}</span>
@@ -34,6 +15,24 @@
           {{ showGraph ? 'Cards' : 'Graph' }}
         </Button>
       </header>
+
+      <!-- Type tabs -->
+      <div class="type-tabs">
+        <button
+          v-for="tab in typeTabs" :key="tab.type"
+          class="type-tab"
+          :class="{ active: activeType === tab.type }"
+          :style="activeType === tab.type ? { color: tab.color, borderBottomColor: tab.color } : {}"
+          @click="selectType(tab.type)"
+        >
+          <OhVueIcon :name="tab.defaultIcon" scale="0.85" />
+          {{ tab.plural }}
+        </button>
+        <div class="type-tabs-spacer" />
+        <button class="type-tab-add" @click="createNew" :title="`New ${activeTypeConfig?.label}`">
+          <OhVueIcon name="md-add" scale="0.9" />
+        </button>
+      </div>
 
       <!-- Detail view -->
       <template v-if="selectedId">
@@ -177,7 +176,6 @@ async function confirmDelete(entity: any) {
 </script>
 
 <style scoped>
-.shell { display: flex; height: 100vh; overflow: hidden; }
 .shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
 .top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
@@ -190,4 +188,12 @@ async function confirmDelete(entity: any) {
 .cards-header { margin-bottom: 20px; }
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 400px; }
+.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+.type-tabs { display:flex; align-items:center; gap:0; background:var(--card); border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; padding:0 4px; }
+.type-tab { display:inline-flex; align-items:center; gap:6px; padding:10px 14px; background:none; border:none; border-bottom:2px solid transparent; color:var(--secondary); font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; cursor:pointer; white-space:nowrap; transition:all 0.15s; }
+.type-tab:hover { color:var(--text); }
+.type-tab.active { color:var(--text); }
+.type-tabs-spacer { flex:1; }
+.type-tab-add { width:30px; height:30px; border-radius:50%; background:var(--raised); border:1px solid var(--border); color:var(--secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; margin:4px; transition:all 0.15s; }
+.type-tab-add:hover { color:var(--text); }
 </style>

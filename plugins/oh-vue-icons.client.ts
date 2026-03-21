@@ -1,4 +1,5 @@
 import { OhVueIcon, addIcons } from 'oh-vue-icons'
+import * as GiIcons from 'oh-vue-icons/icons/gi'
 import {
   MdArrowback, MdArrowforward,
   MdAdd, MdDelete, MdDeleteOutlined, MdEditnote,
@@ -7,39 +8,22 @@ import {
   MdCloud, MdSunny, MdAccesstime,
   MdShield, MdShieldOutlined,
   MdHistory, MdAutoawesome,
-  MdDesktopmac,
+  MdDesktopmac, MdSettings,
+  MdViewmodule, MdMenubook,
+  MdDraghandle, MdArrowdropdown,
 } from 'oh-vue-icons/icons/md'
 
 import {
   FaEye, FaEyeSlash,
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,
+  FaDragon, FaFeatherAlt, FaDice,
 } from 'oh-vue-icons/icons/fa'
 
-import {
-  GiScrollUnfurled,
-  GiPerson,
-  GiBroadsword,
-  GiTreasureMap,
-  GiOpenTreasureChest,
-  GiAmericanShield,
-  GiMagicPalm,
-  GiNotebook,
-  GiBookAura,
-  GiMagicHat,
-  GiHouseKeys,
-  GiSandsOfTime,
-  GiAllSeeingEye,
-  GiCastle,
-  GiCoins,
-  GiHealthPotion,
-  GiCandleSkull,
-  GiBurningSkull,
-  GiDeathNote,
-  GiAnvilImpact,
-  GiHolyGrail,
-} from 'oh-vue-icons/icons/gi'
+// Add all Game Icons (gi-*) in one shot
+addIcons(...Object.values(GiIcons))
 
+// Add MD and FA icons individually
 addIcons(
   MdArrowback, MdArrowforward,
   MdAdd, MdDelete, MdDeleteOutlined, MdEditnote,
@@ -48,21 +32,25 @@ addIcons(
   MdCloud, MdSunny, MdAccesstime,
   MdShield, MdShieldOutlined,
   MdHistory, MdAutoawesome,
-  MdDesktopmac,
+  MdDesktopmac, MdSettings,
+  MdViewmodule, MdMenubook,
+  MdDraghandle, MdArrowdropdown,
   FaEye, FaEyeSlash,
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,
-  GiScrollUnfurled, GiPerson,
-  GiBroadsword, GiTreasureMap,
-  GiOpenTreasureChest, GiAmericanShield,
-  GiMagicPalm, GiNotebook, GiBookAura,
-  GiMagicHat, GiHouseKeys, GiSandsOfTime,
-  GiAllSeeingEye, GiCastle, GiCoins,
-  GiHealthPotion, GiCandleSkull, GiBurningSkull,
-  GiDeathNote, GiAnvilImpact,
-  GiHolyGrail,
+  FaDragon, FaFeatherAlt, FaDice,
 )
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('OhVueIcon', OhVueIcon)
 })
+
+// Export the full GI icon name list for the icon picker
+// Converts "GiFireworkExplosion" -> "gi-firework-explosion"
+export const GI_ICON_NAMES: string[] = Object.keys(GiIcons)
+  .filter(k => k.startsWith('Gi'))
+  .map(k => k
+    .replace(/^Gi/, 'gi-')
+    .replace(/([A-Z])/g, (m, l, i) => i === 0 ? l.toLowerCase() : '-' + l.toLowerCase())
+    .replace(/^gi--/, 'gi-')
+  )

@@ -311,7 +311,7 @@ async function clearDb() {
 }
 
 .header h1 {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 28px;
   font-weight: 800;
   text-transform: uppercase;
@@ -485,7 +485,7 @@ async function clearDb() {
 }
 
 .stat-num {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 800;
   color: var(--gold);
@@ -609,7 +609,7 @@ async function clearDb() {
 }
 
 .success-box h3 {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 800;
   color: #7cc44e;
