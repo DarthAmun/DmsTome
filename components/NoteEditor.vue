@@ -16,8 +16,7 @@
       <div class="flex items-center gap-2">
         <!-- Session mode switcher -->
         <template v-if="entity?.type === 'session'">
-          <button v-for="m in sessionModes" :key="m.value"
-            class="mode-btn" :class="{ active: sessionMode === m.value }"
+          <button v-for="m in sessionModes" :key="m.value" class="mode-btn" :class="{ active: sessionMode === m.value }"
             @click="setSessionMode(m.value)">
             {{ m.label }}
           </button>
@@ -54,7 +53,8 @@
             <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
               <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
               Script / Prep
-              <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--forge-muted);margin-left:auto">read-only during session</span>
+              <span v-if="sessionMode === 'running'"
+                style="font-size:10px;color:var(--forge-muted);margin-left:auto">read-only during session</span>
             </div>
             <!-- Script: preview in running/finished, editor in planning -->
             <div v-if="sessionMode !== 'planning'" class="preview-pane">
@@ -70,13 +70,21 @@
           <div class="edit-pane">
             <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
               <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--forge-accent)" />
-              Session Notes
-              <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--forge-muted);margin-left:auto">available during session</span>
+              <span v-if="sessionMode === 'planning'">Script Preview</span>
+              <span v-else>Session Notes</span>
+              <span v-if="sessionMode === 'planning'"
+                style="font-size:10px;color:var(--forge-muted);margin-left:auto">live preview</span>
             </div>
-            <!-- Notes: editor in running, preview in finished/planning -->
+            <!-- Notes side: behaviour depends on mode -->
+            <!-- planning  → script preview (right side mirrors what you're editing left) -->
+            <!-- running   → notes editor (live note-taking) -->
+            <!-- finished  → notes preview -->
             <div v-if="sessionMode === 'running'" class="editor-area-wrap">
               <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
                 @input="onInput" placeholder="Take notes here while running the session…" />
+            </div>
+            <div v-else-if="sessionMode === 'planning'" class="preview-pane">
+              <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
             </div>
             <div v-else class="preview-pane">
               <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
@@ -231,7 +239,7 @@ const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0 })
 
 const sessionModes = [
   { value: 'planning', label: 'Planning' },
-  { value: 'running',  label: 'Running' },
+  { value: 'running', label: 'Running' },
   { value: 'finished', label: 'Finished' },
 ]
 const sessionMode = computed(() => (draftAttributes.value as any).mode ?? 'planning')
@@ -258,6 +266,13 @@ async function setSessionMode(mode: string) {
   draftAttributes.value = attrs
   await store.updateEntity(props.entityId, { attributes: attrs })
 }
+
+// Keep draftScript synced if attributes change externally
+watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
+  if (val !== undefined && val !== draftScript.value) {
+    draftScript.value = val ?? ''
+  }
+})
 
 watch(() => props.entityId, async (id) => {
   await store.loadEntity(id)
@@ -451,22 +466,41 @@ async function confirmDelete() {
 
 /* ── Split layout ─────────────────────────────────────────────────── */
 .mode-btn {
-  padding: 4px 12px; border-radius: var(--r-pill);
-  background: var(--forge-raised); border: 1px solid var(--forge-border);
-  color: var(--forge-muted); font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.07em;
-  cursor: pointer; transition: all 0.15s;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border);
+  color: var(--forge-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+  transition: all 0.15s;
 }
+
 .mode-btn.active {
-  background: #b87de822; border-color: #b87de855; color: #b87de8;
+  background: #b87de822;
+  border-color: #b87de855;
+  color: #b87de8;
 }
-.mode-btn:hover:not(.active) { color: var(--forge-text); background: var(--forge-hover); }
+
+.mode-btn:hover:not(.active) {
+  color: var(--forge-text);
+  background: var(--forge-hover);
+}
 
 .session-pane-label {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-bottom: 1px solid var(--forge-border);
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--forge-muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--forge-border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--forge-muted);
   flex-shrink: 0;
 }
 
