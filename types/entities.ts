@@ -109,3 +109,75 @@ export const NOTE_ICONS = [
   { name: 'gi-coins',           label: 'Treasure' },
   { name: 'gi-broadsword',      label: 'Combat' },
 ]
+
+// ── System Builder Types ───────────────────────────────────────────────────
+
+export type FieldComponentType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'multiselect'
+  | 'toggle'
+  | 'image'
+  | 'tracker'
+
+export interface FieldSchema {
+  key: string
+  label: string
+  component: FieldComponentType
+  config: {
+    placeholder?: string
+    options?: string[]          // for select / multiselect
+    min?: number
+    max?: number
+    step?: number
+    unit?: string               // e.g. "ft", "gp"
+    defaultMax?: number         // for tracker
+    rows?: number               // for textarea
+  }
+  required: boolean
+  showInCard: boolean           // show on summary card
+  showInHeader: boolean         // show prominently at top of record
+  sortable: boolean
+}
+
+export interface EntityTypeSchema {
+  id: string                    // stable key, e.g. "spell"
+  name: string
+  plural: string
+  icon: string                  // gi-* icon name
+  color: string
+  fields: FieldSchema[]
+}
+
+export interface SystemSchema {
+  id?: number
+  name: string
+  shortId: string               // "pf2e"
+  description: string
+  version: string
+  entityTypes: EntityTypeSchema[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Converts a camelCase/PascalCase label to a snake_case key
+export function labelToKey(label: string): string {
+  return label
+    .trim()
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .replace(/\s+(.)/g, (_, c) => c.toUpperCase())
+    .replace(/^(.)/, c => c.toLowerCase())
+}
+
+export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string; icon: string }[] = [
+  { value: 'text',        label: 'Text',        icon: 'md-editnote' },
+  { value: 'textarea',    label: 'Markdown',    icon: 'gi-book-aura' },
+  { value: 'number',      label: 'Number',      icon: 'gi-coins' },
+  { value: 'select',      label: 'Select',      icon: 'md-arrowdropdown' },
+  { value: 'multiselect', label: 'Multi-select',icon: 'gi-all-seeing-eye' },
+  { value: 'toggle',      label: 'Toggle',      icon: 'gi-health-potion' },
+  { value: 'image',       label: 'Image',       icon: 'gi-person' },
+  { value: 'tracker',     label: 'Tracker',     icon: 'gi-sands-of-time' },
+]

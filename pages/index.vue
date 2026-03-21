@@ -1,186 +1,282 @@
 <template>
   <div class="shell">
-    <!-- Left icon rail -->
+    <!-- Left rail -->
     <nav class="icon-rail">
-      <div class="icon-rail-logo">
-        <OhVueIcon name="gi-anvil-impact" />
-      </div>
-      <button v-for="c in campaigns" :key="c.id" class="rail-icon-btn"
-        :class="{ active: selectedCampaign?.id === c.id }" :title="c.name" @click="selectCampaign(c)">
-        <span style="font-weight:800;font-size:14px">
-          {{ c.name.charAt(0).toUpperCase() }}
-        </span>
+      <div class="icon-rail-logo"><OhVueIcon name="gi-anvil-impact" /></div>
+      <div class="rail-divider" />
+      <button class="rail-icon-btn" :class="{ active: section === 'campaigns' }"
+        title="Campaigns" @click="section = 'campaigns'">
+        <OhVueIcon name="gi-broadsword" scale="1" />
+      </button>
+      <button class="rail-icon-btn" :class="{ active: section === 'systems' }"
+        title="Systems" @click="section = 'systems'">
+        <OhVueIcon name="gi-book-aura" scale="1" />
+      </button>
+      <button class="rail-icon-btn" :class="{ active: section === 'library' }"
+        title="Library" @click="section = 'library'">
+        <OhVueIcon name="gi-open-treasure-chest" scale="1" />
       </button>
       <div class="rail-spacer" />
-      <button class="rail-fab" title="New Campaign" @click="showNew = true">+</button>
+      <button class="rail-fab" @click="createNew" :title="`New ${sectionLabel}`">+</button>
     </nav>
 
-    <!-- Main area -->
     <div class="shell-body">
-      <!-- Top bar -->
-      <header class="top-bar">
-        <span class="top-bar-title">DM FORGE</span>
-        <NuxtLink v-if="selectedCampaign" :to="`/campaign/${selectedCampaign.id}/encounters`" class="nav-pill">
-          <OhVueIcon name="gi-broadsword" scale="0.9" /> Encounters
-        </NuxtLink>
-        <NuxtLink v-if="selectedCampaign" :to="`/campaign/${selectedCampaign.id}/notes`" class="nav-pill">
-          <OhVueIcon name="gi-scroll-unfurled" scale="0.9" /> Notes
-        </NuxtLink>
-        <div class="top-bar-spacer" />
-        <label v-if="selectedCampaign" class="nav-pill" style="cursor:pointer" title="Import backup">
-          <OhVueIcon name="md-arrowback" scale="0.85" /> Import
-          <input type="file" accept=".json" style="display:none" @change="importData" />
-        </label>
-        <button v-if="selectedCampaign" class="nav-pill" @click="exportData(selectedCampaign.id)" title="Export backup">
-          <OhVueIcon name="md-cloud" scale="0.85" /> Export
-        </button>
-        <Button v-if="selectedCampaign" severity="danger" size="small" @click="deleteCampaign(selectedCampaign.id)">
-          <template #icon>
-            <OhVueIcon name="md-delete" scale="0.85" />
-          </template>
-        </Button>
-      </header>
-
-      <!-- Content -->
-      <div v-if="selectedCampaign" class="main-canvas">
-        <h1 class="section-eyebrow">{{ selectedCampaign.name }}</h1>
-        <p v-if="selectedCampaign.description" class="campaign-desc">{{ selectedCampaign.description }}</p>
-
-        <!-- Module cards -->
-        <div class="module-grid">
-          <NuxtLink v-for="mod in modules" :key="mod.id" :to="mod.available ? moduleRoute(mod.id) : '#'"
-            class="module-card v6-card"
-            :class="{ 'module-card--on': mod.available, 'module-card--off': !mod.available }">
-            <div class="module-card-inner">
-              <div class="module-icon-wrap" :class="mod.available ? 'icon-wrap--on' : ''">
-                <OhVueIcon :name="mod.icon" scale="1.6" />
+      <!-- ── CAMPAIGNS ───────────────────────────────────────────────── -->
+      <template v-if="section === 'campaigns'">
+        <header class="top-bar">
+          <span class="top-bar-title">Campaigns</span>
+          <div class="top-bar-spacer" />
+          <label class="nav-pill" style="cursor:pointer" title="Import backup">
+            <OhVueIcon name="md-arrowback" scale="0.85" /> Import
+            <input type="file" accept=".json" style="display:none" @change="importData" />
+          </label>
+        </header>
+        <div class="main-canvas">
+          <div class="section-grid">
+            <div v-for="c in campaigns" :key="c.id" class="camp-card v6-card" @click="openCampaign(c)">
+              <div class="camp-card-header">
+                <span class="camp-initial">{{ c.name.charAt(0).toUpperCase() }}</span>
+                <div class="camp-card-actions" @click.stop>
+                  <button class="act-btn" @click.stop="exportData(c.id)" title="Export">
+                    <OhVueIcon name="md-cloud" scale="0.8" />
+                  </button>
+                  <button class="act-btn act-btn--danger" @click.stop="deleteCampaign(c.id)" title="Delete">
+                    <OhVueIcon name="md-delete" scale="0.8" />
+                  </button>
+                </div>
               </div>
-              <div class="module-info">
-                <div class="module-name">{{ mod.name }}</div>
-                <div class="module-sub">{{ mod.available ? 'Available' : 'Coming soon' }}</div>
+              <div class="camp-card-body">
+                <div class="camp-name">{{ c.name }}</div>
+                <div v-if="c.description" class="camp-desc">{{ c.description }}</div>
+                <div class="camp-system" v-if="systemName(c.system_id)">
+                  <OhVueIcon name="gi-book-aura" scale="0.75" />
+                  {{ systemName(c.system_id) }}
+                </div>
+                <div class="camp-date">{{ formatDate(c.updated_at) }}</div>
               </div>
-              <span v-if="mod.available" class="module-arrow">→</span>
+              <div class="camp-modules">
+                <span class="camp-module">Notes</span>
+                <span class="camp-module">Encounters</span>
+                <span class="camp-module">Map</span>
+              </div>
             </div>
-          </NuxtLink>
-        </div>
 
-        <!-- Recent encounters -->
-        <div class="recent-block">
-          <div class="recent-head">
-            <span class="v6-card-label">Recent Encounters</span>
-            <NuxtLink :to="`/campaign/${selectedCampaign.id}/encounters`" class="text-link">See all →</NuxtLink>
+            <div class="camp-card camp-card--new v6-card" @click="showNew = true">
+              <OhVueIcon name="md-add" scale="2" style="opacity:0.2;margin-bottom:8px" />
+              <span style="color:var(--secondary);font-size:13px;font-weight:500">New Campaign</span>
+            </div>
           </div>
-          <div class="recent-list">
-            <NuxtLink v-for="enc in recentEncounters" :key="enc.id" :to="`/encounter/${enc.id}`" class="recent-row">
-              <div class="recent-dot">
-                <OhVueIcon name="gi-broadsword" scale="0.85" />
+        </div>
+      </template>
+
+      <!-- ── SYSTEMS ────────────────────────────────────────────────── -->
+      <template v-else-if="section === 'systems'">
+        <header class="top-bar">
+          <span class="top-bar-title">Systems</span>
+          <div class="top-bar-spacer" />
+          <label class="nav-pill" style="cursor:pointer" title="Import system schema">
+            <OhVueIcon name="md-arrowback" scale="0.85" /> Import Schema
+            <input type="file" accept=".json" style="display:none" @change="importSystem" />
+          </label>
+        </header>
+        <div class="main-canvas">
+          <div class="section-grid">
+            <NuxtLink v-for="sys in systems" :key="sys.id!" :to="`/system/${sys.id}`"
+              class="sys-card v6-card">
+              <div class="sys-card-icon">
+                <OhVueIcon name="gi-book-aura" scale="2.5" style="opacity:0.3" />
               </div>
-              <span class="recent-name">{{ enc.name }}</span>
-              <span class="recent-date">{{ formatDate(enc.updated_at) }}</span>
+              <div class="sys-card-body">
+                <div class="sys-name">{{ sys.name }}</div>
+                <div class="sys-version">v{{ sys.version }} · {{ sys.entityTypes.length }} types</div>
+                <div v-if="sys.description" class="sys-desc">{{ sys.description }}</div>
+              </div>
             </NuxtLink>
-            <p v-if="recentEncounters.length === 0" class="empty-hint">No encounters yet</p>
+            <div class="sys-card sys-card--new v6-card" @click="showNewSystem = true">
+              <OhVueIcon name="md-add" scale="2" style="opacity:0.2;margin-bottom:8px" />
+              <span style="color:var(--secondary);font-size:13px;font-weight:500">New System</span>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
 
-      <div v-else class="main-canvas empty-canvas">
-        <div class="empty-icon">⚔</div>
-        <h2 class="empty-title">Select a Campaign</h2>
-        <p class="empty-sub">Pick one from the sidebar or create a new one</p>
-        <button class="pill-btn pill-btn--accent" @click="showNew = true">
-          <OhVueIcon name="md-add" scale="0.9" /> New Campaign
-        </button>
+      <!-- ── LIBRARY ────────────────────────────────────────────────── -->
+      <template v-else>
+        <header class="top-bar">
+          <span class="top-bar-title">Library</span>
+          <div class="top-bar-spacer" />
+          <Select v-model="librarySystemFilter" :options="systemFilterOptions"
+            option-label="label" option-value="value" style="width:180px" />
+        </header>
+        <div class="main-canvas">
+          <div v-if="systems.length === 0" class="lib-empty">
+            <p>No systems yet. Add a system first to create library content.</p>
+          </div>
+          <template v-else>
+            <div v-for="sys in filteredSystems" :key="sys.id!" class="lib-system-section">
+              <h2 class="lib-sys-name">{{ sys.name }}</h2>
+              <div class="lib-types-row">
+                <NuxtLink v-for="et in sys.entityTypes" :key="et.id"
+                  :to="`/system/${sys.id}/${et.id}`"
+                  class="lib-type-chip"
+                  :style="{ borderColor: et.color + '55', color: et.color }">
+                  <OhVueIcon :name="et.icon" scale="0.85" />
+                  {{ et.plural }}
+                </NuxtLink>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+
+    <!-- New campaign dialog -->
+    <div v-if="showNew" class="dialog-backdrop" @click.self="showNew = false">
+      <div class="dialog-box">
+        <h3 class="dialog-title">New Campaign</h3>
+        <div class="dialog-field">
+          <label class="f-label">Name</label>
+          <input class="f-input" v-model="newCamp.name" placeholder="Curse of Strahd…"
+            @keyup.enter="createCampaign" autofocus />
+        </div>
+        <div class="dialog-field">
+          <label class="f-label">Description</label>
+          <input class="f-input" v-model="newCamp.description" placeholder="Optional…" />
+        </div>
+        <div class="dialog-field">
+          <label class="f-label">System</label>
+          <Select v-model="newCamp.systemId" :options="systemOptions"
+            option-label="label" option-value="value" placeholder="— optional —" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn-primary-pill" @click="createCampaign">Create</button>
+          <button class="btn-ghost-pill" @click="showNew = false">Cancel</button>
+        </div>
       </div>
     </div>
 
-    <!-- New Campaign Dialog -->
-    <Dialog v-model:visible="showNew" modal :draggable="false">
-      <template #header>New Campaign</template>
-      <div class="dialog-fields">
-        <label class="f-label">Campaign Name</label>
-        <InputText v-model="newCampaign.name" placeholder="The Lost Mines…" autofocus @keyup.enter="create" />
-        <label class="f-label" style="margin-top:14px">Description</label>
-        <Textarea v-model="newCampaign.description" placeholder="A brief description…" :rows="3" />
+    <!-- New system dialog -->
+    <div v-if="showNewSystem" class="dialog-backdrop" @click.self="showNewSystem = false">
+      <div class="dialog-box">
+        <h3 class="dialog-title">New System</h3>
+        <div class="dialog-field">
+          <label class="f-label">Name</label>
+          <input class="f-input" v-model="newSys.name" placeholder="Pathfinder 2e…" autofocus />
+        </div>
+        <div class="dialog-field">
+          <label class="f-label">Short ID <span style="color:var(--muted);font-weight:400">(used internally)</span></label>
+          <input class="f-input f-mono" v-model="newSys.shortId" placeholder="pf2e" />
+        </div>
+        <div class="dialog-field">
+          <label class="f-label">Description</label>
+          <input class="f-input" v-model="newSys.description" placeholder="Optional…" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn-primary-pill" @click="createSystem">Create</button>
+          <button class="btn-ghost-pill" @click="showNewSystem = false">Cancel</button>
+        </div>
       </div>
-      <template #footer>
-        <Button severity="secondary" @click="showNew = false">Cancel</Button>
-        <Button @click="create">Create</Button>
-      </template>
-    </Dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useSystemsStore } from '~/stores/systems'
+import { getDb } from '~/composables/useDb'
+
+const router = useRouter()
+const systemsStore = useSystemsStore()
+
+const section = ref<'campaigns' | 'systems' | 'library'>('campaigns')
+const sectionLabel = computed(() => ({ campaigns: 'Campaign', systems: 'System', library: '' }[section.value]))
+
 const campaigns = ref<any[]>([])
-const selectedCampaign = ref<any>(null)
-const recentEncounters = ref<any[]>([])
 const showNew = ref(false)
-const newCampaign = ref({ name: '', description: '' })
+const showNewSystem = ref(false)
+const newCamp = ref({ name: '', description: '', systemId: null as number | null })
+const newSys = ref({ name: '', shortId: '', description: '' })
+const librarySystemFilter = ref<number | null>(null)
 
-const modules = [
-  { id: 'encounters', name: 'Encounters', icon: 'gi-broadsword', available: true },
-  { id: 'notes', name: 'Notes', icon: 'gi-scroll-unfurled', available: true },
-  { id: 'map', name: 'World Map', icon: 'gi-treasure-map', available: true },
-  { id: 'timeline', name: 'Timeline', icon: 'gi-sands-of-time', available: false },
-]
+const systems = computed(() => systemsStore.systems)
+const systemOptions = computed(() => [
+  { label: '— none —', value: null },
+  ...systemsStore.systems.map(s => ({ label: s.name, value: s.id! })),
+])
+const systemFilterOptions = computed(() => [
+  { label: 'All systems', value: null },
+  ...systemsStore.systems.map(s => ({ label: s.name, value: s.id! })),
+])
+const filteredSystems = computed(() =>
+  librarySystemFilter.value
+    ? systems.value.filter(s => s.id === librarySystemFilter.value)
+    : systems.value
+)
 
-function moduleRoute(id: string) {
-  if (id === 'encounters') return `/campaign/${selectedCampaign.value?.id}/encounters`
-  if (id === 'notes') return `/campaign/${selectedCampaign.value?.id}/notes`
-  if (id === 'map') return `/campaign/${selectedCampaign.value?.id}/map`
-  return '#'
+function systemName(id?: number | null) {
+  if (!id) return null
+  return systemsStore.getSystem(id)?.name ?? null
 }
 
 onMounted(async () => {
-  if (!window.dmforge) return
+  await systemsStore.loadAll()
   campaigns.value = await window.dmforge.campaigns.list()
-  if (campaigns.value.length > 0) await selectCampaign(campaigns.value[0])
 })
 
-async function selectCampaign(c: any) {
-  selectedCampaign.value = c
-  if (window.dmforge) recentEncounters.value = (await window.dmforge.encounters.list(c.id)).slice(0, 6)
+function createNew() {
+  if (section.value === 'campaigns') showNew.value = true
+  else if (section.value === 'systems') showNewSystem.value = true
 }
-async function create() {
-  if (!newCampaign.value.name.trim() || !window.dmforge) return
-  const c = await window.dmforge.campaigns.create({ name: newCampaign.value.name, description: newCampaign.value.description })
+
+async function createCampaign() {
+  if (!newCamp.value.name.trim()) return
+  const c = await window.dmforge.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
+  if (newCamp.value.systemId) {
+    await getDb().campaigns.update(c.id, { system_id: newCamp.value.systemId })
+    c.system_id = newCamp.value.systemId
+  }
   campaigns.value.unshift(c)
-  newCampaign.value = { name: '', description: '' }
+  newCamp.value = { name: '', description: '', systemId: null }
   showNew.value = false
-  await selectCampaign(c)
+  openCampaign(c)
 }
+
+async function createSystem() {
+  if (!newSys.value.name.trim()) return
+  const sys = await systemsStore.createSystem(newSys.value)
+  newSys.value = { name: '', shortId: '', description: '' }
+  showNewSystem.value = false
+  router.push(`/system/${sys.id}/builder`)
+}
+
+function openCampaign(c: any) {
+  router.push(`/campaign/${c.id}/notes`)
+}
+
 async function deleteCampaign(id: number) {
-  if (!window.dmforge) return
+  if (!confirm('Delete this campaign and all its data?')) return
   await window.dmforge.campaigns.delete(id)
   campaigns.value = campaigns.value.filter(c => c.id !== id)
-  if (selectedCampaign.value?.id === id) { selectedCampaign.value = null; recentEncounters.value = [] }
+}
+
+async function importSystem(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const text = await file.text()
+  const sys = await systemsStore.importSystem(text)
+  router.push(`/system/${sys.id}`)
 }
 
 async function exportData(campaignId: number) {
-  const { getDb } = await import('~/composables/useDb')
   const db = getDb()
   const camp = campaigns.value.find(c => c.id === campaignId)
   const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
   const encIds = encounters.map((e: any) => e.id as number)
-  const encounterTokens = encIds.length
-    ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray()
-    : []
+  const encounterTokens = encIds.length ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray() : []
   const entities = await db.entities.where('campaign_id').equals(campaignId).toArray()
   const entIds = entities.map((e: any) => e.id as number)
-  const entityLinks = entIds.length
-    ? await db.entityLinks.where('source_id').anyOf(entIds).toArray()
-    : []
+  const entityLinks = entIds.length ? await db.entityLinks.where('source_id').anyOf(entIds).toArray() : []
   const tokens = await db.tokens.toArray()
-  const payload = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    campaign: camp,
-    encounters,
-    encounterTokens,
-    entities,
-    entityLinks,
-    tokens,
-  }
+  const payload = { version: 1, exportedAt: new Date().toISOString(), campaign: camp, encounters, encounterTokens, entities, entityLinks, tokens }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -198,7 +294,6 @@ async function importData(e: Event) {
     const text = await file.text()
     const payload = JSON.parse(text)
     if (!payload.version || !payload.campaign) { alert('Invalid backup file'); return }
-    const { getDb } = await import('~/composables/useDb')
     const db = getDb()
     const now = new Date().toISOString()
     await db.campaigns.put({ ...payload.campaign, updated_at: payload.campaign.updated_at ?? now, created_at: payload.campaign.created_at ?? now })
@@ -208,7 +303,6 @@ async function importData(e: Event) {
     for (const ent of payload.entities ?? []) await db.entities.put(ent)
     for (const lnk of payload.entityLinks ?? []) await db.entityLinks.put(lnk)
     campaigns.value = await window.dmforge.campaigns.list()
-    if (campaigns.value.length > 0) await selectCampaign(campaigns.value[0])
     alert('Import successful!')
   } catch (err: any) {
     alert('Import failed: ' + err.message)
@@ -216,210 +310,67 @@ async function importData(e: Event) {
 }
 
 function formatDate(dt: string) {
-  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (!dt) return ''
+  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 </script>
 
 <style scoped>
-.shell {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--bg);
-}
+.shell { display: flex; height: 100vh; overflow: hidden; }
+.shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
+.top-bar-spacer { flex: 1; }
+.main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; }
+.section-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 
-.shell-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
+/* Campaign cards */
+.camp-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
+.camp-card-header { display: flex; align-items: center; padding: 20px 20px 12px; background: linear-gradient(135deg, var(--raised) 0%, var(--card) 100%); }
+.camp-initial { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 900; color: var(--gold); flex: 1; }
+.camp-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.camp-card:hover .camp-card-actions { opacity: 1; }
+.camp-card-body { padding: 0 20px 12px; flex: 1; }
+.camp-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.camp-desc { font-size: 12px; color: var(--secondary); margin-bottom: 6px; }
+.camp-system { font-size: 11px; color: var(--gold); display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.camp-date { font-size: 10px; color: var(--muted); }
+.camp-modules { display: flex; gap: 4px; padding: 10px 20px; border-top: 1px solid var(--border); }
+.camp-module { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); }
+.camp-card--new { align-items: center; justify-content: center; min-height: 160px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
+.camp-card--new:hover { border-color: var(--border-l); background: var(--card); }
 
-.campaign-desc {
-  font-size: 14px;
-  color: var(--secondary);
-  margin-bottom: 28px;
-  margin-top: -12px;
-}
+/* System cards */
+.sys-card { display: flex; flex-direction: column; overflow: hidden; text-decoration: none; }
+.sys-card-icon { height: 80px; display: flex; align-items: center; justify-content: center; background: var(--raised); }
+.sys-card-body { padding: 14px 16px; }
+.sys-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+.sys-version { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.sys-desc { font-size: 12px; color: var(--secondary); }
+.sys-card--new { align-items: center; justify-content: center; min-height: 140px; border: 2px dashed var(--border); box-shadow: none; background: transparent; cursor: pointer; }
+.sys-card--new:hover { border-color: var(--border-l); background: var(--card); }
 
-.module-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 32px;
-}
+/* Library */
+.lib-system-section { margin-bottom: 28px; }
+.lib-sys-name { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 12px; }
+.lib-types-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.lib-type-chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 999px; background: var(--card); border: 1px solid; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+.lib-type-chip:hover { background: var(--raised); transform: translateY(-1px); }
+.lib-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--secondary); font-size: 13px; }
 
-.module-card {
-  text-decoration: none;
-  display: block;
-}
+/* Action buttons */
+.act-btn { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.5); border: none; color: var(--secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.act-btn:hover { color: var(--text); }
+.act-btn--danger:hover { color: var(--danger); }
 
-.module-card--off {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.module-card--on:hover .module-icon-wrap {
-  background: var(--gold-dim);
-  color: var(--gold);
-}
-
-.module-card-inner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
-}
-
-.module-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--raised);
-  color: var(--secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.icon-wrap--on {
-  color: var(--text);
-}
-
-.module-info {
-  flex: 1;
-}
-
-.module-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.module-sub {
-  font-size: 11px;
-  color: var(--secondary);
-  margin-top: 2px;
-}
-
-.module-arrow {
-  font-size: 16px;
-  color: var(--muted);
-  transition: color 0.2s;
-}
-
-.module-card--on:hover .module-arrow {
-  color: var(--gold);
-}
-
-.recent-block {}
-
-.recent-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.text-link {
-  font-size: 12px;
-  color: var(--gold);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.text-link:hover {
-  opacity: 0.8;
-}
-
-.recent-list {
-  background: var(--card);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-
-.recent-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 18px;
-  text-decoration: none;
-  color: var(--text);
-  transition: background 0.15s;
-  border-bottom: 1px solid var(--border);
-}
-
-.recent-row:last-child {
-  border-bottom: none;
-}
-
-.recent-row:hover {
-  background: var(--raised);
-}
-
-.recent-dot {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--gold-dim);
-  color: var(--gold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.recent-name {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.recent-date {
-  font-size: 11px;
-  color: var(--secondary);
-}
-
-.empty-hint {
-  font-size: 13px;
-  color: var(--secondary);
-  padding: 16px 18px;
-}
-
-.empty-canvas {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-icon {
-  font-size: 48px;
-  opacity: 0.08;
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 24px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  margin-bottom: 8px;
-}
-
-.empty-sub {
-  font-size: 13px;
-  color: var(--secondary);
-  margin-bottom: 24px;
-}
-
-.dialog-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+/* Dialogs */
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; align-items: center; justify-content: center; }
+.dialog-box { background: var(--card); border-radius: 18px; padding: 28px; width: 400px; max-width: 90vw; display: flex; flex-direction: column; gap: 16px; }
+.dialog-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); }
+.dialog-field { display: flex; flex-direction: column; gap: 5px; }
+.dialog-actions { display: flex; gap: 10px; padding-top: 4px; }
+.btn-primary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 999px; background: var(--gold); color: #0d0d0d; font-size: 13px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+.btn-primary-pill:hover { background: #f5cb4a; }
+.btn-ghost-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 999px; background: var(--raised); border: 1px solid var(--border); color: var(--secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.btn-ghost-pill:hover { color: var(--text); }
+.f-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 </style>
