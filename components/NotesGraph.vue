@@ -94,7 +94,7 @@ const iconRegistry: Record<string, any> = {
 function makeInitialDataUrl(color: string, initial: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
     <circle cx="22" cy="22" r="21" fill="#1e1e1e" stroke="${color}" stroke-width="1.5"/>
-    <text x="22" y="28" text-anchor="middle" font-family="Syne,sans-serif" font-size="16" font-weight="700" fill="${color}">${initial}</text>
+    <text x="22" y="28" text-anchor="middle" font-family="var(--font-display)" font-size="16" font-weight="700" fill="${color}">${initial}</text>
   </svg>`
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
@@ -334,7 +334,7 @@ onUnmounted(() => { cy?.destroy() })
 }
 
 .tooltip-name {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   color: #ebbd34;
 }

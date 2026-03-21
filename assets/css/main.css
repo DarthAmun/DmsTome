@@ -4,6 +4,7 @@
 
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 :root {
+  --font-display: 'DM Sans', system-ui, sans-serif;
   --bg: #0d0d0d;
   --card: #1a1a1a;
   --raised: #242424;

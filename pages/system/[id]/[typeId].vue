@@ -80,6 +80,7 @@
         <div class="rec-card-body">
           <div class="rec-card-name">{{ rec.name }}</div>
           <div v-for="f in cardFields.slice(0, 3)" :key="f.key" class="rec-card-field">
+            <span class="rec-card-field-label">{{ f.label }}:</span>
             <span class="rec-card-field-val">{{ formatCardValue(f, recordData(rec)[f.key]) }}</span>
           </div>
           <div class="rec-card-date">{{ formatDate(rec.updatedAt) }}</div>
@@ -146,14 +147,20 @@ async function createRecord() {
     data: '{}', createdAt: ts, updatedAt: ts,
   })
   await loadRecords()
-  openRecord(records.value.find(r => r.id === id)!)
+  const rec = records.value.find(r => r.id === id)!
+  selectedId.value = rec.id
+  draftName.value = rec.name
+  draftData.value = {}
+  editMode.value = true  // always start in edit mode for new records
 }
 
 function openRecord(rec: any) {
   selectedId.value = rec.id
   draftName.value = rec.name
   draftData.value = { ...recordData(rec) }
-  editMode.value = false
+  // Auto-enter edit mode if record has no data yet
+  const hasData = Object.keys(recordData(rec)).some(k => recordData(rec)[k] !== undefined && recordData(rec)[k] !== null && recordData(rec)[k] !== '')
+  editMode.value = !hasData
 }
 
 async function saveName() {
@@ -209,7 +216,7 @@ function formatDate(dt: string) {
 .rec-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--forge-muted); text-decoration: none; margin-bottom: 10px; }
 .rec-back:hover { color: var(--forge-text); }
 .rec-title-row { display: flex; align-items: center; gap: 10px; }
-.rec-title { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); }
+.rec-title { font-family: var(--font-display); font-size: 22px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); }
 .rec-count { font-size: 14px; color: var(--forge-muted); }
 .rec-spacer { flex: 1; }
 .search-wrap { display: flex; align-items: center; gap: 8px; background: var(--forge-raised); border-radius: 999px; padding: 7px 14px; }
@@ -217,9 +224,9 @@ function formatDate(dt: string) {
 .rec-detail-bar { padding: 10px 20px; background: var(--forge-surface); border-bottom: 1px solid var(--forge-border); flex-shrink: 0; }
 .rec-detail-body { flex: 1; overflow-y: auto; padding: 24px; }
 .rec-detail-header { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid; margin-bottom: 24px; }
-.rec-name { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 900; color: var(--forge-text); cursor: pointer; flex: 1; }
+.rec-name { font-family: var(--font-display); font-size: 24px; font-weight: 900; color: var(--forge-text); cursor: pointer; flex: 1; }
 .rec-name:hover { color: var(--forge-accent); }
-.rec-name-input { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 900; background: var(--forge-raised); border: 1px solid var(--forge-accent); border-radius: 6px; color: var(--forge-text); padding: 2px 8px; flex: 1; outline: none; }
+.rec-name-input { font-family: var(--font-display); font-size: 24px; font-weight: 900; background: var(--forge-raised); border: 1px solid var(--forge-accent); border-radius: 6px; color: var(--forge-text); padding: 2px 8px; flex: 1; outline: none; }
 .rec-type-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 999px; }
 .rec-fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 .rec-field-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -230,8 +237,9 @@ function formatDate(dt: string) {
 .rec-card-img { height: 100px; overflow: hidden; }
 .rec-card-icon-col { height: 80px; display: flex; align-items: center; justify-content: center; }
 .rec-card-body { padding: 12px 14px; }
-.rec-card-name { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--forge-text); margin-bottom: 4px; }
-.rec-card-field { font-size: 11px; color: var(--forge-muted); margin-bottom: 2px; }
+.rec-card-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--forge-text); margin-bottom: 4px; }
+.rec-card-field { font-size: 11px; color: var(--forge-muted); margin-bottom: 2px; display: flex; gap: 4px; }
+.rec-card-field-label { color: var(--forge-muted); flex-shrink: 0; }
 .rec-card-field-val { color: var(--forge-secondary); }
 .rec-card-date { font-size: 10px; color: var(--forge-muted); margin-top: 6px; opacity: 0.6; }
 .rec-empty { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 60px; color: var(--forge-muted); font-size: 13px; gap: 16px; }

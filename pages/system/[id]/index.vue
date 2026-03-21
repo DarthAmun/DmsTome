@@ -1,8 +1,8 @@
 <template>
   <div class="sys-page">
     <header class="sys-header">
-      <NuxtLink to="/systems" class="sys-back">
-        <OhVueIcon name="md-arrowback" scale="0.9" /> Systems
+      <NuxtLink to="/" class="sys-back">
+        <OhVueIcon name="md-arrowback" scale="0.9" /> Dashboard
       </NuxtLink>
       <h1 class="sys-title">{{ system?.name }}</h1>
       <p v-if="system?.description" class="sys-desc">{{ system.description }}</p>
@@ -82,7 +82,7 @@ function exportSystem() {
 .sys-header { margin-bottom: 32px; }
 .sys-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--forge-muted); text-decoration: none; margin-bottom: 12px; transition: color 0.15s; }
 .sys-back:hover { color: var(--forge-text); }
-.sys-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); margin-bottom: 6px; }
+.sys-title { font-family: var(--font-display); font-size: 28px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); margin-bottom: 6px; }
 .sys-desc { font-size: 13px; color: var(--forge-secondary); margin-bottom: 16px; }
 .sys-header-actions { display: flex; gap: 8px; }
 .btn-primary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; background: var(--forge-accent); color: #0d0d0d; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.15s; border: none; cursor: pointer; }
@@ -94,7 +94,7 @@ function exportSystem() {
 .et-card:hover { transform: translateY(-2px); }
 .et-card-icon { height: 100px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .et-card-body { padding: 14px 16px; flex: 1; }
-.et-card-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--forge-text); margin-bottom: 4px; }
+.et-card-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--forge-text); margin-bottom: 4px; }
 .et-card-count { font-size: 11px; color: var(--forge-muted); }
 .et-card-arrow { padding: 10px 16px; font-size: 18px; color: var(--forge-muted); text-align: right; }
 .et-empty { grid-column: 1/-1; text-align: center; padding: 40px; color: var(--forge-muted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 16px; }

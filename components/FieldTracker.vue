@@ -66,10 +66,10 @@ function setMax(v: number) {
 .f-track-btn:hover:not(:disabled) { background:var(--forge-hover); }
 .f-track-btn:disabled { opacity:0.3;cursor:not-allowed; }
 .f-track-display { display:flex;align-items:baseline;gap:4px; }
-.f-track-cur { font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--forge-text);cursor:pointer;min-width:28px;text-align:center; }
+.f-track-cur { font-family: var(--font-display);font-size:22px;font-weight:800;color:var(--forge-text);cursor:pointer;min-width:28px;text-align:center; }
 .f-track-sep { font-size:16px;color:var(--forge-muted); }
 .f-track-max { font-size:14px;color:var(--forge-muted);cursor:pointer;min-width:24px;text-align:center; }
-.f-track-input { font-family:'Syne',sans-serif;font-size:22px;font-weight:800;width:48px;background:var(--forge-raised);border:1px solid var(--forge-accent);border-radius:4px;color:var(--forge-text);text-align:center;outline:none; }
+.f-track-input { font-family: var(--font-display);font-size:22px;font-weight:800;width:48px;background:var(--forge-raised);border:1px solid var(--forge-accent);border-radius:4px;color:var(--forge-text);text-align:center;outline:none; }
 .f-track-bar { height:4px;background:var(--forge-raised);border-radius:999px;overflow:hidden;margin-top:6px; }
 .f-track-fill { height:100%;border-radius:999px;transition:width 0.3s,background 0.3s; }
 </style>

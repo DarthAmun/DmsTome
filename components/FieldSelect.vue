@@ -5,7 +5,7 @@
       <option value="">— select —</option>
       <option v-for="opt in field.config.options ?? []" :key="opt" :value="opt">{{ opt }}</option>
     </select>
-    <span v-else class="f-badge" v-if="value">{{ value }}</span>
+    <span v-else-if="value" class="f-badge" v-if="value">{{ value }}</span>
     <span v-else class="f-view-empty">—</span>
   </div>
 </template>
@@ -15,7 +15,30 @@ defineProps<{ field: FieldSchema; value: any; mode: 'view' | 'edit' }>()
 defineEmits<{ update: [any] }>()
 </script>
 <style scoped>
-.f-select { width:100%;background:var(--forge-raised);border:1px solid var(--forge-border);border-radius:var(--r-md);padding:7px 10px;color:var(--forge-text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none; }
-.f-badge { display:inline-block;padding:2px 10px;border-radius:999px;background:var(--forge-raised);border:1px solid var(--forge-border);font-size:12px;color:var(--forge-secondary); }
-.f-view-empty { font-size:13px;color:var(--forge-muted); }
+.f-select {
+  width: 100%;
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border);
+  border-radius: var(--r-md);
+  padding: 7px 10px;
+  color: var(--forge-text);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+}
+
+.f-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border);
+  font-size: 12px;
+  color: var(--forge-secondary);
+}
+
+.f-view-empty {
+  font-size: 13px;
+  color: var(--forge-muted);
+}
 </style>

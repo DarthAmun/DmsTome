@@ -33,7 +33,7 @@
         </header>
         <div class="main-canvas">
           <div class="section-grid">
-            <div v-for="c in campaigns" :key="c.id" class="camp-card v6-card" @click="openCampaign(c)">
+            <div v-for="c in campaigns" :key="c.id" class="camp-card v6-card">
               <div class="camp-card-header">
                 <span class="camp-initial">{{ c.name.charAt(0).toUpperCase() }}</span>
                 <div class="camp-card-actions" @click.stop>
@@ -54,10 +54,10 @@
                 </div>
                 <div class="camp-date">{{ formatDate(c.updated_at) }}</div>
               </div>
-              <div class="camp-modules">
-                <span class="camp-module">Notes</span>
-                <span class="camp-module">Encounters</span>
-                <span class="camp-module">Map</span>
+              <div class="camp-modules" @click.stop>
+                <NuxtLink :to="`/campaign/${c.id}/notes`" class="camp-module">Notes</NuxtLink>
+                <NuxtLink :to="`/campaign/${c.id}/encounters`" class="camp-module">Encounters</NuxtLink>
+                <NuxtLink :to="`/campaign/${c.id}/map`" class="camp-module">Map</NuxtLink>
               </div>
             </div>
 
@@ -249,7 +249,7 @@ async function createSystem() {
 }
 
 function openCampaign(c: any) {
-  router.push(`/campaign/${c.id}/notes`)
+  router.push(`/campaign/${c.id}`)
 }
 
 async function deleteCampaign(id: number) {
@@ -326,16 +326,17 @@ function formatDate(dt: string) {
 /* Campaign cards */
 .camp-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
 .camp-card-header { display: flex; align-items: center; padding: 20px 20px 12px; background: linear-gradient(135deg, var(--raised) 0%, var(--card) 100%); }
-.camp-initial { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 900; color: var(--gold); flex: 1; }
+.camp-initial { font-family: var(--font-display); font-size: 32px; font-weight: 900; color: var(--gold); flex: 1; }
 .camp-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
 .camp-card:hover .camp-card-actions { opacity: 1; }
 .camp-card-body { padding: 0 20px 12px; flex: 1; }
-.camp-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.camp-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
 .camp-desc { font-size: 12px; color: var(--secondary); margin-bottom: 6px; }
 .camp-system { font-size: 11px; color: var(--gold); display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .camp-date { font-size: 10px; color: var(--muted); }
 .camp-modules { display: flex; gap: 4px; padding: 10px 20px; border-top: 1px solid var(--border); }
-.camp-module { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); }
+.camp-module { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); text-decoration: none; transition: all 0.15s; }
+.camp-module:hover { background: var(--hover); color: var(--text); }
 .camp-card--new { align-items: center; justify-content: center; min-height: 160px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
 .camp-card--new:hover { border-color: var(--border-l); background: var(--card); }
 
@@ -343,7 +344,7 @@ function formatDate(dt: string) {
 .sys-card { display: flex; flex-direction: column; overflow: hidden; text-decoration: none; }
 .sys-card-icon { height: 80px; display: flex; align-items: center; justify-content: center; background: var(--raised); }
 .sys-card-body { padding: 14px 16px; }
-.sys-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+.sys-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
 .sys-version { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 .sys-desc { font-size: 12px; color: var(--secondary); }
 .sys-card--new { align-items: center; justify-content: center; min-height: 140px; border: 2px dashed var(--border); box-shadow: none; background: transparent; cursor: pointer; }
@@ -351,7 +352,7 @@ function formatDate(dt: string) {
 
 /* Library */
 .lib-system-section { margin-bottom: 28px; }
-.lib-sys-name { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 12px; }
+.lib-sys-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 12px; }
 .lib-types-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .lib-type-chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 999px; background: var(--card); border: 1px solid; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.15s; }
 .lib-type-chip:hover { background: var(--raised); transform: translateY(-1px); }
@@ -365,7 +366,7 @@ function formatDate(dt: string) {
 /* Dialogs */
 .dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; align-items: center; justify-content: center; }
 .dialog-box { background: var(--card); border-radius: 18px; padding: 28px; width: 400px; max-width: 90vw; display: flex; flex-direction: column; gap: 16px; }
-.dialog-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); }
+.dialog-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); }
 .dialog-field { display: flex; flex-direction: column; gap: 5px; }
 .dialog-actions { display: flex; gap: 10px; padding-top: 4px; }
 .btn-primary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 999px; background: var(--gold); color: #0d0d0d; font-size: 13px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; transition: all 0.15s; }

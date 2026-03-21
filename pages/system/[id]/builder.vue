@@ -9,7 +9,7 @@
         </button>
       </div>
       <div class="type-list">
-        <button
+        <div
           v-for="et in system?.entityTypes ?? []" :key="et.id"
           class="type-row" :class="{ active: activeTypeId === et.id }"
           :style="activeTypeId === et.id ? { borderColor: et.color + '88', background: et.color + '11' } : {}"
@@ -23,7 +23,7 @@
           <button class="type-delete" @click.stop="deleteEntityType(et.id)">
             <OhVueIcon name="md-delete" scale="0.75" />
           </button>
-        </button>
+        </div>
         <div v-if="!system?.entityTypes?.length" class="type-empty">
           No entity types yet.<br>Click + to add one.
         </div>
@@ -80,11 +80,17 @@
       <div class="field-list">
         <div
           v-for="(field, i) in activeType.fields" :key="field.key"
-          class="field-row" :class="{ active: fieldConfigIdx === i }"
+          class="field-row" :class="{ active: fieldConfigIdx === i, 'drag-over': dragOverIdx === i }"
+          draggable="true"
           @click="fieldConfigIdx = fieldConfigIdx === i ? null : i"
+          @dragstart="onDragStart(i, $event)"
+          @dragover.prevent="dragOverIdx = i"
+          @dragleave="dragOverIdx = null"
+          @drop.prevent="onDrop(i)"
+          @dragend="dragOverIdx = null"
         >
           <div class="field-row-left">
-            <OhVueIcon name="md-draghandle" scale="0.9" style="color:var(--forge-muted);cursor:grab" />
+            <OhVueIcon name="md-draghandle" scale="0.9" style="color:var(--forge-muted);cursor:grab" @mousedown.stop />
             <span class="field-type-badge" :class="`ftype-${field.component}`">
               {{ field.component }}
             </span>
@@ -129,13 +135,16 @@
         <div class="config-body">
           <div class="config-field">
             <label class="f-label">Label</label>
-            <input class="f-input" :value="activeField.label"
-              @input="patchField(fieldConfigIdx, 'label', ($event.target as HTMLInputElement).value); autoKey(fieldConfigIdx)" />
+            <input class="f-input" v-model="draftLabel"
+              @blur="saveDraftLabel"
+              @keyup.enter="saveDraftLabel" />
           </div>
           <div class="config-field">
             <label class="f-label">Key <span class="f-hint">(used in data storage)</span></label>
-            <input class="f-input f-mono" :value="activeField.key"
-              @input="patchField(fieldConfigIdx, 'key', ($event.target as HTMLInputElement).value)" />
+            <input class="f-input f-mono" v-model="draftKey"
+              @blur="saveDraftKey"
+              @keyup.enter="saveDraftKey"
+              @input="keyManuallyEdited = true" />
             <span v-if="keyError" class="f-error">{{ keyError }}</span>
           </div>
           <div class="config-field">
@@ -249,16 +258,22 @@ const systemId = Number(route.params.id)
 
 const activeTypeId = ref<string | null>(null)
 const fieldConfigIdx = ref<number | null>(null)
+const dragSrcIdx = ref<number | null>(null)
+const dragOverIdx = ref<number | null>(null)
+// Local draft values for the field label/key inputs to avoid reactive overwrite on keystroke
+const draftLabel = ref('')
+const draftKey = ref('')
+const keyManuallyEdited = ref(false)
 
 const system = computed(() => systemsStore.getSystem(systemId))
 const activeType = computed(() => system.value?.entityTypes.find(t => t.id === activeTypeId.value) ?? null)
 const activeField = computed(() => fieldConfigIdx.value !== null ? activeType.value?.fields[fieldConfigIdx.value] ?? null : null)
 
 const keyError = computed(() => {
-  if (!activeField.value || fieldConfigIdx.value === null) return ''
-  const key = activeField.value.key
+  if (fieldConfigIdx.value === null) return ''
+  const key = draftKey.value
   if (!key) return 'Key is required'
-  const others = activeType.value!.fields.filter((_, i) => i !== fieldConfigIdx.value)
+  const others = (activeType.value?.fields ?? []).filter((_, i) => i !== fieldConfigIdx.value)
   if (others.some(f => f.key === key)) return 'Duplicate key'
   return ''
 })
@@ -267,6 +282,16 @@ onMounted(async () => {
   if (!systemsStore.systems.length) await systemsStore.loadAll()
   if (system.value?.entityTypes.length) activeTypeId.value = system.value.entityTypes[0].id
 })
+
+// Sync draft inputs when field selection changes
+watch([fieldConfigIdx, activeTypeId], () => {
+  const f = fieldConfigIdx.value !== null ? activeType.value?.fields[fieldConfigIdx.value] : null
+  if (f) {
+    draftLabel.value = f.label
+    draftKey.value = f.key
+    keyManuallyEdited.value = !f.key.startsWith('field_') && f.key !== labelToKey(f.label)
+  }
+}, { immediate: true })
 
 // ── Entity type mutations ──────────────────────────────────────────────────
 function addEntityType() {
@@ -313,7 +338,12 @@ function addField() {
   }
   const fields = [...(activeType.value?.fields ?? []), f]
   patchType('fields', fields)
-  fieldConfigIdx.value = fields.length - 1
+  const idx = fields.length - 1
+  fieldConfigIdx.value = idx
+  // Reset drafts immediately so they reflect the new blank field
+  draftLabel.value = f.label
+  draftKey.value = f.key
+  keyManuallyEdited.value = false
 }
 
 function deleteField(i: number) {
@@ -335,10 +365,64 @@ function toggleFieldFlag(i: number, flag: 'showInCard' | 'required') {
   patchField(i, flag, !f[flag])
 }
 
+function saveDraftLabel() {
+  if (fieldConfigIdx.value === null) return
+  const trimmed = draftLabel.value.trim()
+  if (!trimmed) return
+  patchField(fieldConfigIdx.value, 'label', trimmed)
+  // Auto-update key if user hasn't manually edited it
+  if (!keyManuallyEdited.value) {
+    const newKey = labelToKey(trimmed)
+    draftKey.value = newKey
+    patchField(fieldConfigIdx.value, 'key', newKey)
+  }
+}
+
+function saveDraftKey() {
+  if (fieldConfigIdx.value === null) return
+  const trimmed = draftKey.value.trim()
+  if (!trimmed) return
+  patchField(fieldConfigIdx.value, 'key', trimmed)
+}
+
 function autoKey(i: number) {
   const f = activeType.value?.fields[i]
   if (!f) return
   patchField(i, 'key', labelToKey(f.label))
+}
+
+function autoKeyIfUntouched(i: number | null) {
+  if (i === null) return
+  const f = activeType.value?.fields[i]
+  if (!f) return
+  // Only auto-update key if it still looks auto-generated (matches a previous label derivation)
+  // or starts with 'field_' (the default placeholder)
+  const currentKey = f.key
+  if (currentKey.startsWith('field_') || currentKey === labelToKey(f.label)) {
+    patchField(i, 'key', labelToKey(f.label))
+  }
+}
+
+// ── Drag to reorder fields ────────────────────────────────────────────────
+function onDragStart(i: number, e: DragEvent) {
+  dragSrcIdx.value = i
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function onDrop(targetIdx: number) {
+  if (dragSrcIdx.value === null || dragSrcIdx.value === targetIdx) {
+    dragSrcIdx.value = null
+    dragOverIdx.value = null
+    return
+  }
+  const fields = [...(activeType.value?.fields ?? [])]
+  const [moved] = fields.splice(dragSrcIdx.value, 1)
+  fields.splice(targetIdx, 0, moved)
+  patchType('fields', fields)
+  // Update fieldConfigIdx to follow the moved field
+  if (fieldConfigIdx.value === dragSrcIdx.value) fieldConfigIdx.value = targetIdx
+  dragSrcIdx.value = null
+  dragOverIdx.value = null
 }
 
 // ── Sample values for preview ─────────────────────────────────────────────
@@ -369,7 +453,7 @@ function sampleValue(f: FieldSchema): string {
 .builder-preview { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; }
 
 .panel-header { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--forge-border); gap: 8px; flex-shrink: 0; background: var(--forge-surface); }
-.panel-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--forge-muted); flex: 1; }
+.panel-title { font-family: var(--font-display); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--forge-muted); flex: 1; }
 .panel-hint { font-size: 11px; color: var(--forge-muted); }
 .icon-btn { width: 26px; height: 26px; border-radius: 6px; background: var(--forge-raised); border: 1px solid var(--forge-border); color: var(--forge-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .icon-btn:hover { color: var(--forge-text); }
@@ -402,6 +486,7 @@ function sampleValue(f: FieldSchema): string {
 .field-row { display: flex; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--forge-raised); border: 1px solid transparent; cursor: pointer; transition: all 0.15s; gap: 8px; }
 .field-row:hover { border-color: var(--forge-border); }
 .field-row.active { background: var(--forge-border); border-color: var(--forge-border-l); }
+.field-row.drag-over { border-color: var(--forge-accent) !important; background: rgba(235,189,52,0.08); }
 .field-row-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .field-row-right { display: flex; align-items: center; gap: 4px; }
 .field-type-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
@@ -448,7 +533,7 @@ function sampleValue(f: FieldSchema): string {
 .preview-field-val { color: var(--forge-text); }
 .preview-record { background: var(--forge-surface); border-radius: 12px; overflow: hidden; }
 .preview-record-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid; }
-.preview-record-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--forge-text); flex: 1; }
+.preview-record-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--forge-text); flex: 1; }
 .preview-type-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
 .preview-record-fields { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .preview-record-field { display: flex; flex-direction: column; gap: 2px; }

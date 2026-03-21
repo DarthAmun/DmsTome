@@ -1,26 +1,5 @@
 <template>
-  <div class="shell">
-    <nav class="icon-rail">
-      <div class="icon-rail-logo">
-        <OhVueIcon name="gi-anvil-impact" />
-      </div>
-      <NuxtLink to="/" class="rail-icon-btn" title="Back">
-        <OhVueIcon name="md-arrowback" scale="0.95" />
-      </NuxtLink>
-      <div class="rail-divider" />
-      <button
-        v-for="loc in locations" :key="loc.id"
-        class="rail-icon-btn"
-        :class="{ active: activeLocationId === loc.id }"
-        :title="loc.name"
-        @click="selectLocation(loc.id)"
-      >
-        <OhVueIcon name="gi-castle" scale="0.95" />
-      </button>
-      <div class="rail-spacer" />
-      <button class="rail-fab" title="New Location" @click="createLocation">+</button>
-    </nav>
-
+  <div class="page-content">
     <div class="shell-body">
       <header class="top-bar">
         <span class="top-bar-title">{{ campaignName }}</span>
@@ -237,7 +216,6 @@ function formatDate(dt: string) {
 </script>
 
 <style scoped>
-.shell { display: flex; height: 100vh; overflow: hidden; }
 .shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
 .top-bar-spacer { flex: 1; }
@@ -245,11 +223,11 @@ function formatDate(dt: string) {
 
 .map-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .map-view-header { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.map-view-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
+.map-view-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
 .map-body { flex: 1; overflow: hidden; position: relative; }
 
 .main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; background: var(--bg); }
-.section-eyebrow { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
+.section-eyebrow { font-family: var(--font-display); font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
 
 .loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .loc-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
@@ -263,7 +241,7 @@ function formatDate(dt: string) {
 .loc-map-badge { width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.55); color: white; display: flex; align-items: center; justify-content: center; }
 .loc-type-tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,0.6); color: white; }
 .loc-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.loc-card-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+.loc-card-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); }
 .loc-card-meta { display: flex; align-items: center; gap: 10px; }
 .loc-pin-count { font-size: 11px; color: var(--secondary); display: flex; align-items: center; gap: 4px; }
 .loc-card-date { font-size: 11px; color: var(--muted); margin-left: auto; }
@@ -275,4 +253,5 @@ function formatDate(dt: string) {
 .loc-card--new { align-items: center; justify-content: center; min-height: 200px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
 .loc-card--new:hover { border-color: var(--border-l); background: var(--card); }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; }
+.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
 </style>

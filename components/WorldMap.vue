@@ -441,7 +441,7 @@ onUnmounted(() => {
   padding: 8px 16px; flex-shrink: 0;
   background: var(--card); border-bottom: 1px solid var(--border);
 }
-.map-name { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
+.map-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text); }
 .toolbar-gap { flex: 1; }
 
 .pin-picker {
@@ -555,7 +555,7 @@ onUnmounted(() => {
 .pin-preview-banner { height: 140px; overflow: hidden; flex-shrink: 0; }
 .pin-preview-body { padding: 16px 18px; }
 .pin-preview-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
-.pin-preview-name { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.pin-preview-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
 .pin-preview-sub { font-size: 12px; color: var(--secondary); margin-bottom: 2px; }
 .pin-preview-status { font-size: 11px; color: var(--gold); font-style: italic; margin-top: 2px; }
 .pin-preview-excerpt { font-size: 12px; color: var(--secondary); line-height: 1.5; margin-top: 8px; margin-bottom: 12px; }
