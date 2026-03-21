@@ -2,16 +2,20 @@
   <div class="graph-container">
     <div class="graph-toolbar">
       <button class="f-btn f-btn--ghost f-btn--sm" @click="resetLayout">
-        <OhVueIcon name="md-autoawesome" scale="0.8" /> Reset Layout
+        <OhVueIcon name="md-autoawesome" scale="0.8" /> Reset
       </button>
       <button class="f-btn f-btn--ghost f-btn--sm" @click="fitView">
-        <OhVueIcon name="md-map" scale="0.8" /> Fit All
+        <OhVueIcon name="md-map" scale="0.8" /> Fit
       </button>
-      <div class="flex items-center gap-3 ml-4 flex-wrap">
-        <span v-for="t in typeTabs" :key="t.type" class="legend-item">
-          <span class="legend-dot" :style="{ background: t.color }" />
-          <span class="text-xs text-forge-muted font-ui">{{ t.plural }}</span>
-        </span>
+      <div class="type-filters">
+        <button v-for="t in typeTabs" :key="t.type"
+          class="type-filter-btn"
+          :class="{ active: activeTypes.has(t.type) }"
+          :style="activeTypes.has(t.type) ? { borderColor: t.color, color: t.color, background: t.color + '18' } : {}"
+          @click="toggleType(t.type)">
+          <span class="legend-dot" :style="{ background: activeTypes.has(t.type) ? t.color : 'var(--forge-muted)' }" />
+          {{ t.plural }}
+        </button>
       </div>
     </div>
     <div ref="cyContainer" class="cy-canvas" />
@@ -42,6 +46,35 @@ let cy: any = null
 const tooltip = ref({ show: false, x: 0, y: 0, name: '', type: '', meta: '' })
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, ...cfg }))
 const typeColorMap = Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]))
+const activeTypes = ref<Set<string>>(new Set(Object.keys(ENTITY_TYPE_CONFIG)))
+
+function toggleType(type: string) {
+  const next = new Set(activeTypes.value)
+  if (next.has(type)) {
+    if (next.size === 1) return // keep at least one
+    next.delete(type)
+  } else {
+    next.add(type)
+  }
+  activeTypes.value = next
+  applyTypeFilter()
+}
+
+function applyTypeFilter() {
+  if (!cy) return
+  cy.nodes().forEach((node: any) => {
+    if (activeTypes.value.has(node.data('type'))) {
+      node.style('display', 'element')
+    } else {
+      node.style('display', 'none')
+    }
+  })
+  cy.edges().forEach((edge: any) => {
+    const srcVisible = activeTypes.value.has(edge.source().data('type'))
+    const tgtVisible = activeTypes.value.has(edge.target().data('type'))
+    edge.style('display', srcVisible && tgtVisible ? 'element' : 'none')
+  })
+}
 
 // Registry mapping icon name -> oh-vue-icons icon object
 const iconRegistry: Record<string, any> = {
@@ -252,16 +285,36 @@ onUnmounted(() => { cy?.destroy() })
   flex-shrink: 0;
 }
 
-.legend-item {
+.type-filters {
   display: flex;
   align-items: center;
   gap: 5px;
+  margin-left: 8px;
+  flex-wrap: wrap;
 }
 
+.type-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--forge-raised);
+  border: 1px solid var(--forge-border);
+  color: var(--forge-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.type-filter-btn:hover { color: var(--forge-text); }
+
 .legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .cy-canvas {

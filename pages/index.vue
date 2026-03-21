@@ -27,6 +27,13 @@
           <OhVueIcon name="gi-scroll-unfurled" scale="0.9" /> Notes
         </NuxtLink>
         <div class="top-bar-spacer" />
+        <label v-if="selectedCampaign" class="nav-pill" style="cursor:pointer" title="Import backup">
+          <OhVueIcon name="md-arrowback" scale="0.85" /> Import
+          <input type="file" accept=".json" style="display:none" @change="importData" />
+        </label>
+        <button v-if="selectedCampaign" class="nav-pill" @click="exportData(selectedCampaign.id)" title="Export backup">
+          <OhVueIcon name="md-cloud" scale="0.85" /> Export
+        </button>
         <Button v-if="selectedCampaign" severity="danger" size="small" @click="deleteCampaign(selectedCampaign.id)">
           <template #icon>
             <OhVueIcon name="md-delete" scale="0.85" />

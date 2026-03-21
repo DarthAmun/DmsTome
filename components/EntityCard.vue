@@ -95,6 +95,63 @@
       </div>
     </template>
 
+    <!-- Quest -->
+    <template v-else-if="entity.type === 'quest'">
+      <div class="note-inner">
+        <div class="note-icon-col" :style="{ background: typeColor + '14', borderColor: typeColor + '33' }">
+          <OhVueIcon name="gi-holy-grail" scale="1.6" :style="{ color: typeColor }" />
+        </div>
+        <div class="card-info">
+          <div class="card-name">{{ entity.name }}</div>
+          <div class="flex gap-1 mt-1 flex-wrap">
+            <span v-if="attrs.status" class="rarity-badge" :class="`quest-${attrs.status}`">{{ attrs.status }}</span>
+            <span v-if="attrs.questGiver" class="card-sub">from {{ attrs.questGiver }}</span>
+          </div>
+          <div v-if="attrs.reward" class="card-sub mt-1">⚡ {{ attrs.reward }}</div>
+          <div class="card-preview">{{ contentPreview }}</div>
+          <div class="card-date">edited {{ formatDate(entity.updatedAt) }}</div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Event -->
+    <template v-else-if="entity.type === 'event'">
+      <div class="note-inner">
+        <div class="note-icon-col" :style="{ background: typeColor + '14', borderColor: typeColor + '33' }">
+          <OhVueIcon name="gi-lightning-sword" scale="1.6" :style="{ color: typeColor }" />
+        </div>
+        <div class="card-info">
+          <div class="card-name">{{ entity.name }}</div>
+          <div class="flex gap-2 mt-1">
+            <span v-if="attrs.date" class="card-sub">{{ attrs.date }}</span>
+            <span v-if="attrs.significance" class="rarity-badge" :class="`sig-${attrs.significance}`">{{ attrs.significance }}</span>
+          </div>
+          <div v-if="attrs.location" class="card-sub mt-1">📍 {{ attrs.location }}</div>
+          <div class="card-preview">{{ contentPreview }}</div>
+          <div class="card-date">edited {{ formatDate(entity.updatedAt) }}</div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Session -->
+    <template v-else-if="entity.type === 'session'">
+      <div class="note-inner">
+        <div class="note-icon-col" :style="{ background: typeColor + '14', borderColor: typeColor + '33' }">
+          <OhVueIcon name="gi-book-aura" scale="1.6" :style="{ color: typeColor }" />
+          <div v-if="attrs.sessionNumber" style="font-size:10px;font-weight:700;color:var(--forge-muted);margin-top:3px">#{{ attrs.sessionNumber }}</div>
+        </div>
+        <div class="card-info">
+          <div class="card-name">{{ entity.name }}</div>
+          <div class="flex gap-2 mt-1">
+            <span v-if="attrs.date" class="card-sub">{{ attrs.date }}</span>
+            <span class="rarity-badge" :class="`session-${attrs.mode || 'planning'}`">{{ attrs.mode || 'planning' }}</span>
+          </div>
+          <div class="card-preview">{{ contentPreview }}</div>
+          <div class="card-date">edited {{ formatDate(entity.updatedAt) }}</div>
+        </div>
+      </div>
+    </template>
+
     <!-- Note -->
     <template v-else>
       <div class="note-inner">
@@ -456,6 +513,17 @@ function formatDate(dt: string) {
   margin-top: auto;
   padding-top: 4px;
 }
+
+.quest-active    { background: rgba(124,196,78,0.15);  color: #7cc44e; border: 1px solid rgba(124,196,78,0.3); }
+.quest-completed { background: rgba(107,159,232,0.15); color: #6b9fe8; border: 1px solid rgba(107,159,232,0.3); }
+.quest-failed    { background: rgba(224,85,85,0.15);   color: #e05555; border: 1px solid rgba(224,85,85,0.3); }
+.quest-dormant   { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
+.sig-minor    { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
+.sig-major    { background: rgba(235,189,52,0.15);  color: var(--forge-accent); border: 1px solid rgba(235,189,52,0.3); }
+.sig-critical { background: rgba(224,85,85,0.15);   color: #e05555; border: 1px solid rgba(224,85,85,0.3); }
+.session-planning { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
+.session-running  { background: rgba(124,196,78,0.15);  color: #7cc44e; border: 1px solid rgba(124,196,78,0.3); }
+.session-finished { background: rgba(107,159,232,0.15); color: #6b9fe8; border: 1px solid rgba(107,159,232,0.3); }
 
 .note-tag {
   font-size: 10px;

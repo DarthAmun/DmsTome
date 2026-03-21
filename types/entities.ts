@@ -1,4 +1,4 @@
-export type EntityType = 'note' | 'npc' | 'item' | 'location' | 'faction'
+export type EntityType = 'note' | 'npc' | 'item' | 'location' | 'faction' | 'quest' | 'event' | 'session'
 
 export interface NpcAttributes {
   portraitSource?: string
@@ -46,6 +46,26 @@ export interface FactionAttributes {
   headquartersName?: string
 }
 
+export interface QuestAttributes {
+  status?: 'active' | 'completed' | 'failed' | 'dormant'
+  questGiver?: string
+  reward?: string
+}
+
+export interface EventAttributes {
+  date?: string
+  location?: string
+  significance?: 'minor' | 'major' | 'critical'
+}
+
+export interface SessionAttributes {
+  mode?: 'planning' | 'running' | 'finished'
+  sessionNumber?: string
+  date?: string
+  scriptContent?: string   // the session script / prep
+  notesContent?: string    // live notes taken during session
+}
+
 export interface NoteAttributes {
   icon?: string
   tags?: string[]
@@ -58,7 +78,7 @@ export interface PinnedLocation {
   y: number
 }
 
-export type EntityAttributes = NpcAttributes | LocationAttributes | ItemAttributes | FactionAttributes | NoteAttributes
+export type EntityAttributes = NpcAttributes | LocationAttributes | ItemAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes
 
 export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   label: string
@@ -71,6 +91,9 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   item:     { label: 'Item',     plural: 'Items',     color: '#ebbd34', defaultIcon: 'gi-open-treasure-chest' },
   location: { label: 'Location', plural: 'Locations', color: '#a87de8', defaultIcon: 'gi-castle' },
   faction:  { label: 'Faction',  plural: 'Factions',  color: '#e05555', defaultIcon: 'gi-american-shield' },
+  quest:    { label: 'Quest',    plural: 'Quests',    color: '#e8924a', defaultIcon: 'gi-holy-grail' },
+  event:    { label: 'Event',    plural: 'Events',    color: '#4ab8e8', defaultIcon: 'gi-lightning-sword' },
+  session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
 }
 
 // Note icon picker — all verified to exist
