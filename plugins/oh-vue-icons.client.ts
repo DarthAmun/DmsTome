@@ -38,7 +38,6 @@ import {
   GiDeathNote,
   GiAnvilImpact,
   GiHolyGrail,
-  GiLightningSword,
 } from 'oh-vue-icons/icons/gi'
 
 addIcons(
@@ -61,7 +60,7 @@ addIcons(
   GiAllSeeingEye, GiCastle, GiCoins,
   GiHealthPotion, GiCandleSkull, GiBurningSkull,
   GiDeathNote, GiAnvilImpact,
-  GiHolyGrail, GiLightningSword,
+  GiHolyGrail,
 )
 
 export default defineNuxtPlugin((nuxtApp) => {

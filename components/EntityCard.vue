@@ -118,7 +118,7 @@
     <template v-else-if="entity.type === 'event'">
       <div class="note-inner">
         <div class="note-icon-col" :style="{ background: typeColor + '14', borderColor: typeColor + '33' }">
-          <OhVueIcon name="gi-lightning-sword" scale="1.6" :style="{ color: typeColor }" />
+          <OhVueIcon name="gi-sands-of-time" scale="1.6" :style="{ color: typeColor }" />
         </div>
         <div class="card-info">
           <div class="card-name">{{ entity.name }}</div>

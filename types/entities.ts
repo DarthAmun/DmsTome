@@ -92,7 +92,7 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   location: { label: 'Location', plural: 'Locations', color: '#a87de8', defaultIcon: 'gi-castle' },
   faction:  { label: 'Faction',  plural: 'Factions',  color: '#e05555', defaultIcon: 'gi-american-shield' },
   quest:    { label: 'Quest',    plural: 'Quests',    color: '#e8924a', defaultIcon: 'gi-holy-grail' },
-  event:    { label: 'Event',    plural: 'Events',    color: '#4ab8e8', defaultIcon: 'gi-lightning-sword' },
+  event:    { label: 'Event',    plural: 'Events',    color: '#4ab8e8', defaultIcon: 'gi-sands-of-time' },
   session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
 }
 
