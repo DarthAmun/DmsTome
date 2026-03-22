@@ -25,8 +25,7 @@ export default defineNuxtConfig({
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: asset('favicon.ico') },
-        { rel: 'icon', type: 'image/svg+xml', href: asset('favicon.svg') },
-        { rel: 'apple-touch-icon', href: asset('icons/icon-192.png') },
+        { rel: 'apple-touch-icon', href: asset('icons/apple-touch-icon.png') },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap', crossorigin: '' },
         {

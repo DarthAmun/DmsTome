@@ -2,8 +2,7 @@
   <div class="notes-folio">
     <!-- Type ribbon -->
     <div class="notes-type-ribbon">
-      <button v-for="tab in typeTabs" :key="tab.type"
-        class="ribbon-tab" :class="{ active: activeType === tab.type }"
+      <button v-for="tab in typeTabs" :key="tab.type" class="ribbon-tab" :class="{ active: activeType === tab.type }"
         :style="activeType === tab.type ? { color: tab.color, borderBottomColor: tab.color } : {}"
         @click="selectType(tab.type)">
         <OhVueIcon :name="tab.defaultIcon" scale="0.8" />
@@ -32,8 +31,8 @@
         </button>
       </div>
       <div class="editor-body-area">
-        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId"
-          @navigate="navigateByTypeAndName" @deleted="goBack" />
+        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId" @navigate="navigateByTypeAndName"
+          @deleted="goBack" />
       </div>
     </div>
 
@@ -54,8 +53,7 @@
             <span class="leaf-count">{{ sortedEntities.length }} entries</span>
           </div>
           <div class="leaf-index">
-            <div v-for="e in leftEntries" :key="e.id"
-              class="entry" @click="selectEntity(e.id)">
+            <div v-for="e in leftEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
               <div class="entry-icon">
                 <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
                 <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
@@ -79,9 +77,9 @@
         </div>
         <div class="leaf-footer">
           <button class="new-entry-btn" @click="createNew">
-            <span class="new-entry-line" />
+            <span class="new-entry-line-left" />
             <span class="new-entry-label">✦ New {{ activeTypeConfig?.label }} ✦</span>
-            <span class="new-entry-line" />
+            <span class="new-entry-line-right" />
           </button>
         </div>
       </div>
@@ -96,8 +94,7 @@
             <span class="leaf-folio">continued</span>
           </div>
           <div class="leaf-index">
-            <div v-for="e in rightEntries" :key="e.id"
-              class="entry" @click="selectEntity(e.id)">
+            <div v-for="e in rightEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
               <div class="entry-icon">
                 <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
                 <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
@@ -242,35 +239,161 @@ async function confirmDelete(entity: any) {
 
 
 <style scoped>
-.notes-folio { height: 100%; display: flex; flex-direction: column; background: var(--parch); overflow: hidden; }
+.notes-folio {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--parch);
+  overflow: hidden;
+}
 
 /* Ribbon */
-.notes-type-ribbon { display: flex; align-items: center; border-bottom: 2px solid var(--parch-dark); background: var(--parch); flex-shrink: 0; padding: 0 16px; overflow-x: auto; }
-.ribbon-tab { display: inline-flex; align-items: center; gap: 5px; padding: 9px 11px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-ghost); cursor: pointer; transition: all 0.18s; white-space: nowrap; }
-.ribbon-tab:hover { color: var(--ink-faded); }
-.ribbon-tab.active { color: var(--ink); }
-.notes-header-tools { display: flex; align-items: center; gap: 4px; padding: 6px 0; }
-.ribbon-search { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ink-ghost); padding: 3px 0; margin-right: 6px; }
-.ribbon-search-input { background: none; border: none; outline: none; font-family: var(--font-ui); font-size: 12px; color: var(--ink); width: 100px; }
-.ribbon-search-input::placeholder { color: var(--ink-ghost); font-style: italic; }
-.ribbon-tool { width: 28px; height: 28px; border-radius: 3px; background: none; border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.ribbon-tool:hover { border-color: var(--parch-dark); color: var(--ink-faded); }
-.ribbon-tool.active { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
+.notes-type-ribbon {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--parch-dark);
+  background: var(--parch);
+  flex-shrink: 0;
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+.ribbon-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 11px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.ribbon-tab:hover {
+  color: var(--ink-faded);
+}
+
+.ribbon-tab.active {
+  color: var(--ink);
+}
+
+.notes-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.ribbon-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid var(--ink-ghost);
+  padding: 3px 0;
+  margin-right: 6px;
+}
+
+.ribbon-search-input {
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--ink);
+  width: 100px;
+}
+
+.ribbon-search-input::placeholder {
+  color: var(--ink-ghost);
+  font-style: italic;
+}
+
+.ribbon-tool {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.ribbon-tool:hover {
+  border-color: var(--parch-dark);
+  color: var(--ink-faded);
+}
+
+.ribbon-tool.active {
+  background: var(--blood-pale);
+  color: var(--blood);
+  border-color: var(--blood);
+}
 
 /* Full editor when note open */
-.notes-editor-full { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.editor-back-bar { padding: 8px 24px; border-bottom: 1px dashed var(--parch-line); flex-shrink: 0; background: var(--parch); }
-.back-crumb { font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-ghost); background: none; border: none; cursor: pointer; transition: color 0.15s; padding: 0; }
-.back-crumb:hover { color: var(--blood); }
-.editor-body-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.notes-graph-full { flex: 1; overflow: hidden; }
+.notes-editor-full {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-back-bar {
+  padding: 8px 24px;
+  border-bottom: 1px dashed var(--parch-line);
+  flex-shrink: 0;
+  background: var(--parch);
+}
+
+.back-crumb {
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.back-crumb:hover {
+  color: var(--blood);
+}
+
+.editor-body-area {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-graph-full {
+  flex: 1;
+  overflow: hidden;
+}
 
 /* ── OPEN BOOK spread ── */
 .open-book {
   flex: 1;
   display: flex;
   overflow: hidden;
-  background: var(--leather); /* leather between pages */
+  background: var(--leather);
+  /* leather between pages */
 }
 
 .book-leaf {
@@ -282,8 +405,13 @@ async function confirmDelete(entity: any) {
   overflow: hidden;
 }
 
-.book-leaf--left  { box-shadow: 3px 0 12px rgba(0,0,0,0.18); }
-.book-leaf--right { box-shadow: -3px 0 12px rgba(0,0,0,0.12); }
+.book-leaf--left {
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.18);
+}
+
+.book-leaf--right {
+  box-shadow: -3px 0 12px rgba(0, 0, 0, 0.12);
+}
 
 .leaf-inner {
   flex: 1;
@@ -306,53 +434,160 @@ async function confirmDelete(entity: any) {
   border-bottom: 1px solid var(--parch-line);
 }
 
-.leaf-header--right { justify-content: flex-end; }
+.leaf-header--right {
+  justify-content: flex-end;
+}
 
 .leaf-type {
   font-family: var(--font-head);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.2em; text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
-.leaf-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); }
-.leaf-folio { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); font-style: italic; }
+.leaf-count {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+}
 
-.leaf-index { display: flex; flex-direction: column; }
+.leaf-folio {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  font-style: italic;
+}
 
-.leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; }
+.leaf-index {
+  display: flex;
+  flex-direction: column;
+}
+
+.leaf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0;
+  color: var(--ink-ghost);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+}
 
 /* Book binding */
 .book-binding {
   width: 10px;
   flex-shrink: 0;
   background: linear-gradient(to right,
-    rgba(0,0,0,0.2) 0%,
-    rgba(0,0,0,0.06) 40%,
-    rgba(0,0,0,0.06) 60%,
-    rgba(0,0,0,0.2) 100%
-  );
+      rgba(0, 0, 0, 0.2) 0%,
+      rgba(0, 0, 0, 0.06) 40%,
+      rgba(0, 0, 0, 0.06) 60%,
+      rgba(0, 0, 0, 0.2) 100%);
   position: relative;
 }
+
 .book-binding::before {
   content: '';
   position: absolute;
-  top: 0; bottom: 0; left: 4px; right: 4px;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
   background: var(--leather);
   opacity: 0.8;
 }
 
 /* Entry styles — overrides for parchment */
-.entry-thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--parch-dark); flex-shrink: 0; }
-.entry-icon { width: 24px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
-.entry:hover .entry-actions { opacity: 1; }
-.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
+.entry-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--parch-dark);
+  flex-shrink: 0;
+}
+
+.entry-icon {
+  width: 24px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.entry-actions {
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.entry:hover .entry-actions {
+  opacity: 1;
+}
+
+.entry-act {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  background: rgba(28, 20, 16, 0.06);
+  border: 1px solid transparent;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.entry-act--del:hover {
+  background: var(--blood-pale);
+  color: var(--blood);
+}
 
 /* New entry */
-.new-entry-btn { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; cursor: pointer; padding: 4px 0; }
-.new-entry-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
-.new-entry-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; transition: color 0.2s; }
-.new-entry-btn:hover .new-entry-label { color: var(--blood); }
-.new-entry-btn:hover .new-entry-line { background: linear-gradient(to right, transparent, var(--blood)); }
+.new-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.new-entry-line-left {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--ink-ghost));
+}
+
+.new-entry-line-right {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, transparent, var(--ink-ghost));
+}
+
+.new-entry-label {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.new-entry-btn:hover .new-entry-label {
+  color: var(--blood);
+}
+
+.new-entry-btn:hover .new-entry-line {
+  background: linear-gradient(to right, transparent, var(--blood));
+}
 </style>

@@ -18,13 +18,13 @@
           <div class="campaigns-index ink-drop">
             <!-- Intro blurb -->
             <p class="tome-intro">
-              <em>A record of all campaigns undertaken. Select a volume to continue the chronicle, or begin a new one.</em>
+              <em>A record of all campaigns undertaken. Select a volume to continue the chronicle, or begin a new
+                one.</em>
             </p>
 
             <!-- Campaign entries — like an index -->
             <div class="index-list">
-              <div v-for="c in campaigns" :key="c.id"
-                class="entry" @click="openCampaign(c)">
+              <div v-for="c in campaigns" :key="c.id" class="entry" @click="openCampaign(c)">
                 <div class="entry-icon">
                   <OhVueIcon :name="'gi-broadsword'" scale="0.9" style="color:var(--blood)" />
                 </div>
@@ -33,7 +33,8 @@
                   <em v-if="c.description">— {{ c.description }}</em>
                 </span>
                 <span class="entry-dots" />
-                <span v-if="systemName(c.system_id)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">
+                <span v-if="systemName(c.system_id)" class="entry-tag"
+                  style="color:var(--gold);border-color:var(--gold)">
                   {{ systemName(c.system_id) }}
                 </span>
                 <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
@@ -55,9 +56,9 @@
             <!-- New campaign button — quill flourish style -->
             <div class="new-entry-row">
               <button class="new-entry-btn" @click="showNew = true">
-                <span class="new-entry-line" />
+                <span class="new-entry-line-left" />
                 <span class="new-entry-label">✦ Begin New Campaign ✦</span>
-                <span class="new-entry-line" />
+                <span class="new-entry-line-right" />
               </button>
             </div>
 
@@ -101,9 +102,9 @@
 
             <div class="new-entry-row">
               <button class="new-entry-btn" @click="showNewSystem = true">
-                <span class="new-entry-line" />
+                <span class="new-entry-line-left" />
                 <span class="new-entry-label">✦ Define New System ✦</span>
-                <span class="new-entry-line" />
+                <span class="new-entry-line-right" />
               </button>
             </div>
 
@@ -133,10 +134,8 @@
                 <span class="library-rule-line" />
               </div>
               <div class="library-entries">
-                <NuxtLink v-for="et in sys.entityTypes" :key="et.id"
-                  :to="`/system/${sys.id}/${et.id}`"
-                  class="library-entry"
-                  :style="{ '--type-color': et.color }">
+                <NuxtLink v-for="et in sys.entityTypes" :key="et.id" :to="`/system/${sys.id}/${et.id}`"
+                  class="library-entry" :style="{ '--type-color': et.color }">
                   <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.9" />
                   <span>{{ et.plural }}</span>
                 </NuxtLink>
@@ -149,18 +148,15 @@
 
     <!-- SPINE TABS -->
     <nav class="spine-tabs">
-      <button class="spine-tab" :class="{ active: section === 'campaigns' }"
-        @click="section = 'campaigns'">
+      <button class="spine-tab" :class="{ active: section === 'campaigns' }" @click="section = 'campaigns'">
         <OhVueIcon name="gi-broadsword" scale="0.85" />
         Campaigns
       </button>
-      <button class="spine-tab" :class="{ active: section === 'systems' }"
-        @click="section = 'systems'">
+      <button class="spine-tab" :class="{ active: section === 'systems' }" @click="section = 'systems'">
         <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
         Systems
       </button>
-      <button class="spine-tab" :class="{ active: section === 'library' }"
-        @click="section = 'library'">
+      <button class="spine-tab" :class="{ active: section === 'library' }" @click="section = 'library'">
         <OhVueIcon name="gi-open-treasure-chest" scale="0.85" />
         Library
       </button>
@@ -179,7 +175,8 @@
           <div class="pv-dialog-content">
             <div style="margin-bottom:16px">
               <label class="f-label">Title</label>
-              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…" @keyup.enter="createCampaign" autofocus />
+              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…"
+                @keyup.enter="createCampaign" autofocus />
             </div>
             <div style="margin-bottom:16px">
               <label class="f-label">Chronicle</label>
@@ -187,7 +184,8 @@
             </div>
             <div>
               <label class="f-label">System</label>
-              <Select v-model="newCamp.systemId" :options="sysOptions" option-label="label" option-value="value" placeholder="— none —" />
+              <Select v-model="newCamp.systemId" :options="sysOptions" option-label="label" option-value="value"
+                placeholder="— none —" />
             </div>
           </div>
           <div class="pv-dialog-footer">
@@ -212,7 +210,8 @@
             </div>
             <div style="margin-bottom:16px">
               <label class="f-label">Short ID</label>
-              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId" placeholder="pf2e" />
+              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId"
+                placeholder="pf2e" />
             </div>
             <div>
               <label class="f-label">Description</label>
@@ -236,19 +235,19 @@ import { getDb } from '~/composables/useDb'
 const router = useRouter()
 const store = useSystemsStore()
 
-const section = ref<'campaigns'|'systems'|'library'>('campaigns')
+const section = ref<'campaigns' | 'systems' | 'library'>('campaigns')
 const campaigns = ref<any[]>([])
 const showNew = ref(false)
 const showNewSystem = ref(false)
-const newCamp = ref({ name: '', description: '', systemId: null as number|null })
+const newCamp = ref({ name: '', description: '', systemId: null as number | null })
 const newSys = ref({ name: '', shortId: '', description: '' })
 
 const chapterTitle = computed(() => ({ campaigns: 'The Chronicle', systems: 'The Codex', library: 'The Library' }[section.value]))
 const currentPage = computed(() => ({ campaigns: 'I', systems: 'II', library: 'III' }[section.value]))
 const systems = computed(() => store.systems)
-const sysOptions = computed(() => [{ label:'— none —', value:null }, ...store.systems.map(s => ({ label:s.name, value:s.id! }))])
+const sysOptions = computed(() => [{ label: '— none —', value: null }, ...store.systems.map(s => ({ label: s.name, value: s.id! }))])
 
-function systemName(id?: number|null) { return id ? store.getSystem(id)?.name ?? null : null }
+function systemName(id?: number | null) { return id ? store.getSystem(id)?.name ?? null : null }
 
 onMounted(async () => {
   await store.loadAll()
@@ -290,15 +289,15 @@ async function importSystem(e: Event) {
 async function exportData(campaignId: number) {
   const db = getDb(); const camp = campaigns.value.find(c => c.id === campaignId)
   const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
-  const encIds = encounters.map((e:any) => e.id as number)
+  const encIds = encounters.map((e: any) => e.id as number)
   const encounterTokens = encIds.length ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray() : []
   const entities = await db.entities.where('campaign_id').equals(campaignId).toArray()
-  const entIds = entities.map((e:any) => e.id as number)
+  const entIds = entities.map((e: any) => e.id as number)
   const entityLinks = entIds.length ? await db.entityLinks.where('source_id').anyOf(entIds).toArray() : []
   const tokens = await db.tokens.toArray()
-  const blob = new Blob([JSON.stringify({ version:1, exportedAt:new Date().toISOString(), campaign:camp, encounters, encounterTokens, entities, entityLinks, tokens }, null, 2)], { type:'application/json' })
+  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), campaign: camp, encounters, encounterTokens, entities, entityLinks, tokens }, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob); const a = document.createElement('a')
-  a.href = url; a.download = `dmstome-${camp?.name?.replace(/\s+/g,'-')??campaignId}-${new Date().toISOString().slice(0,10)}.json`
+  a.href = url; a.download = `dmstome-${camp?.name?.replace(/\s+/g, '-') ?? campaignId}-${new Date().toISOString().slice(0, 10)}.json`
   a.click(); URL.revokeObjectURL(url)
 }
 
@@ -309,26 +308,28 @@ async function importData(e: Event) {
     const payload = JSON.parse(await file.text())
     if (!payload.version || !payload.campaign) { alert('Invalid backup'); return }
     const db = getDb(); const now = new Date().toISOString()
-    await db.campaigns.put({ ...payload.campaign, updated_at: payload.campaign.updated_at??now, created_at: payload.campaign.created_at??now })
-    for (const t of payload.tokens??[]) await db.tokens.put(t)
-    for (const enc of payload.encounters??[]) await db.encounters.put(enc)
-    for (const et of payload.encounterTokens??[]) await db.encounterTokens.put(et)
-    for (const ent of payload.entities??[]) await db.entities.put(ent)
-    for (const lnk of payload.entityLinks??[]) await db.entityLinks.put(lnk)
+    await db.campaigns.put({ ...payload.campaign, updated_at: payload.campaign.updated_at ?? now, created_at: payload.campaign.created_at ?? now })
+    for (const t of payload.tokens ?? []) await db.tokens.put(t)
+    for (const enc of payload.encounters ?? []) await db.encounters.put(enc)
+    for (const et of payload.encounterTokens ?? []) await db.encounterTokens.put(et)
+    for (const ent of payload.entities ?? []) await db.entities.put(ent)
+    for (const lnk of payload.entityLinks ?? []) await db.entityLinks.put(lnk)
     campaigns.value = await window.dmforge.campaigns.list()
     alert('Import successful!')
-  } catch(err:any) { alert('Import failed: ' + err.message) }
+  } catch (err: any) { alert('Import failed: ' + err.message) }
 }
 
 function formatDate(dt: string) {
   if (!dt) return ''
-  return new Date(dt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 </script>
 
 <style scoped>
 /* Index layout */
-.campaigns-index { padding-bottom: 20px; }
+.campaigns-index {
+  padding-bottom: 20px;
+}
 
 .tome-intro {
   font-family: var(--font-body);
@@ -340,38 +341,80 @@ function formatDate(dt: string) {
   border-bottom: 1px solid var(--parch-line);
 }
 
-.index-list { display: flex; flex-direction: column; margin-bottom: 28px; }
+.index-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 28px;
+}
 
 /* Entry actions — hidden until hover */
 .entry-actions {
-  display: flex; gap: 3px;
-  opacity: 0; transition: opacity 0.15s;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.entry:hover .entry-actions { opacity: 1; }
+
+.entry:hover .entry-actions {
+  opacity: 1;
+}
 
 .entry-act {
-  width: 22px; height: 22px; border-radius: 3px;
-  background: rgba(28,20,16,0.08); border: 1px solid transparent;
-  color: var(--ink-ghost); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: rgba(28, 20, 16, 0.08);
+  border: 1px solid transparent;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s;
 }
-.entry-act:hover { background: rgba(28,20,16,0.15); color: var(--ink-faded); }
-.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
+
+.entry-act:hover {
+  background: rgba(28, 20, 16, 0.15);
+  color: var(--ink-faded);
+}
+
+.entry-act--del:hover {
+  background: var(--blood-pale);
+  color: var(--blood);
+  border-color: var(--blood);
+}
 
 /* New entry row — the ornamental divider */
-.new-entry-row { display: flex; align-items: center; margin-bottom: 20px; }
+.new-entry-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
 
 .new-entry-btn {
-  display: flex; align-items: center; gap: 16px; width: 100%;
-  background: none; border: none; cursor: pointer;
-  transition: all 0.2s; padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 8px 0;
 }
 
-.new-entry-line {
-  flex: 1; height: 1px;
+.new-entry-line-left {
+  flex: 1;
+  height: 1px;
   background: linear-gradient(to right, transparent, var(--ink-ghost));
 }
+
+.new-entry-line-right {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, transparent, var(--ink-ghost));
+}
+
 .new-entry-btn:nth-child(1) .new-entry-line:last-child {
   background: linear-gradient(to left, transparent, var(--ink-ghost));
 }
@@ -387,8 +430,14 @@ function formatDate(dt: string) {
   transition: color 0.2s;
   flex-shrink: 0;
 }
-.new-entry-btn:hover .new-entry-label { color: var(--blood); }
-.new-entry-btn:hover .new-entry-line { background: linear-gradient(to right, transparent, var(--blood)); }
+
+.new-entry-btn:hover .new-entry-label {
+  color: var(--blood);
+}
+
+.new-entry-btn:hover .new-entry-line {
+  background: linear-gradient(to right, transparent, var(--blood));
+}
 
 .tome-empty-inline {
   padding: 24px 0;
@@ -415,29 +464,63 @@ function formatDate(dt: string) {
   text-transform: uppercase;
   font-size: 9px;
 }
-.tome-footnote-link:hover { color: var(--gold); }
+
+.tome-footnote-link:hover {
+  color: var(--gold);
+}
 
 /* Library */
-.library-chapter { margin-bottom: 28px; }
-.library-chapter-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.library-chapter-name { font-family: var(--font-head); font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); flex-shrink: 0; }
-.library-rule-line { flex: 1; height: 1px; background: var(--parch-line); }
+.library-chapter {
+  margin-bottom: 28px;
+}
 
-.library-entries { display: flex; flex-wrap: wrap; gap: 8px; }
+.library-chapter-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.library-chapter-name {
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faded);
+  flex-shrink: 0;
+}
+
+.library-rule-line {
+  flex: 1;
+  height: 1px;
+  background: var(--parch-line);
+}
+
+.library-entries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 .library-entry {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   background: var(--parch-dark);
   border: 1px solid var(--ink-ghost);
   border-radius: 2px;
   text-decoration: none;
   font-family: var(--font-head);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--type-color, var(--ink-faded));
   transition: all 0.18s;
 }
+
 .library-entry:hover {
   background: var(--ink);
   color: var(--parch);

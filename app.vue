@@ -11,7 +11,7 @@ function onMagicClick(e: MouseEvent) {
   if (!el.closest('button, a, .spine-tab, .ink-card, .v6-card, .ink-card-new, .entry')) return
   const layer = document.getElementById('spark-layer')
   if (!layer) return
-  const palette = ['var(--gold)','#f0bc2a','var(--blood)','#c05000','#e8dcc5','#7c3aed']
+  const palette = ['var(--gold)', '#f0bc2a', 'var(--blood)', '#c05000', '#e8dcc5', '#7c3aed']
   const n = 5 + Math.floor(Math.random() * 6)
   for (let i = 0; i < n; i++) {
     const s = document.createElement('div')
@@ -33,6 +33,17 @@ function onMagicClick(e: MouseEvent) {
 </script>
 
 <style>
-#app-root { height: 100vh; overflow: hidden; background: var(--leather); }
-#spark-layer { position: fixed; inset: 0; pointer-events: none; z-index: 99999; overflow: hidden; }
+#app-root {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--leather);
+}
+
+#spark-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99999;
+  overflow: hidden;
+}
 </style>
