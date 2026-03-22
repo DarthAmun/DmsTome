@@ -21,7 +21,7 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'Offline-first campaign manager for Dungeon Masters' },
-        { name: 'theme-color', content: 'var(--blood)' },
+        { name: 'theme-color', content: '#8b1a1a' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: asset('favicon.ico') },
@@ -42,7 +42,7 @@ export default defineNuxtConfig({
       name: "DM's Tome",
       short_name: "DM's Tome",
       description: "DM's Tome — your grimoire for all things tabletop",
-      theme_color: 'var(--blood)',
+      theme_color: '#8b1a1a',
       background_color: '#100808',
       display: 'standalone',
       orientation: 'landscape',
@@ -58,6 +58,7 @@ export default defineNuxtConfig({
       navigateFallback: baseURL,
       navigateFallbackDenylist: [/^\/api\//],
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
