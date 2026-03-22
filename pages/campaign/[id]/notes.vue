@@ -1,82 +1,122 @@
 <template>
-  <div class="page-content">
-    <div class="shell-body">
-      <header class="top-bar">
-        <span class="top-bar-title">{{ campaignName }}</span>
-        <span class="top-bar-section">/ {{ activeTypeConfig?.plural }}</span>
-        <div class="top-bar-spacer" />
-        <div class="search-wrap">
-          <OhVueIcon name="fa-search" scale="0.8" style="color:var(--muted)" />
-          <input v-model="search" class="search-input" :placeholder="`Search ${activeTypeConfig?.plural}…`" />
+  <div class="notes-folio">
+    <!-- Type ribbon -->
+    <div class="notes-type-ribbon">
+      <button v-for="tab in typeTabs" :key="tab.type"
+        class="ribbon-tab" :class="{ active: activeType === tab.type }"
+        :style="activeType === tab.type ? { color: tab.color, borderBottomColor: tab.color } : {}"
+        @click="selectType(tab.type)">
+        <OhVueIcon :name="tab.defaultIcon" scale="0.8" />
+        {{ tab.plural }}
+      </button>
+      <div style="flex:1" />
+      <div class="notes-header-tools">
+        <div class="ribbon-search">
+          <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
+          <input v-model="search" class="ribbon-search-input" placeholder="Search…" />
         </div>
-        <Select v-model="sortBy" :options="sortOptions" option-label="label" option-value="value" style="width:140px" />
-        <Button :severity="showGraph ? undefined : 'secondary'" @click="toggleGraph">
-          <template #icon><OhVueIcon name="gi-all-seeing-eye" scale="0.85" /></template>
-          {{ showGraph ? 'Cards' : 'Graph' }}
-        </Button>
-      </header>
-
-      <!-- Type tabs -->
-      <div class="type-tabs">
-        <button
-          v-for="tab in typeTabs" :key="tab.type"
-          class="type-tab"
-          :class="{ active: activeType === tab.type }"
-          :style="activeType === tab.type ? { color: tab.color, borderBottomColor: tab.color } : {}"
-          @click="selectType(tab.type)"
-        >
-          <OhVueIcon :name="tab.defaultIcon" scale="0.85" />
-          {{ tab.plural }}
+        <button class="ribbon-tool" :class="{ active: showGraph }" @click="toggleGraph" title="Graph view">
+          <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
         </button>
-        <div class="type-tabs-spacer" />
-        <button class="type-tab-add" @click="createNew" :title="`New ${activeTypeConfig?.label}`">
+        <button class="ribbon-tool" @click="createNew" :title="`New ${activeTypeConfig?.label}`">
           <OhVueIcon name="md-add" scale="0.9" />
         </button>
       </div>
+    </div>
 
-      <!-- Detail view -->
-      <template v-if="selectedId">
-        <div class="detail-bar">
-          <button class="pill-btn" @click="goBack">
-            <OhVueIcon name="md-arrowback" scale="0.8" /> All {{ activeTypeConfig?.plural }}
+    <!-- EDITOR — when a note is selected, fill the whole area with the split editor -->
+    <div v-if="selectedId" class="notes-editor-full">
+      <div class="editor-back-bar">
+        <button class="back-crumb" @click="goBack">
+          ← All {{ activeTypeConfig?.plural }}
+        </button>
+      </div>
+      <div class="editor-body-area">
+        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId"
+          @navigate="navigateByTypeAndName" @deleted="goBack" />
+      </div>
+    </div>
+
+    <!-- GRAPH -->
+    <div v-else-if="showGraph" class="notes-graph-full">
+      <NotesGraph :campaign-id="campaignId" @navigate="navigateByTypeAndName" />
+    </div>
+
+    <!-- OPEN BOOK INDEX — two pages side by side -->
+    <div v-else class="open-book">
+      <!-- Left page -->
+      <div class="book-leaf book-leaf--left">
+        <div class="leaf-inner">
+          <div class="leaf-header">
+            <span class="leaf-type" :style="{ color: activeTypeConfig?.color }">
+              {{ activeTypeConfig?.plural }}
+            </span>
+            <span class="leaf-count">{{ sortedEntities.length }} entries</span>
+          </div>
+          <div class="leaf-index">
+            <div v-for="e in leftEntries" :key="e.id"
+              class="entry" @click="selectEntity(e.id)">
+              <div class="entry-icon">
+                <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
+                  :style="{ color: activeTypeConfig?.color }" />
+              </div>
+              <span class="entry-name">{{ e.name }}</span>
+              <span class="entry-dots" />
+              <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+              <div class="entry-actions" @click.stop>
+                <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                  <OhVueIcon name="md-delete" scale="0.7" />
+                </button>
+              </div>
+            </div>
+            <div v-if="!sortedEntities.length" class="leaf-empty">
+              <OhVueIcon :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="2"
+                style="opacity:0.08;margin-bottom:10px" />
+              <em>{{ search ? `No results` : `No ${activeTypeConfig?.plural} yet` }}</em>
+            </div>
+          </div>
+        </div>
+        <div class="leaf-footer">
+          <button class="new-entry-btn" @click="createNew">
+            <span class="new-entry-line" />
+            <span class="new-entry-label">✦ New {{ activeTypeConfig?.label }} ✦</span>
+            <span class="new-entry-line" />
           </button>
         </div>
-        <div class="detail-body">
-          <NoteEditor :entity-id="selectedId" :campaign-id="campaignId"
-            @navigate="navigateByTypeAndName" @deleted="goBack" />
-        </div>
-      </template>
-
-      <!-- Graph view -->
-      <div v-else-if="showGraph" class="main-canvas" style="padding:0;overflow:hidden;height:100%">
-        <NotesGraph :campaign-id="campaignId" @navigate="navigateByTypeAndName" />
       </div>
 
-      <!-- Cards view -->
-      <div v-else class="main-canvas">
-        <div class="cards-header">
-          <h1 class="section-eyebrow" :style="{ color: activeTypeConfig?.color }">
-            {{ activeTypeConfig?.plural }}
-            <span style="color:var(--muted);font-size:16px;font-weight:500;letter-spacing:0">
-              ({{ sortedEntities.length }})
-            </span>
-          </h1>
-        </div>
-        <div v-if="sortedEntities.length > 0" class="cards-grid">
-          <EntityCard v-for="e in sortedEntities" :key="e.id" :entity="e"
-            @click="selectEntity(e.id)" @edit="selectEntity(e.id)"
-            @duplicate="store.duplicateEntity(e.id)" @delete="confirmDelete(e)" />
-        </div>
-        <div v-else class="empty-state">
-          <OhVueIcon :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="3"
-            style="opacity:0.12;margin-bottom:16px" />
-          <p style="color:var(--secondary);font-size:14px;margin-bottom:20px">
-            {{ search ? `No results for "${search}"` : `No ${activeTypeConfig?.plural} yet` }}
-          </p>
-          <Button @click="createNew">
-            <template #icon><OhVueIcon name="md-add" scale="0.85" /></template>
-            New {{ activeTypeConfig?.label }}
-          </Button>
+      <!-- Binding -->
+      <div class="book-binding" />
+
+      <!-- Right page -->
+      <div class="book-leaf book-leaf--right">
+        <div class="leaf-inner">
+          <div class="leaf-header leaf-header--right">
+            <span class="leaf-folio">continued</span>
+          </div>
+          <div class="leaf-index">
+            <div v-for="e in rightEntries" :key="e.id"
+              class="entry" @click="selectEntity(e.id)">
+              <div class="entry-icon">
+                <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
+                  :style="{ color: activeTypeConfig?.color }" />
+              </div>
+              <span class="entry-name">{{ e.name }}</span>
+              <span class="entry-dots" />
+              <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+              <div class="entry-actions" @click.stop>
+                <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                  <OhVueIcon name="md-delete" scale="0.7" />
+                </button>
+              </div>
+            </div>
+            <!-- Empty right page hint when few entries -->
+            <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-empty">
+              <em style="opacity:0.4">— end of entries —</em>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -117,6 +157,16 @@ const sortedEntities = computed(() => {
     if (sortBy.value === 'created') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   })
+})
+
+// Split into left and right pages for the open-book spread
+const leftEntries = computed(() => {
+  const all = sortedEntities.value
+  return all.slice(0, Math.ceil(all.length / 2))
+})
+const rightEntries = computed(() => {
+  const all = sortedEntities.value
+  return all.slice(Math.ceil(all.length / 2))
 })
 
 onMounted(async () => {
@@ -167,6 +217,20 @@ async function createNew() {
   selectEntity(e.id)
 }
 
+function entityImage(e: any): string | null {
+  const a = e.attributes as any
+  if (!a) return null
+  return a.portraitSource || a.logoSource || a.imageSource || null
+}
+function formatEntryDate(dt: string) {
+  if (!dt) return ''
+  const diff = Date.now() - new Date(dt).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 7) return days + 'd ago'
+  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 async function confirmDelete(entity: any) {
   if (confirm(`Delete "${entity.name}"?`)) {
     await store.deleteEntity(entity.id)
@@ -175,25 +239,120 @@ async function confirmDelete(entity: any) {
 }
 </script>
 
+
+
 <style scoped>
-.shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
-.top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
-.top-bar-spacer { flex: 1; }
-.search-wrap { display: flex; align-items: center; gap: 8px; background: var(--raised); border-radius: var(--r-pill); padding: 7px 14px; }
-.search-input { background: none; border: none; outline: none; font-size: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; width: 160px; }
-.search-input::placeholder { color: var(--muted); }
-.detail-bar { padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.detail-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.cards-header { margin-bottom: 20px; }
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 400px; }
-.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
-.type-tabs { display:flex; align-items:center; gap:0; background:var(--card); border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; padding:0 4px; }
-.type-tab { display:inline-flex; align-items:center; gap:6px; padding:10px 14px; background:none; border:none; border-bottom:2px solid transparent; color:var(--secondary); font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; cursor:pointer; white-space:nowrap; transition:all 0.15s; }
-.type-tab:hover { color:var(--text); }
-.type-tab.active { color:var(--text); }
-.type-tabs-spacer { flex:1; }
-.type-tab-add { width:30px; height:30px; border-radius:50%; background:var(--raised); border:1px solid var(--border); color:var(--secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; margin:4px; transition:all 0.15s; }
-.type-tab-add:hover { color:var(--text); }
+.notes-folio { height: 100%; display: flex; flex-direction: column; background: var(--parch); overflow: hidden; }
+
+/* Ribbon */
+.notes-type-ribbon { display: flex; align-items: center; border-bottom: 2px solid var(--parch-dark); background: var(--parch); flex-shrink: 0; padding: 0 16px; overflow-x: auto; }
+.ribbon-tab { display: inline-flex; align-items: center; gap: 5px; padding: 9px 11px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-ghost); cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+.ribbon-tab:hover { color: var(--ink-faded); }
+.ribbon-tab.active { color: var(--ink); }
+.notes-header-tools { display: flex; align-items: center; gap: 4px; padding: 6px 0; }
+.ribbon-search { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ink-ghost); padding: 3px 0; margin-right: 6px; }
+.ribbon-search-input { background: none; border: none; outline: none; font-family: var(--font-ui); font-size: 12px; color: var(--ink); width: 100px; }
+.ribbon-search-input::placeholder { color: var(--ink-ghost); font-style: italic; }
+.ribbon-tool { width: 28px; height: 28px; border-radius: 3px; background: none; border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.ribbon-tool:hover { border-color: var(--parch-dark); color: var(--ink-faded); }
+.ribbon-tool.active { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
+
+/* Full editor when note open */
+.notes-editor-full { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.editor-back-bar { padding: 8px 24px; border-bottom: 1px dashed var(--parch-line); flex-shrink: 0; background: var(--parch); }
+.back-crumb { font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-ghost); background: none; border: none; cursor: pointer; transition: color 0.15s; padding: 0; }
+.back-crumb:hover { color: var(--blood); }
+.editor-body-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.notes-graph-full { flex: 1; overflow: hidden; }
+
+/* ── OPEN BOOK spread ── */
+.open-book {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--leather); /* leather between pages */
+}
+
+.book-leaf {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--parch);
+  overflow: hidden;
+}
+
+.book-leaf--left  { box-shadow: 3px 0 12px rgba(0,0,0,0.18); }
+.book-leaf--right { box-shadow: -3px 0 12px rgba(0,0,0,0.12); }
+
+.leaf-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px 12px;
+}
+
+.leaf-footer {
+  padding: 10px 28px 16px;
+  border-top: 1px dashed var(--parch-line);
+  background: var(--parch);
+}
+
+.leaf-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--parch-line);
+}
+
+.leaf-header--right { justify-content: flex-end; }
+
+.leaf-type {
+  font-family: var(--font-head);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+}
+
+.leaf-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); }
+.leaf-folio { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); font-style: italic; }
+
+.leaf-index { display: flex; flex-direction: column; }
+
+.leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; }
+
+/* Book binding */
+.book-binding {
+  width: 10px;
+  flex-shrink: 0;
+  background: linear-gradient(to right,
+    rgba(0,0,0,0.2) 0%,
+    rgba(0,0,0,0.06) 40%,
+    rgba(0,0,0,0.06) 60%,
+    rgba(0,0,0,0.2) 100%
+  );
+  position: relative;
+}
+.book-binding::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 4px; right: 4px;
+  background: var(--leather);
+  opacity: 0.8;
+}
+
+/* Entry styles — overrides for parchment */
+.entry-thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--parch-dark); flex-shrink: 0; }
+.entry-icon { width: 24px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
+
+/* New entry */
+.new-entry-btn { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; cursor: pointer; padding: 4px 0; }
+.new-entry-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
+.new-entry-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; transition: color 0.2s; }
+.new-entry-btn:hover .new-entry-label { color: var(--blood); }
+.new-entry-btn:hover .new-entry-line { background: linear-gradient(to right, transparent, var(--blood)); }
 </style>

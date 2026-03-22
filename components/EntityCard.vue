@@ -8,7 +8,7 @@
           <div class="npc-avatar">
             <img v-if="attrs.portraitSource" :src="imageUrl(attrs.portraitSource, attrs.portraitType)"
               class="w-full h-full object-cover" />
-            <OhVueIcon v-else name="gi-person" scale="1.8" style="color:var(--forge-muted);opacity:0.5" />
+            <OhVueIcon v-else name="gi-person" scale="1.8" style="color:var(--ink-ghost);opacity:0.5" />
           </div>
           <div class="alive-dot" :class="attrs.isAlive === false ? 'dead' : 'alive'" />
         </div>
@@ -32,7 +32,7 @@
         <img v-if="attrs.imageSource" :src="imageUrl(attrs.imageSource, attrs.imageType)"
           class="w-full h-full object-cover" />
         <div v-else class="banner-placeholder">
-          <OhVueIcon name="gi-castle" scale="2" style="color:var(--forge-muted);opacity:0.3" />
+          <OhVueIcon name="gi-castle" scale="2" style="color:var(--ink-ghost);opacity:0.3" />
         </div>
         <span v-if="attrs.status" class="status-pill" :class="`status--${attrs.status}`">{{ attrs.status }}</span>
       </div>
@@ -50,7 +50,7 @@
           <img v-if="attrs.imageSource" :src="imageUrl(attrs.imageSource, attrs.imageType)"
             class="w-full h-full object-cover" />
           <div v-else class="thumb-placeholder">
-            <OhVueIcon name="gi-open-treasure-chest" scale="1.6" style="color:var(--forge-muted);opacity:0.4" />
+            <OhVueIcon name="gi-open-treasure-chest" scale="1.6" style="color:var(--ink-ghost);opacity:0.4" />
           </div>
         </div>
         <div class="card-info">
@@ -81,7 +81,7 @@
         <img v-if="attrs.imageSource" :src="imageUrl(attrs.imageSource, attrs.imageType)"
           class="w-full h-full object-cover" />
         <div v-else class="banner-placeholder">
-          <OhVueIcon name="gi-american-shield" scale="2" style="color:var(--forge-muted);opacity:0.3" />
+          <OhVueIcon name="gi-american-shield" scale="2" style="color:var(--ink-ghost);opacity:0.3" />
         </div>
       </div>
       <div class="card-body">
@@ -138,7 +138,7 @@
       <div class="note-inner">
         <div class="note-icon-col" :style="{ background: typeColor + '14', borderColor: typeColor + '33' }">
           <OhVueIcon name="gi-book-aura" scale="1.6" :style="{ color: typeColor }" />
-          <div v-if="attrs.sessionNumber" style="font-size:10px;font-weight:700;color:var(--forge-muted);margin-top:3px">#{{ attrs.sessionNumber }}</div>
+          <div v-if="attrs.sessionNumber" style="font-size:10px;font-weight:700;color:var(--ink-ghost);margin-top:3px">#{{ attrs.sessionNumber }}</div>
         </div>
         <div class="card-info">
           <div class="card-name">{{ entity.name }}</div>
@@ -217,7 +217,7 @@ function formatDate(dt: string) {
 <style scoped>
 .entity-card {
   position: relative;
-  background: var(--card, var(--forge-surface));
+  background: var(--card, var(--parch-dark));
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
@@ -257,8 +257,8 @@ function formatDate(dt: string) {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--raised, var(--forge-raised));
-  border: 2px solid var(--border, var(--forge-border));
+  background: var(--raised, var(--parch-dark));
+  border: 2px solid var(--border, var(--parch-line));
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -276,20 +276,20 @@ function formatDate(dt: string) {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  border: 2px solid var(--card, var(--forge-surface));
+  border: 2px solid var(--card, var(--parch-dark));
 }
 
 .alive-dot.alive {
-  background: var(--forge-green);
+  background: var(--green);
 }
 
 .alive-dot.dead {
-  background: var(--forge-danger);
+  background: var(--blood);
 }
 
 .card-title {
   font-size: 11px;
-  color: var(--forge-accent);
+  color: var(--gold);
   font-style: italic;
 }
 
@@ -306,14 +306,14 @@ function formatDate(dt: string) {
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--forge-accent-dim, rgba(235, 189, 52, 0.12));
-  color: var(--forge-accent);
+  color: var(--gold);
   border: 1px solid rgba(235, 189, 52, 0.3);
 }
 
 /* ── Banner (Location / Faction) ─────────────────────────────────── */
 .banner {
   height: 88px;
-  background: var(--raised, var(--forge-raised));
+  background: var(--raised, var(--parch-dark));
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -344,19 +344,19 @@ function formatDate(dt: string) {
 
 .status--discovered {
   background: rgba(124, 196, 78, 0.18);
-  color: var(--forge-green);
+  color: var(--green);
   border: 1px solid rgba(124, 196, 78, 0.35);
 }
 
 .status--undiscovered {
   background: rgba(96, 96, 96, 0.18);
-  color: var(--forge-muted);
-  border: 1px solid var(--forge-border);
+  color: var(--ink-ghost);
+  border: 1px solid var(--parch-line);
 }
 
 .status--destroyed {
   background: rgba(224, 85, 85, 0.18);
-  color: var(--forge-danger);
+  color: var(--blood);
   border: 1px solid rgba(224, 85, 85, 0.35);
 }
 
@@ -369,7 +369,7 @@ function formatDate(dt: string) {
 .item-thumb {
   width: 70px;
   flex-shrink: 0;
-  background: var(--raised, var(--forge-raised));
+  background: var(--raised, var(--parch-dark));
   overflow: hidden;
 }
 
@@ -391,13 +391,13 @@ function formatDate(dt: string) {
 
 .rarity--common {
   background: rgba(96, 96, 96, 0.15);
-  color: var(--forge-secondary);
-  border: 1px solid var(--forge-border);
+  color: var(--ink-faded);
+  border: 1px solid var(--parch-line);
 }
 
 .rarity--uncommon {
   background: rgba(124, 196, 78, 0.15);
-  color: var(--forge-green);
+  color: var(--green);
   border: 1px solid rgba(124, 196, 78, 0.3);
 }
 
@@ -409,7 +409,7 @@ function formatDate(dt: string) {
 
 .rarity--unique {
   background: rgba(235, 189, 52, 0.15);
-  color: var(--forge-accent);
+  color: var(--gold);
   border: 1px solid rgba(235, 189, 52, 0.3);
 }
 
@@ -431,14 +431,14 @@ function formatDate(dt: string) {
 
 .tag--curse {
   background: rgba(224, 85, 85, 0.15);
-  color: var(--forge-danger);
+  color: var(--blood);
   border: 1px solid rgba(224, 85, 85, 0.3);
 }
 
 .tag--secret {
   background: rgba(96, 96, 96, 0.15);
-  color: var(--forge-muted);
-  border: 1px solid var(--forge-border);
+  color: var(--ink-ghost);
+  border: 1px solid var(--parch-line);
 }
 
 /* ── Note ────────────────────────────────────────────────────────── */
@@ -475,29 +475,29 @@ function formatDate(dt: string) {
 .card-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--forge-text);
+  color: var(--ink);
   line-height: 1.3;
 }
 
 .card-role {
   font-size: 12px;
-  color: var(--forge-secondary);
+  color: var(--ink-faded);
 }
 
 .card-sub {
   font-size: 11px;
-  color: var(--forge-muted);
+  color: var(--ink-ghost);
 }
 
 .card-status {
   font-size: 11px;
-  color: var(--forge-accent);
+  color: var(--gold);
   font-style: italic;
 }
 
 .card-preview {
   font-size: 11px;
-  color: var(--forge-muted);
+  color: var(--ink-ghost);
   line-height: 1.4;
   margin-top: 2px;
   display: -webkit-box;
@@ -508,7 +508,7 @@ function formatDate(dt: string) {
 
 .card-date {
   font-size: 10px;
-  color: var(--forge-muted);
+  color: var(--ink-ghost);
   opacity: 0.6;
   margin-top: auto;
   padding-top: 4px;
@@ -516,12 +516,12 @@ function formatDate(dt: string) {
 
 .quest-active    { background: rgba(124,196,78,0.15);  color: #7cc44e; border: 1px solid rgba(124,196,78,0.3); }
 .quest-completed { background: rgba(107,159,232,0.15); color: #6b9fe8; border: 1px solid rgba(107,159,232,0.3); }
-.quest-failed    { background: rgba(224,85,85,0.15);   color: #e05555; border: 1px solid rgba(224,85,85,0.3); }
-.quest-dormant   { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
-.sig-minor    { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
-.sig-major    { background: rgba(235,189,52,0.15);  color: var(--forge-accent); border: 1px solid rgba(235,189,52,0.3); }
-.sig-critical { background: rgba(224,85,85,0.15);   color: #e05555; border: 1px solid rgba(224,85,85,0.3); }
-.session-planning { background: rgba(96,96,96,0.15);    color: var(--forge-muted); border: 1px solid var(--forge-border); }
+.quest-failed    { background: rgba(139,26,26,0.12);   color: var(--blood-l); border: 1px solid rgba(139,26,26,0.3); }
+.quest-dormant   { background: rgba(96,96,96,0.15);    color: var(--ink-ghost); border: 1px solid var(--parch-line); }
+.sig-minor    { background: rgba(96,96,96,0.15);    color: var(--ink-ghost); border: 1px solid var(--parch-line); }
+.sig-major    { background: rgba(235,189,52,0.15);  color: var(--gold); border: 1px solid rgba(235,189,52,0.3); }
+.sig-critical { background: rgba(139,26,26,0.12);   color: var(--blood-l); border: 1px solid rgba(139,26,26,0.3); }
+.session-planning { background: rgba(96,96,96,0.15);    color: var(--ink-ghost); border: 1px solid var(--parch-line); }
 .session-running  { background: rgba(124,196,78,0.15);  color: #7cc44e; border: 1px solid rgba(124,196,78,0.3); }
 .session-finished { background: rgba(107,159,232,0.15); color: #6b9fe8; border: 1px solid rgba(107,159,232,0.3); }
 
@@ -529,9 +529,9 @@ function formatDate(dt: string) {
   font-size: 10px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--raised, var(--forge-raised));
-  border: 1px solid var(--forge-border);
-  color: var(--forge-muted);
+  background: var(--raised, var(--parch-dark));
+  border: 1px solid var(--parch-line);
+  color: var(--ink-ghost);
 }
 
 /* ── Actions overlay ─────────────────────────────────────────────── */
@@ -553,18 +553,18 @@ function formatDate(dt: string) {
   height: 26px;
   border-radius: 6px;
   background: rgba(15, 15, 15, 0.88);
-  border: 1px solid var(--forge-border-l);
-  color: var(--forge-secondary);
+  border: 1px solid var(--ink-ghost);
+  color: var(--ink-faded);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .act-icon:hover {
-  color: var(--forge-text);
+  color: var(--ink);
 }
 
 .act-icon--danger:hover {
-  color: var(--forge-danger);
+  color: var(--blood);
   border-color: rgba(224, 85, 85, 0.4);
 }
 </style>

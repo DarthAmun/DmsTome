@@ -1,14 +1,10 @@
 <template>
-  <div class="page-content">
-    <div class="shell-body">
-      <header class="top-bar">
-        <span class="top-bar-title">{{ campaignName }}</span>
-        <span class="top-bar-section">/ World Map</span>
-        <div class="top-bar-spacer" />
-        <NuxtLink :to="`/campaign/${campaignId}/notes`" class="nav-pill">
-          <OhVueIcon name="gi-scroll-unfurled" scale="0.85" /> Notes
-        </NuxtLink>
-      </header>
+  <div class="map-folio">
+      <div class="page-header map-header" v-if="!activeLocationId">
+        <div class="page-chapter-num">{{ campaignName }}</div>
+        <h1 class="page-title">The Atlas</h1>
+        <div class="page-rule" />
+      </div>
 
       <!-- Active map view -->
       <div v-if="activeLocationId" class="map-view">
@@ -82,15 +78,15 @@
           </div>
 
           <div class="loc-card loc-card--new v6-card" @click="createLocation">
-            <OhVueIcon name="md-add" scale="2" style="color:var(--muted);opacity:0.3;margin-bottom:8px" />
-            <span style="color:var(--secondary);font-size:13px;font-weight:500">New Location</span>
+            <OhVueIcon name="md-add" scale="2" style="color:var(--ink-ghost);opacity:0.3;margin-bottom:8px" />
+            <span style="color:var(--ink-faded);font-size:13px;font-weight:500">New Location</span>
           </div>
         </div>
 
         <div v-else class="empty-state">
           <OhVueIcon name="gi-treasure-map" scale="4" style="opacity:0.1;margin-bottom:16px" />
-          <h2 style="font-size:22px;font-weight:900;text-transform:uppercase;margin-bottom:8px">No Locations Yet</h2>
-          <p style="color:var(--secondary);font-size:13px;margin-bottom:20px">
+          <h2 style="font-size:22px;font-weight:700;text-transform:uppercase;margin-bottom:8px">No Locations Yet</h2>
+          <p style="color:var(--ink-faded);font-size:13px;margin-bottom:20px">
             Create a location, add a map image, then pin entities to it.
           </p>
           <Button @click="createLocation">
@@ -99,7 +95,6 @@
           </Button>
         </div>
       </div>
-    </div>
   </div>
 </template>
 
@@ -216,42 +211,74 @@ function formatDate(dt: string) {
 </script>
 
 <style scoped>
-.shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
-.top-bar-spacer { flex: 1; }
-.top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
+.map-folio { height: 100%; display: flex; flex-direction: column; background: var(--parch); }
+.map-header { padding-bottom: 0; flex-shrink: 0; }
 
+/* Active map view */
 .map-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.map-view-header { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.map-view-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
+.map-view-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px; background: var(--parch);
+  border-bottom: 1px dashed var(--parch-line); flex-shrink: 0;
+}
+.map-view-name {
+  font-family: var(--font-head); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+}
 .map-body { flex: 1; overflow: hidden; position: relative; }
 
-.main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; background: var(--bg); }
-.section-eyebrow { font-family: var(--font-display); font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
+/* Location dashboard — parchment index */
+.main-canvas { flex: 1; overflow-y: auto; padding: 20px 36px; background: var(--parch); background-image: none !important; background-color: var(--parch) !important; }
 
-.loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.loc-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
-.loc-card-banner { height: 140px; background: var(--raised); position: relative; overflow: hidden; flex-shrink: 0; }
-.loc-card-banner-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.loc-card-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 5px; align-items: center; }
-.loc-status-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: capitalize; }
-.status--discovered   { background: rgba(124,196,78,0.25); color: #7cc44e; }
-.status--undiscovered { background: rgba(96,96,96,0.25);   color: var(--secondary); }
-.status--destroyed    { background: rgba(224,85,85,0.25);  color: var(--danger); }
-.loc-map-badge { width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.55); color: white; display: flex; align-items: center; justify-content: center; }
-.loc-type-tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,0.6); color: white; }
-.loc-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.loc-card-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); }
-.loc-card-meta { display: flex; align-items: center; gap: 10px; }
-.loc-pin-count { font-size: 11px; color: var(--secondary); display: flex; align-items: center; gap: 4px; }
-.loc-card-date { font-size: 11px; color: var(--muted); margin-left: auto; }
-.loc-card-actions { display: flex; gap: 5px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
-.loc-action { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--raised); border: none; color: var(--secondary); font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
-.loc-action:hover { background: var(--hover); color: var(--text); }
-.loc-action--primary { background: var(--gold-dim); color: var(--gold); }
-.loc-action--primary:hover { background: rgba(235,189,52,0.22); }
-.loc-card--new { align-items: center; justify-content: center; min-height: 200px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
-.loc-card--new:hover { border-color: var(--border-l); background: var(--card); }
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; }
-.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+/* Location grid — index entries */
+.loc-grid { display: flex; flex-direction: column; margin-bottom: 28px; }
+
+.loc-card {
+  display: flex; align-items: center; gap: 0;
+  padding: 12px 0; border-bottom: 1px dashed var(--parch-line);
+  cursor: pointer; transition: all 0.15s; position: relative;
+}
+.loc-card:hover { padding-left: 8px; }
+.loc-card:hover::before { content: '›'; position: absolute; left: -6px; color: var(--blood); font-size: 18px; }
+
+.loc-card-banner {
+  width: 80px; height: 60px; flex-shrink: 0;
+  background: var(--parch-dark); border: 1px solid var(--ink-ghost);
+  border-radius: var(--r); overflow: hidden; margin-right: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-ghost);
+}
+.loc-card-banner-empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.loc-card-badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
+.loc-type-tag { position: absolute; bottom: 3px; left: 3px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 5px; background: rgba(28,20,16,0.6); color: var(--parch); border-radius: 2px; }
+
+.loc-card-info { flex: 1; }
+.loc-card-name { font-family: var(--font-body); font-size: 16px; color: var(--ink); margin-bottom: 3px; }
+.loc-card-meta { display: flex; align-items: center; gap: 8px; }
+.loc-status-badge { font-family: var(--font-head); font-size: 8px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; border-radius: 2px; }
+.status--discovered   { color: #4a7a38; }
+.status--undiscovered { color: var(--ink-ghost); }
+.status--destroyed    { color: var(--blood); }
+.loc-map-badge { font-family: var(--font-head); font-size: 8px; color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 3px; }
+.loc-pin-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); display: flex; align-items: center; gap: 3px; }
+.loc-card-date { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); margin-left: auto; }
+
+.loc-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; margin-left: 10px; }
+.loc-card:hover .loc-card-actions { opacity: 1; }
+.loc-action { display: inline-flex; align-items: center; gap: 3px; padding: 4px 8px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); font-size: 9px; font-family: var(--font-head); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.loc-action:hover { background: rgba(28,20,16,0.12); color: var(--ink); }
+.loc-action--primary { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
+.loc-action--primary:hover { background: rgba(139,26,26,0.2); }
+.loc-card--new { justify-content: center; flex-direction: column; min-height: 60px; border: 1px dashed var(--ink-ghost); border-bottom: none; padding: 14px; }
+
+/* New entry row */
+.new-entry-row { display: flex; align-items: center; margin-bottom: 20px; }
+.new-entry-btn { display: flex; align-items: center; gap: 16px; width: 100%; background: none; border: none; cursor: pointer; transition: all 0.2s; padding: 8px 0; }
+.new-entry-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
+.new-entry-label { font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; transition: color 0.2s; flex-shrink: 0; }
+.new-entry-btn:hover .new-entry-label { color: var(--blood); }
+.new-entry-btn:hover .new-entry-line { background: linear-gradient(to right, transparent, var(--blood)); }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 300px; }
+.empty-state p { font-family: var(--font-body); font-size: 15px; color: var(--ink-ghost); font-style: italic; margin-bottom: 20px; }
 </style>

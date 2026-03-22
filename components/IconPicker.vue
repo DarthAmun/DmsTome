@@ -4,13 +4,13 @@
     <button class="icon-trigger" :style="{ borderColor: color + '55' }" @click.stop="open = !open">
       <OhVueIcon :name="modelValue || 'gi-scroll-unfurled'" scale="1.2" :style="{ color }" />
       <span class="icon-trigger-name">{{ modelValue || 'choose icon' }}</span>
-      <OhVueIcon name="md-arrowdropdown" scale="0.9" style="color:var(--forge-muted);margin-left:auto" />
+      <OhVueIcon name="md-arrowdropdown" scale="0.9" style="color:var(--ink-ghost);margin-left:auto" />
     </button>
 
     <!-- Dropdown -->
     <div v-if="open" class="icon-dropdown" @click.stop>
       <div class="icon-search-wrap">
-        <OhVueIcon name="fa-search" scale="0.8" style="color:var(--forge-muted)" />
+        <OhVueIcon name="fa-search" scale="0.8" style="color:var(--ink-ghost)" />
         <input ref="searchEl" v-model="query" class="icon-search" placeholder="Search icons…" />
         <button v-if="query" class="icon-clear" @click="query = ''">
           <OhVueIcon name="md-close" scale="0.8" />
@@ -102,20 +102,20 @@ function select(name: string) {
 
 .icon-trigger {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 12px; border-radius: var(--r-md);
-  background: var(--forge-raised); border: 1px solid;
-  color: var(--forge-text); cursor: pointer;
+  padding: 7px 12px; border-radius: var(--r);
+  background: var(--parch-dark); border: 1px solid;
+  color: var(--ink); cursor: pointer;
   font-size: 13px; font-family: 'DM Sans', sans-serif;
   width: 100%; transition: all 0.15s;
 }
-.icon-trigger:hover { background: var(--forge-hover); }
-.icon-trigger-name { font-size: 12px; color: var(--forge-muted); }
+.icon-trigger:hover { background: rgba(28,20,16,0.08); }
+.icon-trigger-name { font-size: 12px; color: var(--ink-ghost); }
 
 .icon-dropdown {
   position: absolute; top: calc(100% + 6px); left: 0;
   width: 320px; max-height: 360px;
-  background: var(--forge-raised); border: 1px solid var(--forge-border-l);
-  border-radius: var(--r-lg); box-shadow: var(--shadow-float);
+  background: var(--parch-dark); border: 1px solid var(--ink-ghost);
+  border-radius: var(--r); box-shadow: var(--shadow-float);
   z-index: 200; display: flex; flex-direction: column; overflow: hidden;
 }
 .icon-backdrop {
@@ -124,16 +124,16 @@ function select(name: string) {
 
 .icon-search-wrap {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border-bottom: 1px solid var(--forge-border);
+  padding: 10px 12px; border-bottom: 1px solid var(--parch-line);
   flex-shrink: 0;
 }
 .icon-search {
   flex: 1; background: none; border: none; outline: none;
-  font-size: 13px; color: var(--forge-text);
+  font-size: 13px; color: var(--ink);
   font-family: 'DM Sans', sans-serif;
 }
-.icon-search::placeholder { color: var(--forge-muted); }
-.icon-clear { background: none; border: none; color: var(--forge-muted); cursor: pointer; padding: 0; }
+.icon-search::placeholder { color: var(--ink-ghost); }
+.icon-clear { background: none; border: none; color: var(--ink-ghost); cursor: pointer; padding: 0; }
 
 .icon-grid {
   flex: 1; overflow-y: auto;
@@ -144,9 +144,9 @@ function select(name: string) {
   aspect-ratio: 1; border-radius: 6px;
   background: transparent; border: 1px solid transparent;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.1s; color: var(--forge-secondary);
+  cursor: pointer; transition: all 0.1s; color: var(--ink-faded);
 }
-.icon-cell:hover { background: var(--forge-border); color: var(--forge-text); }
-.icon-cell.selected { color: var(--forge-accent); }
-.icon-empty { grid-column: 1/-1; text-align: center; color: var(--forge-muted); font-size: 12px; padding: 16px; }
+.icon-cell:hover { background: var(--parch-line); color: var(--ink); }
+.icon-cell.selected { color: var(--gold); }
+.icon-empty { grid-column: 1/-1; text-align: center; color: var(--ink-ghost); font-size: 12px; padding: 16px; }
 </style>

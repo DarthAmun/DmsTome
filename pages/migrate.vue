@@ -365,13 +365,13 @@ async function clearDb() {
 .step-num.done {
   background: var(--forge-green, #7cc44e);
   border-color: var(--forge-green, #7cc44e);
-  color: #0d0d0d;
+  color: var(--leather);
 }
 
 .step-num.active {
   background: var(--gold);
   border-color: var(--gold);
-  color: #0d0d0d;
+  color: var(--leather);
 }
 
 .step-text {
@@ -525,7 +525,7 @@ async function clearDb() {
 
 .btn-primary {
   background: var(--gold);
-  color: #0d0d0d;
+  color: var(--leather);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -587,7 +587,7 @@ async function clearDb() {
 }
 
 .log-entry.error .log-tag {
-  color: #e05555;
+  color: var(--blood);
 }
 
 .log-tag {

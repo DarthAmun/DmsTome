@@ -11,7 +11,7 @@ defineProps<{ field: FieldSchema; value: any; mode: 'view' | 'edit' }>()
 defineEmits<{ update: [any] }>()
 </script>
 <style scoped>
-.f-input { width:100%;background:var(--forge-raised);border:1px solid var(--forge-border);border-radius:var(--r-md);padding:7px 10px;color:var(--forge-text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s; }
-.f-input:focus { border-color:var(--forge-border-l); }
-.f-view { font-size:13px;color:var(--forge-text);font-family:'DM Sans',sans-serif; }
+.f-input { width:100%;background:var(--parch-dark);border:1px solid var(--parch-line);border-radius:var(--r-md);padding:7px 10px;color:var(--ink);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s; }
+.f-input:focus { border-color:var(--ink-ghost); }
+.f-view { font-size:13px;color:var(--ink);font-family:'DM Sans',sans-serif; }
 </style>

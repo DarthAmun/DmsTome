@@ -1,98 +1,106 @@
 <template>
-  <div class="records-page">
-    <!-- Header -->
-    <header class="records-header">
-      <NuxtLink :to="`/system/${systemId}`" class="rec-back">
-        <OhVueIcon name="md-arrowback" scale="0.9" /> {{ system?.name }}
-      </NuxtLink>
+  <div class="records-folio">
+    <div class="page-header rec-header">
+      <div class="page-chapter-num">{{ system?.name }}</div>
       <div class="rec-title-row">
-        <OhVueIcon v-if="entityType" :name="entityType.icon" scale="1.4"
+        <OhVueIcon v-if="entityType" :name="entityType.icon" scale="1"
           :style="{ color: entityType.color }" />
-        <h1 class="rec-title">{{ entityType?.plural ?? typeId }}</h1>
-        <span class="rec-count">({{ records.length }})</span>
-        <div class="rec-spacer" />
-        <div class="search-wrap">
-          <OhVueIcon name="fa-search" scale="0.8" style="color:var(--muted)" />
-          <input v-model="search" class="search-input" :placeholder="`Search ${entityType?.plural ?? ''}…`" />
+        <h1 class="page-title" style="margin-bottom:0">{{ entityType?.plural ?? typeId }}</h1>
+        <div style="flex:1" />
+        <div class="rec-search-wrap">
+          <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
+          <input v-model="search" class="rec-search" placeholder="Search…" />
         </div>
-        <button class="btn-primary-pill" @click="createRecord">
-          <OhVueIcon name="md-add" scale="0.85" /> New {{ entityType?.name }}
+        <button class="new-rec-fab" @click="createRecord">
+          <OhVueIcon name="md-add" scale="0.9" /> New {{ entityType?.name }}
         </button>
       </div>
-    </header>
+      <div class="page-rule" />
+    </div>
 
-    <!-- Detail view -->
-    <template v-if="selectedId !== null">
-      <div class="rec-detail-bar">
-        <button class="pill-btn" @click="selectedId = null">
-          <OhVueIcon name="md-arrowback" scale="0.8" /> All {{ entityType?.plural }}
-        </button>
-      </div>
-      <div class="rec-detail-body" v-if="selectedRecord && entityType">
-        <!-- Record header -->
-        <div class="rec-detail-header" :style="{ borderColor: entityType.color + '44' }">
-          <OhVueIcon :name="entityType.icon" scale="1.2" :style="{ color: entityType.color }" />
-          <input v-if="editMode" class="rec-name-input" v-model="draftName"
-            @blur="saveName" @keyup.enter="saveName" />
-          <h2 v-else class="rec-name" @click="editMode = true">{{ selectedRecord.name }}</h2>
-          <span class="rec-type-tag" :style="{ background: entityType.color + '22', color: entityType.color }">
-            {{ entityType.name }}
-          </span>
-          <div class="rec-spacer" />
-          <button class="btn-ghost-pill" @click="editMode = !editMode">
-            {{ editMode ? 'Done' : 'Edit' }}
-          </button>
-          <button class="btn-danger-pill" @click="deleteRecord(selectedId!)">
-            <OhVueIcon name="md-delete" scale="0.85" />
-          </button>
-        </div>
-        <!-- Fields -->
-        <div class="rec-fields-grid">
-          <div v-for="field in entityType.fields" :key="field.key" class="rec-field-wrap"
-            :class="{ 'rec-field-wide': field.component === 'textarea' || field.component === 'tracker' }">
-            <label class="rec-field-label">{{ field.label }}</label>
-            <FieldRenderer
-              :field="field"
-              :value="draftData[field.key]"
-              :mode="editMode ? 'edit' : 'view'"
-              @update="v => updateField(field.key, v)"
-            />
+    <div class="book-spread">
+      <div class="book-page book-page--left">
+        <div class="book-page-inner">
+          <div class="index-list">
+            <div v-for="rec in filtered" :key="rec.id!"
+              class="entry" :class="{ 'entry--active': selectedId === rec.id }"
+              @click="openRecord(rec)">
+              <div class="entry-icon">
+                <img v-if="imageField && recordData(rec)[imageField.key]"
+                  :src="recordData(rec)[imageField.key]" class="entry-thumb" />
+                <OhVueIcon v-else :name="entityType?.icon || 'gi-scroll-unfurled'" scale="0.85"
+                  :style="{ color: entityType?.color }" />
+              </div>
+              <span class="entry-name">
+                {{ rec.name }}
+                <em v-if="cardFields[0] && recordData(rec)[cardFields[0].key]">
+                  — {{ formatCardValue(cardFields[0], recordData(rec)[cardFields[0].key]) }}
+                </em>
+              </span>
+              <span class="entry-dots" />
+              <span v-if="cardFields[1] && recordData(rec)[cardFields[1].key]"
+                class="entry-tag" :style="{ color: entityType?.color, borderColor: entityType?.color }">
+                {{ formatCardValue(cardFields[1], recordData(rec)[cardFields[1].key]) }}
+              </span>
+              <span class="entry-date">{{ formatDate(rec.updatedAt) }}</span>
+            </div>
+            <div v-if="!filtered.length" class="tome-empty-inline">
+              <em>{{ search ? 'No results' : `No ${entityType?.plural} yet` }}</em>
+            </div>
+          </div>
+          <div class="new-entry-row">
+            <button class="new-entry-btn" @click="createRecord">
+              <span class="new-entry-line" />
+              <span class="new-entry-label">✦ New {{ entityType?.name }} ✦</span>
+              <span class="new-entry-line" />
+            </button>
           </div>
         </div>
       </div>
-    </template>
 
-    <!-- Record grid -->
-    <div v-else class="records-grid">
-      <div
-        v-for="rec in filtered" :key="rec.id!"
-        class="rec-card v6-card"
-        @click="openRecord(rec)"
-      >
-        <!-- Image field if one exists -->
-        <div v-if="imageField && recordData(rec)[imageField.key]" class="rec-card-img">
-          <img :src="recordData(rec)[imageField.key]" class="w-full h-full object-cover" />
+      <div class="book-binding" />
+
+      <div class="book-page book-page--right">
+        <div class="book-page-inner">
+          <template v-if="selectedId !== null && selectedRecord && entityType">
+            <div class="rec-detail-header" :style="{ borderColor: entityType.color + '55' }">
+              <OhVueIcon :name="entityType.icon" scale="1" :style="{ color: entityType.color }" />
+              <input v-if="editMode" class="quill-input rec-name-input-folio"
+                v-model="draftName" @blur="saveName" @keyup.enter="saveName" />
+              <h2 v-else class="rec-name-folio" @click="editMode = true">{{ selectedRecord.name }}</h2>
+              <span class="rec-type-tag" :style="{ color: entityType.color, borderColor: entityType.color }">
+                {{ entityType.name }}
+              </span>
+              <div style="flex:1" />
+              <button class="parch-btn parch-btn--sm" @click="editMode = !editMode">
+                {{ editMode ? 'Done' : 'Edit' }}
+              </button>
+              <button class="parch-btn parch-btn--danger parch-btn--sm" @click="deleteRecord(selectedId!)">
+                <OhVueIcon name="md-delete" scale="0.8" />
+              </button>
+            </div>
+            <div class="rec-fields-grid">
+              <div v-for="field in entityType.fields" :key="field.key"
+                class="rec-field-wrap"
+                :class="{ 'rec-field-wide': field.component === 'textarea' || field.component === 'tracker' }">
+                <label class="rec-field-label">{{ field.label }}</label>
+                <FieldRenderer
+                  :field="field"
+                  :value="draftData[field.key]"
+                  :mode="editMode ? 'edit' : 'view'"
+                  @update="v => updateField(field.key, v)"
+                />
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="page-right-empty">
+              <OhVueIcon v-if="entityType" :name="entityType.icon" scale="3"
+                style="opacity:0.06;margin-bottom:16px" />
+              <em class="page-right-hint">Select a record to view or edit it.</em>
+            </div>
+          </template>
         </div>
-        <div v-else-if="entityType" class="rec-card-icon-col"
-          :style="{ background: entityType.color + '18' }">
-          <OhVueIcon :name="entityType.icon" scale="1.4" :style="{ color: entityType.color }" />
-        </div>
-        <div class="rec-card-body">
-          <div class="rec-card-name">{{ rec.name }}</div>
-          <div v-for="f in cardFields.slice(0, 3)" :key="f.key" class="rec-card-field">
-            <span class="rec-card-field-label">{{ f.label }}:</span>
-            <span class="rec-card-field-val">{{ formatCardValue(f, recordData(rec)[f.key]) }}</span>
-          </div>
-          <div class="rec-card-date">{{ formatDate(rec.updatedAt) }}</div>
-        </div>
-      </div>
-      <div v-if="!filtered.length && !search" class="rec-empty">
-        <OhVueIcon v-if="entityType" :name="entityType.icon" scale="3"
-          style="opacity:0.1;margin-bottom:16px" />
-        <p>No {{ entityType?.plural }} yet</p>
-        <button class="btn-primary-pill" @click="createRecord">
-          New {{ entityType?.name }}
-        </button>
       </div>
     </div>
   </div>
@@ -210,39 +218,66 @@ function formatDate(dt: string) {
 }
 </script>
 
+
+
+
 <style scoped>
-.records-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--forge-base); }
-.records-header { padding: 20px 24px 16px; background: var(--forge-surface); border-bottom: 1px solid var(--forge-border); flex-shrink: 0; }
-.rec-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--forge-muted); text-decoration: none; margin-bottom: 10px; }
-.rec-back:hover { color: var(--forge-text); }
-.rec-title-row { display: flex; align-items: center; gap: 10px; }
-.rec-title { font-family: var(--font-display); font-size: 22px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); }
-.rec-count { font-size: 14px; color: var(--forge-muted); }
-.rec-spacer { flex: 1; }
-.search-wrap { display: flex; align-items: center; gap: 8px; background: var(--forge-raised); border-radius: 999px; padding: 7px 14px; }
-.search-input { background: none; border: none; outline: none; font-size: 13px; color: var(--forge-text); font-family: 'DM Sans', sans-serif; width: 150px; }
-.rec-detail-bar { padding: 10px 20px; background: var(--forge-surface); border-bottom: 1px solid var(--forge-border); flex-shrink: 0; }
-.rec-detail-body { flex: 1; overflow-y: auto; padding: 24px; }
-.rec-detail-header { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid; margin-bottom: 24px; }
-.rec-name { font-family: var(--font-display); font-size: 24px; font-weight: 900; color: var(--forge-text); cursor: pointer; flex: 1; }
-.rec-name:hover { color: var(--forge-accent); }
-.rec-name-input { font-family: var(--font-display); font-size: 24px; font-weight: 900; background: var(--forge-raised); border: 1px solid var(--forge-accent); border-radius: 6px; color: var(--forge-text); padding: 2px 8px; flex: 1; outline: none; }
-.rec-type-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 999px; }
-.rec-fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-.rec-field-wrap { display: flex; flex-direction: column; gap: 6px; }
+.records-folio { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--parch); }
+.rec-header { padding-bottom: 0; flex-shrink: 0; }
+.rec-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rec-search-wrap { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ink-ghost); padding: 3px 0; }
+.rec-search { background: none; border: none; outline: none; font-family: var(--font-ui); font-size: 12px; color: var(--ink); width: 100px; }
+.rec-search::placeholder { color: var(--ink-ghost); font-style: italic; }
+.new-rec-fab { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 2px; background: var(--blood); color: var(--parch); border: none; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 6px rgba(139,26,26,0.3); }
+.new-rec-fab:hover { background: var(--blood-l); }
+
+/* Book spread */
+.book-spread { flex: 1; display: flex; overflow: hidden; background: var(--leather); }
+.book-page { flex: 1; min-width: 0; background: var(--parch); display: flex; flex-direction: column; }
+.book-page--left { box-shadow: 4px 0 16px rgba(0,0,0,0.15); }
+.book-page--right { box-shadow: -4px 0 16px rgba(0,0,0,0.1); }
+.book-page-inner { flex: 1; overflow-y: auto; padding: 20px 24px 32px; background: var(--parch); }
+.book-binding { width: 8px; flex-shrink: 0; background: linear-gradient(to right, rgba(0,0,0,0.15), rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.05) 70%, rgba(0,0,0,0.15)); position: relative; }
+.book-binding::before { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; right: 3px; background: var(--leather); opacity: 0.6; }
+
+/* Entry states */
+.entry--active { background: rgba(139,26,26,0.06); padding-left: 8px; }
+.entry--active::before { content: '›'; position: absolute; left: -4px; color: var(--blood); font-size: 16px; }
+
+/* Entry thumb */
+.entry-thumb { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--parch-dark); flex-shrink: 0; }
+.entry-icon { width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 20px; height: 20px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
+
+/* New entry row */
+.new-entry-row { display: flex; align-items: center; margin-top: 16px; }
+.new-entry-btn { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; cursor: pointer; padding: 6px 0; }
+.new-entry-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
+.new-entry-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; transition: color 0.2s; }
+.new-entry-btn:hover .new-entry-label { color: var(--blood); }
+.new-entry-btn:hover .new-entry-line { background: linear-gradient(to right, transparent, var(--blood)); }
+
+/* Detail pane */
+.rec-detail-header { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+.rec-name-folio { font-family: var(--font-deco); font-size: 20px; font-weight: 700; color: var(--ink); cursor: pointer; flex: 1; line-height: 1.2; }
+.rec-name-folio:hover { color: var(--blood); }
+.rec-name-input-folio { font-size: 18px; color: var(--ink); flex: 1; border-bottom: 1px solid var(--gold) !important; padding: 2px 0; font-family: var(--font-deco); }
+.rec-type-tag { font-family: var(--font-head); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; padding: 2px 7px; border: 1px solid; border-radius: 2px; }
+.rec-fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.rec-field-wrap { display: flex; flex-direction: column; gap: 5px; }
 .rec-field-wide { grid-column: 1 / -1; }
-.rec-field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--forge-muted); }
-.records-grid { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; align-content: start; }
-.rec-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
-.rec-card-img { height: 100px; overflow: hidden; }
-.rec-card-icon-col { height: 80px; display: flex; align-items: center; justify-content: center; }
-.rec-card-body { padding: 12px 14px; }
-.rec-card-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--forge-text); margin-bottom: 4px; }
-.rec-card-field { font-size: 11px; color: var(--forge-muted); margin-bottom: 2px; display: flex; gap: 4px; }
-.rec-card-field-label { color: var(--forge-muted); flex-shrink: 0; }
-.rec-card-field-val { color: var(--forge-secondary); }
-.rec-card-date { font-size: 10px; color: var(--forge-muted); margin-top: 6px; opacity: 0.6; }
-.rec-empty { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; padding: 60px; color: var(--forge-muted); font-size: 13px; gap: 16px; }
-.btn-danger-pill { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 999px; background: var(--forge-danger-dim); border: none; color: var(--forge-danger); font-size: 12px; cursor: pointer; transition: all 0.15s; }
-.btn-danger-pill:hover { background: rgba(224,85,85,0.2); }
+.rec-field-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-ghost); }
+.parch-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: var(--parch-dark); border: 1px solid var(--ink-ghost); border-radius: 2px; color: var(--ink); font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.parch-btn:hover { background: var(--ink); color: var(--parch); }
+.parch-btn--sm { padding: 4px 10px; font-size: 9px; }
+.parch-btn--danger { border-color: var(--blood); color: var(--blood); background: var(--blood-pale); }
+.parch-btn--danger:hover { background: var(--blood); color: var(--parch); }
+
+/* Empty states */
+.page-right-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; }
+.page-right-hint { font-family: var(--font-body); font-size: 15px; color: var(--ink-ghost); font-style: italic; text-align: center; }
+.tome-empty-inline { padding: 20px 0; font-family: var(--font-body); font-size: 14px; color: var(--ink-ghost); font-style: italic; text-align: center; }
 </style>

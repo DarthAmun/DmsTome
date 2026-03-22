@@ -20,10 +20,10 @@ async function browse() {
 </script>
 <style scoped>
 .f-img-edit { display:flex;align-items:center;gap:10px; }
-.f-img-preview { width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--forge-border); }
-.f-img-empty { width:56px;height:56px;border-radius:50%;background:var(--forge-raised);border:2px solid var(--forge-border);display:flex;align-items:center;justify-content:center; }
-.f-img-btn { padding:6px 14px;border-radius:999px;background:var(--forge-raised);border:1px solid var(--forge-border);color:var(--forge-secondary);font-size:12px;cursor:pointer;transition:all 0.15s; }
-.f-img-btn:hover { color:var(--forge-text); }
+.f-img-preview { width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--parch-line); }
+.f-img-empty { width:56px;height:56px;border-radius:50%;background:var(--parch-dark);border:2px solid var(--parch-line);display:flex;align-items:center;justify-content:center; }
+.f-img-btn { padding:6px 14px;border-radius:999px;background:var(--parch-dark);border:1px solid var(--parch-line);color:var(--ink-faded);font-size:12px;cursor:pointer;transition:all 0.15s; }
+.f-img-btn:hover { color:var(--ink); }
 .f-img-view { width:60px;height:60px;border-radius:50%;object-fit:cover; }
-.f-view-empty { font-size:13px;color:var(--forge-muted); }
+.f-view-empty { font-size:13px;color:var(--ink-ghost); }
 </style>

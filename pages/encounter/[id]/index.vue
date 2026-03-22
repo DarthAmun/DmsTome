@@ -750,7 +750,7 @@ function getImageUrl(token: any): string {
 .modal-box {
   background: var(--forge-surface);
   border: 1px solid var(--forge-border-l);
-  border-radius: var(--r-xl);
+  border-radius: var(--r);
   padding: 24px;
   width: 400px;
   max-width: 90vw;

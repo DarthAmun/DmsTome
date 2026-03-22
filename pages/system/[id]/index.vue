@@ -1,43 +1,44 @@
 <template>
-  <div class="sys-page">
-    <header class="sys-header">
-      <NuxtLink to="/" class="sys-back">
-        <OhVueIcon name="md-arrowback" scale="0.9" /> Dashboard
-      </NuxtLink>
-      <h1 class="sys-title">{{ system?.name }}</h1>
-      <p v-if="system?.description" class="sys-desc">{{ system.description }}</p>
-      <div class="sys-header-actions">
-        <NuxtLink :to="`/system/${systemId}/builder`" class="btn-primary-pill">
+  <div class="sys-folio">
+    <div class="page-header sys-header">
+      <div class="page-chapter-num">System</div>
+      <h1 class="page-title">{{ system?.name }}</h1>
+      <div class="page-rule" />
+    </div>
+    <div class="sys-actions">
+      <p v-if="system?.description" class="tome-intro">
+        <em>{{ system.description }}</em>
+      </p>
+      <div class="sys-action-row">
+        <NuxtLink :to="`/system/${systemId}/builder`" class="seal-btn">
           <OhVueIcon name="md-settings" scale="0.85" /> Edit Schema
         </NuxtLink>
-        <button class="btn-ghost-pill" @click="exportSystem">
-          <OhVueIcon name="md-cloud" scale="0.85" /> Export Schema
+        <button class="parch-btn" @click="exportSystem">
+          <OhVueIcon name="md-cloud" scale="0.85" /> Export
         </button>
       </div>
-    </header>
+    </div>
 
-    <div class="sys-types-grid">
-      <NuxtLink
-        v-for="et in system?.entityTypes ?? []" :key="et.id"
-        :to="`/system/${systemId}/${et.id}`"
-        class="et-card v6-card"
-      >
-        <div class="et-card-icon" :style="{ background: et.color + '18' }">
-          <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="2"
-            :style="{ color: et.color }" />
-        </div>
-        <div class="et-card-body">
-          <div class="et-card-name">{{ et.plural }}</div>
-          <div class="et-card-count">{{ recordCounts[et.id] ?? 0 }} records · {{ et.fields.length }} fields</div>
-        </div>
-        <div class="et-card-arrow">→</div>
-      </NuxtLink>
-
-      <div v-if="!system?.entityTypes?.length" class="et-empty">
-        <p>No entity types defined yet.</p>
-        <NuxtLink :to="`/system/${systemId}/builder`" class="btn-primary-pill">
-          Open Builder
+    <div class="page-content sys-content" data-page="·">
+      <div class="index-list">
+        <NuxtLink
+          v-for="et in system?.entityTypes ?? []" :key="et.id"
+          :to="`/system/${systemId}/${et.id}`"
+          class="entry">
+          <div class="entry-icon">
+            <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.9"
+              :style="{ color: et.color }" />
+          </div>
+          <span class="entry-name">{{ et.plural }}</span>
+          <span class="entry-dots" />
+          <span class="entry-tag" :style="{ color: et.color, borderColor: et.color }">
+            {{ recordCounts[et.id] ?? 0 }} records
+          </span>
+          <span class="entry-date">{{ et.fields.length }} fields</span>
         </NuxtLink>
+        <div v-if="!system?.entityTypes?.length" class="tome-empty-inline">
+          <em>No entity types yet. Open the builder to define them.</em>
+        </div>
       </div>
     </div>
   </div>
@@ -56,7 +57,6 @@ const system = computed(() => systemsStore.getSystem(systemId))
 
 onMounted(async () => {
   if (!systemsStore.systems.length) await systemsStore.loadAll()
-  // Count records per entity type
   const rows = await getDb().records.where('systemId').equals(systemId).toArray()
   const counts: Record<string, number> = {}
   for (const r of rows) {
@@ -78,24 +78,11 @@ function exportSystem() {
 </script>
 
 <style scoped>
-.sys-page { height: 100%; overflow-y: auto; padding: 32px 28px; background: var(--forge-base); }
-.sys-header { margin-bottom: 32px; }
-.sys-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--forge-muted); text-decoration: none; margin-bottom: 12px; transition: color 0.15s; }
-.sys-back:hover { color: var(--forge-text); }
-.sys-title { font-family: var(--font-display); font-size: 28px; font-weight: 900; text-transform: uppercase; color: var(--forge-text); margin-bottom: 6px; }
-.sys-desc { font-size: 13px; color: var(--forge-secondary); margin-bottom: 16px; }
-.sys-header-actions { display: flex; gap: 8px; }
-.btn-primary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; background: var(--forge-accent); color: #0d0d0d; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.15s; border: none; cursor: pointer; }
-.btn-primary-pill:hover { background: #f5cb4a; }
-.btn-ghost-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; background: var(--forge-raised); border: 1px solid var(--forge-border); color: var(--forge-secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; }
-.btn-ghost-pill:hover { color: var(--forge-text); }
-.sys-types-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-.et-card { display: flex; flex-direction: column; overflow: hidden; text-decoration: none; transition: transform 0.15s; }
-.et-card:hover { transform: translateY(-2px); }
-.et-card-icon { height: 100px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.et-card-body { padding: 14px 16px; flex: 1; }
-.et-card-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--forge-text); margin-bottom: 4px; }
-.et-card-count { font-size: 11px; color: var(--forge-muted); }
-.et-card-arrow { padding: 10px 16px; font-size: 18px; color: var(--forge-muted); text-align: right; }
-.et-empty { grid-column: 1/-1; text-align: center; padding: 40px; color: var(--forge-muted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.sys-folio { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--parch); }
+.sys-header { padding-bottom: 0; flex-shrink: 0; }
+.sys-actions { padding: 16px 36px 0; flex-shrink: 0; }
+.tome-intro { font-family: var(--font-body); font-size: 15px; color: var(--ink-faded); margin-bottom: 12px; line-height: 1.6; }
+.sys-action-row { display: flex; gap: 8px; margin-bottom: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--parch-line); }
+.sys-content { background-image: none !important; }
+.tome-empty-inline { padding: 24px 0; font-family: var(--font-body); font-size: 15px; color: var(--ink-ghost); text-align: center; }
 </style>

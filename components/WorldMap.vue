@@ -37,13 +37,13 @@
     <div v-if="pinMode" class="pin-picker">
       <div class="pin-picker-top">
         <div class="pin-search-wrap">
-          <OhVueIcon name="fa-search" scale="0.8" style="color:var(--muted)" />
+          <OhVueIcon name="fa-search" scale="0.8" style="color:var(--ink-ghost)" />
           <input v-model="pinSearch" class="pin-search-input" placeholder="Search entities…" autofocus />
         </div>
         <span v-if="selectedEntityForPin" class="pin-selected-label">
           Placing: <strong>{{ selectedEntityForPin.name }}</strong> — click map
         </span>
-        <span v-else class="pin-selected-label" style="color:var(--muted)">Select an entity, then click the map</span>
+        <span v-else class="pin-selected-label" style="color:var(--ink-ghost)">Select an entity, then click the map</span>
         <button class="pin-cancel-btn" @click="pinMode = false; selectedEntityForPin = null; pinSearch = ''">
           <OhVueIcon name="md-close" scale="0.9" />
         </button>
@@ -66,7 +66,7 @@
             <span class="pin-entity-type" :style="{ color: entityColor(e.type) }">{{ e.type }}</span>
           </div>
         </button>
-        <span v-if="filteredPinEntities.length === 0" style="color:var(--muted);font-size:12px;padding:4px 8px">No matches</span>
+        <span v-if="filteredPinEntities.length === 0" style="color:var(--ink-ghost);font-size:12px;padding:4px 8px">No matches</span>
       </div>
     </div>
 
@@ -113,7 +113,7 @@
       <!-- Empty state -->
       <div v-else class="map-empty">
         <OhVueIcon name="gi-treasure-map" scale="4" style="opacity:0.15;margin-bottom:16px" />
-        <p style="color:var(--secondary);font-size:14px;margin-bottom:16px">No map image loaded</p>
+        <p style="color:var(--ink-faded);font-size:14px;margin-bottom:16px">No map image loaded</p>
         <Button @click="openLoadMap">
           <template #icon><OhVueIcon name="md-map" scale="0.85" /></template>
           Load Map Image
@@ -422,72 +422,72 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.world-map-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg); }
+.world-map-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--parch); }
 
 .map-breadcrumb {
   display: flex; align-items: center; gap: 4px;
   padding: 8px 16px; flex-shrink: 0;
-  background: var(--card); border-bottom: 1px solid var(--border);
+  background: var(--parch-dark); border-bottom: 1px solid var(--parch-line);
   min-height: 38px;
 }
-.crumb-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--r-pill); background: transparent; border: none; color: var(--secondary); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
-.crumb-btn:hover { background: var(--raised); color: var(--text); }
-.crumb-btn.active { color: var(--text); font-weight: 600; cursor: default; }
-.crumb-btn:not(:last-child)::after { content: '›'; margin-left: 4px; color: var(--muted); }
-.crumb-hint { font-size: 12px; color: var(--muted); }
+.crumb-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--r-pill); background: transparent; border: none; color: var(--ink-faded); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.crumb-btn:hover { background: var(--parch-dark); color: var(--ink); }
+.crumb-btn.active { color: var(--ink); font-weight: 600; cursor: default; }
+.crumb-btn:not(:last-child)::after { content: '›'; margin-left: 4px; color: var(--ink-ghost); }
+.crumb-hint { font-size: 12px; color: var(--ink-ghost); }
 
 .map-toolbar {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 16px; flex-shrink: 0;
-  background: var(--card); border-bottom: 1px solid var(--border);
+  background: var(--parch-dark); border-bottom: 1px solid var(--parch-line);
 }
-.map-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text); }
+.map-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--ink); }
 .toolbar-gap { flex: 1; }
 
 .pin-picker {
   flex-shrink: 0;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  background: var(--parch-dark);
+  border-bottom: 1px solid var(--parch-line);
   display: flex; flex-direction: column; gap: 0;
   max-height: 220px;
 }
 .pin-picker-top {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--parch-line);
   flex-shrink: 0;
 }
 .pin-search-wrap {
   display: flex; align-items: center; gap: 7px;
-  background: var(--raised); border-radius: var(--r-pill);
+  background: var(--parch-dark); border-radius: var(--r-pill);
   padding: 5px 12px; flex: 1;
 }
 .pin-search-input {
   background: none; border: none; outline: none;
-  font-size: 13px; color: var(--text);
+  font-size: 13px; color: var(--ink);
   font-family: 'DM Sans', sans-serif; width: 100%;
 }
-.pin-search-input::placeholder { color: var(--muted); }
+.pin-search-input::placeholder { color: var(--ink-ghost); }
 .pin-selected-label { font-size: 12px; color: var(--gold); white-space: nowrap; }
 .pin-cancel-btn {
   width: 28px; height: 28px; border-radius: 50%; border: none;
-  background: var(--raised); color: var(--secondary); cursor: pointer;
+  background: var(--parch-dark); color: var(--ink-faded); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s; flex-shrink: 0;
 }
-.pin-cancel-btn:hover { background: var(--hover); color: var(--text); }
+.pin-cancel-btn:hover { background: rgba(28,20,16,0.08); color: var(--ink); }
 .pin-picker-list {
   display: flex; flex-wrap: wrap; gap: 6px;
   padding: 8px 14px; overflow-y: auto;
 }
 .pin-entity-btn {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 5px 10px 5px 5px; border-radius: var(--r-md);
-  background: var(--raised); border: 1px solid;
-  font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--text);
+  padding: 5px 10px 5px 5px; border-radius: var(--r);
+  background: var(--parch-dark); border: 1px solid;
+  font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--ink);
   cursor: pointer; transition: all 0.15s;
 }
-.pin-entity-btn:hover { background: var(--hover); }
+.pin-entity-btn:hover { background: rgba(28,20,16,0.08); }
 .pin-entity-btn.selected { outline: 2px solid var(--gold); }
 .pin-entity-avatar {
   width: 26px; height: 26px; border-radius: 50%;
@@ -495,7 +495,7 @@ onUnmounted(() => {
   overflow: hidden; flex-shrink: 0;
 }
 .pin-entity-info { display: flex; flex-direction: column; line-height: 1.2; }
-.pin-entity-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.pin-entity-name { font-size: 12px; color: var(--ink); font-weight: 500; }
 .pin-entity-type { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .map-canvas-wrap { flex: 1; overflow: hidden; position: relative; cursor: grab; }
@@ -517,7 +517,7 @@ onUnmounted(() => {
   width: 36px; height: 36px; border-radius: 50%;
   border: 2px solid; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  background: var(--card);
+  background: var(--parch-dark);
 }
 .pin-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .pin-label {
@@ -534,7 +534,7 @@ onUnmounted(() => {
   width: 0; height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 8px solid var(--card);
+  border-top: 8px solid var(--parch-dark);
   margin-top: -1px;
 }
 
@@ -547,7 +547,7 @@ onUnmounted(() => {
   background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
 }
 .pin-preview {
-  background: var(--card); border-radius: var(--r-xl);
+  background: var(--parch-dark); border-radius: var(--r);
   box-shadow: var(--shadow-float);
   width: 320px; max-width: 90%; overflow: hidden;
   animation: slideUp 0.2s ease-out;
@@ -555,10 +555,10 @@ onUnmounted(() => {
 .pin-preview-banner { height: 140px; overflow: hidden; flex-shrink: 0; }
 .pin-preview-body { padding: 16px 18px; }
 .pin-preview-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
-.pin-preview-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-.pin-preview-sub { font-size: 12px; color: var(--secondary); margin-bottom: 2px; }
+.pin-preview-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.pin-preview-sub { font-size: 12px; color: var(--ink-faded); margin-bottom: 2px; }
 .pin-preview-status { font-size: 11px; color: var(--gold); font-style: italic; margin-top: 2px; }
-.pin-preview-excerpt { font-size: 12px; color: var(--secondary); line-height: 1.5; margin-top: 8px; margin-bottom: 12px; }
+.pin-preview-excerpt { font-size: 12px; color: var(--ink-faded); line-height: 1.5; margin-top: 8px; margin-bottom: 12px; }
 .pin-preview-actions { display: flex; align-items: center; gap: 8px; }
 .pin-remove-btn { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: var(--danger-dim); border: none; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .pin-remove-btn:hover { background: rgba(224,85,85,0.25); }

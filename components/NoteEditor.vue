@@ -54,7 +54,7 @@
             <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
               <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
               Script / Prep
-              <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--forge-muted);margin-left:auto">read-only during session</span>
+              <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only during session</span>
             </div>
             <!-- Script: preview in running/finished, editor in planning -->
             <div v-if="sessionMode !== 'planning'" class="preview-pane">
@@ -69,10 +69,10 @@
           <!-- Notes side -->
           <div class="edit-pane">
             <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
-              <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--forge-accent)" />
+              <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
               <span v-if="sessionMode === 'planning'">Script Preview</span>
               <span v-else>Session Notes</span>
-              <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--forge-muted);margin-left:auto">live preview</span>
+              <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
             </div>
             <!-- Notes side: behaviour depends on mode -->
             <!-- planning  → script preview (right side mirrors what you're editing left) -->
@@ -87,7 +87,7 @@
             </div>
             <div v-else class="preview-pane">
               <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-              <p v-else class="text-forge-muted italic font-body" style="padding:24px">No session notes yet…</p>
+              <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@
                 {{ t.label.charAt(0) }}
               </button>
               <div class="tb-divider" />
-              <span class="text-xs text-forge-muted font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
+              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
             </div>
             <div class="editor-area-wrap" style="position:relative">
               <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
@@ -118,11 +118,11 @@
                 <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
                   @mousedown.prevent="applyAutocomplete(item)">
                   <span class="autocomplete-dot"
-                    :style="{ background: typeColorMap[item.type] ?? 'var(--forge-secondary)' }" />
+                    :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
                   <span class="text-sm">{{ item.name }}</span>
-                  <span class="text-xs text-forge-muted ml-auto">{{ item.type }}</span>
+                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
                 </button>
-                <p v-if="autocomplete.items.length === 0" class="text-xs text-forge-muted p-2 italic font-ui">No matches
+                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches
                   — will link on save</p>
               </div>
             </div>
@@ -159,9 +159,9 @@
         <div class="links-list">
           <NuxtLink v-for="p in pinnedOn" :key="p.location.id"
             :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`" class="link-chip pinned-chip">
-            <span class="link-dot" style="background:var(--forge-accent)" />
+            <span class="link-dot" style="background:var(--gold)" />
             <span class="text-sm">{{ p.location.name }}</span>
-            <span class="text-xs text-forge-muted">map</span>
+            <span class="text-xs text-ink-ghost">map</span>
           </NuxtLink>
         </div>
       </div>
@@ -169,11 +169,11 @@
         <span class="f-label">Links</span>
         <div class="links-list">
           <button v-for="link in outgoingLinks" :key="link.id" class="link-chip"
-            :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--forge-secondary)') + '55' }"
+            :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--ink-faded)') + '55' }"
             @click="$emit('navigate', link.targetType, link.targetName)">
-            <span class="link-dot" :style="{ background: typeColorMap[link.targetType] ?? 'var(--forge-secondary)' }" />
+            <span class="link-dot" :style="{ background: typeColorMap[link.targetType] ?? 'var(--ink-faded)' }" />
             <span class="text-sm">{{ link.targetName }}</span>
-            <span class="text-xs text-forge-muted">{{ link.targetType }}</span>
+            <span class="text-xs text-ink-ghost">{{ link.targetType }}</span>
             <span v-if="Object.keys(link.metadata).length > 0" class="link-meta">{{
               Object.entries(link.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')}}</span>
           </button>
@@ -184,9 +184,9 @@
         <div class="links-list">
           <button v-for="bl in backlinks" :key="bl.sourceId" class="link-chip" @click="navigateToSource(bl.sourceId)">
             <span class="link-dot"
-              :style="{ background: typeColorMap[sourceEntity(bl.sourceId)?.type ?? ''] ?? 'var(--forge-secondary)' }" />
+              :style="{ background: typeColorMap[sourceEntity(bl.sourceId)?.type ?? ''] ?? 'var(--ink-faded)' }" />
             <span class="text-sm">{{ sourceEntity(bl.sourceId)?.name }}</span>
-            <span class="text-xs text-forge-muted">{{ sourceEntity(bl.sourceId)?.type }}</span>
+            <span class="text-xs text-ink-ghost">{{ sourceEntity(bl.sourceId)?.type }}</span>
           </button>
         </div>
       </div>
@@ -223,7 +223,7 @@ let attrSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const entityTypes = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, label: cfg.plural, color: cfg.color }))
 const typeColorMap = Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]))
-const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--forge-secondary)')
+const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--ink-faded)')
 const typeLabel = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.label ?? '')
 
 const entityImage = computed(() => {
@@ -247,7 +247,7 @@ const scriptRef = ref<HTMLTextAreaElement | null>(null)
 let scriptSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const renderedScript = computed(() => {
-  if (!draftScript.value) return '<p class="text-forge-muted italic font-body" style="padding:24px">No script written yet…</p>'
+  if (!draftScript.value) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
   const html = md.render(draftScript.value)
   return DOMPurify.sanitize(renderEntityRefs(html, entityLookup), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
@@ -297,7 +297,7 @@ function entityLookup(type: string, name: string) {
 }
 
 const renderedContent = computed(() => {
-  if (!draftContent.value) return '<p class="text-forge-muted italic font-body">Nothing written yet…</p>'
+  if (!draftContent.value) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
   const html = md.render(draftContent.value)
   const withRefs = renderEntityRefs(html, entityLookup)
   return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
@@ -426,7 +426,7 @@ async function confirmDelete() {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--forge-base);
+  background: transparent;
 }
 
 .editor-header {
@@ -434,8 +434,8 @@ async function confirmDelete() {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--forge-surface);
-  border-bottom: 1px solid var(--forge-border);
+  background: transparent;
+  border-bottom: 1px solid var(--parch-line);
   flex-shrink: 0;
 }
 
@@ -466,21 +466,21 @@ async function confirmDelete() {
 /* ── Split layout ─────────────────────────────────────────────────── */
 .mode-btn {
   padding: 4px 12px; border-radius: var(--r-pill);
-  background: var(--forge-raised); border: 1px solid var(--forge-border);
-  color: var(--forge-muted); font-size: 11px; font-weight: 700;
+  background: var(--parch-dark); border: 1px solid var(--parch-line);
+  color: var(--ink-ghost); font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.07em;
   cursor: pointer; transition: all 0.15s;
 }
 .mode-btn.active {
   background: #b87de822; border-color: #b87de855; color: #b87de8;
 }
-.mode-btn:hover:not(.active) { color: var(--forge-text); background: var(--forge-hover); }
+.mode-btn:hover:not(.active) { color: var(--ink); background: rgba(28,20,16,0.08); }
 
 .session-pane-label {
   display: flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-bottom: 1px solid var(--forge-border);
+  padding: 7px 14px; border-bottom: 1px solid var(--parch-line);
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--forge-muted);
+  letter-spacing: 0.08em; color: var(--ink-ghost);
   flex-shrink: 0;
 }
 
@@ -492,7 +492,7 @@ async function confirmDelete() {
 
 .split-divider {
   width: 1px;
-  background: var(--forge-border);
+  background: var(--parch-line);
   flex-shrink: 0;
 }
 
@@ -518,8 +518,8 @@ async function confirmDelete() {
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: var(--forge-surface);
-  border-bottom: 1px solid var(--forge-border);
+  background: transparent;
+  border-bottom: 1px solid var(--parch-line);
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -528,16 +528,16 @@ async function confirmDelete() {
   padding: 3px 8px;
   border-radius: 4px;
   background: transparent;
-  border: 1px solid var(--forge-border);
-  color: var(--forge-secondary);
+  border: 1px solid var(--parch-line);
+  color: var(--ink-faded);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .tb-btn:hover {
-  background: var(--forge-raised);
-  color: var(--forge-text);
+  background: var(--parch-dark);
+  color: var(--ink);
 }
 
 .tb-btn.entity-insert {
@@ -548,7 +548,7 @@ async function confirmDelete() {
 .tb-divider {
   width: 1px;
   height: 18px;
-  background: var(--forge-border);
+  background: var(--parch-line);
   margin: 0 4px;
 }
 
@@ -564,15 +564,15 @@ async function confirmDelete() {
   flex: 1;
   width: 100%;
   padding: 20px 24px;
-  background: var(--forge-base);
+  background: transparent;
   border: none;
   outline: none;
   resize: none;
-  color: var(--forge-text);
+  color: var(--ink);
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   line-height: 1.7;
-  caret-color: var(--forge-accent);
+  caret-color: var(--gold);
 }
 
 .autocomplete-dropdown {
@@ -580,8 +580,8 @@ async function confirmDelete() {
   bottom: 8px;
   left: 24px;
   z-index: 100;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border-l);
+  background: var(--parch-dark);
+  border: 1px solid var(--ink-ghost);
   border-radius: 8px;
   width: 280px;
   overflow: hidden;
@@ -597,13 +597,13 @@ async function confirmDelete() {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--forge-text);
+  color: var(--ink);
   transition: background 0.1s;
   text-align: left;
 }
 
 .autocomplete-item:hover {
-  background: var(--forge-border);
+  background: var(--parch-line);
 }
 
 .autocomplete-dot {
@@ -627,7 +627,7 @@ async function confirmDelete() {
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--forge-border-l);
+  border: 3px solid var(--ink-ghost);
   flex-shrink: 0;
 }
 
@@ -646,7 +646,7 @@ async function confirmDelete() {
 
 .preview-banner-title {
   font-size: 13px;
-  color: var(--forge-accent);
+  color: var(--gold);
   font-style: italic;
 }
 
@@ -656,7 +656,7 @@ async function confirmDelete() {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--forge-accent-dim, rgba(235, 189, 52, 0.12));
-  color: var(--forge-accent);
+  color: var(--gold);
   border: 1px solid rgba(235, 189, 52, 0.3);
   width: fit-content;
 }
@@ -670,9 +670,9 @@ async function confirmDelete() {
 /* ── Links panel ──────────────────────────────────────────────────── */
 .links-panel {
   flex-shrink: 0;
-  border-top: 1px solid var(--forge-border);
+  border-top: 1px solid var(--parch-line);
   padding: 10px 16px;
-  background: var(--forge-surface);
+  background: transparent;
   display: flex;
   gap: 24px;
   flex-wrap: wrap;
@@ -699,14 +699,14 @@ async function confirmDelete() {
   gap: 6px;
   padding: 3px 10px;
   border-radius: 20px;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .link-chip:hover {
-  background: var(--forge-border);
+  background: var(--parch-line);
 }
 
 .link-dot {
@@ -718,14 +718,14 @@ async function confirmDelete() {
 
 .link-meta {
   font-size: 10px;
-  color: var(--forge-accent);
+  color: var(--gold);
   font-style: italic;
 }
 </style>
 
 <style>
 .markdown-body {
-  color: var(--forge-text);
+  color: var(--ink);
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 17px;
   line-height: 1.75;
@@ -734,7 +734,7 @@ async function confirmDelete() {
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
-  color: var(--forge-accent);
+  color: var(--gold);
   margin: 1.2em 0 0.4em;
 }
 
@@ -774,7 +774,7 @@ async function confirmDelete() {
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid var(--forge-accent);
+  border-left: 3px solid var(--gold);
   padding-left: 1em;
   margin: 0.8em 0;
   color: #9090b0;
@@ -782,16 +782,16 @@ async function confirmDelete() {
 }
 
 .markdown-body code {
-  background: var(--forge-raised);
+  background: var(--parch-dark);
   padding: 1px 5px;
   border-radius: 3px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  color: var(--forge-accent);
+  color: var(--gold);
 }
 
 .markdown-body hr {
-  border-color: var(--forge-border);
+  border-color: var(--parch-line);
   margin: 1.5em 0;
 }
 
@@ -826,7 +826,7 @@ async function confirmDelete() {
 }
 
 .entity-ref--item {
-  color: var(--forge-accent);
+  color: var(--gold);
   background: rgba(201, 151, 58, 0.15);
 }
 
