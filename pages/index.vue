@@ -1,6 +1,5 @@
 <template>
   <div class="book-shell">
-    <!-- THE OPEN BOOK -->
     <div class="tome-page page-enter">
 
       <!-- Page header -->
@@ -10,31 +9,28 @@
         <div class="page-rule" />
       </div>
 
-      <!-- Page content -->
-      <div class="page-content" :data-page="currentPage">
+      <!-- Open book spread -->
+      <div class="open-book">
 
-        <!-- ── CAMPAIGNS ─────────────────────────────────────── -->
-        <template v-if="section === 'campaigns'">
-          <div class="campaigns-index ink-drop">
-            <!-- Intro blurb -->
-            <p class="tome-intro">
-              <em>A record of all campaigns undertaken. Select a volume to continue the chronicle, or begin a new
-                one.</em>
-            </p>
+        <!-- LEFT PAGE — the list -->
+        <div class="book-leaf book-leaf--left">
+          <div class="leaf-inner">
 
-            <!-- Campaign entries — like an index -->
-            <div class="index-list">
+            <!-- CAMPAIGNS -->
+            <template v-if="section === 'campaigns'">
+              <div class="leaf-header">
+                <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
+                <span class="leaf-count">{{ campaigns.length }} entries</span>
+              </div>
               <div v-for="c in campaigns" :key="c.id" class="entry" @click="openCampaign(c)">
                 <div class="entry-icon">
-                  <OhVueIcon :name="'gi-broadsword'" scale="0.9" style="color:var(--blood)" />
+                  <OhVueIcon name="gi-broadsword" scale="0.9" style="color:var(--blood)" />
                 </div>
-                <span class="entry-name">
-                  {{ c.name }}
+                <span class="entry-name">{{ c.name }}
                   <em v-if="c.description">— {{ c.description }}</em>
                 </span>
                 <span class="entry-dots" />
-                <span v-if="systemName(c.system_id)" class="entry-tag"
-                  style="color:var(--gold);border-color:var(--gold)">
+                <span v-if="systemName(c.system_id)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">
                   {{ systemName(c.system_id) }}
                 </span>
                 <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
@@ -47,45 +43,23 @@
                   </button>
                 </div>
               </div>
-
-              <div v-if="!campaigns.length" class="tome-empty-inline">
+              <div v-if="!campaigns.length" class="leaf-empty">
+                <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
                 <em>No campaigns yet. Write the first entry.</em>
               </div>
-            </div>
+            </template>
 
-            <!-- New campaign button — quill flourish style -->
-            <div class="new-entry-row">
-              <button class="new-entry-btn" @click="showNew = true">
-                <span class="new-entry-line-left" />
-                <span class="new-entry-label">✦ Begin New Campaign ✦</span>
-                <span class="new-entry-line-right" />
-              </button>
-            </div>
-
-            <!-- Import -->
-            <div class="tome-footnote">
-              <label class="tome-footnote-link">
-                ↑ Restore from backup
-                <input type="file" accept=".json" style="display:none" @change="importData" />
-              </label>
-            </div>
-          </div>
-        </template>
-
-        <!-- ── SYSTEMS ──────────────────────────────────────── -->
-        <template v-else-if="section === 'systems'">
-          <div class="ink-drop">
-            <p class="tome-intro">
-              <em>The rule compendium. Each system defines the entities and attributes used within its campaigns.</em>
-            </p>
-
-            <div class="index-list">
+            <!-- SYSTEMS -->
+            <template v-else-if="section === 'systems'">
+              <div class="leaf-header">
+                <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
+                <span class="leaf-count">{{ systems.length }} defined</span>
+              </div>
               <NuxtLink v-for="sys in systems" :key="sys.id!" :to="`/system/${sys.id}`" class="entry">
                 <div class="entry-icon">
-                  <OhVueIcon name="gi-scroll-unfurled" scale="0.9" style="color:var(--arcane)" />
+                  <OhVueIcon name="gi-scroll-unfurled" scale="0.9" style="color:var(--arcane-l)" />
                 </div>
-                <span class="entry-name">
-                  {{ sys.name }}
+                <span class="entry-name">{{ sys.name }}
                   <em v-if="sys.description">— {{ sys.description }}</em>
                 </span>
                 <span class="entry-dots" />
@@ -94,55 +68,99 @@
                 </span>
                 <span class="entry-date">v{{ sys.version }}</span>
               </NuxtLink>
-
-              <div v-if="!systems.length" class="tome-empty-inline">
-                <em>No systems defined. Add one to begin building your codex.</em>
+              <div v-if="!systems.length" class="leaf-empty">
+                <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
+                <em>No systems defined yet.</em>
               </div>
-            </div>
+            </template>
 
-            <div class="new-entry-row">
-              <button class="new-entry-btn" @click="showNewSystem = true">
-                <span class="new-entry-line-left" />
-                <span class="new-entry-label">✦ Define New System ✦</span>
-                <span class="new-entry-line-right" />
+            <!-- LIBRARY -->
+            <template v-else>
+              <div class="leaf-header">
+                <span class="leaf-type" style="color:var(--gold)">Library</span>
+                <span class="leaf-count">all records</span>
+              </div>
+              <div v-if="!systems.length" class="leaf-empty">
+                <em>Define a system first to populate the library.</em>
+              </div>
+              <div v-for="sys in systems" :key="sys.id!" class="lib-system">
+                <div class="lib-system-head">
+                  <span class="lib-system-name">{{ sys.name }}</span>
+                  <span class="lib-rule" />
+                </div>
+                <div class="lib-chips">
+                  <NuxtLink v-for="et in sys.entityTypes" :key="et.id"
+                    :to="`/system/${sys.id}/${et.id}`"
+                    class="lib-chip" :style="{ '--chip-color': et.color }">
+                    <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
+                    {{ et.plural }}
+                  </NuxtLink>
+                </div>
+              </div>
+            </template>
+
+          </div>
+
+          <!-- Footer -->
+          <div class="leaf-footer">
+            <template v-if="section === 'campaigns'">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <button class="leaf-new" @click="showNew = true" style="flex:1">
+                  <span class="leaf-new-line-l" />
+                  <span class="leaf-new-label">✦ Begin New Campaign ✦</span>
+                  <span class="leaf-new-line-r" />
+                </button>
+              </div>
+              <div class="leaf-footnote">
+                <label class="leaf-footnote-link">
+                  ↑ Restore from backup
+                  <input type="file" accept=".json" style="display:none" @change="importData" />
+                </label>
+              </div>
+            </template>
+            <template v-else-if="section === 'systems'">
+              <button class="leaf-new" @click="showNewSystem = true">
+                <span class="leaf-new-line-l" />
+                <span class="leaf-new-label">✦ Define New System ✦</span>
+                <span class="leaf-new-line-r" />
               </button>
-            </div>
-
-            <div class="tome-footnote">
-              <label class="tome-footnote-link">
-                ↑ Import system schema
-                <input type="file" accept=".json" style="display:none" @change="importSystem" />
-              </label>
-            </div>
-          </div>
-        </template>
-
-        <!-- ── LIBRARY ──────────────────────────────────────── -->
-        <template v-else>
-          <div class="ink-drop">
-            <p class="tome-intro">
-              <em>The great library. All records across all systems.</em>
-            </p>
-
-            <div v-if="!systems.length" class="tome-empty-inline">
-              <em>Define a system first to populate the library.</em>
-            </div>
-
-            <div v-for="sys in systems" :key="sys.id!" class="library-chapter">
-              <div class="library-chapter-head">
-                <span class="library-chapter-name">{{ sys.name }}</span>
-                <span class="library-rule-line" />
+              <div class="leaf-footnote">
+                <label class="leaf-footnote-link">
+                  ↑ Import system schema
+                  <input type="file" accept=".json" style="display:none" @change="importSystem" />
+                </label>
               </div>
-              <div class="library-entries">
-                <NuxtLink v-for="et in sys.entityTypes" :key="et.id" :to="`/system/${sys.id}/${et.id}`"
-                  class="library-entry" :style="{ '--type-color': et.color }">
-                  <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.9" />
-                  <span>{{ et.plural }}</span>
-                </NuxtLink>
-              </div>
-            </div>
+            </template>
           </div>
-        </template>
+        </div>
+
+        <!-- BINDING -->
+        <div class="book-binding" />
+
+        <!-- RIGHT PAGE — decorative / hint -->
+        <div class="book-leaf book-leaf--right">
+          <div class="leaf-inner--right">
+            <template v-if="section === 'campaigns'">
+              <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.05;margin-bottom:24px" />
+              <p class="right-hint">
+                <em>Select a campaign to continue<br>your adventure.</em>
+              </p>
+            </template>
+            <template v-else-if="section === 'systems'">
+              <OhVueIcon name="gi-scroll-unfurled" scale="4" style="opacity:0.05;margin-bottom:24px" />
+              <p class="right-hint">
+                <em>Each system defines the entities<br>and fields for your campaigns.</em>
+              </p>
+            </template>
+            <template v-else>
+              <OhVueIcon name="gi-open-treasure-chest" scale="4" style="opacity:0.05;margin-bottom:24px" />
+              <p class="right-hint">
+                <em>Browse all records across<br>every system.</em>
+              </p>
+            </template>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -168,15 +186,12 @@
         <div class="pv-dialog">
           <div class="pv-dialog-header">
             <span class="pv-dialog-title">Begin a New Campaign</span>
-            <button class="pv-dialog-close" @click="showNew = false">
-              <OhVueIcon name="md-close" scale="0.85" />
-            </button>
+            <button class="pv-dialog-close" @click="showNew = false"><OhVueIcon name="md-close" scale="0.85" /></button>
           </div>
           <div class="pv-dialog-content">
             <div style="margin-bottom:16px">
               <label class="f-label">Title</label>
-              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…"
-                @keyup.enter="createCampaign" autofocus />
+              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…" @keyup.enter="createCampaign" autofocus />
             </div>
             <div style="margin-bottom:16px">
               <label class="f-label">Chronicle</label>
@@ -184,8 +199,7 @@
             </div>
             <div>
               <label class="f-label">System</label>
-              <Select v-model="newCamp.systemId" :options="sysOptions" option-label="label" option-value="value"
-                placeholder="— none —" />
+              <Select v-model="newCamp.systemId" :options="sysOptions" option-label="label" option-value="value" placeholder="— none —" />
             </div>
           </div>
           <div class="pv-dialog-footer">
@@ -199,9 +213,7 @@
         <div class="pv-dialog">
           <div class="pv-dialog-header">
             <span class="pv-dialog-title">Define a New System</span>
-            <button class="pv-dialog-close" @click="showNewSystem = false">
-              <OhVueIcon name="md-close" scale="0.85" />
-            </button>
+            <button class="pv-dialog-close" @click="showNewSystem = false"><OhVueIcon name="md-close" scale="0.85" /></button>
           </div>
           <div class="pv-dialog-content">
             <div style="margin-bottom:16px">
@@ -210,8 +222,7 @@
             </div>
             <div style="margin-bottom:16px">
               <label class="f-label">Short ID</label>
-              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId"
-                placeholder="pf2e" />
+              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId" placeholder="pf2e" />
             </div>
             <div>
               <label class="f-label">Description</label>
@@ -243,10 +254,8 @@ const newCamp = ref({ name: '', description: '', systemId: null as number | null
 const newSys = ref({ name: '', shortId: '', description: '' })
 
 const chapterTitle = computed(() => ({ campaigns: 'The Chronicle', systems: 'The Codex', library: 'The Library' }[section.value]))
-const currentPage = computed(() => ({ campaigns: 'I', systems: 'II', library: 'III' }[section.value]))
 const systems = computed(() => store.systems)
 const sysOptions = computed(() => [{ label: '— none —', value: null }, ...store.systems.map(s => ({ label: s.name, value: s.id! }))])
-
 function systemName(id?: number | null) { return id ? store.getSystem(id)?.name ?? null : null }
 
 onMounted(async () => {
@@ -326,205 +335,55 @@ function formatDate(dt: string) {
 </script>
 
 <style scoped>
-/* Index layout */
-.campaigns-index {
-  padding-bottom: 20px;
-}
+.book-shell { display: flex; height: 100vh; background: var(--leather); }
+.tome-page { flex: 1; display: flex; flex-direction: column; background: var(--parch); margin: 16px 56px 16px 16px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: hidden; position: relative; z-index: 1; }
 
-.tome-intro {
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--ink-faded);
-  margin-bottom: 28px;
-  line-height: 1.7;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--parch-line);
-}
+/* Open book */
+.open-book { flex: 1; display: flex; overflow: hidden; background: var(--leather); }
+.book-leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--parch); overflow: hidden; }
+.book-leaf--left  { box-shadow:  4px 0 16px rgba(0,0,0,0.2); }
+.book-leaf--right { box-shadow: -4px 0 16px rgba(0,0,0,0.12); }
+.book-binding { width: 10px; flex-shrink: 0; background: linear-gradient(to right, rgba(0,0,0,0.22), rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.06) 60%, rgba(0,0,0,0.22)); position: relative; }
+.book-binding::before { content: ''; position: absolute; top:0; bottom:0; left:3px; right:3px; background: var(--leather); opacity: 0.85; }
+.leaf-inner { flex: 1; overflow-y: auto; padding: 20px 28px 12px; background: var(--parch); }
+.leaf-inner--right { flex: 1; overflow-y: auto; padding: 20px 28px 12px; background: var(--parch); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.leaf-footer { padding: 10px 28px 16px; border-top: 1px dashed var(--parch-line); background: var(--parch); }
 
-.index-list {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 28px;
-}
+.leaf-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--parch-line); }
+.leaf-type  { font-family: var(--font-head); font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+.leaf-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); }
+.leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; gap: 0; }
 
-/* Entry actions — hidden until hover */
-.entry-actions {
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
+/* Entries */
+.entry-icon { width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 20px; height: 20px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act:hover { background: rgba(28,20,16,0.12); }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
 
-.entry:hover .entry-actions {
-  opacity: 1;
-}
+/* Footer new entry */
+.leaf-new { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; cursor: pointer; padding: 4px 0; margin-bottom: 8px; }
+.leaf-new-line-l { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
+.leaf-new-line-r { flex: 1; height: 1px; background: linear-gradient(to left, transparent, var(--ink-ghost)); }
+.leaf-new-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; transition: color 0.2s; }
+.leaf-new:hover .leaf-new-label { color: var(--blood); }
+.leaf-new:hover .leaf-new-line-l { background: linear-gradient(to right, transparent, var(--blood)); }
+.leaf-new:hover .leaf-new-line-r { background: linear-gradient(to left, transparent, var(--blood)); }
 
-.entry-act {
-  width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  background: rgba(28, 20, 16, 0.08);
-  border: 1px solid transparent;
-  color: var(--ink-ghost);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
+.leaf-footnote { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); margin-top: 4px; }
+.leaf-footnote-link { color: var(--ink-ghost); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; letter-spacing: 0.12em; text-transform: uppercase; transition: color 0.15s; }
+.leaf-footnote-link:hover { color: var(--gold); }
 
-.entry-act:hover {
-  background: rgba(28, 20, 16, 0.15);
-  color: var(--ink-faded);
-}
-
-.entry-act--del:hover {
-  background: var(--blood-pale);
-  color: var(--blood);
-  border-color: var(--blood);
-}
-
-/* New entry row — the ornamental divider */
-.new-entry-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.new-entry-btn {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding: 8px 0;
-}
-
-.new-entry-line-left {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--ink-ghost));
-}
-
-.new-entry-line-right {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.new-entry-btn:nth-child(1) .new-entry-line:last-child {
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.new-entry-label {
-  font-family: var(--font-head);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  white-space: nowrap;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.new-entry-btn:hover .new-entry-label {
-  color: var(--blood);
-}
-
-.new-entry-btn:hover .new-entry-line {
-  background: linear-gradient(to right, transparent, var(--blood));
-}
-
-.tome-empty-inline {
-  padding: 24px 0;
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--ink-ghost);
-  text-align: center;
-}
-
-.tome-footnote {
-  font-family: var(--font-head);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: var(--ink-ghost);
-}
-
-.tome-footnote-link {
-  color: var(--ink-ghost);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  transition: color 0.15s;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 9px;
-}
-
-.tome-footnote-link:hover {
-  color: var(--gold);
-}
+/* Right page */
+.right-hint { font-family: var(--font-body); font-size: 15px; color: var(--ink-ghost); font-style: italic; text-align: center; line-height: 1.8; }
 
 /* Library */
-.library-chapter {
-  margin-bottom: 28px;
-}
-
-.library-chapter-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.library-chapter-name {
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-faded);
-  flex-shrink: 0;
-}
-
-.library-rule-line {
-  flex: 1;
-  height: 1px;
-  background: var(--parch-line);
-}
-
-.library-entries {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.library-entry {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: var(--parch-dark);
-  border: 1px solid var(--ink-ghost);
-  border-radius: 2px;
-  text-decoration: none;
-  font-family: var(--font-head);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--type-color, var(--ink-faded));
-  transition: all 0.18s;
-}
-
-.library-entry:hover {
-  background: var(--ink);
-  color: var(--parch);
-  border-color: var(--ink);
-  transform: translateY(-1px);
-}
+.lib-system { margin-bottom: 24px; }
+.lib-system-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.lib-system-name { font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); flex-shrink: 0; }
+.lib-rule { flex: 1; height: 1px; background: var(--parch-line); }
+.lib-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--parch-dark); border: 1px solid var(--ink-ghost); border-radius: 2px; text-decoration: none; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--chip-color, var(--ink-faded)); transition: all 0.18s; }
+.lib-chip:hover { background: var(--ink); color: var(--parch); border-color: var(--ink); }
 </style>
