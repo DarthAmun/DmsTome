@@ -1,105 +1,94 @@
 <template>
-  <div class="page-content">
-    <div class="shell-body">
-      <header class="top-bar">
-        <span class="top-bar-title">{{ campaignName }}</span>
-        <span class="top-bar-section">/ World Map</span>
-        <div class="top-bar-spacer" />
-        <NuxtLink :to="`/campaign/${campaignId}/notes`" class="nav-pill">
-          <OhVueIcon name="gi-scroll-unfurled" scale="0.85" /> Notes
-        </NuxtLink>
-      </header>
+  <div class="map-folio">
 
-      <!-- Active map view -->
-      <div v-if="activeLocationId" class="map-view">
-        <div class="map-view-header">
-          <button class="pill-btn" @click="goBack">
-            <OhVueIcon name="md-arrowback" scale="0.85" /> All Locations
-          </button>
-          <span class="map-view-name">{{ activeLocationName }}</span>
-        </div>
-        <div class="map-body">
-          <WorldMap
-            :campaign-id="campaignId"
-            :root-location-id="activeLocationId"
-            :location-stack="locationStack"
-            @navigate-entity="navigateToEntity"
-            @drill-down="onDrillDown"
-            @navigate-crumb="onNavigateCrumb"
-          />
-        </div>
+    <!-- ACTIVE MAP — full width -->
+    <div v-if="activeLocationId" class="map-view">
+      <div class="map-view-header">
+        <button class="back-crumb" @click="goBack">← All Locations</button>
+        <span class="map-view-name">{{ activeLocationName }}</span>
       </div>
-
-      <!-- Location dashboard -->
-      <div v-else class="main-canvas">
-        <h1 class="section-eyebrow">Locations</h1>
-
-        <div v-if="locations.length > 0" class="loc-grid">
-          <div
-            v-for="loc in locations" :key="loc.id"
-            class="loc-card v6-card"
-            @click="openLocation(loc)"
-          >
-            <div class="loc-card-banner">
-              <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="w-full h-full object-cover" />
-              <img v-else-if="locMap(loc)" :src="locMap(loc)!" class="w-full h-full object-cover"
-                style="filter:brightness(0.45) saturate(0.6)" />
-              <div v-else class="loc-card-banner-empty">
-                <OhVueIcon name="gi-castle" scale="2.5" style="opacity:0.2" />
-              </div>
-              <div class="loc-card-badges">
-                <span v-if="locAttrs(loc).status" class="loc-status-badge"
-                  :class="`status--${locAttrs(loc).status}`">{{ locAttrs(loc).status }}</span>
-                <span v-if="locMap(loc)" class="loc-map-badge" title="Has map">
-                  <OhVueIcon name="md-map" scale="0.75" />
-                </span>
-              </div>
-              <span v-if="locAttrs(loc).locationType" class="loc-type-tag capitalize">
-                {{ locAttrs(loc).locationType }}
-              </span>
-            </div>
-            <div class="loc-card-body">
-              <div class="loc-card-name">{{ loc.name }}</div>
-              <div class="loc-card-meta">
-                <span v-if="pinCount(loc)" class="loc-pin-count">
-                  <OhVueIcon name="gi-all-seeing-eye" scale="0.75" /> {{ pinCount(loc) }} pins
-                </span>
-                <span class="loc-card-date">{{ formatDate(loc.updatedAt) }}</span>
-              </div>
-              <div class="loc-card-actions" @click.stop>
-                <button class="loc-action" @click.stop="openNotes(loc)">
-                  <OhVueIcon name="md-editnote" scale="0.8" /> Note
-                </button>
-                <button v-if="locMap(loc)" class="loc-action loc-action--primary"
-                  @click.stop="openLocation(loc)">
-                  <OhVueIcon name="md-map" scale="0.8" /> Open Map
-                </button>
-                <button v-else class="loc-action" @click.stop="openLocation(loc)">
-                  <OhVueIcon name="md-add" scale="0.8" /> Add Map
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="loc-card loc-card--new v6-card" @click="createLocation">
-            <OhVueIcon name="md-add" scale="2" style="color:var(--muted);opacity:0.3;margin-bottom:8px" />
-            <span style="color:var(--secondary);font-size:13px;font-weight:500">New Location</span>
-          </div>
-        </div>
-
-        <div v-else class="empty-state">
-          <OhVueIcon name="gi-treasure-map" scale="4" style="opacity:0.1;margin-bottom:16px" />
-          <h2 style="font-size:22px;font-weight:900;text-transform:uppercase;margin-bottom:8px">No Locations Yet</h2>
-          <p style="color:var(--secondary);font-size:13px;margin-bottom:20px">
-            Create a location, add a map image, then pin entities to it.
-          </p>
-          <Button @click="createLocation">
-            <template #icon><OhVueIcon name="md-add" scale="0.85" /></template>
-            New Location
-          </Button>
-        </div>
+      <div class="map-body">
+        <WorldMap :campaign-id="campaignId" :root-location-id="activeLocationId" :location-stack="locationStack"
+          @navigate-entity="navigateToEntity" @drill-down="onDrillDown" @navigate-crumb="onNavigateCrumb" />
       </div>
     </div>
+
+    <!-- ATLAS INDEX — two-page spread like notes -->
+    <template v-else>
+      <div class="page-header atlas-header">
+        <div class="page-chapter-num">{{ campaignName }}</div>
+        <h1 class="page-title">The Atlas</h1>
+        <div class="page-rule" />
+      </div>
+
+      <div class="open-book">
+
+        <!-- LEFT PAGE -->
+        <div class="book-leaf book-leaf--left">
+          <div class="leaf-inner">
+            <div class="leaf-header">
+              <span class="leaf-type" style="color:var(--gold)">Locations</span>
+              <span class="leaf-count">{{ locations.length }} entries</span>
+            </div>
+            <div class="atlas-list">
+              <div v-for="loc in leftLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                <div class="entry-icon">
+                  <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                  <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                </div>
+                <span class="entry-name">{{ loc.name }}
+                  <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
+                </span>
+                <span class="entry-dots" />
+                <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
+                <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+              </div>
+              <div v-if="!locations.length" class="leaf-empty">
+                <OhVueIcon name="gi-treasure-map" scale="2.5" style="opacity:0.08;margin-bottom:12px" />
+                <em>No locations yet. Begin charting the world.</em>
+              </div>
+            </div>
+          </div>
+          <div class="leaf-footer">
+            <button class="new-entry-btn" @click="createLocation">
+              <span class="new-entry-line-left" />
+              <span class="new-entry-label">✦ New Location ✦</span>
+              <span class="new-entry-line-right" />
+            </button>
+          </div>
+        </div>
+
+        <!-- BINDING -->
+        <div class="book-binding" />
+
+        <!-- RIGHT PAGE -->
+        <div class="book-leaf book-leaf--right">
+          <div class="leaf-inner">
+            <div class="leaf-header leaf-header--right">
+              <span class="leaf-folio">continued</span>
+            </div>
+            <div class="atlas-list">
+              <div v-for="loc in rightLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                <div class="entry-icon">
+                  <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                  <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                </div>
+                <span class="entry-name">{{ loc.name }}
+                  <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
+                </span>
+                <span class="entry-dots" />
+                <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
+                <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+              </div>
+              <div v-if="rightLocations.length === 0 && locations.length > 0" class="leaf-empty">
+                <em style="opacity:0.35">— end of entries —</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </template>
   </div>
 </template>
 
@@ -111,8 +100,11 @@ const router = useRouter()
 const store = useNotesStore()
 const campaignId = Number(route.params.id)
 const campaignName = ref('Campaign')
+const previewLoc = ref<any>(null)
 
 const locations = computed(() => store.byType['location'] ?? [])
+const leftLocations = computed(() => { const a = locations.value; return a.slice(0, Math.ceil(a.length / 2)) })
+const rightLocations = computed(() => { const a = locations.value; return a.slice(Math.ceil(a.length / 2)) })
 
 // All state in the URL:
 //   locationId = current map being viewed
@@ -150,10 +142,12 @@ function goBack() {
   if (locationStack.value.length > 0) {
     const newStack = locationStack.value.slice(0, -1)
     const parentId = locationStack.value[locationStack.value.length - 1]
-    router.push({ query: {
-      locationId: String(parentId),
-      ...(newStack.length ? { stack: newStack.join(',') } : {}),
-    }})
+    router.push({
+      query: {
+        locationId: String(parentId),
+        ...(newStack.length ? { stack: newStack.join(',') } : {}),
+      }
+    })
   } else if (activeLocationId.value) {
     router.push({ query: {} })
   } else {
@@ -163,20 +157,24 @@ function goBack() {
 
 function onDrillDown(fromId: number, toId: number) {
   const newStack = [...locationStack.value, fromId]
-  router.push({ query: {
-    locationId: String(toId),
-    stack: newStack.join(','),
-  }})
+  router.push({
+    query: {
+      locationId: String(toId),
+      stack: newStack.join(','),
+    }
+  })
 }
 
 function onNavigateCrumb(index: number) {
   // index is the position in the breadcrumb to go back to
   const targetId = locationStack.value[index]
   const newStack = locationStack.value.slice(0, index)
-  router.push({ query: {
-    locationId: String(targetId),
-    ...(newStack.length ? { stack: newStack.join(',') } : {}),
-  }})
+  router.push({
+    query: {
+      locationId: String(targetId),
+      ...(newStack.length ? { stack: newStack.join(',') } : {}),
+    }
+  })
 }
 
 function openNotes(loc: any) {
@@ -216,42 +214,235 @@ function formatDate(dt: string) {
 </script>
 
 <style scoped>
-.shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
-.top-bar-spacer { flex: 1; }
-.top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
+.map-folio {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--parch);
+  overflow: hidden;
+}
 
-.map-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.map-view-header { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.map-view-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
-.map-body { flex: 1; overflow: hidden; position: relative; }
+.atlas-header {
+  padding-bottom: 0;
+  flex-shrink: 0;
+}
 
-.main-canvas { flex: 1; overflow-y: auto; padding: 28px 24px; background: var(--bg); }
-.section-eyebrow { font-family: var(--font-display); font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--text); margin-bottom: 20px; }
+.map-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-.loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.loc-card { display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
-.loc-card-banner { height: 140px; background: var(--raised); position: relative; overflow: hidden; flex-shrink: 0; }
-.loc-card-banner-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.loc-card-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 5px; align-items: center; }
-.loc-status-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: capitalize; }
-.status--discovered   { background: rgba(124,196,78,0.25); color: #7cc44e; }
-.status--undiscovered { background: rgba(96,96,96,0.25);   color: var(--secondary); }
-.status--destroyed    { background: rgba(224,85,85,0.25);  color: var(--danger); }
-.loc-map-badge { width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.55); color: white; display: flex; align-items: center; justify-content: center; }
-.loc-type-tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,0.6); color: white; }
-.loc-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.loc-card-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); }
-.loc-card-meta { display: flex; align-items: center; gap: 10px; }
-.loc-pin-count { font-size: 11px; color: var(--secondary); display: flex; align-items: center; gap: 4px; }
-.loc-card-date { font-size: 11px; color: var(--muted); margin-left: auto; }
-.loc-card-actions { display: flex; gap: 5px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
-.loc-action { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--raised); border: none; color: var(--secondary); font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
-.loc-action:hover { background: var(--hover); color: var(--text); }
-.loc-action--primary { background: var(--gold-dim); color: var(--gold); }
-.loc-action--primary:hover { background: rgba(235,189,52,0.22); }
-.loc-card--new { align-items: center; justify-content: center; min-height: 200px; border: 2px dashed var(--border); box-shadow: none; background: transparent; }
-.loc-card--new:hover { border-color: var(--border-l); background: var(--card); }
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; }
-.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+.map-view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: var(--parch);
+  border-bottom: 1px dashed var(--parch-line);
+  flex-shrink: 0;
+}
+
+.map-view-name {
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.map-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.back-crumb {
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.back-crumb:hover {
+  color: var(--blood);
+}
+
+/* Open book spread */
+.open-book {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--leather);
+}
+
+.book-leaf {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--parch);
+  overflow: hidden;
+}
+
+.book-leaf--left {
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
+}
+
+.book-leaf--right {
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
+}
+
+.leaf-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px 12px;
+  background: var(--parch);
+}
+
+.leaf-footer {
+  padding: 10px 28px 16px;
+  border-top: 1px dashed var(--parch-line);
+  background: var(--parch);
+}
+
+.book-binding {
+  width: 10px;
+  flex-shrink: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.06) 40%, rgba(0, 0, 0, 0.06) 60%, rgba(0, 0, 0, 0.22));
+  position: relative;
+}
+
+.book-binding::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  right: 3px;
+  background: var(--leather);
+  opacity: 0.85;
+}
+
+.leaf-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--parch-line);
+}
+
+.leaf-header--right {
+  justify-content: flex-end;
+}
+
+.leaf-type {
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.leaf-count {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+}
+
+.leaf-folio {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  font-style: italic;
+}
+
+.leaf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 32px 0;
+  color: var(--ink-ghost);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+  gap: 8px;
+}
+
+.atlas-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry-icon {
+  width: 26px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.entry-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--parch-dark);
+}
+
+.new-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.new-entry-line-left {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--ink-ghost));
+}
+
+.new-entry-line-right {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, transparent, var(--ink-ghost));
+}
+
+.new-entry-label {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.new-entry-btn:hover .new-entry-label {
+  color: var(--blood);
+}
+
+.new-entry-btn:hover .new-entry-line {
+  background: linear-gradient(to right, transparent, var(--blood));
+}
 </style>

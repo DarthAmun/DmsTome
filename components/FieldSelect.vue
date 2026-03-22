@@ -17,11 +17,11 @@ defineEmits<{ update: [any] }>()
 <style scoped>
 .f-select {
   width: 100%;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
-  border-radius: var(--r-md);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  border-radius: var(--r);
   padding: 7px 10px;
-  color: var(--forge-text);
+  color: var(--ink);
   font-size: 13px;
   font-family: 'DM Sans', sans-serif;
   outline: none;
@@ -31,14 +31,14 @@ defineEmits<{ update: [any] }>()
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
   font-size: 12px;
-  color: var(--forge-secondary);
+  color: var(--ink-faded);
 }
 
 .f-view-empty {
   font-size: 13px;
-  color: var(--forge-muted);
+  color: var(--ink-ghost);
 }
 </style>

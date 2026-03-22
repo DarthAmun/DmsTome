@@ -15,7 +15,7 @@ defineEmits<{ update: [any] }>()
 </script>
 <style scoped>
 .f-num-row { display:flex;align-items:center;gap:8px; }
-.f-input { background:var(--forge-raised);border:1px solid var(--forge-border);border-radius:var(--r-md);padding:7px 10px;color:var(--forge-text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:100px; }
-.f-unit { font-size:12px;color:var(--forge-muted); }
-.f-view { font-size:13px;color:var(--forge-text); }
+.f-input { background:var(--parch-dark);border:1px solid var(--parch-line);border-radius:var(--r-md);padding:7px 10px;color:var(--ink);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:100px; }
+.f-unit { font-size:12px;color:var(--ink-ghost); }
+.f-view { font-size:13px;color:var(--ink); }
 </style>

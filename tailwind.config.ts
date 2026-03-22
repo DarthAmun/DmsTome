@@ -12,19 +12,19 @@ export default {
     extend: {
       colors: {
         forge: {
-          bg: '#0d0d0d',
-          card: '#1a1a1a',
+          bg: 'var(--leather)',
+          card: '#1a0a14',
           raised: '#242424',
           hover: '#2a2a2a',
           border: '#2e2e2e',
           text: '#ffffff',
           secondary: '#888888',
           muted: '#4a4a4a',
-          gold: '#ebbd34',
+          gold: '#b8860b',
           'gold-l': '#f5cb4a',
           lime: '#a8e63d',
           'lime-l': '#c0f060',
-          danger: '#e05555',
+          danger: '#8b1a1a',
           green: '#7cc44e',
         },
       },

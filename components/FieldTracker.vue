@@ -38,7 +38,7 @@ const emit = defineEmits<{ update: [any] }>()
 const current = computed(() => props.value?.current ?? 0)
 const maximum = computed(() => props.value?.max ?? (props.field.config.defaultMax ?? 10))
 const pct = computed(() => maximum.value > 0 ? Math.max(0, Math.min(100, (current.value / maximum.value) * 100)) : 0)
-const barColor = computed(() => pct.value > 50 ? '#7cc44e' : pct.value > 25 ? '#ebbd34' : '#e05555')
+const barColor = computed(() => pct.value > 50 ? '#4a7a38' : pct.value > 25 ? '#b8860b' : '#8b1a1a')
 
 const editingCurrent = ref(false)
 const editingMax = ref(false)
@@ -62,14 +62,14 @@ function setMax(v: number) {
 
 <style scoped>
 .f-tracker { display:flex;align-items:center;gap:10px; }
-.f-track-btn { width:28px;height:28px;border-radius:50%;background:var(--forge-raised);border:1px solid var(--forge-border);color:var(--forge-text);font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s; }
-.f-track-btn:hover:not(:disabled) { background:var(--forge-hover); }
+.f-track-btn { width:28px;height:28px;border-radius:50%;background:var(--parch-dark);border:1px solid var(--parch-line);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s; }
+.f-track-btn:hover:not(:disabled) { background:rgba(28,20,16,0.08); }
 .f-track-btn:disabled { opacity:0.3;cursor:not-allowed; }
 .f-track-display { display:flex;align-items:baseline;gap:4px; }
-.f-track-cur { font-family: var(--font-display);font-size:22px;font-weight:800;color:var(--forge-text);cursor:pointer;min-width:28px;text-align:center; }
-.f-track-sep { font-size:16px;color:var(--forge-muted); }
-.f-track-max { font-size:14px;color:var(--forge-muted);cursor:pointer;min-width:24px;text-align:center; }
-.f-track-input { font-family: var(--font-display);font-size:22px;font-weight:800;width:48px;background:var(--forge-raised);border:1px solid var(--forge-accent);border-radius:4px;color:var(--forge-text);text-align:center;outline:none; }
-.f-track-bar { height:4px;background:var(--forge-raised);border-radius:999px;overflow:hidden;margin-top:6px; }
+.f-track-cur { font-family: var(--font-display);font-size:22px;font-weight:800;color:var(--ink);cursor:pointer;min-width:28px;text-align:center; }
+.f-track-sep { font-size:16px;color:var(--ink-ghost); }
+.f-track-max { font-size:14px;color:var(--ink-ghost);cursor:pointer;min-width:24px;text-align:center; }
+.f-track-input { font-family: var(--font-display);font-size:22px;font-weight:800;width:48px;background:var(--parch-dark);border:1px solid var(--gold);border-radius:4px;color:var(--ink);text-align:center;outline:none; }
+.f-track-bar { height:4px;background:var(--parch-dark);border-radius:999px;overflow:hidden;margin-top:6px; }
 .f-track-fill { height:100%;border-radius:999px;transition:width 0.3s,background 0.3s; }
 </style>

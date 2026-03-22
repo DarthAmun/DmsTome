@@ -270,9 +270,9 @@ async function browseImage(sourceKey: string, typeKey: string) {
   height: 36px;
   border-radius: 8px;
   flex-shrink: 0;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
-  color: var(--forge-secondary);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  color: var(--ink-faded);
   cursor: pointer;
   transition: all 0.15s;
   display: flex;
@@ -281,8 +281,8 @@ async function browseImage(sourceKey: string, typeKey: string) {
 }
 
 .icon-btn:hover {
-  color: var(--forge-text);
-  border-color: var(--forge-border-l);
+  color: var(--ink);
+  border-color: var(--ink-ghost);
 }
 
 .toggle-row {
@@ -300,28 +300,28 @@ async function browseImage(sourceKey: string, typeKey: string) {
   font-size: 12px;
   font-family: 'DM Sans', sans-serif;
   font-weight: 500;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
-  color: var(--forge-secondary);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  color: var(--ink-faded);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .toggle-opt:hover {
-  color: var(--forge-text);
-  border-color: var(--forge-border-l);
+  color: var(--ink);
+  border-color: var(--ink-ghost);
 }
 
 .toggle-opt.on {
-  background: var(--forge-accent-dim);
+  background: var(--gold-pale);
   border-color: rgba(235, 189, 52, 0.4);
-  color: var(--forge-accent);
+  color: var(--gold);
 }
 
 .toggle-opt--danger.on {
   background: rgba(224, 85, 85, 0.12);
   border-color: rgba(224, 85, 85, 0.35);
-  color: var(--forge-danger);
+  color: var(--blood);
 }
 
 .icon-picker {
@@ -337,22 +337,22 @@ async function browseImage(sourceKey: string, typeKey: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
-  color: var(--forge-secondary);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  color: var(--ink-faded);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .icon-opt:hover {
-  color: var(--forge-text);
-  border-color: var(--forge-border-l);
+  color: var(--ink);
+  border-color: var(--ink-ghost);
 }
 
 .icon-opt.active {
-  background: var(--forge-accent-dim);
+  background: var(--gold-pale);
   border-color: rgba(235, 189, 52, 0.45);
-  color: var(--forge-accent);
+  color: var(--gold);
 }
 
 .tag-area {
@@ -361,15 +361,15 @@ async function browseImage(sourceKey: string, typeKey: string) {
   gap: 5px;
   align-items: center;
   padding: 6px 10px;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
   border-radius: 8px;
   min-height: 38px;
   transition: border-color 0.15s;
 }
 
 .tag-area:focus-within {
-  border-color: var(--forge-accent);
+  border-color: var(--gold);
 }
 
 .tag-chip {
@@ -378,17 +378,17 @@ async function browseImage(sourceKey: string, typeKey: string) {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--forge-hover);
-  border: 1px solid var(--forge-border-l);
+  background: rgba(28,20,16,0.06);
+  border: 1px solid var(--ink-ghost);
   font-size: 12px;
-  color: var(--forge-text);
+  color: var(--ink);
   font-family: 'DM Sans', sans-serif;
 }
 
 .tag-chip button {
   background: none;
   border: none;
-  color: var(--forge-muted);
+  color: var(--ink-ghost);
   cursor: pointer;
   font-size: 12px;
   padding: 0;
@@ -400,7 +400,7 @@ async function browseImage(sourceKey: string, typeKey: string) {
   outline: none;
   background: transparent;
   font-size: 13px;
-  color: var(--forge-text);
+  color: var(--ink);
   font-family: 'DM Sans', sans-serif;
   min-width: 80px;
   flex: 1;

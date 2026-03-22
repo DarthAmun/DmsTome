@@ -26,8 +26,8 @@ function toggle(opt: string) {
 </script>
 <style scoped>
 .f-multi { display:flex;flex-wrap:wrap;gap:8px; }
-.f-opt { display:flex;align-items:center;gap:5px;font-size:12px;color:var(--forge-text);cursor:pointer; }
+.f-opt { display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink);cursor:pointer; }
 .f-tags { display:flex;flex-wrap:wrap;gap:5px; }
-.f-tag { padding:2px 9px;border-radius:999px;background:var(--forge-raised);border:1px solid var(--forge-border);font-size:11px;color:var(--forge-secondary); }
-.f-view-empty { font-size:13px;color:var(--forge-muted); }
+.f-tag { padding:2px 9px;border-radius:999px;background:var(--parch-dark);border:1px solid var(--parch-line);font-size:11px;color:var(--ink-faded); }
+.f-view-empty { font-size:13px;color:var(--ink-ghost); }
 </style>

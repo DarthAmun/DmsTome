@@ -13,7 +13,7 @@
           :class="{ active: activeTypes.has(t.type) }"
           :style="activeTypes.has(t.type) ? { borderColor: t.color, color: t.color, background: t.color + '18' } : {}"
           @click="toggleType(t.type)">
-          <span class="legend-dot" :style="{ background: activeTypes.has(t.type) ? t.color : 'var(--forge-muted)' }" />
+          <span class="legend-dot" :style="{ background: activeTypes.has(t.type) ? t.color : 'var(--ink-ghost)' }" />
           {{ t.plural }}
         </button>
       </div>
@@ -253,7 +253,7 @@ function buildStyle() {
     },
     {
       selector: 'edge:hover',
-      style: { 'line-color': '#ebbd34', 'target-arrow-color': '#ebbd34' },
+      style: { 'line-color': '#b8860b', 'target-arrow-color': '#b8860b' },
     },
   ]
 }
@@ -271,7 +271,7 @@ onUnmounted(() => { cy?.destroy() })
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--forge-base);
+  background: var(--parch);
   position: relative;
 }
 
@@ -280,8 +280,8 @@ onUnmounted(() => { cy?.destroy() })
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--forge-surface);
-  border-bottom: 1px solid var(--forge-border);
+  background: var(--parch-dark);
+  border-bottom: 1px solid var(--parch-line);
   flex-shrink: 0;
 }
 
@@ -299,16 +299,16 @@ onUnmounted(() => { cy?.destroy() })
   gap: 5px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: var(--forge-raised);
-  border: 1px solid var(--forge-border);
-  color: var(--forge-muted);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  color: var(--ink-ghost);
   font-size: 11px;
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
 }
-.type-filter-btn:hover { color: var(--forge-text); }
+.type-filter-btn:hover { color: var(--ink); }
 
 .legend-dot {
   width: 7px;
@@ -319,7 +319,7 @@ onUnmounted(() => { cy?.destroy() })
 
 .cy-canvas {
   flex: 1;
-  background: var(--forge-base);
+  background: var(--parch);
 }
 
 .graph-tooltip {
@@ -336,7 +336,7 @@ onUnmounted(() => { cy?.destroy() })
 .tooltip-name {
   font-family: var(--font-display);
   font-size: 13px;
-  color: #ebbd34;
+  color: var(--gold);
 }
 
 .tooltip-type {
@@ -349,7 +349,7 @@ onUnmounted(() => { cy?.destroy() })
 
 .tooltip-meta {
   font-size: 11px;
-  color: #ebbd34;
+  color: var(--gold);
   margin-top: 2px;
   font-family: 'DM Sans', sans-serif;
 }

@@ -1,200 +1,144 @@
 <template>
-  <div class="page-content">
-    <div class="shell-body">
-      <header class="top-bar">
-        <span class="top-bar-title">{{ campaignName }}</span>
-        <span class="top-bar-section">/ Encounters</span>
-        <div class="top-bar-spacer" />
-        <Button @click="showNew = true">
-          <template #icon>
-            <OhVueIcon name="md-add" scale="0.85" />
-          </template>
-          New Encounter
-        </Button>
-      </header>
+  <div class="enc-page">
+    <div class="page-header enc-header">
+      <div class="page-chapter-num">{{ campaignName }}</div>
+      <h1 class="page-title">The Battlefield</h1>
+      <div class="page-rule" />
+    </div>
 
-      <div class="main-canvas">
-        <h1 class="section-eyebrow">Encounters</h1>
-        <div class="enc-grid">
-          <NuxtLink v-for="enc in encounters" :key="enc.id" :to="`/encounter/${enc.id}`" class="enc-card v6-card">
-            <div class="enc-thumb">
-              <img v-if="enc.map_source" :src="getMapThumb(enc)" class="w-full h-full object-cover" />
-              <div v-else class="enc-thumb-empty">
-                <OhVueIcon name="md-map" scale="2.2" style="color:var(--muted);opacity:0.4" />
-              </div>
-            </div>
-            <div class="enc-info">
-              <div class="enc-name">{{ enc.name }}</div>
-              <div class="enc-date">{{ formatDate(enc.updated_at) }}</div>
-              <div class="enc-actions" @click.prevent>
-                <button class="act-chip" @click.prevent="duplicate(enc)">
-                  <OhVueIcon name="md-add" scale="0.75" /> Copy
-                </button>
-                <button class="act-chip act-chip--danger" @click.prevent="remove(enc.id)">
-                  <OhVueIcon name="md-delete" scale="0.75" /> Delete
-                </button>
-              </div>
-            </div>
-          </NuxtLink>
+    <!-- Open book spread -->
+    <div class="open-book">
 
-          <button class="enc-card enc-card--new v6-card" @click="showNew = true">
-            <OhVueIcon name="md-add" scale="2" style="color:var(--muted);opacity:0.3;margin-bottom:8px" />
-            <span style="color:var(--secondary);font-size:13px;font-weight:500">New Encounter</span>
+      <!-- LEFT PAGE — encounter list -->
+      <div class="book-leaf book-leaf--left">
+        <div class="leaf-inner">
+          <div class="leaf-header">
+            <span class="leaf-type" style="color:var(--blood)">Encounters</span>
+            <span class="leaf-count">{{ encounters.length }} engagements</span>
+          </div>
+
+          <div v-for="enc in encounters" :key="enc.id" class="entry" @click="openEncounter(enc)">
+            <div class="entry-icon">
+              <OhVueIcon name="gi-broadsword" scale="0.9" style="color:var(--blood)" />
+            </div>
+            <span class="entry-name">{{ enc.name }}</span>
+            <span class="entry-dots" />
+            <span class="entry-tag" :style="enc.status === 'active' ? 'color:var(--blood);border-color:var(--blood)' : ''">
+              {{ enc.status || 'prepared' }}
+            </span>
+            <span class="entry-date">{{ formatDate(enc.updated_at) }}</span>
+            <div class="entry-actions" @click.stop>
+              <button class="entry-act entry-act--del" @click.stop="deleteEncounter(enc.id)">
+                <OhVueIcon name="md-delete" scale="0.75" />
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!encounters.length" class="leaf-empty">
+            <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
+            <em>No encounters yet. Begin a new engagement.</em>
+          </div>
+        </div>
+
+        <div class="leaf-footer">
+          <button class="leaf-new" @click="createEncounter">
+            <span class="leaf-new-line-l" />
+            <span class="leaf-new-label">✦ New Encounter ✦</span>
+            <span class="leaf-new-line-r" />
           </button>
         </div>
       </div>
-    </div>
 
-    <Dialog v-model:visible="showNew" modal :draggable="false">
-      <template #header>New Encounter</template>
-      <div>
-        <label class="f-label">Name</label>
-        <InputText v-model="newName" placeholder="The Goblin Ambush…" autofocus @keyup.enter="create" />
+      <!-- BINDING -->
+      <div class="book-binding" />
+
+      <!-- RIGHT PAGE — hint or last-opened -->
+      <div class="book-leaf book-leaf--right">
+        <div class="leaf-inner--right">
+          <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.05;margin-bottom:24px" />
+          <p class="right-hint">
+            <em>Select an encounter to open<br>the full battlefield editor.</em>
+          </p>
+        </div>
       </div>
-      <template #footer>
-        <Button severity="secondary" @click="showNew = false">Cancel</Button>
-        <Button @click="create">Create</Button>
-      </template>
-    </Dialog>
+
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const route = useRoute(); const router = useRouter()
+const route = useRoute()
+const router = useRouter()
 const campaignId = Number(route.params.id)
-const encounters = ref<any[]>([]); const campaignName = ref('Campaign')
-const showNew = ref(false); const newName = ref('')
+const campaignName = ref('')
+const encounters = ref<any[]>([])
 
 onMounted(async () => {
-  if (!window.dmforge) return
-  encounters.value = await window.dmforge.encounters.list(campaignId)
-  const camps = await window.dmforge.campaigns.list()
-  campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? 'Campaign'
+  if (window.dmforge) {
+    const camps = await window.dmforge.campaigns.list()
+    campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? ''
+    await loadEncounters()
+  }
 })
-async function create() {
-  if (!newName.value.trim() || !window.dmforge) return
-  const enc = await window.dmforge.encounters.create({ campaignId, name: newName.value })
-  newName.value = ''; showNew.value = false; router.push(`/encounter/${enc.id}`)
-}
-async function remove(id: number) {
-  if (!window.dmforge) return
-  encounters.value = encounters.value.filter(e => e.id !== id)
-  await window.dmforge.encounters.delete(id)
-}
-async function duplicate(enc: any) {
-  if (!window.dmforge) return
-  const copy = await window.dmforge.encounters.create({ campaignId, name: enc.name + ' (Copy)' })
-  await window.dmforge.encounters.update({ id: copy.id, map_source: enc.map_source, map_type: enc.map_type, grid_size: enc.grid_size, grid_offset_x: enc.grid_offset_x, grid_offset_y: enc.grid_offset_y, fog_data: enc.fog_data })
-  const full = await window.dmforge.encounters.get(enc.id)
-  for (const t of full.tokens ?? []) await window.dmforge.encounterTokens.add({ encounterId: copy.id, tokenId: t.token_id, gridX: t.grid_x, gridY: t.grid_y, size: t.size, isVisible: t.is_visible, label: t.label, hpMax: t.hp_max, hpCurrent: t.hp_current, initiative: t.initiative })
+
+async function loadEncounters() {
   encounters.value = await window.dmforge.encounters.list(campaignId)
 }
-function formatDate(dt: string) { return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
-function getMapThumb(enc: any) { return enc.map_type === 'url' ? enc.map_source : `${enc.map_source}` }
+
+function openEncounter(enc: any) {
+  router.push(`/encounter/${enc.id}`)
+}
+
+async function createEncounter() {
+  const enc = await window.dmforge.encounters.create(campaignId, 'New Encounter')
+  router.push(`/encounter/${enc.id}`)
+}
+
+async function deleteEncounter(id: number) {
+  if (!confirm('Delete this encounter?')) return
+  await window.dmforge.encounters.delete(id)
+  await loadEncounters()
+}
+
+function formatDate(dt: string) {
+  if (!dt) return ''
+  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 </script>
 
 <style scoped>
-.shell-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
+.enc-page { height: 100%; display: flex; flex-direction: column; background: var(--parch); overflow: hidden; }
+.enc-header { padding-bottom: 0; flex-shrink: 0; }
 
-.top-bar-section {
-  font-size: 14px;
-  color: var(--secondary);
-  font-family: 'DM Sans', sans-serif;
-}
+/* Open book */
+.open-book { flex: 1; display: flex; overflow: hidden; background: var(--leather); }
+.book-leaf { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--parch); overflow: hidden; }
+.book-leaf--left  { box-shadow:  4px 0 16px rgba(0,0,0,0.2); }
+.book-leaf--right { box-shadow: -4px 0 16px rgba(0,0,0,0.12); }
+.book-binding { width: 10px; flex-shrink: 0; background: linear-gradient(to right, rgba(0,0,0,0.22), rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.06) 60%, rgba(0,0,0,0.22)); position: relative; }
+.book-binding::before { content: ''; position: absolute; top:0; bottom:0; left:3px; right:3px; background: var(--leather); opacity: 0.85; }
+.leaf-inner { flex: 1; overflow-y: auto; padding: 20px 28px 12px; background: var(--parch); }
+.leaf-inner--right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; background: var(--parch); }
+.leaf-footer { padding: 10px 28px 16px; border-top: 1px dashed var(--parch-line); background: var(--parch); }
 
-.enc-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-}
+.leaf-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--parch-line); }
+.leaf-type  { font-family: var(--font-head); font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+.leaf-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); }
+.leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; gap: 0; }
 
-.enc-card {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  text-decoration: none;
-  cursor: pointer;
-}
+.entry-icon { width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 20px; height: 20px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
 
-.enc-thumb {
-  height: 130px;
-  background: var(--raised);
-  overflow: hidden;
-}
+.leaf-new { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; cursor: pointer; padding: 4px 0; }
+.leaf-new-line-l { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--ink-ghost)); }
+.leaf-new-line-r { flex: 1; height: 1px; background: linear-gradient(to left, transparent, var(--ink-ghost)); }
+.leaf-new-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; transition: color 0.2s; }
+.leaf-new:hover .leaf-new-label { color: var(--blood); }
+.leaf-new:hover .leaf-new-line-l { background: linear-gradient(to right, transparent, var(--blood)); }
+.leaf-new:hover .leaf-new-line-r { background: linear-gradient(to left, transparent, var(--blood)); }
 
-.enc-thumb-empty {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.enc-info {
-  padding: 14px 16px;
-}
-
-.enc-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 3px;
-}
-
-.enc-date {
-  font-size: 11px;
-  color: var(--secondary);
-  margin-bottom: 10px;
-}
-
-.enc-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.act-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: var(--r-pill);
-  background: var(--raised);
-  border: none;
-  color: var(--secondary);
-  font-size: 11px;
-  font-weight: 600;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.act-chip:hover {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.act-chip--danger:hover {
-  background: var(--danger-dim);
-  color: var(--danger);
-}
-
-.enc-card--new {
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  border: 2px dashed var(--border);
-  box-shadow: none;
-  background: transparent;
-}
-
-.enc-card--new:hover {
-  border-color: var(--border-l);
-  background: var(--card);
-}
-.page-content { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+.right-hint { font-family: var(--font-body); font-size: 15px; color: var(--ink-ghost); font-style: italic; text-align: center; line-height: 1.8; }
 </style>

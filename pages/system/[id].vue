@@ -1,39 +1,33 @@
 <template>
-  <div class="shell">
-    <nav class="icon-rail">
-      <div class="icon-rail-logo"><OhVueIcon name="gi-anvil-impact" /></div>
-      <NuxtLink to="/" class="rail-icon-btn" title="Dashboard">
-        <OhVueIcon name="md-arrowback" scale="0.95" />
+  <div class="book-shell">
+    <div class="tome-page system-tome-page">
+      <NuxtPage />
+    </div>
+    <nav class="spine-tabs">
+      <NuxtLink to="/" class="spine-tab">
+        <OhVueIcon name="md-arrowback" scale="0.85" />
+        Tome
       </NuxtLink>
-      <div class="rail-divider" />
-      <NuxtLink :to="`/system/${systemId}`" class="rail-icon-btn" title="Overview"
+      <NuxtLink :to="`/system/${systemId}`" class="spine-tab"
         :class="{ active: route.path === `/system/${systemId}` }">
-        <OhVueIcon name="gi-book-aura" scale="0.95" />
+        <OhVueIcon name="gi-book-aura" scale="0.85" />
+        Overview
       </NuxtLink>
-      <NuxtLink :to="`/system/${systemId}/builder`" class="rail-icon-btn" title="Builder"
+      <NuxtLink :to="`/system/${systemId}/builder`" class="spine-tab"
         :class="{ active: route.path.includes('/builder') }">
-        <OhVueIcon name="md-settings" scale="0.95" />
+        <OhVueIcon name="md-settings" scale="0.85" />
+        Builder
       </NuxtLink>
-      <div class="rail-divider" />
-      <button v-for="et in entityTypes" :key="et.id"
-        class="rail-icon-btn" :title="et.plural"
-        :style="isActiveType(et.id) ? { color: et.color, background: et.color + '22' } : {}"
+      <button v-for="et in entityTypes" :key="et.id" class="spine-tab"
+        :class="{ active: route.params.typeId === et.id }"
+        :title="et.plural"
         @click="$router.push(`/system/${systemId}/${et.id}`)">
-        <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.95" />
+        <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
+        {{ et.name }}
       </button>
     </nav>
-    <div class="shell-body">
-      <header class="top-bar">
-        <span class="top-bar-title">{{ system?.name ?? 'System' }}</span>
-        <span class="top-bar-section">{{ sectionLabel }}</span>
-      </header>
-      <div class="content-area">
-        <NuxtPage />
-      </div>
-    </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
 
@@ -60,9 +54,13 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.shell { display: flex; height: 100vh; overflow: hidden; }
-.shell-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.rail-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
-.top-bar-section { font-size: 14px; color: var(--secondary); font-family: 'DM Sans', sans-serif; }
-.content-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.book-shell { display: flex; height: 100vh; background: var(--leather); }
+.system-tome-page {
+  flex: 1; display: flex; flex-direction: column;
+  background: var(--parch);
+  margin: 16px 56px 16px 16px;
+  border-radius: 2px;
+  box-shadow: var(--page-shadow);
+  overflow: hidden; position: relative; z-index: 1;
+}
 </style>
