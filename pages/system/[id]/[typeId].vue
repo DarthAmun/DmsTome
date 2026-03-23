@@ -396,14 +396,17 @@ function formatDate(dt: string) {
 
 .rec-fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 18px;
+  min-width: 0;
 }
 
 .rec-field-wrap {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rec-field-wide {

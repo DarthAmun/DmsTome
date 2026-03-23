@@ -1,3 +1,4 @@
+import pkg from './package.json'
 const baseURL = process.env.NUXT_APP_BASE_URL ?? '/'
 // Ensure trailing slash, then strip leading slash from asset path
 const asset = (path: string) => `${baseURL}${path}`.replace('//', '/')
@@ -81,6 +82,10 @@ export default defineNuxtConfig({
     components: {
       include: ['Button', 'InputText', 'InputNumber', 'Textarea', 'Select', 'Dialog', 'AutoComplete'],
     },
+  },
+
+  runtimeConfig: {
+    public: { version: pkg.version },
   },
 
   css: ['~/assets/css/main.css'],

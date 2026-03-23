@@ -10,14 +10,19 @@
 
 <script setup lang="ts">
 import type { FieldSchema } from '~/types/entities'
-import FieldText from '~/components/FieldText.vue'
-import FieldMarkdown from '~/components/FieldMarkdown.vue'
-import FieldNumber from '~/components/FieldNumber.vue'
-import FieldSelect from '~/components/FieldSelect.vue'
-import FieldMultiSelect from '~/components/FieldMultiSelect.vue'
-import FieldToggle from '~/components/FieldToggle.vue'
-import FieldImage from '~/components/FieldImage.vue'
-import FieldTracker from '~/components/FieldTracker.vue'
+import FieldText from '~/components/fields/FieldText.vue'
+import FieldMarkdown from '~/components/fields/FieldMarkdown.vue'
+import FieldNumber from '~/components/fields/FieldNumber.vue'
+import FieldSelect from '~/components/fields/FieldSelect.vue'
+import FieldMultiSelect from '~/components/fields/FieldMultiSelect.vue'
+import FieldToggle from '~/components/fields/FieldToggle.vue'
+import FieldImage from '~/components/fields/FieldImage.vue'
+import FieldTracker from '~/components/fields/FieldTracker.vue'
+import FieldDice from '~/components/fields/FieldDice.vue'
+import FieldClock from '~/components/fields/FieldClock.vue'
+import FieldRating from '~/components/fields/FieldRating.vue'
+import FieldTags from '~/components/fields/FieldTags.vue'
+import FieldChecklist from '~/components/fields/FieldChecklist.vue'
 
 const props = defineProps<{
   field: FieldSchema
@@ -36,6 +41,11 @@ const fieldComponent = computed(() => {
     case 'toggle':      return FieldToggle
     case 'image':       return FieldImage
     case 'tracker':     return FieldTracker
+    case 'dice':        return FieldDice
+    case 'clock':       return FieldClock
+    case 'rating':      return FieldRating
+    case 'tags':        return FieldTags
+    case 'checklist':   return FieldChecklist
     default:            return FieldText
   }
 })

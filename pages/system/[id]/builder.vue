@@ -194,6 +194,62 @@
             <input class="f-input" :value="activeField.config.placeholder ?? ''"
               @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, placeholder: ($event.target as HTMLInputElement).value } })" />
           </div>
+
+          <!-- Dice config -->
+          <div v-if="activeField.component === 'dice'" class="config-field">
+            <label class="f-label">Default Expression <span class="f-hint">(e.g. 2d6, 1d20+5)</span></label>
+            <input class="f-input f-mono" :value="activeField.config.defaultExpression ?? ''"
+              placeholder="2d6"
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, defaultExpression: ($event.target as HTMLInputElement).value } })" />
+          </div>
+
+          <!-- Clock config -->
+          <div v-if="activeField.component === 'clock'" class="config-field">
+            <label class="f-label">Segments</label>
+            <div class="component-grid" style="grid-template-columns: repeat(4,1fr)">
+              <button v-for="n in [4, 6, 8, 10]" :key="n"
+                class="component-opt" :class="{ active: (activeField.config.segments ?? 6) === n }"
+                @click="patchField(fieldConfigIdx!, { config: { ...activeField.config, segments: n } })">
+                {{ n }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Rating config -->
+          <div v-if="activeField.component === 'rating'" class="config-row">
+            <div class="config-field">
+              <label class="f-label">Max</label>
+              <input class="f-input" type="number" min="1" max="10"
+                :value="activeField.config.ratingMax ?? 5"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, ratingMax: Number(($event.target as HTMLInputElement).value) } })" />
+            </div>
+            <div class="config-field" style="flex:2">
+              <label class="f-label">Style</label>
+              <div class="component-grid" style="grid-template-columns: repeat(3,1fr)">
+                <button v-for="s in ['dot','diamond','skull']" :key="s"
+                  class="component-opt" :class="{ active: (activeField.config.ratingStyle ?? 'dot') === s }"
+                  @click="patchField(fieldConfigIdx!, { config: { ...activeField.config, ratingStyle: s as any } })">
+                  {{ s }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tags config -->
+          <div v-if="activeField.component === 'tags'" class="config-field">
+            <label class="f-label">Placeholder</label>
+            <input class="f-input" :value="activeField.config.placeholder ?? ''"
+              placeholder="Add tag…"
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, placeholder: ($event.target as HTMLInputElement).value } })" />
+          </div>
+
+          <!-- Checklist config -->
+          <div v-if="activeField.component === 'checklist'" class="config-field">
+            <label class="f-label">Items <span class="f-hint">(one per line)</span></label>
+            <textarea class="f-textarea" rows="6"
+              :value="(activeField.config.checklistItems ?? []).join('\n')"
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, checklistItems: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
+          </div>
         </div>
       </template>
 
@@ -419,6 +475,11 @@ function sampleValue(f: FieldSchema): string {
     case 'tracker':     return `${f.config.defaultMax ?? 10} / ${f.config.defaultMax ?? 10}`
     case 'textarea':    return '(description…)'
     case 'image':       return '(image)'
+    case 'dice':        return f.config.defaultExpression ?? '2d6'
+    case 'clock':       return `0 / ${f.config.segments ?? 6} segments`
+    case 'rating':      return `— / ${f.config.ratingMax ?? 5} ${f.config.ratingStyle ?? 'dots'}`
+    case 'tags':        return 'tag · tag · tag'
+    case 'checklist':   return `${f.config.checklistItems?.length ?? 0} items`
     default:            return '—'
   }
 }

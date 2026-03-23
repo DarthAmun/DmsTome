@@ -2,6 +2,10 @@
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
     <div id="spark-layer" aria-hidden="true" />
+    <div class="spine-brand">
+      <img src="/icons/icon-512.png" class="spine-logo" alt="GM Toolkit" />
+      <span class="spine-version">v{{ version }}</span>
+    </div>
   </div>
 </template>
 
@@ -55,6 +59,8 @@ function inkWritePage() {
   })
 }
 
+const { public: { version } } = useRuntimeConfig()
+
 const router = useRouter()
 router.afterEach(() => {
   // Small delay so the DOM has rendered the new route content
@@ -100,5 +106,41 @@ function onMagicClick(e: MouseEvent) {
   pointer-events: none;
   z-index: 99999;
   overflow: hidden;
+}
+
+.spine-brand {
+  position: fixed;
+  right: 0;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 9px;
+  background: var(--chrome);
+  border: 1px solid var(--rim);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.spine-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  opacity: 0.75;
+}
+
+.spine-version {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8a7a9a;
 }
 </style>

@@ -121,6 +121,11 @@ export type FieldComponentType =
   | 'toggle'
   | 'image'
   | 'tracker'
+  | 'dice'
+  | 'clock'
+  | 'rating'
+  | 'tags'
+  | 'checklist'
 
 export interface FieldSchema {
   key: string
@@ -135,6 +140,11 @@ export interface FieldSchema {
     unit?: string               // e.g. "ft", "gp"
     defaultMax?: number         // for tracker
     rows?: number               // for textarea
+    defaultExpression?: string  // for dice, e.g. "2d6"
+    segments?: number           // for clock (4,6,8,10)
+    ratingMax?: number          // for rating
+    ratingStyle?: 'dot' | 'diamond' | 'skull'  // for rating
+    checklistItems?: string[]   // for checklist
   }
   required: boolean
   showInCard: boolean           // show on summary card
@@ -176,8 +186,13 @@ export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string
   { value: 'textarea',    label: 'Markdown',    icon: 'gi-book-aura' },
   { value: 'number',      label: 'Number',      icon: 'gi-coins' },
   { value: 'select',      label: 'Select',      icon: 'md-arrowdropdown' },
-  { value: 'multiselect', label: 'Multi-select',icon: 'gi-all-seeing-eye' },
+  { value: 'multiselect', label: 'Tags (fixed)', icon: 'gi-all-seeing-eye' },
   { value: 'toggle',      label: 'Toggle',      icon: 'gi-health-potion' },
   { value: 'image',       label: 'Image',       icon: 'gi-person' },
   { value: 'tracker',     label: 'Tracker',     icon: 'gi-sands-of-time' },
+  { value: 'dice',        label: 'Dice Roll',   icon: 'gi-dice-six' },
+  { value: 'clock',       label: 'Clock',       icon: 'gi-hourglass' },
+  { value: 'rating',      label: 'Rating',      icon: 'gi-three-coins' },
+  { value: 'tags',        label: 'Tags (free)', icon: 'gi-labels' },
+  { value: 'checklist',   label: 'Checklist',   icon: 'gi-check-mark' },
 ]
