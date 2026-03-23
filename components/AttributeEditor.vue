@@ -16,18 +16,6 @@
       <div class="field-row">
         <div class="field">
           <label class="f-label">Title</label>
-          <InputText :model-value="attrs.title || ''" placeholder="Lord, High Mage…"
-            @update:model-value="v => set('title', v)" />
-        </div>
-        <div class="field">
-          <label class="f-label">Level</label>
-          <InputText :model-value="attrs.level || ''" placeholder="5, 12…"
-            @update:model-value="v => set('level', v)" />
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label class="f-label">Title</label>
           <InputText :model-value="attrs.title || ''" placeholder="High Priest, General…"
             @update:model-value="v => set('title', v)" />
         </div>

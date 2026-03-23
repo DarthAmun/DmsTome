@@ -1,99 +1,109 @@
 <template>
   <div class="records-folio">
-    <div class="page-header rec-header">
-      <div class="page-chapter-num">{{ system?.name }}</div>
-      <div class="rec-title-row">
-        <OhVueIcon v-if="entityType" :name="entityType.icon" scale="1" :style="{ color: entityType.color }" />
-        <h1 class="page-title" style="margin-bottom:0">{{ entityType?.plural ?? typeId }}</h1>
-        <div style="flex:1" />
-        <div class="rec-search-wrap">
-          <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
-          <input v-model="search" class="rec-search" placeholder="Search…" />
-        </div>
-        <button class="new-rec-fab" @click="createRecord">
-          <OhVueIcon name="md-add" scale="0.9" /> New {{ entityType?.name }}
-        </button>
-      </div>
-      <div class="page-rule" />
-    </div>
+    <div class="open-book">
 
-    <div class="book-spread">
-      <div class="book-page book-page--left">
-        <div class="book-page-inner">
-          <div class="index-list">
-            <div v-for="rec in filtered" :key="rec.id!" class="entry"
-              :class="{ 'entry--active': selectedId === rec.id }" @click="openRecord(rec)">
-              <div class="entry-icon">
-                <img v-if="imageField && recordData(rec)[imageField.key]" :src="recordData(rec)[imageField.key]"
-                  class="entry-thumb" />
-                <OhVueIcon v-else :name="entityType?.icon || 'gi-scroll-unfurled'" scale="0.85"
-                  :style="{ color: entityType?.color }" />
+      <!-- LEFT PAGE -->
+      <div class="book-stack book-stack--left">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--left">
+          <div class="page-header">
+            <div class="page-chapter-num">{{ system?.name }}</div>
+            <div class="rec-title-row">
+              <OhVueIcon v-if="entityType" :name="entityType.icon" scale="1" :style="{ color: entityType.color }" />
+              <h1 class="page-title" style="margin-bottom:0">{{ entityType?.plural ?? typeId }}</h1>
+              <div style="flex:1" />
+              <div class="rec-search-wrap">
+                <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
+                <input v-model="search" class="rec-search" placeholder="Search…" />
               </div>
-              <span class="entry-name">
-                {{ rec.name }}
-                <em v-if="cardFields[0] && recordData(rec)[cardFields[0].key]">
-                  — {{ formatCardValue(cardFields[0], recordData(rec)[cardFields[0].key]) }}
-                </em>
-              </span>
-              <span class="entry-dots" />
-              <span v-if="cardFields[1] && recordData(rec)[cardFields[1].key]" class="entry-tag"
-                :style="{ color: entityType?.color, borderColor: entityType?.color }">
-                {{ formatCardValue(cardFields[1], recordData(rec)[cardFields[1].key]) }}
-              </span>
-              <span class="entry-date">{{ formatDate(rec.updatedAt) }}</span>
+              <button class="new-rec-fab" @click="createRecord">
+                <OhVueIcon name="md-add" scale="0.9" /> New {{ entityType?.name }}
+              </button>
             </div>
-            <div v-if="!filtered.length" class="tome-empty-inline">
-              <em>{{ search ? 'No results' : `No ${entityType?.plural} yet` }}</em>
+            <div class="page-rule" />
+          </div>
+          <div class="leaf-inner">
+            <div class="index-list">
+              <div v-for="rec in filtered" :key="rec.id!" class="entry"
+                :class="{ 'entry--active': selectedId === rec.id }" @click="openRecord(rec)">
+                <div class="entry-icon">
+                  <img v-if="imageField && recordData(rec)[imageField.key]" :src="recordData(rec)[imageField.key]"
+                    class="entry-thumb" />
+                  <OhVueIcon v-else :name="entityType?.icon || 'gi-scroll-unfurled'" scale="0.85"
+                    :style="{ color: entityType?.color }" />
+                </div>
+                <span class="entry-name">{{ rec.name }}</span>
+                <template v-for="field in cardFields" :key="field.key">
+                  <span v-if="recordData(rec)[field.key] !== undefined && recordData(rec)[field.key] !== null && recordData(rec)[field.key] !== ''"
+                    class="entry-tag" :style="{ color: entityType?.color, borderColor: entityType?.color }">
+                    {{ formatCardValue(field, recordData(rec)[field.key]) }}
+                  </span>
+                </template>
+                <span class="entry-dots" />
+                <span class="entry-date">{{ formatDate(rec.updatedAt) }}</span>
+              </div>
+              <div v-if="!filtered.length" class="tome-empty-inline">
+                <em>{{ search ? 'No results' : `No ${entityType?.plural} yet` }}</em>
+              </div>
             </div>
           </div>
-          <div class="new-entry-row">
-            <button class="new-entry-btn" @click="createRecord">
-              <span class="new-entry-line-left" />
-              <span class="new-entry-label">✦ New {{ entityType?.name }} ✦</span>
-              <span class="new-entry-line-right" />
+          <div class="leaf-footer">
+            <button class="leaf-new" @click="createRecord">
+              <span class="leaf-new-line-l"></span>
+              <span class="leaf-new-label">✦ New {{ entityType?.name }} ✦</span>
+              <span class="leaf-new-line-r"></span>
             </button>
           </div>
         </div>
       </div>
 
-      <div class="book-binding" />
+      <div class="book-binding"></div>
 
-      <div class="book-page book-page--right">
-        <div class="book-page-inner">
-          <template v-if="selectedId !== null && selectedRecord && entityType">
-            <div class="rec-detail-header" :style="{ borderColor: entityType.color + '55' }">
-              <OhVueIcon :name="entityType.icon" scale="1" :style="{ color: entityType.color }" />
-              <input v-if="editMode" class="quill-input rec-name-input-folio" v-model="draftName" @blur="saveName"
-                @keyup.enter="saveName" />
-              <h2 v-else class="rec-name-folio" @click="editMode = true">{{ selectedRecord.name }}</h2>
-              <span class="rec-type-tag" :style="{ color: entityType.color, borderColor: entityType.color }">
-                {{ entityType.name }}
-              </span>
-              <div style="flex:1" />
-              <button class="parch-btn parch-btn--sm" @click="editMode = !editMode">
-                {{ editMode ? 'Done' : 'Edit' }}
-              </button>
-              <button class="parch-btn parch-btn--danger parch-btn--sm" @click="deleteRecord(selectedId!)">
-                <OhVueIcon name="md-delete" scale="0.8" />
-              </button>
-            </div>
-            <div class="rec-fields-grid">
-              <div v-for="field in entityType.fields" :key="field.key" class="rec-field-wrap"
-                :class="{ 'rec-field-wide': field.component === 'textarea' || field.component === 'tracker' }">
-                <label class="rec-field-label">{{ field.label }}</label>
-                <FieldRenderer :field="field" :value="draftData[field.key]" :mode="editMode ? 'edit' : 'view'"
-                  @update="v => updateField(field.key, v)" />
+      <!-- RIGHT PAGE -->
+      <div class="book-stack book-stack--right">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--right">
+          <div class="leaf-inner">
+            <template v-if="selectedId !== null && selectedRecord && entityType">
+              <div class="rec-detail-header" :style="{ borderColor: entityType.color + '55' }">
+                <OhVueIcon :name="entityType.icon" scale="1" :style="{ color: entityType.color }" />
+                <input v-if="editMode" class="quill-input rec-name-input-folio" v-model="draftName" @blur="saveName"
+                  @keyup.enter="saveName" />
+                <h2 v-else class="rec-name-folio" @click="editMode = true">{{ selectedRecord.name }}</h2>
+                <span class="rec-type-tag" :style="{ color: entityType.color, borderColor: entityType.color }">
+                  {{ entityType.name }}
+                </span>
+                <div style="flex:1" />
+                <button class="parch-btn parch-btn--sm" @click="editMode = !editMode">
+                  {{ editMode ? 'Done' : 'Edit' }}
+                </button>
+                <button class="parch-btn parch-btn--danger parch-btn--sm" @click="deleteRecord(selectedId!)">
+                  <OhVueIcon name="md-delete" scale="0.8" />
+                </button>
               </div>
-            </div>
-          </template>
-          <template v-else>
-            <div class="page-right-empty">
-              <OhVueIcon v-if="entityType" :name="entityType.icon" scale="3" style="opacity:0.06;margin-bottom:16px" />
-              <em class="page-right-hint">Select a record to view or edit it.</em>
-            </div>
-          </template>
+              <div class="rec-fields-grid">
+                <div v-for="field in entityType.fields" :key="field.key" class="rec-field-wrap"
+                  :class="{ 'rec-field-wide': field.component === 'textarea' || field.component === 'tracker' }">
+                  <label class="rec-field-label">{{ field.label }}</label>
+                  <FieldRenderer :field="field" :value="draftData[field.key]" :mode="editMode ? 'edit' : 'view'"
+                    @update="v => updateField(field.key, v)" />
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="page-right-empty">
+                <OhVueIcon v-if="entityType" :name="entityType.icon" scale="3" style="opacity:0.06;margin-bottom:16px" />
+                <em class="page-right-hint">Select a record to view or edit it.</em>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -117,7 +127,7 @@ const search = ref('')
 
 const system = computed(() => systemsStore.getSystem(systemId))
 const entityType = computed(() => system.value?.entityTypes.find(t => t.id === typeId) ?? null)
-const cardFields = computed(() => entityType.value?.fields.filter(f => f.showInCard) ?? [])
+const cardFields = computed(() => entityType.value?.fields.filter(f => f.showInCard && f.component !== 'image') ?? [])
 const imageField = computed(() => entityType.value?.fields.find(f => f.component === 'image') ?? null)
 const selectedRecord = computed(() => records.value.find(r => r.id === selectedId.value) ?? null)
 const filtered = computed(() => {
@@ -218,13 +228,8 @@ function formatDate(dt: string) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   background: var(--parch);
-}
-
-.rec-header {
-  padding-bottom: 0;
-  flex-shrink: 0;
 }
 
 .rec-title-row {
@@ -278,55 +283,6 @@ function formatDate(dt: string) {
 
 .new-rec-fab:hover {
   background: var(--blood-l);
-}
-
-/* Book spread */
-.book-spread {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  background: var(--leather);
-}
-
-.book-page {
-  flex: 1;
-  min-width: 0;
-  background: var(--parch);
-  display: flex;
-  flex-direction: column;
-}
-
-.book-page--left {
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
-}
-
-.book-page--right {
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
-}
-
-.book-page-inner {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px 32px;
-  background: var(--parch);
-}
-
-.book-binding {
-  width: 8px;
-  flex-shrink: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.05) 70%, rgba(0, 0, 0, 0.15));
-  position: relative;
-}
-
-.book-binding::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 3px;
-  right: 3px;
-  background: var(--leather);
-  opacity: 0.6;
 }
 
 /* Entry states */
@@ -390,56 +346,6 @@ function formatDate(dt: string) {
 .entry-act--del:hover {
   background: var(--blood-pale);
   color: var(--blood);
-}
-
-/* New entry row */
-.new-entry-row {
-  display: flex;
-  align-items: center;
-  margin-top: 16px;
-}
-
-.new-entry-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 0;
-}
-
-.new-entry-line-left {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--ink-ghost));
-}
-
-.new-entry-line-right {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.new-entry-label {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: color 0.2s;
-}
-
-.new-entry-btn:hover .new-entry-label {
-  color: var(--blood);
-}
-
-.new-entry-btn:hover .new-entry-line {
-  background: linear-gradient(to right, transparent, var(--blood));
 }
 
 /* Detail pane */
@@ -558,8 +464,8 @@ function formatDate(dt: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  min-height: 200px;
+  min-height: 300px;
+  padding: 40px 0;
 }
 
 .page-right-hint {

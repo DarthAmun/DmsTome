@@ -2,7 +2,8 @@
   <div class="notes-folio">
     <!-- Type ribbon -->
     <div class="notes-type-ribbon">
-      <button v-for="tab in typeTabs" :key="tab.type" class="ribbon-tab" :class="{ active: activeType === tab.type }"
+      <button v-for="tab in typeTabs" :key="tab.type"
+        class="ribbon-tab" :class="{ active: activeType === tab.type }"
         :style="activeType === tab.type ? { color: tab.color, borderBottomColor: tab.color } : {}"
         @click="selectType(tab.type)">
         <OhVueIcon :name="tab.defaultIcon" scale="0.8" />
@@ -23,16 +24,14 @@
       </div>
     </div>
 
-    <!-- EDITOR — when a note is selected, fill the whole area with the split editor -->
+    <!-- EDITOR — when a note is selected -->
     <div v-if="selectedId" class="notes-editor-full">
       <div class="editor-back-bar">
-        <button class="back-crumb" @click="goBack">
-          ← All {{ activeTypeConfig?.plural }}
-        </button>
+        <button class="back-crumb" @click="goBack">← All {{ activeTypeConfig?.plural }}</button>
       </div>
       <div class="editor-body-area">
-        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId" @navigate="navigateByTypeAndName"
-          @deleted="goBack" />
+        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId"
+          @navigate="navigateByTypeAndName" @deleted="goBack" />
       </div>
     </div>
 
@@ -41,31 +40,39 @@
       <NotesGraph :campaign-id="campaignId" @navigate="navigateByTypeAndName" />
     </div>
 
-    <!-- OPEN BOOK INDEX — two pages side by side -->
+    <!-- OPEN BOOK INDEX -->
     <div v-else class="open-book">
-      <!-- Left page -->
-      <div class="book-leaf book-leaf--left">
-        <div class="leaf-inner">
-          <div class="leaf-header">
-            <span class="leaf-type" :style="{ color: activeTypeConfig?.color }">
-              {{ activeTypeConfig?.plural }}
-            </span>
-            <span class="leaf-count">{{ sortedEntities.length }} entries</span>
-          </div>
-          <div class="leaf-index">
-            <div v-for="e in leftEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
-              <div class="entry-icon">
-                <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
-                  :style="{ color: activeTypeConfig?.color }" />
-              </div>
-              <span class="entry-name">{{ e.name }}</span>
-              <span class="entry-dots" />
-              <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
-              <div class="entry-actions" @click.stop>
-                <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
-                  <OhVueIcon name="md-delete" scale="0.7" />
-                </button>
+
+      <!-- LEFT PAGE -->
+      <div class="book-stack book-stack--left">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--left">
+          <div class="leaf-inner">
+            <div class="leaf-header">
+              <span class="leaf-type" :style="{ color: activeTypeConfig?.color }">
+                {{ activeTypeConfig?.plural }}
+              </span>
+              <span class="leaf-count">{{ sortedEntities.length }} entries</span>
+            </div>
+            <div class="leaf-index" v-if="leftEntries.length">
+              <div v-for="e in leftEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
+                <div class="entry-icon">
+                  <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                  <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
+                    :style="{ color: activeTypeConfig?.color }" />
+                </div>
+                <span class="entry-name">{{ e.name }}</span>
+                <span v-for="tag in entitySummaryTags(e)" :key="tag" class="entry-tag"
+                  :style="{ color: activeTypeConfig?.color, borderColor: activeTypeConfig?.color }">{{ tag }}</span>
+                <span class="entry-dots" />
+                <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+                <div class="entry-actions" @click.stop>
+                  <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                    <OhVueIcon name="md-delete" scale="0.7" />
+                  </button>
+                </div>
               </div>
             </div>
             <div v-if="!sortedEntities.length" class="leaf-empty">
@@ -74,51 +81,58 @@
               <em>{{ search ? `No results` : `No ${activeTypeConfig?.plural} yet` }}</em>
             </div>
           </div>
-        </div>
-        <div class="leaf-footer">
-          <button class="new-entry-btn" @click="createNew">
-            <span class="new-entry-line-left" />
-            <span class="new-entry-label">✦ New {{ activeTypeConfig?.label }} ✦</span>
-            <span class="new-entry-line-right" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Binding -->
-      <div class="book-binding" />
-
-      <!-- Right page -->
-      <div class="book-leaf book-leaf--right">
-        <div class="leaf-inner">
-          <div class="leaf-header leaf-header--right">
-            <span class="leaf-folio">continued</span>
-          </div>
-          <div class="leaf-index">
-            <div v-for="e in rightEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
-              <div class="entry-icon">
-                <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
-                  :style="{ color: activeTypeConfig?.color }" />
-              </div>
-              <span class="entry-name">{{ e.name }}</span>
-              <span class="entry-dots" />
-              <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
-              <div class="entry-actions" @click.stop>
-                <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
-                  <OhVueIcon name="md-delete" scale="0.7" />
-                </button>
-              </div>
-            </div>
-            <!-- Empty right page hint when few entries -->
-            <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-empty">
-              <em style="opacity:0.4">— end of entries —</em>
-            </div>
+          <div class="leaf-footer">
+            <button class="leaf-new" @click="createNew">
+              <span class="leaf-new-line-l"></span>
+              <span class="leaf-new-label">✦ New {{ activeTypeConfig?.label }} ✦</span>
+              <span class="leaf-new-line-r"></span>
+            </button>
           </div>
         </div>
       </div>
+
+      <div class="book-binding"></div>
+
+      <!-- RIGHT PAGE -->
+      <div class="book-stack book-stack--right">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--right">
+          <div class="leaf-inner">
+            <div class="leaf-header leaf-header--right">
+              <span class="leaf-folio">continued</span>
+            </div>
+            <div class="leaf-index">
+              <div v-for="e in rightEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
+                <div class="entry-icon">
+                  <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                  <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
+                    :style="{ color: activeTypeConfig?.color }" />
+                </div>
+                <span class="entry-name">{{ e.name }}</span>
+                <span v-for="tag in entitySummaryTags(e)" :key="tag" class="entry-tag"
+                  :style="{ color: activeTypeConfig?.color, borderColor: activeTypeConfig?.color }">{{ tag }}</span>
+                <span class="entry-dots" />
+                <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+                <div class="entry-actions" @click.stop>
+                  <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                    <OhVueIcon name="md-delete" scale="0.7" />
+                  </button>
+                </div>
+              </div>
+              <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-empty">
+                <em style="opacity:0.4">— end of entries —</em>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { useNotesStore } from '~/stores/notes'
@@ -214,6 +228,46 @@ async function createNew() {
   selectEntity(e.id)
 }
 
+function entitySummaryTags(e: any): string[] {
+  const a = (e.attributes ?? {}) as any
+  const tags: string[] = []
+  switch (e.type) {
+    case 'npc':
+      if (a.race)   tags.push(a.race)
+      if (a.role)   tags.push(a.role)
+      if (a.status) tags.push(a.status)
+      break
+    case 'location':
+      if (a.locationType) tags.push(a.locationType)
+      if (a.status)       tags.push(a.status)
+      break
+    case 'item':
+      if (a.rarity)   tags.push(a.rarity)
+      if (a.itemType) tags.push(a.itemType)
+      if (a.value)    tags.push(a.value)
+      break
+    case 'faction':
+      if (a.factionType) tags.push(a.factionType)
+      if (a.size)        tags.push(a.size)
+      break
+    case 'quest':
+      if (a.status)     tags.push(a.status)
+      if (a.questGiver) tags.push(a.questGiver)
+      break
+    case 'event':
+      if (a.significance) tags.push(a.significance)
+      if (a.location)     tags.push(a.location)
+      if (a.date)         tags.push(a.date)
+      break
+    case 'session':
+      if (a.mode)          tags.push(a.mode)
+      if (a.sessionNumber) tags.push('#' + a.sessionNumber)
+      if (a.date)          tags.push(a.date)
+      break
+  }
+  return tags.slice(0, 3)
+}
+
 function entityImage(e: any): string | null {
   const a = e.attributes as any
   if (!a) return null
@@ -244,7 +298,7 @@ async function confirmDelete(entity: any) {
   display: flex;
   flex-direction: column;
   background: var(--parch);
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Ribbon */
@@ -388,31 +442,6 @@ async function confirmDelete(entity: any) {
 }
 
 /* ── OPEN BOOK spread ── */
-.open-book {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  background: var(--leather);
-  /* leather between pages */
-}
-
-.book-leaf {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--parch);
-  overflow: hidden;
-}
-
-.book-leaf--left {
-  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.18);
-}
-
-.book-leaf--right {
-  box-shadow: -3px 0 12px rgba(0, 0, 0, 0.12);
-}
-
 .leaf-inner {
   flex: 1;
   overflow-y: auto;
@@ -476,28 +505,6 @@ async function confirmDelete(entity: any) {
 }
 
 /* Book binding */
-.book-binding {
-  width: 10px;
-  flex-shrink: 0;
-  background: linear-gradient(to right,
-      rgba(0, 0, 0, 0.2) 0%,
-      rgba(0, 0, 0, 0.06) 40%,
-      rgba(0, 0, 0, 0.06) 60%,
-      rgba(0, 0, 0, 0.2) 100%);
-  position: relative;
-}
-
-.book-binding::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 4px;
-  right: 4px;
-  background: var(--leather);
-  opacity: 0.8;
-}
-
 /* Entry styles — overrides for parchment */
 .entry-thumb {
   width: 20px;
@@ -547,47 +554,4 @@ async function confirmDelete(entity: any) {
   color: var(--blood);
 }
 
-/* New entry */
-.new-entry-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-.new-entry-line-left {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--ink-ghost));
-}
-
-.new-entry-line-right {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.new-entry-label {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: color 0.2s;
-}
-
-.new-entry-btn:hover .new-entry-label {
-  color: var(--blood);
-}
-
-.new-entry-btn:hover .new-entry-line {
-  background: linear-gradient(to right, transparent, var(--blood));
-}
 </style>

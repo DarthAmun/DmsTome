@@ -6,6 +6,61 @@
 </template>
 
 <script setup lang="ts">
+// ── Ink write animation ──────────────────────────────────────────
+// Animates text characters as if being written on the parchment.
+// Called on every route navigation.
+function inkWritePage() {
+  // Target all entry names, type labels, page titles, hints on the new page
+  const selectors = [
+    '.entry-name',
+    '.leaf-type',
+    '.leaf-new-label',
+    '.page-title',
+    '.right-hint',
+    '.folio-chapter-name',
+    '.folio-chapter-sub',
+    '.sys-stat-num',
+    '.loc-detail-name',
+  ]
+  const targets = document.querySelectorAll(selectors.join(','))
+  let t = 0
+  targets.forEach((el: Element) => {
+    const htmlEl = el as HTMLElement
+    // Parse existing HTML to preserve em/strong tags
+    const nodes = Array.from(htmlEl.childNodes)
+    interface Part { ch: string; tag: string | null }
+    const parts: Part[] = []
+    nodes.forEach(node => {
+      if (node.nodeType === Node.COMMENT_NODE) return  // skip Vue v-if/v-else markers
+      if (node.nodeType === Node.TEXT_NODE) {
+        (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: null }))
+      } else if ((node as Element).tagName === 'EM') {
+        (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: 'em' }))
+      } else {
+        // Other tags — treat as text
+        (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: null }))
+      }
+    })
+    const n = parts.length
+    if (n === 0) return
+    const stagger = Math.min(14, Math.max(3, 220 / n))
+    htmlEl.innerHTML = parts.map((p, i) => {
+      const delay = (t + i * stagger).toFixed(1)
+      const ch = p.ch === ' ' ? '&nbsp;' : p.ch.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      const span = `<span class="ink-c" style="animation-delay:${delay}ms">${ch}</span>`
+      return p.tag ? `<${p.tag}>${span}</${p.tag}>` : span
+    }).join('')
+    t += n * stagger * 0.55
+    if (t > 320) t = 320
+  })
+}
+
+const router = useRouter()
+router.afterEach(() => {
+  // Small delay so the DOM has rendered the new route content
+  nextTick(() => setTimeout(inkWritePage, 60))
+})
+
 function onMagicClick(e: MouseEvent) {
   const el = e.target as HTMLElement
   if (!el.closest('button, a, .spine-tab, .ink-card, .v6-card, .ink-card-new, .entry')) return

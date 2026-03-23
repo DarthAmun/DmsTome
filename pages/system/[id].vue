@@ -58,9 +58,9 @@ onMounted(async () => {
 .system-tome-page {
   flex: 1; display: flex; flex-direction: column;
   background: var(--parch);
-  margin: 16px 56px 16px 16px;
+  margin: 20px 60px 20px 20px;
   border-radius: 2px;
   box-shadow: var(--page-shadow);
-  overflow: hidden; position: relative; z-index: 1;
+  overflow: visible; position: relative; z-index: 1;
 }
 </style>

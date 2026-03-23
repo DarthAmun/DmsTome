@@ -152,7 +152,7 @@
             <div class="component-grid">
               <button v-for="opt in FIELD_COMPONENT_OPTIONS" :key="opt.value"
                 class="component-opt" :class="{ active: activeField.component === opt.value }"
-                @click="patchField(fieldConfigIdx, 'component', opt.value)">
+                @click="patchField(fieldConfigIdx!, { component: opt.value })">
                 <OhVueIcon :name="opt.icon" scale="0.9" />
                 {{ opt.label }}
               </button>
@@ -164,35 +164,35 @@
             <label class="f-label">Options <span class="f-hint">(one per line)</span></label>
             <textarea class="f-textarea" rows="6"
               :value="(activeField.config.options ?? []).join('\n')"
-              @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, options: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) })" />
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, options: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
           </div>
           <div v-if="activeField.component === 'number'" class="config-row">
             <div class="config-field">
               <label class="f-label">Unit</label>
               <input class="f-input" :value="activeField.config.unit ?? ''"
                 placeholder="ft, gp…"
-                @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, unit: ($event.target as HTMLInputElement).value })" />
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, unit: ($event.target as HTMLInputElement).value } })" />
             </div>
             <div class="config-field">
               <label class="f-label">Min</label>
               <input class="f-input" type="number" :value="activeField.config.min ?? ''"
-                @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, min: Number(($event.target as HTMLInputElement).value) })" />
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, min: Number(($event.target as HTMLInputElement).value) } })" />
             </div>
             <div class="config-field">
               <label class="f-label">Max</label>
               <input class="f-input" type="number" :value="activeField.config.max ?? ''"
-                @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, max: Number(($event.target as HTMLInputElement).value) })" />
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, max: Number(($event.target as HTMLInputElement).value) } })" />
             </div>
           </div>
           <div v-if="activeField.component === 'tracker'" class="config-field">
             <label class="f-label">Default Max</label>
             <input class="f-input" type="number" :value="activeField.config.defaultMax ?? 10"
-              @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, defaultMax: Number(($event.target as HTMLInputElement).value) })" />
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, defaultMax: Number(($event.target as HTMLInputElement).value) } })" />
           </div>
           <div v-if="activeField.component === 'text' || activeField.component === 'textarea'" class="config-field">
             <label class="f-label">Placeholder</label>
             <input class="f-input" :value="activeField.config.placeholder ?? ''"
-              @input="patchField(fieldConfigIdx, 'config', { ...activeField.config, placeholder: ($event.target as HTMLInputElement).value })" />
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, placeholder: ($event.target as HTMLInputElement).value } })" />
           </div>
         </div>
       </template>
@@ -352,9 +352,9 @@ function deleteField(i: number) {
   if (fieldConfigIdx.value === i) fieldConfigIdx.value = null
 }
 
-function patchField(i: number, key: keyof FieldSchema, value: any) {
+function patchField(i: number, changes: Partial<FieldSchema>) {
   const fields = (activeType.value?.fields ?? []).map((f, idx) =>
-    idx === i ? { ...f, [key]: value } : f
+    idx === i ? { ...f, ...changes } : f
   )
   patchType('fields', fields)
 }
@@ -362,45 +362,28 @@ function patchField(i: number, key: keyof FieldSchema, value: any) {
 function toggleFieldFlag(i: number, flag: 'showInCard' | 'required') {
   const f = activeType.value?.fields[i]
   if (!f) return
-  patchField(i, flag, !f[flag])
+  patchField(i, { [flag]: !f[flag] })
 }
 
 function saveDraftLabel() {
   if (fieldConfigIdx.value === null) return
   const trimmed = draftLabel.value.trim()
   if (!trimmed) return
-  patchField(fieldConfigIdx.value, 'label', trimmed)
-  // Auto-update key if user hasn't manually edited it
+  const changes: Partial<FieldSchema> = { label: trimmed }
+  // Batch label + key into a single store write to avoid race condition
   if (!keyManuallyEdited.value) {
     const newKey = labelToKey(trimmed)
     draftKey.value = newKey
-    patchField(fieldConfigIdx.value, 'key', newKey)
+    changes.key = newKey
   }
+  patchField(fieldConfigIdx.value, changes)
 }
 
 function saveDraftKey() {
   if (fieldConfigIdx.value === null) return
   const trimmed = draftKey.value.trim()
   if (!trimmed) return
-  patchField(fieldConfigIdx.value, 'key', trimmed)
-}
-
-function autoKey(i: number) {
-  const f = activeType.value?.fields[i]
-  if (!f) return
-  patchField(i, 'key', labelToKey(f.label))
-}
-
-function autoKeyIfUntouched(i: number | null) {
-  if (i === null) return
-  const f = activeType.value?.fields[i]
-  if (!f) return
-  // Only auto-update key if it still looks auto-generated (matches a previous label derivation)
-  // or starts with 'field_' (the default placeholder)
-  const currentKey = f.key
-  if (currentKey.startsWith('field_') || currentKey === labelToKey(f.label)) {
-    patchField(i, 'key', labelToKey(f.label))
-  }
+  patchField(fieldConfigIdx.value, { key: trimmed })
 }
 
 // ── Drag to reorder fields ────────────────────────────────────────────────

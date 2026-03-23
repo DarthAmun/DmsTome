@@ -8,80 +8,94 @@
         <span class="map-view-name">{{ activeLocationName }}</span>
       </div>
       <div class="map-body">
-        <WorldMap :campaign-id="campaignId" :root-location-id="activeLocationId" :location-stack="locationStack"
-          @navigate-entity="navigateToEntity" @drill-down="onDrillDown" @navigate-crumb="onNavigateCrumb" />
+        <WorldMap
+          :campaign-id="campaignId"
+          :root-location-id="activeLocationId"
+          :location-stack="locationStack"
+          @navigate-entity="navigateToEntity"
+          @drill-down="onDrillDown"
+          @navigate-crumb="onNavigateCrumb"
+        />
       </div>
     </div>
 
-    <!-- ATLAS INDEX — two-page spread like notes -->
+    <!-- ATLAS INDEX -->
     <template v-else>
-      <div class="page-header atlas-header">
-        <div class="page-chapter-num">{{ campaignName }}</div>
-        <h1 class="page-title">The Atlas</h1>
-        <div class="page-rule" />
-      </div>
-
       <div class="open-book">
 
         <!-- LEFT PAGE -->
-        <div class="book-leaf book-leaf--left">
-          <div class="leaf-inner">
-            <div class="leaf-header">
-              <span class="leaf-type" style="color:var(--gold)">Locations</span>
-              <span class="leaf-count">{{ locations.length }} entries</span>
+        <div class="book-stack book-stack--left">
+          <div class="book-sheet-3"></div>
+          <div class="book-sheet-2"></div>
+          <div class="book-sheet-1"></div>
+          <div class="book-leaf book-leaf--left">
+            <div class="page-header">
+              <div class="page-chapter-num">{{ campaignName }}</div>
+              <h1 class="page-title">The Atlas</h1>
+              <div class="page-rule" />
             </div>
-            <div class="atlas-list">
-              <div v-for="loc in leftLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
-                <div class="entry-icon">
-                  <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
-                  <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+            <div class="leaf-inner">
+              <div class="leaf-header">
+                <span class="leaf-type" style="color:var(--gold)">Locations</span>
+                <span class="leaf-count">{{ locations.length }} entries</span>
+              </div>
+              <div class="atlas-list">
+                <div v-for="loc in leftLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                  <div class="entry-icon">
+                    <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                    <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                  </div>
+                  <span class="entry-name">{{ loc.name }}
+                    <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
+                  </span>
+                  <span class="entry-dots" />
+                  <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
+                  <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
                 </div>
-                <span class="entry-name">{{ loc.name }}
-                  <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
-                </span>
-                <span class="entry-dots" />
-                <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
-                <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
-              </div>
-              <div v-if="!locations.length" class="leaf-empty">
-                <OhVueIcon name="gi-treasure-map" scale="2.5" style="opacity:0.08;margin-bottom:12px" />
-                <em>No locations yet. Begin charting the world.</em>
+                <div v-if="!locations.length" class="leaf-empty">
+                  <OhVueIcon name="gi-treasure-map" scale="2.5" style="opacity:0.08;margin-bottom:12px" />
+                  <em>No locations yet. Begin charting the world.</em>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="leaf-footer">
-            <button class="new-entry-btn" @click="createLocation">
-              <span class="new-entry-line-left" />
-              <span class="new-entry-label">✦ New Location ✦</span>
-              <span class="new-entry-line-right" />
-            </button>
+            <div class="leaf-footer">
+              <button class="leaf-new" @click="createLocation">
+                <span class="leaf-new-line-l"></span>
+                <span class="leaf-new-label">✦ New Location ✦</span>
+                <span class="leaf-new-line-r"></span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- BINDING -->
-        <div class="book-binding" />
+        <div class="book-binding"></div>
 
         <!-- RIGHT PAGE -->
-        <div class="book-leaf book-leaf--right">
-          <div class="leaf-inner">
-            <div class="leaf-header leaf-header--right">
-              <span class="leaf-folio">continued</span>
-            </div>
-            <div class="atlas-list">
-              <div v-for="loc in rightLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
-                <div class="entry-icon">
-                  <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
-                  <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
-                </div>
-                <span class="entry-name">{{ loc.name }}
-                  <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
-                </span>
-                <span class="entry-dots" />
-                <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
-                <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+        <div class="book-stack book-stack--right">
+          <div class="book-sheet-3"></div>
+          <div class="book-sheet-2"></div>
+          <div class="book-sheet-1"></div>
+          <div class="book-leaf book-leaf--right">
+            <div class="leaf-inner">
+              <div class="leaf-header leaf-header--right">
+                <span class="leaf-folio">continued</span>
               </div>
-              <div v-if="rightLocations.length === 0 && locations.length > 0" class="leaf-empty">
-                <em style="opacity:0.35">— end of entries —</em>
+              <div class="atlas-list">
+                <div v-for="loc in rightLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                  <div class="entry-icon">
+                    <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                    <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                  </div>
+                  <span class="entry-name">{{ loc.name }}
+                    <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
+                  </span>
+                  <span class="entry-dots" />
+                  <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
+                  <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+                </div>
+                <div v-if="rightLocations.length === 0 && locations.length > 0" class="leaf-empty">
+                  <em style="opacity:0.35">— end of entries —</em>
+                </div>
               </div>
             </div>
           </div>
@@ -91,6 +105,7 @@
     </template>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { useNotesStore } from '~/stores/notes'
@@ -219,12 +234,7 @@ function formatDate(dt: string) {
   display: flex;
   flex-direction: column;
   background: var(--parch);
-  overflow: hidden;
-}
-
-.atlas-header {
-  padding-bottom: 0;
-  flex-shrink: 0;
+  overflow: visible;
 }
 
 .map-view {
@@ -278,30 +288,6 @@ function formatDate(dt: string) {
 }
 
 /* Open book spread */
-.open-book {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  background: var(--leather);
-}
-
-.book-leaf {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--parch);
-  overflow: hidden;
-}
-
-.book-leaf--left {
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
-}
-
-.book-leaf--right {
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
-}
-
 .leaf-inner {
   flex: 1;
   overflow-y: auto;
@@ -313,24 +299,6 @@ function formatDate(dt: string) {
   padding: 10px 28px 16px;
   border-top: 1px dashed var(--parch-line);
   background: var(--parch);
-}
-
-.book-binding {
-  width: 10px;
-  flex-shrink: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.06) 40%, rgba(0, 0, 0, 0.06) 60%, rgba(0, 0, 0, 0.22));
-  position: relative;
-}
-
-.book-binding::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 3px;
-  right: 3px;
-  background: var(--leather);
-  opacity: 0.85;
 }
 
 .leaf-header {
@@ -403,46 +371,4 @@ function formatDate(dt: string) {
   border: 1px solid var(--parch-dark);
 }
 
-.new-entry-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-.new-entry-line-left {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--ink-ghost));
-}
-
-.new-entry-line-right {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.new-entry-label {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: color 0.2s;
-}
-
-.new-entry-btn:hover .new-entry-label {
-  color: var(--blood);
-}
-
-.new-entry-btn:hover .new-entry-line {
-  background: linear-gradient(to right, transparent, var(--blood));
-}
 </style>
