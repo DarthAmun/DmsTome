@@ -3,7 +3,7 @@
     <NuxtPage />
     <div id="spark-layer" aria-hidden="true" />
     <div class="spine-brand">
-      <img src="/icons/icon-512.png" class="spine-logo" alt="GM Toolkit" />
+      <img src="/icons/icon-512.png" class="spine-logo" alt="DM's Tome" />
       <span class="spine-version">v{{ version }}</span>
     </div>
   </div>

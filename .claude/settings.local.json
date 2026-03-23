@@ -1,16 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Read(//var/home/amon/.claude/projects/-var-home-amon-Documents-GitHub-GMToolkit/bbe5b239-f0a7-4f79-bbc4-949d89fd4a4c/tool-results/**)",
+      "Read(//var/home/amon/.claude/projects/-var-home-amon-Documents-GitHub-DmsTome/bbe5b239-f0a7-4f79-bbc4-949d89fd4a4c/tool-results/**)",
       "Bash(python3:*)",
-      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|book-stack\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/index.vue)",
-      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|book-stack\\\\|book-spread\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/GMToolkit/pages/system/[id]/[typeId].vue)",
-      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/encounters.vue)",
-      "Bash(head -15 grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/map.vue)",
-      "Bash(head -15 grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/GMToolkit/pages/system/[id]/index.vue)",
-      "Bash(head -20 grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/map.vue grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/notes.vue)",
-      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/GMToolkit/pages/campaign/[id]/encounters.vue)",
-      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/GMToolkit/pages/system/[id]/index.vue)"
+      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|book-stack\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/index.vue)",
+      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|book-stack\\\\|book-spread\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/[typeId].vue)",
+      "Bash(grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/encounters.vue)",
+      "Bash(head -15 grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/map.vue)",
+      "Bash(head -15 grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/index.vue)",
+      "Bash(head -20 grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/map.vue grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/notes.vue)",
+      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/encounters.vue)",
+      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/index.vue)"
     ]
   }
 }
