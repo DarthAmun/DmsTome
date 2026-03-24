@@ -4,6 +4,7 @@
       <NuxtPage />
     </div>
     <nav class="spine-tabs">
+      <SpineSeal />
       <NuxtLink to="/" class="spine-tab">
         <OhVueIcon name="md-arrowback" scale="0.85" />
         Tome

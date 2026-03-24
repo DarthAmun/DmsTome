@@ -6,6 +6,7 @@
 
     <!-- Campaign spine tabs -->
     <nav class="spine-tabs">
+      <SpineSeal />
       <NuxtLink to="/" class="spine-tab" title="Back to Tome">
         <OhVueIcon name="md-arrowback" scale="0.85" />
         Home

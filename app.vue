@@ -2,20 +2,17 @@
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
     <div id="spark-layer" aria-hidden="true" />
-    <div class="spine-brand">
-      <img src="/icons/icon-512.png" class="spine-logo" alt="DM's Tome" />
-      <button v-if="installPrompt" class="spine-install-btn" @click="installApp" title="Install App">
-        <OhVueIcon name="md-install-mobile" scale="0.85" />
+    <Transition name="install">
+      <button v-if="installPrompt" class="install-pill" @click="installApp" title="Install DM's Tome">
+        <OhVueIcon name="md-install-mobile" scale="0.9" />
+        Install App
       </button>
-      <span class="spine-version">v{{ version }}</span>
-    </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 // ── Ink write animation ──────────────────────────────────────────
-// Animates text characters as if being written on the parchment.
-// Called on every route navigation.
 const INK_SELECTORS = [
   '.entry-name',
   '.leaf-type',
@@ -34,18 +31,16 @@ function inkWritePage() {
   targets.forEach((el: Element) => {
     const htmlEl = el as HTMLElement
     htmlEl.style.opacity = ''  // clear pre-hide
-    // Parse existing HTML to preserve em/strong tags
     const nodes = Array.from(htmlEl.childNodes)
     interface Part { ch: string; tag: string | null }
     const parts: Part[] = []
     nodes.forEach(node => {
-      if (node.nodeType === Node.COMMENT_NODE) return  // skip Vue v-if/v-else markers
+      if (node.nodeType === Node.COMMENT_NODE) return
       if (node.nodeType === Node.TEXT_NODE) {
         (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: null }))
       } else if ((node as Element).tagName === 'EM') {
         (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: 'em' }))
       } else {
-        // Other tags — treat as text
         (node.textContent || '').split('').forEach(ch => parts.push({ ch, tag: null }))
       }
     })
@@ -89,8 +84,6 @@ async function installApp() {
 const router = useRouter()
 router.afterEach(() => {
   nextTick(() => {
-    // Pre-hide targets immediately after DOM update to prevent flash
-    // before inkWritePage replaces their content with animated spans
     document.querySelectorAll(INK_SELECTORS.join(',')).forEach(el => {
       (el as HTMLElement).style.opacity = '0'
     })
@@ -139,58 +132,37 @@ function onMagicClick(e: MouseEvent) {
   overflow: hidden;
 }
 
-.spine-brand {
+/* PWA install pill — bottom-center, only when browser offers install */
+.install-pill {
   position: fixed;
-  right: 0;
   bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 12px 9px;
-  background: var(--chrome);
-  border: 1px solid var(--rim);
-  border-right: none;
-  border-radius: 4px 0 0 4px;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.spine-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  object-fit: cover;
-  opacity: 0.75;
-}
-
-.spine-install-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid var(--gold-pale);
-  background: transparent;
-  color: var(--gold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding: 0;
-}
-.spine-install-btn:hover {
-  background: var(--gold-pale);
-  color: var(--leather);
-}
-
-.spine-version {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  padding: 9px 18px;
+  background: var(--leather);
+  border: 1px solid rgba(184,134,11,0.4);
+  border-radius: 999px;
+  color: rgba(184,134,11,0.8);
   font-family: var(--font-head);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #8a7a9a;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  transition: all 0.2s;
 }
+.install-pill:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: #1a1208;
+}
+
+/* Slide up / fade in transition */
+.install-enter-active, .install-leave-active { transition: opacity 0.3s, transform 0.3s; }
+.install-enter-from, .install-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 </style>

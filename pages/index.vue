@@ -166,6 +166,7 @@
 
     <!-- SPINE TABS -->
     <nav class="spine-tabs">
+      <SpineSeal />
       <button class="spine-tab" :class="{ active: section === 'campaigns' }" @click="section = 'campaigns'">
         <OhVueIcon name="gi-broadsword" scale="0.85" />
         Campaigns

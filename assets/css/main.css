@@ -101,7 +101,19 @@ html, body, #__nuxt {
   opacity: 0.4;
 }
 
-/* ── SPINE TABS — the thumb index ──────────────────────────────── */
+/* ── BOOK INDEX — thumb-cut index tabs on the right edge ─────── */
+/*    Each tab is a section of the grimoire's index. The active    */
+/*    tab is flush with the open page; others are set back.        */
+
+/* Washed-out rainbow — one muted hue per section */
+.spine-tab:nth-child(1) { --tab-color: #5c3535; } /* dusty rose    */
+.spine-tab:nth-child(2) { --tab-color: #5c4a28; } /* burnt amber   */
+.spine-tab:nth-child(3) { --tab-color: #3d5228; } /* sage green    */
+.spine-tab:nth-child(4) { --tab-color: #245244; } /* forest teal   */
+.spine-tab:nth-child(5) { --tab-color: #243858; } /* slate blue    */
+.spine-tab:nth-child(6) { --tab-color: #3d2458; } /* dusty violet  */
+.spine-tab:nth-child(7) { --tab-color: #522438; } /* antique mauve */
+
 .spine-tabs {
   position: fixed;
   right: 0;
@@ -109,55 +121,68 @@ html, body, #__nuxt {
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: flex-end;
   z-index: 100;
+  filter: drop-shadow(-6px 0 22px rgba(0,0,0,0.65));
 }
 
 .spine-tab {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  padding: 14px 8px;
-  background: var(--chrome);
-  border: 1px solid var(--rim);
+  padding: 18px 8px;
+  background: var(--tab-color, var(--leather));
+  border: 1px solid rgba(0,0,0,0.35);
   border-right: none;
-  color: #8a7a9a; /* light-dim on dark spine */
+  color: rgba(232,220,197,0.45);
   font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 4px 0 0 4px;
-  min-height: 60px;
+  transition: color 0.2s, width 0.2s;
+  border-radius: 0;
+  min-height: 72px;
+  width: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   position: relative;
   text-decoration: none;
 }
 
+/* Collapse double borders between adjacent tabs */
+.spine-tab + .spine-tab { margin-top: -1px; }
+
+/* Rounded corners only on the outermost tab edges */
+.spine-tab:first-child { border-radius: 3px 0 0 0; }
+.spine-tab:last-child  { border-radius: 0 0 0 3px; }
+
 .spine-tab:hover {
-  background: var(--chrome-l);
-  color: #e8dcc5; /* light on dark */
-  padding-right: 12px;
+  color: rgba(232,220,197,0.75);
+  width: 42px;
 }
 
+/* Active tab: extends left to sit flush with the open page */
 .spine-tab.active {
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
   color: var(--ink);
-  border-color: var(--parch-dark);
-  padding-right: 14px;
-  box-shadow: -4px 0 16px rgba(0,0,0,0.4);
+  width: 48px;
+  border-color: rgba(28,20,16,0.12);
+  z-index: 1;
 }
 
+/* Active tab: full-height stripe in the section's own color */
 .spine-tab.active::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 2px;
-  background: var(--blood);
+  width: 3px;
+  background: var(--tab-color, var(--blood));
+  border-radius: 0;
 }
 
 /* ══ BOOK SPREAD — open book with stacked sheets + paper texture ══ */
