@@ -35,7 +35,11 @@
       <!-- Type meta -->
       <div class="panel-header">
         <span class="panel-title">{{ activeType.name || 'Entity Type' }}</span>
-        <button class="icon-btn" @click="addField" title="Add field">
+        <div class="mode-toggle">
+          <button class="mode-btn" :class="{ active: middleMode === 'fields' }" @click="middleMode = 'fields'">Fields</button>
+          <button class="mode-btn" :class="{ active: middleMode === 'layout' }" @click="middleMode = 'layout'">Layout</button>
+        </div>
+        <button v-if="middleMode === 'fields'" class="icon-btn" @click="addField" title="Add field">
           <OhVueIcon name="md-add" scale="0.9" />
         </button>
       </div>
@@ -72,49 +76,110 @@
         </div>
       </div>
 
-      <div class="fields-divider">
-        <span>Fields</span>
-      </div>
+      <!-- FIELDS MODE -->
+      <template v-if="middleMode === 'fields'">
+        <div class="fields-divider"><span>Fields</span></div>
+        <div class="field-list">
+          <div
+            v-for="(field, i) in activeType.fields" :key="field.key"
+            class="field-row" :class="{ active: fieldConfigIdx === i, 'drag-over': dragOverIdx === i }"
+            draggable="true"
+            @click="fieldConfigIdx = fieldConfigIdx === i ? null : i"
+            @dragstart="onDragStart(i, $event)"
+            @dragover.prevent="dragOverIdx = i"
+            @dragleave="dragOverIdx = null"
+            @drop.prevent="onDrop(i)"
+            @dragend="dragOverIdx = null"
+          >
+            <div class="field-row-left">
+              <OhVueIcon name="md-draghandle" scale="0.9" style="color:var(--ink-ghost);cursor:grab" @mousedown.stop />
+              <span class="field-type-badge" :class="`ftype-${field.component}`">{{ field.component }}</span>
+              <span class="field-row-label">{{ field.label }}</span>
+              <span class="field-row-key">{{ field.key }}</span>
+            </div>
+            <div class="field-row-right">
+              <button class="field-flag" :class="{ on: field.showInCard }" title="Show in card"
+                @click.stop="toggleFieldFlag(i, 'showInCard')">
+                <OhVueIcon name="md-viewmodule" scale="0.75" />
+              </button>
+              <button class="field-flag" :class="{ on: field.required }" title="Required"
+                @click.stop="toggleFieldFlag(i, 'required')">
+                <OhVueIcon name="md-shield" scale="0.75" />
+              </button>
+              <button class="field-delete" @click.stop="deleteField(i)">
+                <OhVueIcon name="md-delete" scale="0.75" />
+              </button>
+            </div>
+          </div>
+          <div v-if="!activeType.fields.length" class="field-empty">
+            No fields yet. Click + to add one.
+          </div>
+        </div>
+      </template>
 
-      <!-- Field rows -->
-      <div class="field-list">
-        <div
-          v-for="(field, i) in activeType.fields" :key="field.key"
-          class="field-row" :class="{ active: fieldConfigIdx === i, 'drag-over': dragOverIdx === i }"
-          draggable="true"
-          @click="fieldConfigIdx = fieldConfigIdx === i ? null : i"
-          @dragstart="onDragStart(i, $event)"
-          @dragover.prevent="dragOverIdx = i"
-          @dragleave="dragOverIdx = null"
-          @drop.prevent="onDrop(i)"
-          @dragend="dragOverIdx = null"
-        >
-          <div class="field-row-left">
-            <OhVueIcon name="md-draghandle" scale="0.9" style="color:var(--ink-ghost);cursor:grab" @mousedown.stop />
-            <span class="field-type-badge" :class="`ftype-${field.component}`">
-              {{ field.component }}
-            </span>
-            <span class="field-row-label">{{ field.label }}</span>
-            <span class="field-row-key">{{ field.key }}</span>
-          </div>
-          <div class="field-row-right">
-            <button class="field-flag" :class="{ on: field.showInCard }" title="Show in card"
-              @click.stop="toggleFieldFlag(i, 'showInCard')">
-              <OhVueIcon name="md-viewmodule" scale="0.75" />
-            </button>
-            <button class="field-flag" :class="{ on: field.required }" title="Required"
-              @click.stop="toggleFieldFlag(i, 'required')">
-              <OhVueIcon name="md-shield" scale="0.75" />
-            </button>
-            <button class="field-delete" @click.stop="deleteField(i)">
-              <OhVueIcon name="md-delete" scale="0.75" />
-            </button>
-          </div>
+      <!-- LAYOUT MODE -->
+      <template v-else>
+        <div class="fields-divider">
+          <span>Sections</span>
+          <button class="icon-btn" style="margin-left:auto" @click="addSection" title="Add section">
+            <OhVueIcon name="md-add" scale="0.9" />
+          </button>
         </div>
-        <div v-if="!activeType.fields.length" class="field-empty">
-          No fields yet. Click + to add one.
+        <div class="section-list">
+          <div
+            v-for="(sec, si) in activeType.sections ?? []" :key="sec.id"
+            class="sec-card"
+            :class="{ 'drag-over': dragOverSectionIdx === si }"
+            draggable="true"
+            @dragstart="onSectionDragStart(si, $event)"
+            @dragover.prevent="dragOverSectionIdx = si"
+            @dragleave="dragOverSectionIdx = null"
+            @drop.prevent="onSectionDrop(si)"
+            @dragend="dragOverSectionIdx = null"
+          >
+            <div class="sec-card-head">
+              <OhVueIcon name="md-draghandle" scale="0.9" style="color:var(--ink-ghost);cursor:grab;flex-shrink:0" @mousedown.stop />
+              <input class="sec-title-input" :value="sec.title ?? ''" placeholder="Section title…"
+                @input="patchSection(sec.id, { title: ($event.target as HTMLInputElement).value || undefined })" />
+              <button class="field-delete" style="opacity:1" @click="deleteSection(sec.id)" title="Delete section">
+                <OhVueIcon name="md-close" scale="0.8" />
+              </button>
+            </div>
+            <div class="sec-style-row">
+              <button v-for="opt in SECTION_STYLE_OPTIONS" :key="opt.value"
+                class="sec-style-btn" :class="{ active: sec.style === opt.value }"
+                @click="patchSection(sec.id, { style: opt.value as SectionStyle })">
+                {{ opt.label }}
+              </button>
+            </div>
+            <div class="sec-chips">
+              <div v-for="key in sec.fields" :key="key" class="sec-chip">
+                <span class="sec-chip-label">{{ fieldLabel(key) }}</span>
+                <button class="sec-chip-del" @click="removeFromSection(sec.id, key)" title="Remove">×</button>
+              </div>
+              <select v-if="unassignedFields.length" class="sec-add-select"
+                @change="e => { const v = (e.target as HTMLSelectElement).value; if(v) { addFieldToSection(sec.id, v); (e.target as HTMLSelectElement).value = '' } }">
+                <option value="">+ Add field</option>
+                <option v-for="f in unassignedFields" :key="f.key" :value="f.key">{{ f.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="!activeType.sections?.length" class="field-empty">
+            No sections yet.<br>Click + to create one, then add fields to it.
+          </div>
+
+          <!-- Unassigned fields pool -->
+          <template v-if="unassignedFields.length && activeType.sections?.length">
+            <div class="fields-divider" style="margin: 4px 0"><span>Unassigned</span></div>
+            <div class="unassigned-pool">
+              <div v-for="f in unassignedFields" :key="f.key" class="unassigned-chip">
+                {{ f.label }}
+              </div>
+            </div>
+          </template>
         </div>
-      </div>
+      </template>
     </div>
 
     <div v-else class="builder-fields builder-fields--empty">
@@ -250,10 +315,107 @@
               :value="(activeField.config.checklistItems ?? []).join('\n')"
               @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, checklistItems: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
           </div>
+
+          <!-- Stat Block config -->
+          <template v-if="activeField.component === 'statblock'">
+            <div class="config-field">
+              <label class="f-label">Stats <span class="f-hint">(one per line, default: STR DEX CON INT WIS CHA)</span></label>
+              <textarea class="f-textarea" rows="6"
+                :value="(activeField.config.stats ?? []).join('\n')"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, stats: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
+            </div>
+            <div class="config-row">
+              <div class="config-field">
+                <label class="f-label">Min</label>
+                <input class="f-input" type="number" :value="activeField.config.statMin ?? 1"
+                  @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, statMin: Number(($event.target as HTMLInputElement).value) } })" />
+              </div>
+              <div class="config-field">
+                <label class="f-label">Max</label>
+                <input class="f-input" type="number" :value="activeField.config.statMax ?? 30"
+                  @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, statMax: Number(($event.target as HTMLInputElement).value) } })" />
+              </div>
+            </div>
+            <div class="config-field">
+              <label class="f-label">
+                <input type="checkbox" :checked="activeField.config.showModifier !== false"
+                  @change="patchField(fieldConfigIdx!, { config: { ...activeField.config, showModifier: ($event.target as HTMLInputElement).checked } })" />
+                Show modifier (floor((val−10)/2))
+              </label>
+            </div>
+          </template>
+
+          <!-- Conditions config -->
+          <div v-if="activeField.component === 'conditions'" class="config-field">
+            <label class="f-label">Conditions <span class="f-hint">(one per line, leave blank for D&D 5e defaults)</span></label>
+            <textarea class="f-textarea" rows="8"
+              :value="(activeField.config.conditions ?? []).join('\n')"
+              @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, conditions: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
+          </div>
+
+          <!-- Speed config -->
+          <template v-if="activeField.component === 'speed'">
+            <div class="config-field">
+              <label class="f-label">Movement modes <span class="f-hint">(one per line, default: Walk Fly Swim Climb Burrow)</span></label>
+              <textarea class="f-textarea" rows="5"
+                :value="(activeField.config.speedModes ?? []).join('\n')"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, speedModes: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
+            </div>
+            <div class="config-field">
+              <label class="f-label">Unit <span class="f-hint">(e.g. ft, m, squares)</span></label>
+              <input class="f-input" :value="activeField.config.speedUnit ?? 'ft'"
+                placeholder="ft"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, speedUnit: ($event.target as HTMLInputElement).value } })" />
+            </div>
+          </template>
+
+          <!-- Spell Slots / Resource Levels config -->
+          <template v-if="activeField.component === 'spellslots'">
+            <div class="config-field">
+              <label class="f-label">Number of levels <span class="f-hint">(default 9)</span></label>
+              <input class="f-input" type="number" min="1" max="20"
+                :value="activeField.config.slotLevels ?? 9"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, slotLevels: Number(($event.target as HTMLInputElement).value) } })" />
+            </div>
+            <div class="config-field">
+              <label class="f-label">Level names <span class="f-hint">(one per line, leave blank for 1st 2nd 3rd…)</span></label>
+              <textarea class="f-textarea" rows="5"
+                :value="(activeField.config.slotLevelNames ?? []).join('\n')"
+                @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, slotLevelNames: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
+            </div>
+          </template>
         </div>
       </template>
 
-      <!-- Record preview -->
+      <!-- Layout preview (shown when in layout mode with no field config open) -->
+      <template v-else-if="activeType && middleMode === 'layout'">
+        <div class="panel-header">
+          <span class="panel-title">Preview</span>
+          <span class="panel-hint">layout</span>
+        </div>
+        <div class="preview-body">
+          <div class="preview-record" style="border-top-color: var(--gold)">
+            <div class="preview-record-header" :style="{ borderColor: activeType.color + '55' }">
+              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1.2"
+                :style="{ color: activeType.color }" />
+              <span class="preview-record-name">Sample {{ activeType.name }}</span>
+              <span class="preview-type-tag" :style="{ background: activeType.color + '22', color: activeType.color }">
+                {{ activeType.name }}
+              </span>
+            </div>
+            <div style="padding: 14px">
+              <EntityLayout
+                :entity-type="activeType"
+                :data="{}"
+                mode="view"
+                :accent-color="activeType.color"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Record preview (fields mode) -->
       <template v-else-if="activeType">
         <div class="panel-header">
           <span class="panel-title">Preview</span>
@@ -305,8 +467,8 @@
 
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
-import { FIELD_COMPONENT_OPTIONS, labelToKey } from '~/types/entities'
-import type { FieldSchema, EntityTypeSchema, FieldComponentType } from '~/types/entities'
+import { FIELD_COMPONENT_OPTIONS, SECTION_STYLE_OPTIONS, labelToKey } from '~/types/entities'
+import type { FieldSchema, EntityTypeSchema, FieldComponentType, SectionDef, SectionStyle } from '~/types/entities'
 
 const route = useRoute()
 const systemsStore = useSystemsStore()
@@ -316,6 +478,7 @@ const activeTypeId = ref<string | null>(null)
 const fieldConfigIdx = ref<number | null>(null)
 const dragSrcIdx = ref<number | null>(null)
 const dragOverIdx = ref<number | null>(null)
+const middleMode = ref<'fields' | 'layout'>('fields')
 // Local draft values for the field label/key inputs to avoid reactive overwrite on keystroke
 const draftLabel = ref('')
 const draftKey = ref('')
@@ -403,8 +566,10 @@ function addField() {
 }
 
 function deleteField(i: number) {
+  const key = activeType.value?.fields[i]?.key
   const fields = (activeType.value?.fields ?? []).filter((_, idx) => idx !== i)
   patchType('fields', fields)
+  if (key) removeSectionFieldKey(key)
   if (fieldConfigIdx.value === i) fieldConfigIdx.value = null
 }
 
@@ -439,7 +604,96 @@ function saveDraftKey() {
   if (fieldConfigIdx.value === null) return
   const trimmed = draftKey.value.trim()
   if (!trimmed) return
+  const oldKey = activeType.value?.fields[fieldConfigIdx.value]?.key
   patchField(fieldConfigIdx.value, { key: trimmed })
+  if (oldKey && oldKey !== trimmed) patchSectionFieldKeys(oldKey, trimmed)
+}
+
+// ── Section mutations ─────────────────────────────────────────────────────
+const unassignedFields = computed(() => {
+  const assigned = new Set((activeType.value?.sections ?? []).flatMap(s => s.fields))
+  return (activeType.value?.fields ?? []).filter(f => !assigned.has(f.key))
+})
+
+function fieldLabel(key: string): string {
+  return activeType.value?.fields.find(f => f.key === key)?.label ?? key
+}
+
+function addSection() {
+  const s: SectionDef = { id: `sec_${Date.now()}`, title: '', style: 'auto', fields: [] }
+  patchType('sections', [...(activeType.value?.sections ?? []), s])
+}
+
+function deleteSection(id: string) {
+  patchType('sections', (activeType.value?.sections ?? []).filter(s => s.id !== id))
+}
+
+function patchSection(id: string, changes: Partial<SectionDef>) {
+  patchType('sections', (activeType.value?.sections ?? []).map(s =>
+    s.id === id ? { ...s, ...changes } : s
+  ))
+}
+
+function addFieldToSection(sectionId: string, fieldKey: string) {
+  // Remove from any existing section first
+  let secs = (activeType.value?.sections ?? []).map(s => ({
+    ...s, fields: s.fields.filter(k => k !== fieldKey)
+  }))
+  secs = secs.map(s => s.id === sectionId ? { ...s, fields: [...s.fields, fieldKey] } : s)
+  patchType('sections', secs)
+}
+
+function removeFromSection(sectionId: string, fieldKey: string) {
+  patchType('sections', (activeType.value?.sections ?? []).map(s =>
+    s.id === sectionId ? { ...s, fields: s.fields.filter(k => k !== fieldKey) } : s
+  ))
+}
+
+function moveSectionField(sectionId: string, fromIdx: number, toIdx: number) {
+  const secs = (activeType.value?.sections ?? []).map(s => {
+    if (s.id !== sectionId) return s
+    const fields = [...s.fields]
+    const [moved] = fields.splice(fromIdx, 1)
+    fields.splice(toIdx, 0, moved)
+    return { ...s, fields }
+  })
+  patchType('sections', secs)
+}
+
+// When a field key is renamed, update all section references
+function patchSectionFieldKeys(oldKey: string, newKey: string) {
+  if (!activeType.value?.sections?.length) return
+  patchType('sections', activeType.value.sections.map(s => ({
+    ...s, fields: s.fields.map(k => k === oldKey ? newKey : k)
+  })))
+}
+
+// When a field is deleted, remove it from sections
+function removeSectionFieldKey(key: string) {
+  if (!activeType.value?.sections?.length) return
+  patchType('sections', activeType.value.sections.map(s => ({
+    ...s, fields: s.fields.filter(k => k !== key)
+  })))
+}
+
+// Section drag state
+const dragSrcSectionIdx = ref<number | null>(null)
+const dragOverSectionIdx = ref<number | null>(null)
+
+function onSectionDragStart(i: number, e: DragEvent) {
+  dragSrcSectionIdx.value = i
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function onSectionDrop(targetIdx: number) {
+  if (dragSrcSectionIdx.value === null || dragSrcSectionIdx.value === targetIdx) {
+    dragSrcSectionIdx.value = null; dragOverSectionIdx.value = null; return
+  }
+  const secs = [...(activeType.value?.sections ?? [])]
+  const [moved] = secs.splice(dragSrcSectionIdx.value, 1)
+  secs.splice(targetIdx, 0, moved)
+  patchType('sections', secs)
+  dragSrcSectionIdx.value = null; dragOverSectionIdx.value = null
 }
 
 // ── Drag to reorder fields ────────────────────────────────────────────────
@@ -727,4 +981,85 @@ function sampleValue(f: FieldSchema): string {
 .preview-type-tag { font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; border-radius: 2px; letter-spacing: 0.1em; }
 .preview-record-fields { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .preview-record-field { display: flex; flex-direction: column; gap: 2px; }
+
+/* Mode toggle (Fields | Layout) */
+.mode-toggle { display: flex; border: 1px solid var(--parch-line); border-radius: 3px; overflow: hidden; }
+.mode-btn {
+  padding: 3px 8px;
+  font-family: var(--font-head); font-size: 8px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: transparent; border: none;
+  color: var(--ink-ghost); cursor: pointer; transition: all 0.15s;
+}
+.mode-btn + .mode-btn { border-left: 1px solid var(--parch-line); }
+.mode-btn.active { background: var(--gold); color: var(--parch); }
+
+/* Section list */
+.section-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.sec-card {
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  background: var(--parch-dark);
+  padding: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: border-color 0.15s;
+}
+.sec-card.drag-over { border-color: var(--gold); background: rgba(184,134,11,0.04); }
+
+.sec-card-head { display: flex; align-items: center; gap: 6px; }
+.sec-title-input {
+  flex: 1; background: transparent; border: none;
+  border-bottom: 1px solid var(--parch-line);
+  font-family: var(--font-head); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink); padding: 2px 0; outline: none;
+}
+.sec-title-input:focus { border-bottom-color: var(--gold); }
+.sec-title-input::placeholder { color: var(--ink-ghost); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.sec-style-row { display: flex; gap: 4px; }
+.sec-style-btn {
+  padding: 2px 7px;
+  font-family: var(--font-head); font-size: 8px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px; color: var(--ink-ghost);
+  cursor: pointer; transition: all 0.15s;
+}
+.sec-style-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(184,134,11,0.08); }
+.sec-style-btn:hover:not(.active) { color: var(--ink-faded); }
+
+.sec-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 24px; }
+.sec-chip {
+  display: flex; align-items: center; gap: 3px;
+  background: var(--parch); border: 1px solid var(--parch-line);
+  border-radius: 999px; padding: 2px 6px 2px 8px;
+  font-family: var(--font-head); font-size: 9px;
+  color: var(--ink-faded);
+}
+.sec-chip-label { font-weight: 600; letter-spacing: 0.06em; }
+.sec-chip-del {
+  background: none; border: none; color: var(--ink-ghost);
+  cursor: pointer; font-size: 13px; line-height: 1;
+  padding: 0 1px; transition: color 0.15s;
+}
+.sec-chip-del:hover { color: var(--blood); }
+.sec-add-select {
+  background: transparent; border: 1px dashed var(--parch-line);
+  border-radius: 999px; padding: 2px 6px;
+  font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost);
+  cursor: pointer; outline: none;
+}
+.sec-add-select:hover { border-color: var(--gold); color: var(--gold); }
+
+/* Unassigned pool */
+.unassigned-pool { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 0; }
+.unassigned-chip {
+  border: 1px dashed var(--parch-line);
+  border-radius: 999px; padding: 2px 10px;
+  font-family: var(--font-head); font-size: 9px; letter-spacing: 0.06em;
+  color: var(--ink-ghost); font-style: italic;
+}
 </style>

@@ -23,6 +23,12 @@ import FieldClock from '~/components/fields/FieldClock.vue'
 import FieldRating from '~/components/fields/FieldRating.vue'
 import FieldTags from '~/components/fields/FieldTags.vue'
 import FieldChecklist from '~/components/fields/FieldChecklist.vue'
+import FieldStatBlock from '~/components/fields/FieldStatBlock.vue'
+import FieldAbilities from '~/components/fields/FieldAbilities.vue'
+import FieldSpellSlots from '~/components/fields/FieldSpellSlots.vue'
+import FieldConditions from '~/components/fields/FieldConditions.vue'
+import FieldAttack from '~/components/fields/FieldAttack.vue'
+import FieldSpeed from '~/components/fields/FieldSpeed.vue'
 
 const props = defineProps<{
   field: FieldSchema
@@ -46,6 +52,12 @@ const fieldComponent = computed(() => {
     case 'rating':      return FieldRating
     case 'tags':        return FieldTags
     case 'checklist':   return FieldChecklist
+    case 'statblock':   return FieldStatBlock
+    case 'abilities':   return FieldAbilities
+    case 'spellslots':  return FieldSpellSlots
+    case 'conditions':  return FieldConditions
+    case 'attack':      return FieldAttack
+    case 'speed':       return FieldSpeed
     default:            return FieldText
   }
 })

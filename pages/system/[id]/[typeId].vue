@@ -85,14 +85,13 @@
                   <OhVueIcon name="md-delete" scale="0.8" />
                 </button>
               </div>
-              <div class="rec-fields-grid">
-                <div v-for="field in entityType.fields" :key="field.key" class="rec-field-wrap"
-                  :class="{ 'rec-field-wide': field.component === 'textarea' || field.component === 'tracker' }">
-                  <label class="rec-field-label">{{ field.label }}</label>
-                  <FieldRenderer :field="field" :value="draftData[field.key]" :mode="editMode ? 'edit' : 'view'"
-                    @update="v => updateField(field.key, v)" />
-                </div>
-              </div>
+              <EntityLayout
+                :entity-type="entityType"
+                :data="draftData"
+                :mode="editMode ? 'edit' : 'view'"
+                :accent-color="entityType.color"
+                @update="(key, value) => updateField(key, value)"
+              />
             </template>
             <template v-else>
               <div class="page-right-empty">
@@ -394,33 +393,6 @@ function formatDate(dt: string) {
   border-radius: 2px;
 }
 
-.rec-fields-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
-  gap: 18px;
-  min-width: 0;
-}
-
-.rec-field-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.rec-field-wide {
-  grid-column: 1 / -1;
-}
-
-.rec-field-label {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--ink-ghost);
-}
 
 .parch-btn {
   display: inline-flex;

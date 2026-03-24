@@ -126,6 +126,12 @@ export type FieldComponentType =
   | 'rating'
   | 'tags'
   | 'checklist'
+  | 'statblock'
+  | 'abilities'
+  | 'spellslots'
+  | 'conditions'
+  | 'attack'
+  | 'speed'
 
 export interface FieldSchema {
   key: string
@@ -145,12 +151,41 @@ export interface FieldSchema {
     ratingMax?: number          // for rating
     ratingStyle?: 'dot' | 'diamond' | 'skull'  // for rating
     checklistItems?: string[]   // for checklist
+    // statblock
+    stats?: string[]            // stat names, e.g. ["STR","DEX","CON","INT","WIS","CHA"]
+    statMin?: number
+    statMax?: number
+    showModifier?: boolean      // show D&D-style floor((val-10)/2) modifier
+    // conditions
+    conditions?: string[]       // condition names
+    // speed
+    speedModes?: string[]       // movement mode names
+    speedUnit?: string          // unit suffix, default "ft"
+    // spellslots / resource levels
+    slotLevels?: number         // number of levels, default 9
+    slotLevelNames?: string[]   // labels for each level
   }
   required: boolean
   showInCard: boolean           // show on summary card
   showInHeader: boolean         // show prominently at top of record
   sortable: boolean
 }
+
+export type SectionStyle = 'auto' | 'full' | 'two-col' | 'three-col'
+
+export interface SectionDef {
+  id: string
+  title?: string
+  style: SectionStyle
+  fields: string[]              // ordered field keys
+}
+
+export const SECTION_STYLE_OPTIONS: { value: SectionStyle; label: string }[] = [
+  { value: 'auto',      label: 'Auto' },
+  { value: 'full',      label: 'Full' },
+  { value: 'two-col',   label: '2 Col' },
+  { value: 'three-col', label: '3 Col' },
+]
 
 export interface EntityTypeSchema {
   id: string                    // stable key, e.g. "spell"
@@ -159,6 +194,7 @@ export interface EntityTypeSchema {
   icon: string                  // gi-* icon name
   color: string
   fields: FieldSchema[]
+  sections?: SectionDef[]
 }
 
 export interface SystemSchema {
@@ -194,5 +230,11 @@ export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string
   { value: 'clock',       label: 'Clock',       icon: 'gi-hourglass' },
   { value: 'rating',      label: 'Rating',      icon: 'gi-three-coins' },
   { value: 'tags',        label: 'Tags (free)', icon: 'gi-labels' },
-  { value: 'checklist',   label: 'Checklist',   icon: 'gi-check-mark' },
+  { value: 'checklist',   label: 'Checklist',    icon: 'gi-check-mark' },
+  { value: 'statblock',   label: 'Stat Block',   icon: 'gi-muscle-up' },
+  { value: 'abilities',   label: 'Abilities',    icon: 'gi-lightning-bolt' },
+  { value: 'spellslots',  label: 'Spell Slots',  icon: 'gi-sparkles' },
+  { value: 'conditions',  label: 'Conditions',   icon: 'gi-poison' },
+  { value: 'attack',      label: 'Attack',       icon: 'gi-crossed-swords' },
+  { value: 'speed',       label: 'Speed',        icon: 'gi-boot-stomp' },
 ]
