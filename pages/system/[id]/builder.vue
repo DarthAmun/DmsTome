@@ -1,7 +1,22 @@
 <template>
-  <div class="builder-shell">
-    <!-- Left: Entity type list -->
-    <div class="builder-types">
+  <div class="builder-folio">
+    <div class="open-book">
+
+      <!-- LEFT PAGE -->
+      <div class="book-stack book-stack--left">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--left">
+          <div class="page-header">
+            <div class="page-chapter-num">{{ system?.name ?? 'System' }}</div>
+            <h1 class="page-title">Builder</h1>
+            <div class="page-rule" />
+          </div>
+          <div class="builder-left-split">
+
+            <!-- Entity type list -->
+            <div class="builder-types">
       <div class="panel-header">
         <span class="panel-title">Entity Types</span>
         <button class="icon-btn" @click="addEntityType" title="New entity type">
@@ -30,7 +45,7 @@
       </div>
     </div>
 
-    <!-- Middle: Field list (or type meta editor) -->
+            <!-- Fields / Layout editor -->
     <div class="builder-fields" v-if="activeType">
       <!-- Type meta -->
       <div class="panel-header">
@@ -182,13 +197,24 @@
       </template>
     </div>
 
-    <div v-else class="builder-fields builder-fields--empty">
-      <OhVueIcon name="gi-book-aura" scale="3" style="opacity:0.1;margin-bottom:12px" />
-      <p style="color:var(--ink-ghost);font-size:13px">Select or create an entity type</p>
-    </div>
+            <div v-else class="builder-fields builder-fields--empty">
+              <OhVueIcon name="gi-book-aura" scale="3" style="opacity:0.1;margin-bottom:12px" />
+              <p style="color:var(--ink-ghost);font-size:13px">Select or create an entity type</p>
+            </div>
 
-    <!-- Right: Field config OR record preview -->
-    <div class="builder-preview">
+          </div><!-- /builder-left-split -->
+        </div><!-- /book-leaf--left -->
+      </div><!-- /book-stack--left -->
+
+      <div class="book-binding"></div>
+
+      <!-- RIGHT PAGE -->
+      <div class="book-stack book-stack--right">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--right">
+          <div class="builder-preview">
       <!-- Field config panel -->
       <template v-if="fieldConfigIdx !== null && activeField">
         <div class="panel-header">
@@ -461,8 +487,20 @@
           </div>
         </div>
       </template>
-    </div>
-  </div>
+
+      <!-- Empty state: no entity type selected -->
+      <template v-if="!activeType && fieldConfigIdx === null">
+        <div class="preview-empty">
+          <OhVueIcon name="gi-book-aura" scale="3" style="opacity:0.07;margin-bottom:16px" />
+          <em class="preview-empty-hint">Select an entity type<br>to configure or preview it.</em>
+        </div>
+      </template>
+          </div><!-- /builder-preview -->
+        </div><!-- /book-leaf--right -->
+      </div><!-- /book-stack--right -->
+
+    </div><!-- /open-book -->
+  </div><!-- /builder-folio -->
 </template>
 
 <script setup lang="ts">
@@ -740,33 +778,39 @@ function sampleValue(f: FieldSchema): string {
 </script>
 
 <style scoped>
-/* ── Builder — parchment page aesthetic, three panels as book sections ── */
+/* ── Builder — open-book layout ── */
 
-.builder-shell {
+.builder-folio {
   display: flex;
+  flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
-/* Three panels like three sections of an open manuscript */
+/* Left leaf: horizontal split between types list and fields editor */
+.builder-left-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
 .builder-types {
-  width: 200px;
+  width: 180px;
   flex-shrink: 0;
   border-right: 1px solid var(--parch-line);
   display: flex;
   flex-direction: column;
-  background: var(--parch-dark);
 }
 
 .builder-fields {
   flex: 1;
   min-width: 0;
-  border-right: 1px solid var(--parch-line);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .builder-fields--empty {
@@ -774,24 +818,23 @@ function sampleValue(f: FieldSchema): string {
   justify-content: center;
 }
 
+/* Right leaf: takes full leaf space, scrolls internally */
 .builder-preview {
-  width: 280px;
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  background: var(--parch-dark);
+  overflow: hidden;
 }
 
 /* Panel headers — like chapter headings */
 .panel-header {
   display: flex;
   align-items: center;
-  padding: 10px 14px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--parch-line);
   gap: 8px;
   flex-shrink: 0;
-  background: var(--parch-dark);
 }
 
 .panel-title {
@@ -912,11 +955,11 @@ function sampleValue(f: FieldSchema): string {
 .field-empty { font-family: var(--font-body); font-size: 14px; color: var(--ink-ghost); font-style: italic; text-align: center; padding: 24px; }
 
 /* Config body — writing in the book */
-.config-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex: 1; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
+.config-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex: 1; }
 .config-field { display: flex; flex-direction: column; gap: 5px; }
 .config-row { display: flex; gap: 10px; }
 
-.component-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.component-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
 .component-opt {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 8px;
@@ -949,7 +992,7 @@ function sampleValue(f: FieldSchema): string {
 }
 .f-textarea:focus { border-bottom-color: var(--gold); }
 
-/* Preview panel */
+/* Preview / right leaf content */
 .preview-body { padding: 14px; overflow-y: auto; flex: 1; }
 .preview-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink-ghost); margin-bottom: 8px; }
 
@@ -981,6 +1024,27 @@ function sampleValue(f: FieldSchema): string {
 .preview-type-tag { font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; border-radius: 2px; letter-spacing: 0.1em; }
 .preview-record-fields { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .preview-record-field { display: flex; flex-direction: column; gap: 2px; }
+
+.preview-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center;
+}
+.preview-empty-hint {
+  font-family: var(--font-body); font-size: 14px;
+  color: var(--ink-ghost); font-style: italic; line-height: 1.7;
+}
+
+/* Override global page-title inside the builder page header */
+.builder-folio .page-title {
+  font-family: var(--font-deco);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  margin-bottom: 0;
+}
 
 /* Mode toggle (Fields | Layout) */
 .mode-toggle { display: flex; border: 1px solid var(--parch-line); border-radius: 3px; overflow: hidden; }
