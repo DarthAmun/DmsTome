@@ -4,6 +4,9 @@
     <div id="spark-layer" aria-hidden="true" />
     <div class="spine-brand">
       <img src="/icons/icon-512.png" class="spine-logo" alt="DM's Tome" />
+      <button v-if="installPrompt" class="spine-install-btn" @click="installApp" title="Install App">
+        <OhVueIcon name="md-install-mobile" scale="0.85" />
+      </button>
       <span class="spine-version">v{{ version }}</span>
     </div>
   </div>
@@ -13,23 +16,24 @@
 // ── Ink write animation ──────────────────────────────────────────
 // Animates text characters as if being written on the parchment.
 // Called on every route navigation.
+const INK_SELECTORS = [
+  '.entry-name',
+  '.leaf-type',
+  '.leaf-new-label',
+  '.page-title',
+  '.right-hint',
+  '.folio-chapter-name',
+  '.folio-chapter-sub',
+  '.sys-stat-num',
+  '.loc-detail-name',
+]
+
 function inkWritePage() {
-  // Target all entry names, type labels, page titles, hints on the new page
-  const selectors = [
-    '.entry-name',
-    '.leaf-type',
-    '.leaf-new-label',
-    '.page-title',
-    '.right-hint',
-    '.folio-chapter-name',
-    '.folio-chapter-sub',
-    '.sys-stat-num',
-    '.loc-detail-name',
-  ]
-  const targets = document.querySelectorAll(selectors.join(','))
+  const targets = document.querySelectorAll(INK_SELECTORS.join(','))
   let t = 0
   targets.forEach((el: Element) => {
     const htmlEl = el as HTMLElement
+    htmlEl.style.opacity = ''  // clear pre-hide
     // Parse existing HTML to preserve em/strong tags
     const nodes = Array.from(htmlEl.childNodes)
     interface Part { ch: string; tag: string | null }
@@ -61,10 +65,37 @@ function inkWritePage() {
 
 const { public: { version } } = useRuntimeConfig()
 
+// ── PWA install prompt ───────────────────────────────────────────
+const installPrompt = ref<Event | null>(null)
+
+if (import.meta.client) {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault()
+    installPrompt.value = e
+  })
+  window.addEventListener('appinstalled', () => {
+    installPrompt.value = null
+  })
+}
+
+async function installApp() {
+  const prompt = installPrompt.value as any
+  if (!prompt) return
+  prompt.prompt()
+  const { outcome } = await prompt.userChoice
+  if (outcome === 'accepted') installPrompt.value = null
+}
+
 const router = useRouter()
 router.afterEach(() => {
-  // Small delay so the DOM has rendered the new route content
-  nextTick(() => setTimeout(inkWritePage, 60))
+  nextTick(() => {
+    // Pre-hide targets immediately after DOM update to prevent flash
+    // before inkWritePage replaces their content with animated spans
+    document.querySelectorAll(INK_SELECTORS.join(',')).forEach(el => {
+      (el as HTMLElement).style.opacity = '0'
+    })
+    setTimeout(inkWritePage, 60)
+  })
 })
 
 function onMagicClick(e: MouseEvent) {
@@ -131,6 +162,25 @@ function onMagicClick(e: MouseEvent) {
   border-radius: 4px;
   object-fit: cover;
   opacity: 0.75;
+}
+
+.spine-install-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--gold-pale);
+  background: transparent;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+.spine-install-btn:hover {
+  background: var(--gold-pale);
+  color: var(--leather);
 }
 
 .spine-version {
