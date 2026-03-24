@@ -105,14 +105,24 @@ html, body, #__nuxt {
 /*    Each tab is a section of the grimoire's index. The active    */
 /*    tab is flush with the open page; others are set back.        */
 
-/* Washed-out rainbow — one muted hue per section */
-.spine-tab:nth-child(1) { --tab-color: #5c3535; } /* dusty rose    */
-.spine-tab:nth-child(2) { --tab-color: #5c4a28; } /* burnt amber   */
-.spine-tab:nth-child(3) { --tab-color: #3d5228; } /* sage green    */
-.spine-tab:nth-child(4) { --tab-color: #245244; } /* forest teal   */
-.spine-tab:nth-child(5) { --tab-color: #243858; } /* slate blue    */
-.spine-tab:nth-child(6) { --tab-color: #3d2458; } /* dusty violet  */
-.spine-tab:nth-child(7) { --tab-color: #522438; } /* antique mauve */
+/* Washed-out rainbow — one muted hue per section                           */
+/* SpineSeal is :nth-child(1); tabs start at :nth-child(2)                  */
+.spine-tab:nth-child(2) { --tab-color: #5c3535; } /* dusty rose    */
+.spine-tab:nth-child(3) { --tab-color: #5c4a28; } /* burnt amber   */
+.spine-tab:nth-child(4) { --tab-color: #3d5228; } /* sage green    */
+.spine-tab:nth-child(5) { --tab-color: #245244; } /* forest teal   */
+.spine-tab:nth-child(6) { --tab-color: #243858; } /* slate blue    */
+.spine-tab:nth-child(7) { --tab-color: #3d2458; } /* dusty violet  */
+.spine-tab:nth-child(8) { --tab-color: #522438; } /* antique mauve */
+
+/* Width cascade — each tab's left edge aligns with the right edge of its book-sheet.
+   tome-page margin-right is 60px, sheet offsets are 5 / 9 / 14 px:
+     book-leaf right edge    = viewport.right − 60px  →  active       = 60px
+     book-sheet-1 right edge = viewport.right − 55px  →  2nd tab      = 55px
+     book-sheet-2 right edge = viewport.right − 51px  →  3rd tab      = 51px
+     book-sheet-3 right edge = viewport.right − 46px  →  4th+ tabs    = 46px  */
+.spine-tab:nth-child(2) { width: 55px; }
+.spine-tab:nth-child(3) { width: 51px; }
 
 .spine-tabs {
   position: fixed;
@@ -123,7 +133,6 @@ html, body, #__nuxt {
   flex-direction: column;
   align-items: flex-end;
   z-index: 100;
-  filter: drop-shadow(-6px 0 22px rgba(0,0,0,0.65));
 }
 
 .spine-tab {
@@ -143,7 +152,7 @@ html, body, #__nuxt {
   transition: color 0.2s, width 0.2s;
   border-radius: 0;
   min-height: 72px;
-  width: 34px;
+  width: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -161,7 +170,6 @@ html, body, #__nuxt {
 
 .spine-tab:hover {
   color: rgba(232,220,197,0.75);
-  width: 42px;
 }
 
 /* Active tab: extends left to sit flush with the open page */
@@ -170,20 +178,12 @@ html, body, #__nuxt {
   background-image: var(--paper);
   background-blend-mode: multiply;
   color: var(--ink);
-  width: 48px;
+  width: 60px;
   border-color: rgba(28,20,16,0.12);
   z-index: 1;
 }
 
-/* Active tab: full-height stripe in the section's own color */
-.spine-tab.active::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--tab-color, var(--blood));
-  border-radius: 0;
-}
+
 
 /* ══ BOOK SPREAD — open book with stacked sheets + paper texture ══ */
 
@@ -289,7 +289,7 @@ html, body, #__nuxt {
 
 /* ── Binding — slim gold stitch ── */
 .book-binding {
-  width: 6px; flex-shrink: 0;
+  width: 2px; flex-shrink: 0;
   position: relative; z-index: 10;
   background: linear-gradient(to right,
     rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.28) 100%

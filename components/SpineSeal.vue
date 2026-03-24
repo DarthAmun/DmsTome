@@ -16,7 +16,7 @@ const { public: { version } } = useRuntimeConfig()
   align-items: center;
   gap: 8px;
   padding: 12px 7px 14px;
-  width: 34px;
+  width: 46px;
   border-bottom: 1px solid rgba(184,134,11,0.25);
   margin-bottom: -1px; /* collapse with first tab's top border */
 }
