@@ -211,7 +211,7 @@ function select(name: string) {
 .icon-dropdown {
   position: absolute; top: calc(100% + 6px); left: 0;
   width: 470px; max-height: 480px;
-  background: var(--parch); border: 1px solid var(--ink-ghost);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; border: 1px solid var(--ink-ghost);
   border-radius: 3px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2),
               inset 0 1px 0 rgba(255,255,255,0.06);
@@ -253,7 +253,7 @@ function select(name: string) {
 .icon-cat:last-child { border-right: none; }
 .icon-cat:hover { color: var(--ink); background: rgba(28,20,16,0.04); }
 .icon-cat.active {
-  color: var(--blood); background: var(--parch);
+  color: var(--blood); background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border-bottom: 2px solid var(--blood);
   margin-bottom: -1px;
 }
@@ -262,7 +262,7 @@ function select(name: string) {
 .icon-chapter {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 14px; flex-shrink: 0;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 .icon-chapter-rule { flex: 1; height: 1px; background: var(--parch-line); }
 .icon-chapter-label {
@@ -276,7 +276,7 @@ function select(name: string) {
   flex: 1; overflow-y: auto;
   display: grid; grid-template-columns: repeat(8, 1fr);
   gap: 3px; padding: 10px 10px 14px;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   scrollbar-width: thin;
   scrollbar-color: var(--parch-line) transparent;
 }

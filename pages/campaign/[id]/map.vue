@@ -233,7 +233,7 @@ function formatDate(dt: string) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   overflow: visible;
 }
 
@@ -249,7 +249,7 @@ function formatDate(dt: string) {
   align-items: center;
   gap: 12px;
   padding: 10px 24px;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border-bottom: 1px dashed var(--parch-line);
   flex-shrink: 0;
 }
@@ -292,13 +292,13 @@ function formatDate(dt: string) {
   flex: 1;
   overflow-y: auto;
   padding: 20px 28px 12px;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .leaf-footer {
   padding: 10px 28px 16px;
   border-top: 1px dashed var(--parch-line);
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .leaf-header {

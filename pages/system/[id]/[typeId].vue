@@ -229,7 +229,7 @@ function formatDate(dt: string) {
   flex-direction: column;
   height: 100%;
   overflow: visible;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .rec-title-row {

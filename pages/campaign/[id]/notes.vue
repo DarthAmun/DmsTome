@@ -297,7 +297,7 @@ async function confirmDelete(entity: any) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   overflow: visible;
 }
 
@@ -306,7 +306,7 @@ async function confirmDelete(entity: any) {
   display: flex;
   align-items: center;
   border-bottom: 2px solid var(--parch-dark);
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   flex-shrink: 0;
   padding: 0 16px;
   overflow-x: auto;
@@ -408,7 +408,7 @@ async function confirmDelete(entity: any) {
   padding: 8px 24px;
   border-bottom: 1px dashed var(--parch-line);
   flex-shrink: 0;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .back-crumb {
@@ -451,7 +451,7 @@ async function confirmDelete(entity: any) {
 .leaf-footer {
   padding: 10px 28px 16px;
   border-top: 1px dashed var(--parch-line);
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .leaf-header {

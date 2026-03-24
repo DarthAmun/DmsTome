@@ -138,7 +138,7 @@ function exportSystem() {
 </script>
 
 <style scoped>
-.sys-folio { height: 100%; display: flex; flex-direction: column; overflow: visible; background: var(--parch); }
+.sys-folio { height: 100%; display: flex; flex-direction: column; overflow: visible; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
 
 /* Open book */
 

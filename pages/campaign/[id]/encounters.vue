@@ -110,7 +110,7 @@ function formatDate(dt: string) {
 </script>
 
 <style scoped>
-.enc-page { height: 100%; display: flex; flex-direction: column; background: var(--parch); overflow: visible; }
+.enc-page { height: 100%; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; overflow: visible; }
 
 /* Open book */
 

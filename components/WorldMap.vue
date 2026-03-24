@@ -422,7 +422,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.world-map-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--parch); }
+.world-map-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
 
 .map-breadcrumb {
   display: flex; align-items: center; gap: 4px;

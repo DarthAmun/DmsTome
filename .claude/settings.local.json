@@ -10,7 +10,23 @@
       "Bash(head -15 grep -n \"page-header\\\\|open-book\\\\|book-leaf\\\\|leaf-inner\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/index.vue)",
       "Bash(head -20 grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/map.vue grep -n \"leaf-new\\\\|new-entry\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/notes.vue)",
       "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/DmsTome/pages/campaign/[id]/encounters.vue)",
-      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/index.vue)"
+      "Bash(grep -n \"leaf-new\\\\b\" /var/home/amon/Documents/GitHub/DmsTome/pages/system/[id]/index.vue)",
+      "Bash(grep -r electron /var/home/amon/Documents/GitHub/DmsTome --include=*.ts --include=*.vue --include=*.js)",
+      "Bash(grep -r import.*from.*assets /var/home/amon/Documents/GitHub/DmsTome --include=*.vue --include=*.ts)",
+      "Bash(grep -r \"migrate\\\\|migration\\\\|legacy\\\\|deprecated\\\\|old\" /var/home/amon/Documents/GitHub/DmsTome --include=*.ts --include=*.vue)",
+      "Bash(grep -r migrate /var/home/amon/Documents/GitHub/DmsTome --include=*.vue --include=*.ts)",
+      "Bash(grep -r /migrate /var/home/amon/Documents/GitHub/DmsTome --include=*.vue --include=*.ts)",
+      "Bash(grep -r to=/ /var/home/amon/Documents/GitHub/DmsTome --include=*.vue)",
+      "Bash(grep -r \"defineStore\\\\|ref\\(\\\\|computed\\(\" /var/home/amon/Documents/GitHub/DmsTome --include=*.ts --include=*.vue)",
+      "Bash(find /var/home/amon/Documents/GitHub/DmsTome/components -name \"*.vue\" -exec basename {})",
+      "Bash(sed -n '135,165p' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)",
+      "Bash(sed -n '230,255p' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)",
+      "Bash(sed -n '330,360p' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)",
+      "Bash(sed -n '375,400p' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)",
+      "Read(//var/home/amon/Downloads/**)",
+      "Bash(identify /home/amon/Downloads/natural-paper.png)",
+      "Bash(sed -i 's|url\\(\"\"/natural-paper.png\"\"\\) /\\\\* natural paper texture \\\\*/|url\\(\"\"/natural-paper.png\"\"\\);  /* natural paper texture */|' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)",
+      "Bash(sed -n '14,20p' /var/home/amon/Documents/GitHub/DmsTome/assets/css/main.css)"
     ]
   }
 }

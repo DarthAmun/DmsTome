@@ -508,7 +508,7 @@ function getImageUrl(token: any): string {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 /* ── Toolbar — parchment page header ── */
@@ -610,7 +610,7 @@ function getImageUrl(token: any): string {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   overflow-y: auto;
 }
 
@@ -938,7 +938,7 @@ function getImageUrl(token: any): string {
 }
 
 .modal-box {
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border: 1px solid var(--parch-line);
   border-radius: 2px;
   padding: 24px;

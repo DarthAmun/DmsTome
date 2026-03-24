@@ -271,7 +271,7 @@ onUnmounted(() => { cy?.destroy() })
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   position: relative;
 }
 
@@ -319,7 +319,7 @@ onUnmounted(() => { cy?.destroy() })
 
 .cy-canvas {
   flex: 1;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .graph-tooltip {

@@ -492,7 +492,7 @@ function sampleValue(f: FieldSchema): string {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 /* Three panels like three sections of an open manuscript */
@@ -512,7 +512,7 @@ function sampleValue(f: FieldSchema): string {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .builder-fields--empty {
@@ -658,7 +658,7 @@ function sampleValue(f: FieldSchema): string {
 .field-empty { font-family: var(--font-body); font-size: 14px; color: var(--ink-ghost); font-style: italic; text-align: center; padding: 24px; }
 
 /* Config body — writing in the book */
-.config-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex: 1; background: var(--parch); }
+.config-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex: 1; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
 .config-field { display: flex; flex-direction: column; gap: 5px; }
 .config-row { display: flex; gap: 10px; }
 
@@ -701,7 +701,7 @@ function sampleValue(f: FieldSchema): string {
 
 .preview-card {
   overflow: hidden;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border: 1px solid var(--parch-line);
   border-radius: 2px;
   margin-bottom: 4px;
@@ -716,7 +716,7 @@ function sampleValue(f: FieldSchema): string {
 .preview-field-val { color: var(--ink); }
 
 .preview-record {
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border: 1px solid var(--parch-line);
   border-radius: 2px;
   overflow: hidden;

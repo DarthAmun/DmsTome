@@ -80,7 +80,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.campaign-folio { height: 100%; display: flex; flex-direction: column; background: var(--parch); overflow: visible; }
+.campaign-folio { height: 100%; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; overflow: visible; }
 
 /* Open book */
 
@@ -89,7 +89,7 @@ onMounted(async () => {
 
 
 
-.leaf-inner { flex: 1; overflow-y: auto; padding: 24px 32px 20px; background: var(--parch); }
+.leaf-inner { flex: 1; overflow-y: auto; padding: 24px 32px 20px; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
 
 .folio-intro {
   font-family: var(--font-body); font-size: 15px; color: var(--ink-faded);

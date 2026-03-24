@@ -353,7 +353,7 @@ function formatDate(dt: string) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--parch);
+  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   margin: 20px 60px 20px 20px;
   border-radius: 2px;
   box-shadow: var(--page-shadow);
