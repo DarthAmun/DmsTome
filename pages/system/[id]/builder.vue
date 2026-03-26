@@ -450,35 +450,59 @@
         <div class="preview-body">
           <!-- Overview preview -->
           <div class="preview-label">Overview</div>
-          <div class="prev-list">
+          <div class="prev-list" :style="{ '--et-color': activeType.color }">
             <div class="prev-entry prev-entry--active">
+              <span class="prev-entry-num">1</span>
               <div class="prev-entry-icon">
-                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
+                <div class="prev-entry-badge">
+                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                </div>
               </div>
-              <span class="prev-entry-name">Sample {{ activeType.name }}</span>
-              <template v-for="f in activeType.fields.filter(f => f.showInCard).slice(0, 2)" :key="f.key">
-                <span class="prev-entry-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
-                  {{ sampleValue(f) }}
-                </span>
-              </template>
-              <span class="prev-entry-dots" />
-              <span class="prev-entry-date">today</span>
+              <div class="prev-entry-body">
+                <div class="prev-entry-top">
+                  <span class="prev-entry-name">Sample {{ activeType.name }}</span>
+                  <span class="prev-entry-leader" />
+                  <span class="prev-entry-date">today</span>
+                </div>
+                <div v-if="activeType.fields.filter(f => f.showInCard).length" class="prev-entry-attrs">
+                  <template v-for="(f, fi) in activeType.fields.filter(f => f.showInCard).slice(0, 3)" :key="f.key">
+                    <span v-if="fi > 0" class="prev-ea-sep">✦</span>
+                    <span class="prev-ea-pill" :style="{ color: activeType.color, borderColor: activeType.color, background: `color-mix(in srgb, ${activeType.color} 10%, transparent)` }">
+                      {{ sampleValue(f) }}
+                    </span>
+                  </template>
+                </div>
+              </div>
             </div>
             <div class="prev-entry">
+              <span class="prev-entry-num">2</span>
               <div class="prev-entry-icon">
-                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
+                <div class="prev-entry-badge">
+                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                </div>
               </div>
-              <span class="prev-entry-name">Another {{ activeType.name }}</span>
-              <span class="prev-entry-dots" />
-              <span class="prev-entry-date">2d ago</span>
+              <div class="prev-entry-body">
+                <div class="prev-entry-top">
+                  <span class="prev-entry-name">Another {{ activeType.name }}</span>
+                  <span class="prev-entry-leader" />
+                  <span class="prev-entry-date">2d ago</span>
+                </div>
+              </div>
             </div>
             <div class="prev-entry">
+              <span class="prev-entry-num">3</span>
               <div class="prev-entry-icon">
-                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
+                <div class="prev-entry-badge">
+                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                </div>
               </div>
-              <span class="prev-entry-name">Third {{ activeType.name }}</span>
-              <span class="prev-entry-dots" />
-              <span class="prev-entry-date">5d ago</span>
+              <div class="prev-entry-body">
+                <div class="prev-entry-top">
+                  <span class="prev-entry-name">Third {{ activeType.name }}</span>
+                  <span class="prev-entry-leader" />
+                  <span class="prev-entry-date">5d ago</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1016,20 +1040,40 @@ function sampleValue(f: FieldSchema): string {
 }
 .prev-entry {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 7px 8px;
   border-bottom: 1px dashed var(--parch-line);
-  position: relative;
+  border-left: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
 }
 .prev-entry:last-child { border-bottom: none; }
-.prev-entry--active { background: rgba(139,26,26,0.06); padding-left: 14px; }
-.prev-entry--active::before { content: '›'; position: absolute; left: 3px; color: var(--blood); font-size: 16px; }
-.prev-entry-icon { width: 22px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.prev-entry-name { font-family: var(--font-body); font-size: 14px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prev-entry-tag { font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 5px; border: 1px solid; border-radius: 2px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-.prev-entry-dots { flex: 1; min-width: 6px; height: 1px; border-bottom: 1px dotted var(--parch-line); }
-.prev-entry-date { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; }
+.prev-entry--active {
+  border-left-color: var(--et-color, var(--blood));
+  background: color-mix(in srgb, var(--et-color, var(--blood)) 7%, transparent);
+}
+.prev-entry-num {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--ink-ghost); opacity: 0.4;
+  width: 14px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1;
+}
+.prev-entry-icon { width: 28px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.prev-entry-badge {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent);
+  flex-shrink: 0;
+}
+.prev-entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.prev-entry-top { display: flex; align-items: center; gap: 5px; }
+.prev-entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prev-entry--active .prev-entry-name { color: var(--et-color, var(--ink)); }
+.prev-entry-leader { flex: 1; min-width: 6px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
+.prev-entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0; }
+.prev-entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; overflow: hidden; padding-bottom: 2px; }
+.prev-ea-pill { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 6px; border: 1px solid; border-radius: 2px; white-space: nowrap; flex-shrink: 0; }
+.prev-ea-sep { color: var(--gold); font-size: 7px; opacity: 0.6; flex-shrink: 0; align-self: center; user-select: none; }
 
 /* Detail view preview */
 .prev-detail {
