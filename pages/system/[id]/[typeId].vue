@@ -25,24 +25,46 @@
             <div class="page-rule" />
           </div>
           <div class="leaf-inner">
-            <div class="index-list">
-              <div v-for="rec in filtered" :key="rec.id!" class="entry"
-                :class="{ 'entry--active': selectedId === rec.id }" @click="openRecord(rec)">
+            <div class="leaf-index">
+              <div v-for="(rec, i) in filtered" :key="rec.id!" class="entry"
+                :class="{ 'entry--active': selectedId === rec.id }"
+                :style="{ '--et-color': entityType?.color ?? 'var(--ink-ghost)' }"
+                @click="openRecord(rec)">
+                <span class="entry-num">{{ i + 1 }}</span>
                 <div class="entry-icon">
-                  <img v-if="imageField && recordData(rec)[imageField.key]" :src="recordData(rec)[imageField.key]"
-                    class="entry-thumb" />
-                  <OhVueIcon v-else :name="entityType?.icon || 'gi-scroll-unfurled'" scale="0.85"
-                    :style="{ color: entityType?.color }" />
+                  <div class="entry-badge">
+                    <img v-if="imageField && recordData(rec)[imageField.key]" :src="recordData(rec)[imageField.key]"
+                      class="entry-thumb" />
+                    <OhVueIcon v-else :name="entityType?.icon || 'gi-scroll-unfurled'" scale="0.75"
+                      :style="{ color: entityType?.color }" />
+                  </div>
                 </div>
-                <span class="entry-name">{{ rec.name }}</span>
-                <template v-for="field in cardFields" :key="field.key">
-                  <span v-if="recordData(rec)[field.key] !== undefined && recordData(rec)[field.key] !== null && recordData(rec)[field.key] !== ''"
-                    class="entry-tag" :style="{ color: entityType?.color, borderColor: entityType?.color }">
-                    {{ formatCardValue(field, recordData(rec)[field.key]) }}
-                  </span>
-                </template>
-                <span class="entry-dots" />
-                <span class="entry-date">{{ formatDate(rec.updatedAt) }}</span>
+                <div class="entry-body">
+                  <div class="entry-top">
+                    <span class="entry-name">{{ rec.name }}</span>
+                    <span class="entry-leader" />
+                    <span class="entry-date">{{ formatDate(rec.updatedAt) }}</span>
+                    <div class="entry-actions" @click.stop>
+                      <button class="entry-act entry-act--del" @click.stop="deleteRecord(rec.id!)">
+                        <OhVueIcon name="md-delete" scale="0.7" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="recordChips(rec).length > 0" class="entry-attrs">
+                    <template v-for="(chip, ci) in recordChips(rec)" :key="chip.key">
+                      <span v-if="ci > 0" class="ea-sep">✦</span>
+                      <span v-if="chip.kind === 'pill'" class="ea-pill"
+                        :style="{ color: entityType?.color, borderColor: entityType?.color, background: `color-mix(in srgb, ${entityType?.color} 10%, transparent)` }"
+                        :title="chip.full">{{ chip.value }}</span>
+                      <span v-else-if="chip.kind === 'text'" class="ea-text ea-text--trunc"
+                        :title="chip.full">{{ chip.value }}</span>
+                      <span v-else-if="chip.kind === 'bool'" class="ea-bool">{{ chip.value }}</span>
+                      <template v-else-if="chip.kind === 'tags'">
+                        <span v-for="t in chip.tags" :key="t" class="ea-tag">{{ t }}</span>
+                      </template>
+                    </template>
+                  </div>
+                </div>
               </div>
               <div v-if="!filtered.length" class="tome-empty-inline">
                 <em>{{ search ? 'No results' : `No ${entityType?.plural} yet` }}</em>
@@ -110,7 +132,6 @@
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
 import { getDb } from '~/composables/useDb'
-import type { FieldSchema } from '~/types/entities'
 
 const route = useRoute()
 const systemsStore = useSystemsStore()
@@ -201,12 +222,58 @@ function recordData(rec: any): Record<string, any> {
   return rec._data ?? {}
 }
 
-function formatCardValue(f: FieldSchema, v: any): string {
-  if (v === undefined || v === null) return '—'
-  if (f.component === 'multiselect' && Array.isArray(v)) return v.join(', ')
-  if (f.component === 'toggle') return v ? 'Yes' : 'No'
-  if (f.component === 'tracker' && typeof v === 'object') return `${v.current}/${v.max}`
-  return String(v)
+type ChipKind =
+  | { kind: 'pill'; key: string; value: string; full?: string }
+  | { kind: 'text'; key: string; value: string; full?: string }
+  | { kind: 'bool'; key: string; value: string }
+  | { kind: 'tags'; key: string; tags: string[] }
+
+const CHIP_MAX = 28
+
+function trunc(s: string): { value: string; full?: string } {
+  return s.length > CHIP_MAX
+    ? { value: s.slice(0, CHIP_MAX) + '…', full: s }
+    : { value: s }
+}
+
+function recordChips(rec: any): ChipKind[] {
+  if (!entityType.value) return []
+  const data = recordData(rec)
+  const chips: ChipKind[] = []
+  for (const f of cardFields.value) {
+    const v = data[f.key]
+    if (v === undefined || v === null || v === '') continue
+    switch (f.component) {
+      case 'select': {
+        const t = trunc(String(v))
+        chips.push({ kind: 'pill', key: f.key, ...t })
+        break
+      }
+      case 'multiselect':
+        if (Array.isArray(v) && v.length) chips.push({ kind: 'tags', key: f.key, tags: v })
+        break
+      case 'toggle':
+        chips.push({ kind: 'bool', key: f.key, value: v ? f.label : `Not ${f.label}` })
+        break
+      case 'number': {
+        const t = trunc(`${v}${f.config.unit ? ' ' + f.config.unit : ''}`)
+        chips.push({ kind: 'pill', key: f.key, ...t })
+        break
+      }
+      case 'tracker':
+        if (typeof v === 'object' && v !== null)
+          chips.push({ kind: 'text', key: f.key, value: `${v.current}/${v.max}` })
+        break
+      case 'tags':
+        if (Array.isArray(v) && v.length) chips.push({ kind: 'tags', key: f.key, tags: v })
+        break
+      default: {
+        const str = String(v)
+        if (str) chips.push({ kind: 'text', key: f.key, ...trunc(str) })
+      }
+    }
+  }
+  return chips
 }
 
 function formatDate(dt: string) {
@@ -284,67 +351,109 @@ function formatDate(dt: string) {
   background: var(--blood-l);
 }
 
-/* Entry states */
+/* ── Entry list ── */
+.leaf-index { display: flex; flex-direction: column; }
+
+/* Entry row */
+.entry {
+  align-items: flex-start;
+  border-left: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s, padding-left 0.15s;
+}
+.entry:hover {
+  border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent);
+  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent);
+}
 .entry--active {
-  background: rgba(139, 26, 26, 0.06);
-  padding-left: 8px;
+  border-left-color: var(--et-color, var(--blood));
+  background: color-mix(in srgb, var(--et-color, var(--blood)) 7%, transparent);
+  padding-left: 4px;
 }
 
-.entry--active::before {
-  content: '›';
-  position: absolute;
-  left: -4px;
-  color: var(--blood);
-  font-size: 16px;
-}
-
-/* Entry thumb */
-.entry-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--parch-dark);
-  flex-shrink: 0;
-}
-
-.entry-icon {
-  width: 26px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.entry-actions {
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.entry:hover .entry-actions {
-  opacity: 1;
-}
-
-.entry-act {
-  width: 20px;
-  height: 20px;
-  border-radius: 2px;
-  background: rgba(28, 20, 16, 0.06);
-  border: 1px solid transparent;
+/* Entry ordinal number */
+.entry-num {
+  font-family: var(--font-mono);
+  font-size: 9px;
   color: var(--ink-ghost);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
+  opacity: 0.4;
+  width: 18px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-top: 2px;
+  line-height: 1;
 }
 
-.entry-act--del:hover {
-  background: var(--blood-pale);
-  color: var(--blood);
+/* Icon badge — small circle with tinted background */
+.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent);
+  overflow: hidden; flex-shrink: 0;
+}
+.entry-thumb { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+
+/* Two-row entry body */
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.entry-top { display: flex; align-items: center; gap: 6px; }
+.entry-name {
+  font-family: var(--font-body); font-size: 13px;
+  color: var(--ink); font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.entry--active .entry-name { color: var(--et-color, var(--ink)); }
+
+/* Dotted leader between name and date */
+.entry-leader {
+  flex: 1; min-width: 8px;
+  border-bottom: 1px dotted var(--ink-ghost);
+  opacity: 0.3; align-self: center; position: relative; top: 1px;
+}
+
+.entry-date {
+  font-family: var(--font-head); font-size: 8px;
+  color: var(--ink-ghost); letter-spacing: 0.05em;
+  flex-shrink: 0; white-space: nowrap;
+}
+.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; overflow: hidden; padding-bottom: 3px; }
+
+/* Actions (delete) */
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
+
+/* Chip styles */
+.ea-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-head); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px 2px 5px; border: 1px solid currentColor; border-radius: 2px;
+  color: var(--ink-ghost); flex-shrink: 0; white-space: nowrap;
+}
+.ea-text {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-ui); font-size: 11px;
+  color: var(--ink-faded); flex-shrink: 0; white-space: nowrap;
+}
+.ea-text--trunc { max-width: 120px; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.ea-bool {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-head); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 7px 2px 5px; border-radius: 2px;
+  color: var(--gold); background: rgba(184,134,11,0.08); border: 1px solid rgba(184,134,11,0.3);
+  flex-shrink: 0;
+}
+.ea-tag {
+  font-family: var(--font-ui); font-size: 10px; color: var(--ink-faded);
+  background: rgba(28,20,16,0.04); border: 1px solid var(--parch-line);
+  border-radius: 2px; padding: 1px 5px; flex-shrink: 0;
+}
+.ea-sep {
+  color: var(--gold); font-size: 7px; opacity: 0.6;
+  flex-shrink: 0; align-self: center; user-select: none;
 }
 
 /* Detail pane */

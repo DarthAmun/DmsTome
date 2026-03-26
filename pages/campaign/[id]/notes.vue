@@ -57,15 +57,21 @@
               <span class="leaf-count">{{ sortedEntities.length }} entries</span>
             </div>
             <div class="leaf-index" v-if="leftEntries.length">
-              <div v-for="e in leftEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
+              <div v-for="(e, i) in leftEntries" :key="e.id" class="entry"
+                :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
+                @click="selectEntity(e.id)">
+                <span class="entry-num">{{ i + 1 }}</span>
                 <div class="entry-icon">
-                  <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                  <OhVueIcon v-else :name="entityIcon(e)" scale="0.8"
-                    :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
+                  <div class="entry-badge">
+                    <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                    <OhVueIcon v-else :name="entityIcon(e)" scale="0.75"
+                      :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
+                  </div>
                 </div>
                 <div class="entry-body">
                   <div class="entry-top">
                     <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
+                    <span class="entry-leader" />
                     <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
                     <div class="entry-actions" @click.stop>
                       <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
@@ -75,9 +81,10 @@
                   </div>
                   <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
                     class="entry-attrs">
-                    <template v-for="item in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                    <template v-for="(item, ci) in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                      <span v-if="ci > 0" class="ea-sep">✦</span>
                       <span v-if="item.kind === 'pill'" class="ea-pill"
-                        :style="item.color ? { color: item.color, borderColor: item.color } : {}">
+                        :style="item.color ? { color: item.color, borderColor: item.color, background: `color-mix(in srgb, ${item.color} 10%, transparent)` } : {}">
                         <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
                       </span>
                       <span v-else-if="item.kind === 'text'" class="ea-text">
@@ -93,8 +100,8 @@
                       </template>
                     </template>
                     <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
-                    <template v-for="(item, i) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
-                      <span v-if="i > 0" class="ea-sep">·</span>
+                    <template v-for="(item, si) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
+                      <span v-if="si > 0" class="ea-sep">✦</span>
                       <span v-if="item.kind === 'text'" class="ea-secondary-item">
                         <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
                       </span>
@@ -132,15 +139,21 @@
               <span class="leaf-folio">continued</span>
             </div>
             <div class="leaf-index">
-              <div v-for="e in rightEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
+              <div v-for="(e, i) in rightEntries" :key="e.id" class="entry"
+                :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
+                @click="selectEntity(e.id)">
+                <span class="entry-num">{{ leftEntries.length + i + 1 }}</span>
                 <div class="entry-icon">
-                  <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                  <OhVueIcon v-else :name="entityIcon(e)" scale="0.8"
-                    :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
+                  <div class="entry-badge">
+                    <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                    <OhVueIcon v-else :name="entityIcon(e)" scale="0.75"
+                      :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
+                  </div>
                 </div>
                 <div class="entry-body">
                   <div class="entry-top">
                     <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
+                    <span class="entry-leader" />
                     <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
                     <div class="entry-actions" @click.stop>
                       <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
@@ -150,9 +163,10 @@
                   </div>
                   <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
                     class="entry-attrs">
-                    <template v-for="item in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                    <template v-for="(item, ci) in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                      <span v-if="ci > 0" class="ea-sep">✦</span>
                       <span v-if="item.kind === 'pill'" class="ea-pill"
-                        :style="item.color ? { color: item.color, borderColor: item.color } : {}">
+                        :style="item.color ? { color: item.color, borderColor: item.color, background: `color-mix(in srgb, ${item.color} 10%, transparent)` } : {}">
                         <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
                       </span>
                       <span v-else-if="item.kind === 'text'" class="ea-text">
@@ -168,8 +182,8 @@
                       </template>
                     </template>
                     <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
-                    <template v-for="(item, i) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
-                      <span v-if="i > 0" class="ea-sep">·</span>
+                    <template v-for="(item, si) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
+                      <span v-if="si > 0" class="ea-sep">✦</span>
                       <span v-if="item.kind === 'text'" class="ea-secondary-item">
                         <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
                       </span>
@@ -625,15 +639,53 @@ async function confirmDelete(entity: any) {
   font-style: italic;
 }
 
-/* Book binding */
-/* Entry styles — overrides for parchment */
+/* ── Entry list ── */
+.entry {
+  align-items: flex-start;
+  border-left: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s, padding-left 0.15s;
+}
+.entry:hover {
+  border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent);
+  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent);
+}
 
-/* 2-row entry layout */
-.entry { align-items: flex-start; }
-.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.entry-top { display: flex; align-items: baseline; gap: 8px; }
-.entry-top .entry-name { flex: 1; }
+/* Entry number */
+.entry-num {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--ink-ghost); opacity: 0.4;
+  width: 18px; flex-shrink: 0;
+  text-align: right; padding-top: 2px; line-height: 1;
+}
+
+/* Icon badge */
+.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent);
+  overflow: hidden; flex-shrink: 0;
+}
+.entry-thumb { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+
+/* Two-row entry body */
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.entry-top { display: flex; align-items: center; gap: 6px; }
+.entry-name {
+  font-family: var(--font-body); font-size: 13px;
+  color: var(--ink); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .entry-name--deceased { text-decoration: line-through; color: var(--ink-ghost) !important; }
+
+/* Dotted leader */
+.entry-leader {
+  flex: 1; min-width: 8px;
+  border-bottom: 1px dotted var(--ink-ghost);
+  opacity: 0.3; align-self: center; position: relative; top: 1px;
+}
+
 .entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
 
 /* Attribute: pill (enum / select values) — with optional icon */
@@ -711,57 +763,13 @@ async function confirmDelete(entity: any) {
   white-space: nowrap;
 }
 .ea-sep {
-  color: var(--ink-ghost); font-size: 9px;
-  flex-shrink: 0; opacity: 0.5;
-  align-self: center;
+  color: var(--gold); font-size: 7px; opacity: 0.6;
+  flex-shrink: 0; align-self: center; user-select: none;
 }
 
-.entry-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--parch-dark);
-  flex-shrink: 0;
-}
-
-.entry-icon {
-  width: 24px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.entry-actions {
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.entry:hover .entry-actions {
-  opacity: 1;
-}
-
-.entry-act {
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
-  background: rgba(28, 20, 16, 0.06);
-  border: 1px solid transparent;
-  color: var(--ink-ghost);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-
-.entry-act--del:hover {
-  background: var(--blood-pale);
-  color: var(--blood);
-}
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
 
 </style>
