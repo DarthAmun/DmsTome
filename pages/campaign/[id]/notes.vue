@@ -60,18 +60,46 @@
               <div v-for="e in leftEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
                 <div class="entry-icon">
                   <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                  <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
-                    :style="{ color: activeTypeConfig?.color }" />
+                  <OhVueIcon v-else :name="entityIcon(e)" scale="0.8"
+                    :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
                 </div>
-                <span class="entry-name">{{ e.name }}</span>
-                <span v-for="tag in entitySummaryTags(e)" :key="tag" class="entry-tag"
-                  :style="{ color: activeTypeConfig?.color, borderColor: activeTypeConfig?.color }">{{ tag }}</span>
-                <span class="entry-dots" />
-                <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
-                <div class="entry-actions" @click.stop>
-                  <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
-                    <OhVueIcon name="md-delete" scale="0.7" />
-                  </button>
+                <div class="entry-body">
+                  <div class="entry-top">
+                    <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
+                    <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+                    <div class="entry-actions" @click.stop>
+                      <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                        <OhVueIcon name="md-delete" scale="0.7" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
+                    class="entry-attrs">
+                    <template v-for="item in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                      <span v-if="item.kind === 'pill'" class="ea-pill"
+                        :style="item.color ? { color: item.color, borderColor: item.color } : {}">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                      </span>
+                      <span v-else-if="item.kind === 'text'" class="ea-text">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />
+                        <span v-if="item.label" class="ea-label">{{ item.label }}</span>{{ item.value }}
+                      </span>
+                      <span v-else-if="item.kind === 'bool'" class="ea-bool"
+                        :class="{ 'ea-bool--danger': item.danger, 'ea-bool--muted': item.muted }">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.75" />{{ item.value }}
+                      </span>
+                      <template v-else-if="item.kind === 'tags'">
+                        <span v-for="t in item.tags" :key="t" class="ea-tag">{{ t }}</span>
+                      </template>
+                    </template>
+                    <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
+                    <template v-for="(item, i) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
+                      <span v-if="i > 0" class="ea-sep">·</span>
+                      <span v-if="item.kind === 'text'" class="ea-secondary-item">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                      </span>
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
@@ -107,18 +135,46 @@
               <div v-for="e in rightEntries" :key="e.id" class="entry" @click="selectEntity(e.id)">
                 <div class="entry-icon">
                   <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                  <OhVueIcon v-else :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.8"
-                    :style="{ color: activeTypeConfig?.color }" />
+                  <OhVueIcon v-else :name="entityIcon(e)" scale="0.8"
+                    :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
                 </div>
-                <span class="entry-name">{{ e.name }}</span>
-                <span v-for="tag in entitySummaryTags(e)" :key="tag" class="entry-tag"
-                  :style="{ color: activeTypeConfig?.color, borderColor: activeTypeConfig?.color }">{{ tag }}</span>
-                <span class="entry-dots" />
-                <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
-                <div class="entry-actions" @click.stop>
-                  <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
-                    <OhVueIcon name="md-delete" scale="0.7" />
-                  </button>
+                <div class="entry-body">
+                  <div class="entry-top">
+                    <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
+                    <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+                    <div class="entry-actions" @click.stop>
+                      <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                        <OhVueIcon name="md-delete" scale="0.7" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
+                    class="entry-attrs">
+                    <template v-for="item in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                      <span v-if="item.kind === 'pill'" class="ea-pill"
+                        :style="item.color ? { color: item.color, borderColor: item.color } : {}">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                      </span>
+                      <span v-else-if="item.kind === 'text'" class="ea-text">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />
+                        <span v-if="item.label" class="ea-label">{{ item.label }}</span>{{ item.value }}
+                      </span>
+                      <span v-else-if="item.kind === 'bool'" class="ea-bool"
+                        :class="{ 'ea-bool--danger': item.danger, 'ea-bool--muted': item.muted }">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.75" />{{ item.value }}
+                      </span>
+                      <template v-else-if="item.kind === 'tags'">
+                        <span v-for="t in item.tags" :key="t" class="ea-tag">{{ t }}</span>
+                      </template>
+                    </template>
+                    <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
+                    <template v-for="(item, i) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
+                      <span v-if="i > 0" class="ea-sep">·</span>
+                      <span v-if="item.kind === 'text'" class="ea-secondary-item">
+                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                      </span>
+                    </template>
+                  </div>
                 </div>
               </div>
               <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-empty">
@@ -228,44 +284,109 @@ async function createNew() {
   selectEntity(e.id)
 }
 
-function entitySummaryTags(e: any): string[] {
+type AttrItem =
+  | { kind: 'pill'; key: string; value: string; color?: string; icon?: string }
+  | { kind: 'text'; key: string; value: string; label?: string; icon?: string }
+  | { kind: 'bool'; key: string; value: string; icon?: string; danger?: boolean; muted?: boolean }
+  | { kind: 'tags'; key: string; tags: string[] }
+
+type EntrySummary = { primary: AttrItem[]; secondary: AttrItem[] }
+
+// primary = classification chips (bottom row, left)
+// secondary = context items (bottom row, right — separated by dotted leader)
+function entitySummary(e: any): EntrySummary {
   const a = (e.attributes ?? {}) as any
-  const tags: string[] = []
+  const primary: AttrItem[] = []
+  const secondary: AttrItem[] = []
+
+  const itemTypeIcon: Record<string, string> = {
+    weapon: 'gi-broadsword', armor: 'gi-shield', consumable: 'gi-health-potion',
+    treasure: 'gi-coins', misc: 'gi-open-treasure-chest',
+  }
+
   switch (e.type) {
     case 'npc':
-      if (a.race)   tags.push(a.race)
-      if (a.role)   tags.push(a.role)
-      if (a.status) tags.push(a.status)
+      if (a.race)  primary.push({ kind: 'pill', key: 'race',  value: a.race,  color: '#7cc44e', icon: 'gi-person' })
+      if (a.role)  primary.push({ kind: 'pill', key: 'role',  value: a.role,  color: '#7cc44e', icon: 'gi-broadsword' })
+      if (a.level) primary.push({ kind: 'text', key: 'level', value: a.level, label: 'Lv ' })
+      if (a.title)  secondary.push({ kind: 'text', key: 'title',  value: a.title,  icon: 'gi-scroll-unfurled' })
+      else if (a.status) secondary.push({ kind: 'text', key: 'status', value: a.status, icon: 'gi-sands-of-time' })
       break
+
     case 'location':
-      if (a.locationType) tags.push(a.locationType)
-      if (a.status)       tags.push(a.status)
+      if (a.locationType) primary.push({ kind: 'pill', key: 'type',   value: a.locationType, color: '#a87de8', icon: 'gi-castle' })
+      if (a.status) {
+        const col = a.status === 'discovered' ? '#5a8a3a' : a.status === 'destroyed' ? 'var(--blood)' : undefined
+        primary.push({ kind: 'pill', key: 'status', value: a.status, color: col, icon: 'gi-all-seeing-eye' })
+      }
       break
+
     case 'item':
-      if (a.rarity)   tags.push(a.rarity)
-      if (a.itemType) tags.push(a.itemType)
-      if (a.value)    tags.push(a.value)
+      if (a.itemType) primary.push({ kind: 'pill', key: 'type',   value: a.itemType, icon: itemTypeIcon[a.itemType] })
+      if (a.rarity) {
+        const rc: Record<string, string> = { uncommon: '#5a8a3a', rare: '#6b9fe8', unique: '#c49a1a' }
+        primary.push({ kind: 'pill', key: 'rarity', value: a.rarity, color: rc[a.rarity], icon: 'gi-sparkles' })
+      }
+      if (a.isMagic)  primary.push({ kind: 'bool', key: 'magic',  value: 'Magic',  icon: 'gi-magic-palm' })
+      if (a.isCursed) primary.push({ kind: 'bool', key: 'cursed', value: 'Cursed', icon: 'fa-skull', danger: true })
+      if (a.value) secondary.push({ kind: 'text', key: 'value', value: a.value, icon: 'gi-coins' })
       break
+
     case 'faction':
-      if (a.factionType) tags.push(a.factionType)
-      if (a.size)        tags.push(a.size)
+      if (a.factionType) primary.push({ kind: 'pill', key: 'type', value: a.factionType, color: '#e05555', icon: 'gi-american-shield' })
+      if (a.size)        primary.push({ kind: 'pill', key: 'size', value: a.size })
+      if (a.isSecret)    primary.push({ kind: 'bool', key: 'secret', value: 'Secret', icon: 'gi-all-seeing-eye', danger: true })
       break
+
     case 'quest':
-      if (a.status)     tags.push(a.status)
-      if (a.questGiver) tags.push(a.questGiver)
+      if (a.status) {
+        const qc: Record<string, string> = { active: '#5a8a3a', completed: '#6b9fe8', failed: 'var(--blood)' }
+        primary.push({ kind: 'pill', key: 'status', value: a.status, color: qc[a.status], icon: 'gi-holy-grail' })
+      }
+      if (a.questGiver) secondary.push({ kind: 'text', key: 'giver',  value: a.questGiver, icon: 'gi-person' })
+      if (a.reward)     secondary.push({ kind: 'text', key: 'reward', value: a.reward,      icon: 'gi-coins' })
       break
+
     case 'event':
-      if (a.significance) tags.push(a.significance)
-      if (a.location)     tags.push(a.location)
-      if (a.date)         tags.push(a.date)
+      if (a.significance) {
+        const sc: Record<string, string> = { major: '#e8924a', critical: 'var(--blood)' }
+        primary.push({ kind: 'pill', key: 'sig', value: a.significance, color: sc[a.significance], icon: 'gi-lightning-bolt' })
+      }
+      if (a.date)     secondary.push({ kind: 'text', key: 'date',     value: a.date,     icon: 'gi-sands-of-time' })
+      if (a.location) secondary.push({ kind: 'text', key: 'location', value: a.location, icon: 'gi-castle' })
       break
+
     case 'session':
-      if (a.mode)          tags.push(a.mode)
-      if (a.sessionNumber) tags.push('#' + a.sessionNumber)
-      if (a.date)          tags.push(a.date)
+      if (a.mode) {
+        const mc: Record<string, string> = { planning: '#6b9fe8', running: '#5a8a3a' }
+        primary.push({ kind: 'pill', key: 'mode', value: a.mode, color: mc[a.mode], icon: 'gi-book-aura' })
+      }
+      if (a.sessionNumber) primary.push({ kind: 'text', key: 'num', value: '#' + a.sessionNumber, icon: 'gi-dice-six' })
+      if (a.date) secondary.push({ kind: 'text', key: 'date', value: a.date, icon: 'gi-sands-of-time' })
       break
+
+    case 'note': {
+      const tags = a.tags as string[] | undefined
+      if (tags?.length) primary.push({ kind: 'tags', key: 'tags', tags })
+      break
+    }
   }
-  return tags.slice(0, 3)
+  return { primary, secondary }
+}
+
+const summaries = computed<Map<number, EntrySummary>>(() => {
+  const map = new Map<number, EntrySummary>()
+  for (const e of sortedEntities.value) map.set(e.id, entitySummary(e))
+  return map
+})
+
+function entityIcon(e: any): string {
+  if (e.type === 'npc' && (e.attributes as any)?.isAlive === false) return 'gi-candle-skull'
+  return (e.attributes as any)?.icon || activeTypeConfig.value?.defaultIcon || 'gi-scroll-unfurled'
+}
+
+function isDeceased(e: any): boolean {
+  return e.type === 'npc' && (e.attributes as any)?.isAlive === false
 }
 
 function entityImage(e: any): string | null {
@@ -506,6 +627,95 @@ async function confirmDelete(entity: any) {
 
 /* Book binding */
 /* Entry styles — overrides for parchment */
+
+/* 2-row entry layout */
+.entry { align-items: flex-start; }
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.entry-top { display: flex; align-items: baseline; gap: 8px; }
+.entry-top .entry-name { flex: 1; }
+.entry-name--deceased { text-decoration: line-through; color: var(--ink-ghost) !important; }
+.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
+
+/* Attribute: pill (enum / select values) — with optional icon */
+.ea-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-head);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Attribute: text with optional icon + label */
+.ea-text {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink-faded);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ea-label {
+  font-family: var(--font-head);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+
+/* Attribute: bool chip (magic, cursed, secret) */
+.ea-bool {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-head);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 7px 2px 5px; border-radius: 2px;
+  color: var(--gold);
+  background: rgba(184,134,11,0.08);
+  border: 1px solid rgba(184,134,11,0.3);
+  flex-shrink: 0;
+}
+.ea-bool--danger { color: var(--blood); background: rgba(139,26,26,0.08); border-color: rgba(139,26,26,0.3); }
+.ea-bool--muted  { color: var(--ink-ghost); background: rgba(28,20,16,0.05); border-color: rgba(28,20,16,0.15); }
+
+/* Free tags (notes) */
+.ea-tag {
+  font-family: var(--font-ui); font-size: 10px;
+  color: var(--ink-faded);
+  background: rgba(28,20,16,0.04);
+  border: 1px solid var(--parch-line);
+  border-radius: 2px; padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+/* Dotted leader between primary and secondary */
+.ea-spacer {
+  flex: 1;
+  min-width: 12px;
+  border-bottom: 1px dotted var(--ink-ghost);
+  align-self: center;
+  opacity: 0.4;
+  position: relative; top: 1px;
+}
+
+/* Secondary context items (right side) */
+.ea-secondary-item {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-ui); font-size: 11px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ea-sep {
+  color: var(--ink-ghost); font-size: 9px;
+  flex-shrink: 0; opacity: 0.5;
+  align-self: center;
+}
+
 .entry-thumb {
   width: 20px;
   height: 20px;

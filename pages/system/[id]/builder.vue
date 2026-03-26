@@ -417,26 +417,26 @@
       <template v-else-if="activeType && middleMode === 'layout'">
         <div class="panel-header">
           <span class="panel-title">Preview</span>
-          <span class="panel-hint">layout</span>
+          <span class="panel-hint">detail view</span>
         </div>
         <div class="preview-body">
-          <div class="preview-record" style="border-top-color: var(--gold)">
-            <div class="preview-record-header" :style="{ borderColor: activeType.color + '55' }">
-              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1.2"
-                :style="{ color: activeType.color }" />
-              <span class="preview-record-name">Sample {{ activeType.name }}</span>
-              <span class="preview-type-tag" :style="{ background: activeType.color + '22', color: activeType.color }">
+          <div class="prev-detail">
+            <div class="prev-detail-header" :style="{ borderColor: activeType.color + '55' }">
+              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1" :style="{ color: activeType.color }" />
+              <h2 class="prev-rec-name">Sample {{ activeType.name }}</h2>
+              <span class="prev-type-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
                 {{ activeType.name }}
               </span>
+              <div style="flex:1" />
+              <span class="prev-btn">Edit</span>
+              <span class="prev-btn prev-btn--danger"><OhVueIcon name="md-delete" scale="0.8" /></span>
             </div>
-            <div style="padding: 14px">
-              <EntityLayout
-                :entity-type="activeType"
-                :data="{}"
-                mode="view"
-                :accent-color="activeType.color"
-              />
-            </div>
+            <EntityLayout
+              :entity-type="activeType"
+              :data="{}"
+              mode="view"
+              :accent-color="activeType.color"
+            />
           </div>
         </div>
       </template>
@@ -448,42 +448,54 @@
           <span class="panel-hint">sample record</span>
         </div>
         <div class="preview-body">
-          <!-- Card preview -->
-          <div class="preview-label">Card</div>
-          <div class="preview-card v6-card">
-            <div class="preview-card-inner">
-              <div class="preview-icon-col" :style="{ background: activeType.color + '18' }">
-                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1.4"
-                  :style="{ color: activeType.color }" />
+          <!-- Overview preview -->
+          <div class="preview-label">Overview</div>
+          <div class="prev-list">
+            <div class="prev-entry prev-entry--active">
+              <div class="prev-entry-icon">
+                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
               </div>
-              <div class="preview-card-info">
-                <div class="preview-card-name">Sample {{ activeType.name }}</div>
-                <div v-for="f in activeType.fields.filter(f => f.showInCard).slice(0, 3)" :key="f.key"
-                  class="preview-card-field">
-                  <span class="preview-field-label">{{ f.label }}:</span>
-                  <span class="preview-field-val">{{ sampleValue(f) }}</span>
-                </div>
+              <span class="prev-entry-name">Sample {{ activeType.name }}</span>
+              <template v-for="f in activeType.fields.filter(f => f.showInCard).slice(0, 2)" :key="f.key">
+                <span class="prev-entry-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
+                  {{ sampleValue(f) }}
+                </span>
+              </template>
+              <span class="prev-entry-dots" />
+              <span class="prev-entry-date">today</span>
+            </div>
+            <div class="prev-entry">
+              <div class="prev-entry-icon">
+                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
               </div>
+              <span class="prev-entry-name">Another {{ activeType.name }}</span>
+              <span class="prev-entry-dots" />
+              <span class="prev-entry-date">2d ago</span>
+            </div>
+            <div class="prev-entry">
+              <div class="prev-entry-icon">
+                <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.85" :style="{ color: activeType.color }" />
+              </div>
+              <span class="prev-entry-name">Third {{ activeType.name }}</span>
+              <span class="prev-entry-dots" />
+              <span class="prev-entry-date">5d ago</span>
             </div>
           </div>
 
-          <!-- Full record preview -->
-          <div class="preview-label" style="margin-top:20px">Full Record</div>
-          <div class="preview-record">
-            <div class="preview-record-header" :style="{ borderColor: activeType.color + '55' }">
-              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1.2"
-                :style="{ color: activeType.color }" />
-              <span class="preview-record-name">Sample {{ activeType.name }}</span>
-              <span class="preview-type-tag" :style="{ background: activeType.color + '22', color: activeType.color }">
+          <!-- Detail view preview -->
+          <div class="preview-label" style="margin-top:20px">Detail View</div>
+          <div class="prev-detail">
+            <div class="prev-detail-header" :style="{ borderColor: activeType.color + '55' }">
+              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1" :style="{ color: activeType.color }" />
+              <h2 class="prev-rec-name">Sample {{ activeType.name }}</h2>
+              <span class="prev-type-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
                 {{ activeType.name }}
               </span>
+              <div style="flex:1" />
+              <span class="prev-btn">Edit</span>
+              <span class="prev-btn prev-btn--danger"><OhVueIcon name="md-delete" scale="0.8" /></span>
             </div>
-            <div class="preview-record-fields">
-              <div v-for="f in activeType.fields" :key="f.key" class="preview-record-field">
-                <label class="preview-field-label">{{ f.label }}</label>
-                <span class="preview-field-val">{{ sampleValue(f) }}</span>
-              </div>
-            </div>
+            <EntityLayout :entity-type="activeType" :data="{}" mode="view" :accent-color="activeType.color" />
           </div>
         </div>
       </template>
@@ -996,34 +1008,49 @@ function sampleValue(f: FieldSchema): string {
 .preview-body { padding: 14px; overflow-y: auto; flex: 1; }
 .preview-label { font-family: var(--font-head); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--ink-ghost); margin-bottom: 8px; }
 
-.preview-card {
-  overflow: hidden;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+/* Overview entry list preview */
+.prev-list {
   border: 1px solid var(--parch-line);
   border-radius: 2px;
-  margin-bottom: 4px;
-  border-top: 3px solid var(--blood);
+  overflow: hidden;
 }
-.preview-card-inner { display: flex; min-height: 54px; }
-.preview-icon-col { width: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.preview-card-info { flex: 1; padding: 8px 10px; }
-.preview-card-name { font-family: var(--font-head); font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 4px; letter-spacing: 0.04em; }
-.preview-card-field { font-family: var(--font-ui); font-size: 11px; color: var(--ink-ghost); }
-.preview-field-label { margin-right: 4px; color: var(--ink-faded); }
-.preview-field-val { color: var(--ink); }
+.prev-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px dashed var(--parch-line);
+  position: relative;
+}
+.prev-entry:last-child { border-bottom: none; }
+.prev-entry--active { background: rgba(139,26,26,0.06); padding-left: 14px; }
+.prev-entry--active::before { content: '›'; position: absolute; left: 3px; color: var(--blood); font-size: 16px; }
+.prev-entry-icon { width: 22px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.prev-entry-name { font-family: var(--font-body); font-size: 14px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prev-entry-tag { font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 5px; border: 1px solid; border-radius: 2px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.prev-entry-dots { flex: 1; min-width: 6px; height: 1px; border-bottom: 1px dotted var(--parch-line); }
+.prev-entry-date { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); white-space: nowrap; flex-shrink: 0; }
 
-.preview-record {
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+/* Detail view preview */
+.prev-detail {
   border: 1px solid var(--parch-line);
   border-radius: 2px;
   overflow: hidden;
-  border-top: 3px solid var(--blood);
+  padding: 14px;
 }
-.preview-record-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px dashed var(--parch-line); }
-.preview-record-name { font-family: var(--font-head); font-size: 14px; font-weight: 600; color: var(--ink); flex: 1; letter-spacing: 0.06em; }
-.preview-type-tag { font-family: var(--font-head); font-size: 8px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; border-radius: 2px; letter-spacing: 0.1em; }
-.preview-record-fields { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-.preview-record-field { display: flex; flex-direction: column; gap: 2px; }
+.prev-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.prev-rec-name { font-family: var(--font-deco); font-size: 18px; font-weight: 700; color: var(--ink); flex: 1; line-height: 1.2; margin: 0; }
+.prev-type-tag { font-family: var(--font-head); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; padding: 2px 7px; border: 1px solid; border-radius: 2px; }
+.prev-btn { display: inline-flex; align-items: center; gap: 3px; padding: 4px 10px; border-radius: 2px; background: var(--parch-dark); border: 1px solid var(--parch-line); font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faded); }
+.prev-btn--danger { color: var(--blood); border-color: rgba(139,26,26,0.2); }
 
 .preview-empty {
   flex: 1; display: flex; flex-direction: column;
