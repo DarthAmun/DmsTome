@@ -34,6 +34,9 @@
                   <span class="entry-leader" />
                   <span class="entry-date">{{ formatDate(enc.updated_at) }}</span>
                   <div class="entry-actions" @click.stop>
+                    <button class="entry-act" title="Clone encounter" @click.stop="cloneEncounter(enc.id)">
+                      <OhVueIcon name="md-contentcopy" scale="0.75" />
+                    </button>
                     <button class="entry-act entry-act--del" @click.stop="deleteEncounter(enc.id)">
                       <OhVueIcon name="md-delete" scale="0.75" />
                     </button>
@@ -89,6 +92,8 @@
 
 
 <script setup lang="ts">
+import { dbApi } from '~/composables/useDb'
+
 const route = useRoute()
 const router = useRouter()
 const campaignId = Number(route.params.id)
@@ -107,15 +112,14 @@ function nextPage() { if (hasNextPage.value) listPage.value++ }
 watch(encounters, () => { listPage.value = 0 })
 
 onMounted(async () => {
-  if (window.dmforge) {
-    const camps = await window.dmforge.campaigns.list()
-    campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? ''
-    await loadEncounters()
-  }
+  if (!campaignId || isNaN(campaignId)) { router.replace('/'); return }
+  const camps = await dbApi.campaigns.list()
+  campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? ''
+  await loadEncounters()
 })
 
 async function loadEncounters() {
-  encounters.value = await window.dmforge.encounters.list(campaignId)
+  encounters.value = await dbApi.encounters.list(campaignId)
 }
 
 function openEncounter(enc: any) {
@@ -123,13 +127,42 @@ function openEncounter(enc: any) {
 }
 
 async function createEncounter() {
-  const enc = await window.dmforge.encounters.create(campaignId, 'New Encounter')
+  const enc = await dbApi.encounters.create({ campaignId, name: 'New Encounter' })
+  if (!enc?.id) return
   router.push(`/encounter/${enc.id}`)
+}
+
+async function cloneEncounter(id: number) {
+  const source = await dbApi.encounters.get(id)
+  if (!source) return
+  const copy = await dbApi.encounters.create({ campaignId, name: `${source.name} (Copy)` })
+  if (!copy?.id) return
+  // Copy map and grid settings
+  await dbApi.encounters.update({
+    id: copy.id,
+    map_source: source.map_source,
+    map_type: source.map_type,
+    grid_size: source.grid_size,
+    grid_offset_x: source.grid_offset_x,
+    grid_offset_y: source.grid_offset_y,
+  })
+  // Copy token placements (reset combat state: HP, conditions, dead status)
+  for (const token of (source as any).tokens ?? []) {
+    await dbApi.encounterTokens.add({
+      encounterId: copy.id,
+      tokenId: token.token_id,
+      gridX: token.grid_x,
+      gridY: token.grid_y,
+      size: token.size,
+      isVisible: 1,
+    })
+  }
+  await loadEncounters()
 }
 
 async function deleteEncounter(id: number) {
   if (!confirm('Delete this encounter?')) return
-  await window.dmforge.encounters.delete(id)
+  await dbApi.encounters.delete(id)
   await loadEncounters()
 }
 

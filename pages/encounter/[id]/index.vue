@@ -4,11 +4,13 @@
     <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
     <header class="encounter-toolbar">
       <div class="toolbar-left">
-        <NuxtLink :to="`/campaign/${encounter?.campaignId}/encounters`" class="pill-btn">
+        <NuxtLink :to="encounter?.campaignId ? `/campaign/${encounter.campaignId}/encounters` : '/'" class="pill-btn">
           <OhVueIcon name="md-arrowback" scale="0.85" /> Back
         </NuxtLink>
         <div class="encounter-title">
-          <span class="encounter-name">{{ encounter?.name }}</span>
+          <input class="encounter-name-input" :value="encounter?.name"
+            @blur="store.updateName(($event.target as HTMLInputElement).value)"
+            @keyup.enter="($event.target as HTMLInputElement).blur()" />
         </div>
       </div>
 
@@ -85,9 +87,11 @@
             </div>
 
             <label class="f-label mt-2">Offset X</label>
-            <InputText type="number" :value="encounter?.gridOffsetX ?? 0" @change="onOffsetChange('x', $event)" />
+            <InputNumber :model-value="encounter?.gridOffsetX ?? 0"
+              @update:model-value="val => onOffsetChange('x', val)" />
             <label class="f-label">Offset Y</label>
-            <InputText type="number" :value="encounter?.gridOffsetY ?? 0" @change="onOffsetChange('y', $event)" />
+            <InputNumber :model-value="encounter?.gridOffsetY ?? 0"
+              @update:model-value="val => onOffsetChange('y', val)" />
 
             <Button severity="secondary" style="width:100%;justify-content:center;margin-top:6px" @click="onSetMap">
               <OhVueIcon name="md-map" scale="0.85" />
@@ -163,20 +167,20 @@
             <div class="enc-grid-2">
               <div>
                 <label class="f-label">HP Current</label>
-                <InputText type="number" :value="selectedToken.hpCurrent"
-                  @change="store.updateToken(selectedToken!.id, { hpCurrent: Number(($event.target as HTMLInputElement).value) })" />
+                <InputNumber :model-value="selectedToken.hpCurrent"
+                  @update:model-value="val => store.updateToken(selectedToken!.id, { hpCurrent: val })" />
               </div>
               <div>
                 <label class="f-label">HP Max</label>
-                <InputText type="number" :value="selectedToken.hpMax"
-                  @change="store.updateToken(selectedToken!.id, { hpMax: Number(($event.target as HTMLInputElement).value) })" />
+                <InputNumber :model-value="selectedToken.hpMax"
+                  @update:model-value="val => store.updateToken(selectedToken!.id, { hpMax: val })" />
               </div>
             </div>
             <div class="enc-grid-2">
               <div>
                 <label class="f-label">Initiative</label>
-                <InputText type="number" :value="selectedToken.initiative"
-                  @change="store.updateToken(selectedToken!.id, { initiative: Number(($event.target as HTMLInputElement).value) })" />
+                <InputNumber :model-value="selectedToken.initiative"
+                  @update:model-value="val => store.updateToken(selectedToken!.id, { initiative: val })" />
               </div>
               <div>
                 <label class="f-label">Size (tiles)</label>
@@ -207,7 +211,7 @@
               <div class="enc-add-condition">
                 <AutoComplete v-model="newConditionName" :suggestions="filteredConditions" placeholder="Condition name…"
                   @complete="searchConditions" @keyup.enter="addCondition" />
-                <InputNumber v-model.number="newConditionValue" min="1" />
+                <InputNumber v-model="newConditionValue" :min="1" />
                 <Button severity="secondary" size="small" @click="addCondition">+</Button>
               </div>
               <p class="enc-token-hp">Leave value empty for conditions without a degree.</p>
@@ -279,6 +283,7 @@
 <script setup lang="ts">
 import { useEncounterStore } from '~/stores/encounter'
 import { useEncounterCanvas } from '~/composables/useEncounterCanvas'
+import { dbApi } from '~/composables/useDb'
 
 const route = useRoute()
 const store = useEncounterStore()
@@ -403,7 +408,7 @@ onMounted(async () => {
   await canvas.renderTokens()
 
   // Listen for player window close
-  window.dmforge.window.onPlayerClosed(() => {
+  dbApi.window.onPlayerClosed(() => {
     store.playerWindowOpen = false
   })
 })
@@ -431,7 +436,7 @@ onUnmounted(() => canvas?.destroy())
 
 // ── Handlers ───────────────────────────────────────────────────────────────
 async function onSetMap() {
-  const dataUrl = await window.dmforge.system.openFileDialog()
+  const dataUrl = await dbApi.system.openFileDialog()
   if (dataUrl) await store.setMap(dataUrl, 'file')
 }
 
@@ -442,8 +447,8 @@ async function onGridSizeChange(e: Event) {
   await store.updateGrid(size, enc.gridOffsetX, enc.gridOffsetY)
 }
 
-async function onOffsetChange(axis: 'x' | 'y', e: Event) {
-  const val = Number((e.target as HTMLInputElement).value)
+async function onOffsetChange(axis: 'x' | 'y', val: number | null) {
+  if (val === null) return
   const enc = store.current
   if (!enc) return
   if (axis === 'x') await store.updateGrid(enc.gridSize, val, enc.gridOffsetY)
@@ -473,7 +478,7 @@ function selectToken(token: any) {
 }
 
 async function browseTokenImage() {
-  const dataUrl = await window.dmforge.system.openFileDialog()
+  const dataUrl = await dbApi.system.openFileDialog()
   if (dataUrl) {
     newToken.value.imageSource = dataUrl
     newToken.value.imageType = 'file'
@@ -489,7 +494,7 @@ async function confirmAddToken() {
 }
 
 async function removeFromLibrary(id: number) {
-  await window.dmforge.tokens.delete(id)
+  await dbApi.tokens.delete(id)
   store.tokenLibrary = store.tokenLibrary.filter(t => t.id !== id)
 }
 
@@ -587,14 +592,23 @@ function getImageUrl(token: any): string {
   border-left: 1px solid var(--parch-line);
 }
 
-.encounter-name {
+.encounter-name-input {
   font-family: var(--font-head);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 2px 6px;
+  outline: none;
+  min-width: 120px;
+  transition: border-color 0.15s, background 0.15s;
 }
+.encounter-name-input:hover { border-color: var(--parch-line); }
+.encounter-name-input:focus { border-color: var(--ink-ghost); background: var(--parch-dark); }
 
 /* ── Main layout ── */
 .encounter-layout {

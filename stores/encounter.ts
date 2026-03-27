@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { dbApi } from '~/composables/useDb'
 
 export interface Token {
   id: number
@@ -68,7 +69,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   async function loadEncounter(id: number) {
     isLoading.value = true
     try {
-      const data = await window.dmforge.encounters.get(id)
+      const data = await dbApi.encounters.get(id)
       if (!data) return
       current.value = {
         ...data,
@@ -80,7 +81,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         mapSource: data.map_source,
         mapType: data.map_type,
         campaignId: data.campaign_id,
-        tokens: (data.tokens || []).map(normalizeToken),
+        tokens: ((data as any).tokens || []).map(normalizeToken),
       }
     } finally {
       isLoading.value = false
@@ -88,9 +89,9 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   async function loadTokenLibrary() {
-    const items = await window.dmforge.tokens.list()
+    const items = await dbApi.tokens.list()
     tokenLibrary.value = items.map(t => ({
-      id: t.id,
+      id: t.id!,
       name: t.name,
       imageSource: t.image_source,
       imageType: t.image_type,
@@ -151,16 +152,13 @@ export const useEncounterStore = defineStore('encounter', () => {
 
   async function persistFog() {
     if (!current.value) return
-    await window.dmforge.encounters.update({
-      id: current.value.id,
-      fog_data: JSON.stringify(current.value.fogData),
-    })
+    await dbApi.encounters.update({ id: current.value.id, fog_data: JSON.stringify(current.value.fogData) })
   }
 
   // ── Actions — Tokens ──────────────────────────────────────────────────────
   async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number) {
     if (!current.value) return
-    const result = await window.dmforge.encounterTokens.add({
+    const result = await dbApi.encounterTokens.add({
       encounterId: current.value.id,
       tokenId,
       gridX,
@@ -178,7 +176,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     if (!token) return
     token.gridX = gridX
     token.gridY = gridY
-    await window.dmforge.encounterTokens.update({ id: instanceId, gridX, gridY })
+    await dbApi.encounterTokens.update({ id: instanceId, gridX, gridY })
     syncToPlayer()
   }
 
@@ -187,7 +185,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     const token = current.value.tokens.find(t => t.id === instanceId)
     if (!token) return
     Object.assign(token, updates)
-    // Convert to snake_case for DB
     const dbUpdates: Record<string, any> = { id: instanceId }
     if ('isVisible' in updates) dbUpdates.isVisible = updates.isVisible ? 1 : 0
     if ('isDead' in updates) dbUpdates.isDead = updates.isDead ? 1 : 0
@@ -198,24 +195,24 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('label' in updates) dbUpdates.label = updates.label
     if ('notes' in updates) dbUpdates.notes = updates.notes
     if ('conditions' in updates) dbUpdates.conditions = JSON.stringify(updates.conditions)
-    await window.dmforge.encounterTokens.update(dbUpdates)
+    await dbApi.encounterTokens.update(dbUpdates)
     syncToPlayer()
   }
 
   async function removeToken(instanceId: number) {
     if (!current.value) return
     current.value.tokens = current.value.tokens.filter(t => t.id !== instanceId)
-    await window.dmforge.encounterTokens.remove(instanceId)
+    await dbApi.encounterTokens.remove(instanceId)
     syncToPlayer()
   }
 
   async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url') {
-    const token = await window.dmforge.tokens.create({ name, imageSource, imageType })
+    const token = await dbApi.tokens.create({ name, imageSource, imageType })
     tokenLibrary.value.push({
-      id: token.id,
-      name: token.name,
-      imageSource: token.image_source,
-      imageType: token.image_type,
+      id: token!.id!,
+      name: token!.name,
+      imageSource: token!.image_source,
+      imageType: token!.image_type,
     })
     return token
   }
@@ -223,20 +220,19 @@ export const useEncounterStore = defineStore('encounter', () => {
   // ── Actions — Windows ─────────────────────────────────────────────────────
   async function openPlayerWindow() {
     if (!current.value) return
-    await window.dmforge.window.openPlayer(current.value.id)
+    await dbApi.window.openPlayer(current.value.id)
     playerWindowOpen.value = true
-    // Send current state immediately
     syncToPlayer()
   }
 
   async function closePlayerWindow() {
-    await window.dmforge.window.closePlayer()
+    await dbApi.window.closePlayer()
     playerWindowOpen.value = false
   }
 
   function syncToPlayer() {
     if (!current.value) return
-    window.dmforge?.window.syncEncounter({
+    dbApi.window.syncEncounter({
       tokens: current.value.tokens
         .filter(t => t.isVisible)
         .map(t => ({ ...toRaw(t) })),
@@ -252,7 +248,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   // ── Helpers ────────────────────────────────────────────────────────────────
   async function persistEncounter() {
     if (!current.value) return
-    await window.dmforge.encounters.update({
+    await dbApi.encounters.update({
       id: current.value.id,
       map_source: current.value.mapSource,
       map_type: current.value.mapType,
@@ -260,6 +256,12 @@ export const useEncounterStore = defineStore('encounter', () => {
       grid_offset_x: current.value.gridOffsetX,
       grid_offset_y: current.value.gridOffsetY,
     })
+  }
+
+  async function updateName(name: string) {
+    if (!current.value) return
+    current.value.name = name
+    await dbApi.encounters.update({ id: current.value.id, name })
   }
 
   function normalizeToken(raw: any): EncounterToken {
@@ -290,7 +292,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     current, tokenLibrary, isLoading, playerWindowOpen, isDmMode,
     visibleTokens, allTokens,
     loadEncounter, loadTokenLibrary,
-    setMap, updateGrid, updateViewport,
+    setMap, updateGrid, updateViewport, updateName,
     setFogCell, revealAllFog, hideAllFog,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
     openPlayerWindow, closePlayerWindow, syncToPlayer,
