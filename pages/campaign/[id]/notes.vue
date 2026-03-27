@@ -60,7 +60,7 @@
               <div v-for="(e, i) in leftEntries" :key="e.id" class="entry"
                 :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
                 @click="selectEntity(e.id)">
-                <span class="entry-num">{{ i + 1 }}</span>
+                <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
                 <div class="entry-icon">
                   <div class="entry-badge">
                     <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
@@ -117,11 +117,15 @@
             </div>
           </div>
           <div class="leaf-footer">
+            <button class="leaf-nav-btn" :disabled="!hasPrevSpread" @click="prevSpread">
+              <OhVueIcon name="md-chevronleft" scale="0.9" />
+            </button>
             <button class="leaf-new" @click="createNew">
               <span class="leaf-new-line-l"></span>
               <span class="leaf-new-label">✦ New {{ activeTypeConfig?.label }} ✦</span>
               <span class="leaf-new-line-r"></span>
             </button>
+            <span class="leaf-folio-num">{{ spreadPage + 1 }}</span>
           </div>
         </div>
       </div>
@@ -136,13 +140,13 @@
         <div class="book-leaf book-leaf--right">
           <div class="leaf-inner">
             <div class="leaf-header leaf-header--right">
-              <span class="leaf-folio">continued</span>
+              <span class="leaf-folio">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
             </div>
             <div class="leaf-index">
               <div v-for="(e, i) in rightEntries" :key="e.id" class="entry"
                 :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
                 @click="selectEntity(e.id)">
-                <span class="entry-num">{{ leftEntries.length + i + 1 }}</span>
+                <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
                 <div class="entry-icon">
                   <div class="entry-badge">
                     <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
@@ -191,10 +195,18 @@
                   </div>
                 </div>
               </div>
-              <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-empty">
-                <em style="opacity:0.4">— end of entries —</em>
+              <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-inner--right">
+                <OhVueIcon :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="4"
+                  :style="{ opacity: 0.13, marginBottom: '24px', color: activeTypeConfig?.color }" />
+                <p class="right-hint"><em>All {{ activeTypeConfig?.plural }} are<br>listed on the facing page.</em></p>
               </div>
             </div>
+          </div>
+          <div class="leaf-footer leaf-footer--right">
+            <span class="leaf-folio-num">{{ spreadPage + 2 }}</span>
+            <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
+              <OhVueIcon name="md-chevronright" scale="0.9" />
+            </button>
           </div>
         </div>
       </div>
@@ -219,11 +231,6 @@ const sortBy = ref('updated')
 const showGraph = ref(false)
 
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
-const sortOptions = [
-  { label: 'Last edited', value: 'updated' },
-  { label: 'Created', value: 'created' },
-  { label: 'Name', value: 'name' },
-]
 
 // All state is driven from the URL query string — this makes the browser back button work
 const activeType = computed(() => (route.query.type as EntityType) || 'note')
@@ -240,15 +247,27 @@ const sortedEntities = computed(() => {
   })
 })
 
-// Split into left and right pages for the open-book spread
+// Pagination — 8 entries per half-page, 16 per spread
+const PAGE_HALF = 8
+const spreadPage = ref(0)
+const hasPrevSpread = computed(() => spreadPage.value > 0)
+const hasNextSpread = computed(() => (spreadPage.value + 1) * PAGE_HALF * 2 < sortedEntities.value.length)
+const totalSpreads = computed(() => Math.max(1, Math.ceil(sortedEntities.value.length / (PAGE_HALF * 2))))
+
 const leftEntries = computed(() => {
-  const all = sortedEntities.value
-  return all.slice(0, Math.ceil(all.length / 2))
+  const start = spreadPage.value * PAGE_HALF * 2
+  return sortedEntities.value.slice(start, start + PAGE_HALF)
 })
 const rightEntries = computed(() => {
-  const all = sortedEntities.value
-  return all.slice(Math.ceil(all.length / 2))
+  const start = spreadPage.value * PAGE_HALF * 2 + PAGE_HALF
+  return sortedEntities.value.slice(start, start + PAGE_HALF)
 })
+
+function prevSpread() { if (hasPrevSpread.value) spreadPage.value-- }
+function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
+
+// Reset page when type or search changes
+watch([activeType, search], () => { spreadPage.value = 0 })
 
 onMounted(async () => {
   await store.loadAll(campaignId)
@@ -584,9 +603,45 @@ async function confirmDelete(entity: any) {
 }
 
 .leaf-footer {
-  padding: 10px 28px 16px;
+  padding: 8px 16px 14px;
   border-top: 1px dashed var(--parch-line);
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.leaf-footer--right {
+  justify-content: flex-end;
+}
+
+/* leaf-new inside the new flex footer needs to flex-grow */
+.leaf-footer .leaf-new { flex: 1; width: auto; }
+
+.leaf-nav-btn {
+  width: 26px; height: 26px;
+  border-radius: 2px;
+  background: none;
+  border: 1px solid var(--parch-line);
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.leaf-nav-btn:hover:not(:disabled) {
+  border-color: var(--ink-faded);
+  color: var(--ink);
+}
+.leaf-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.leaf-folio-num {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  letter-spacing: 0.12em;
 }
 
 .leaf-header {

@@ -279,13 +279,7 @@ html, body, #__nuxt {
   border-radius: 0 2px 2px 0;
   box-shadow: inset 10px 0 24px rgba(0,0,0,0.07), -2px 0 6px rgba(0,0,0,0.08);
 }
-.book-leaf--right::after {
-  content: '';
-  position: absolute; bottom: 0; right: 0;
-  width: 22px; height: 22px;
-  background: linear-gradient(225deg, var(--parch-dark) 50%, transparent 50%);
-  z-index: 3;
-}
+
 
 /* ── Binding — slim gold stitch ── */
 .book-binding {
@@ -415,15 +409,6 @@ html, body, #__nuxt {
 }
 .tome-page > * { position: relative; z-index: 1; }
 
-/* Page corner fold */
-.tome-page::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 28px; height: 28px;
-  background: linear-gradient(225deg, var(--parch-dark) 50%, transparent 50%);
-  z-index: 2;
-}
 
 /* ── PAGE HEADER — the chapter title banner ────────────────────── */
 .page-header {

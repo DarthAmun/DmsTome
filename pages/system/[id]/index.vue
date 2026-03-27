@@ -19,18 +19,28 @@
               <span class="leaf-count">{{ system?.entityTypes?.length ?? 0 }} defined</span>
             </div>
             <NuxtLink
-              v-for="et in system?.entityTypes ?? []" :key="et.id"
+              v-for="(et, i) in pagedTypes" :key="et.id"
               :to="`/system/${systemId}/${et.id}`"
-              class="entry">
+              class="entry" :style="{ '--et-color': et.color }">
+              <span class="entry-num">{{ listPage * PAGE_SIZE + i + 1 }}</span>
               <div class="entry-icon">
-                <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.9" :style="{ color: et.color }" />
+                <div class="entry-badge">
+                  <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: et.color }" />
+                </div>
               </div>
-              <span class="entry-name">{{ et.plural }}</span>
-              <span class="entry-dots" />
-              <span class="entry-tag" :style="{ color: et.color, borderColor: et.color }">
-                {{ recordCounts[et.id] ?? 0 }} records
-              </span>
-              <span class="entry-date">{{ et.fields.length }} fields</span>
+              <div class="entry-body">
+                <div class="entry-top">
+                  <span class="entry-name">{{ et.plural }}</span>
+                  <span class="entry-leader" />
+                  <span class="entry-date">{{ et.fields.length }} fields</span>
+                </div>
+                <div class="entry-attrs">
+                  <span class="ea-pill"
+                    :style="{ color: et.color, borderColor: et.color, background: `color-mix(in srgb, ${et.color} 10%, transparent)` }">
+                    {{ recordCounts[et.id] ?? 0 }} records
+                  </span>
+                </div>
+              </div>
             </NuxtLink>
             <div v-if="!system?.entityTypes?.length" class="leaf-empty">
               <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
@@ -38,11 +48,18 @@
             </div>
           </div>
           <div class="leaf-footer">
-            <NuxtLink :to="`/system/${systemId}/builder`" class="leaf-new" style="text-decoration:none">
+            <button class="leaf-nav-btn" :disabled="!hasPrevPage" @click="prevPage">
+              <OhVueIcon name="md-chevronleft" scale="0.9" />
+            </button>
+            <NuxtLink :to="`/system/${systemId}/builder`" class="leaf-new" style="text-decoration:none;flex:1;width:auto">
               <span class="leaf-new-line-l"></span>
               <span class="leaf-new-label">✦ Open Builder ✦</span>
               <span class="leaf-new-line-r"></span>
             </NuxtLink>
+            <span class="leaf-folio-num">{{ listPage + 1 }} / {{ totalPages }}</span>
+            <button class="leaf-nav-btn" :disabled="!hasNextPage" @click="nextPage">
+              <OhVueIcon name="md-chevronright" scale="0.9" />
+            </button>
           </div>
         </div>
       </div>
@@ -108,6 +125,17 @@ const systemId = Number(route.params.id)
 const recordCounts = ref<Record<string, number>>({})
 
 const system = computed(() => systemsStore.getSystem(systemId))
+
+const PAGE_SIZE = 10
+const listPage = ref(0)
+const entityTypes = computed(() => system.value?.entityTypes ?? [])
+const hasPrevPage = computed(() => listPage.value > 0)
+const hasNextPage = computed(() => (listPage.value + 1) * PAGE_SIZE < entityTypes.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(entityTypes.value.length / PAGE_SIZE)))
+const pagedTypes = computed(() => entityTypes.value.slice(listPage.value * PAGE_SIZE, (listPage.value + 1) * PAGE_SIZE))
+
+function prevPage() { if (hasPrevPage.value) listPage.value-- }
+function nextPage() { if (hasNextPage.value) listPage.value++ }
 const totalFields = computed(() =>
   (system.value?.entityTypes ?? []).reduce((sum, et) => sum + et.fields.length, 0)
 )
@@ -160,8 +188,26 @@ function exportSystem() {
 .leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; gap: 0; text-align: center; line-height: 1.7; }
 
 
-/* Entry icon */
-.entry-icon { width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* Entry */
+.entry { align-items: flex-start; border-left: 2px solid transparent; transition: border-color 0.15s, background 0.15s; text-decoration: none; }
+.entry:hover { border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent); background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent); }
+.entry-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); opacity: 0.4; width: 18px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1; }
+.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent); border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent); flex-shrink: 0; }
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.entry-top { display: flex; align-items: center; gap: 6px; }
+.entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
+.entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; flex-shrink: 0; white-space: nowrap; }
+.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
+.ea-pill { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px 2px 5px; border: 1px solid currentColor; border-radius: 2px; flex-shrink: 0; white-space: nowrap; }
+
+/* Footer */
+.leaf-footer { display: flex; align-items: center; gap: 8px; padding: 8px 16px 14px; border-top: 1px dashed var(--parch-line); }
+.leaf-nav-btn { width: 26px; height: 26px; border-radius: 2px; background: none; border: 1px solid var(--parch-line); color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
+.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.leaf-folio-num { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); letter-spacing: 0.12em; white-space: nowrap; }
 
 /* Right page content */
 .sys-desc {

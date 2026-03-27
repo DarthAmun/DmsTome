@@ -10,128 +10,136 @@
           <div class="book-sheet-2"></div>
           <div class="book-sheet-1"></div>
           <div class="book-leaf book-leaf--left">
+            <div class="page-header">
+              <div class="page-chapter-num">DM's Tome</div>
+              <h1 class="page-title">{{ chapterTitle }}</h1>
+              <div class="page-rule" />
+            </div>
             <div class="leaf-inner">
 
-              <div class="page-header">
-                <div class="page-chapter-num">DM's Tome</div>
-                <h1 class="page-title">{{ chapterTitle }}</h1>
-                <div class="page-rule" />
-              </div>
-
-              <div class="page-content">
-                <!-- CAMPAIGNS -->
-                <template v-if="section === 'campaigns'">
-                  <div class="leaf-header">
-                    <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
-                    <span class="leaf-count">{{ campaigns.length }} entries</span>
-                  </div>
-                  <div v-for="c in campaigns" :key="c.id" class="entry" @click="openCampaign(c)">
-                    <div class="entry-icon">
-                      <OhVueIcon name="gi-broadsword" scale="0.9" style="color:var(--blood)" />
+              <!-- CAMPAIGNS -->
+              <template v-if="section === 'campaigns'">
+                <div class="leaf-header">
+                  <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
+                  <span class="leaf-count">{{ campaigns.length }} entries</span>
+                </div>
+                <div v-for="(c, i) in leftEntries" :key="c.id" class="entry"
+                  style="--et-color: var(--blood)" @click="openCampaign(c)">
+                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
+                  <div class="entry-icon"><div class="entry-badge">
+                    <OhVueIcon name="gi-broadsword" scale="0.75" style="color:var(--blood)" />
+                  </div></div>
+                  <div class="entry-body">
+                    <div class="entry-top">
+                      <span class="entry-name">{{ c.name }}</span>
+                      <span class="entry-leader" />
+                      <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
+                      <div class="entry-actions" @click.stop>
+                        <button class="entry-act" @click.stop="exportData(c.id)" title="Export">
+                          <OhVueIcon name="md-cloud" scale="0.75" />
+                        </button>
+                        <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
+                          <OhVueIcon name="md-delete" scale="0.75" />
+                        </button>
+                      </div>
                     </div>
-                    <span class="entry-name">{{ c.name }}
-                      <em v-if="c.description">— {{ c.description }}</em>
-                    </span>
-                    <span class="entry-dots" />
-                    <span v-if="systemName(c.system_id)" class="entry-tag"
-                      style="color:var(--gold);border-color:var(--gold)">
-                      {{ systemName(c.system_id) }}
-                    </span>
-                    <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
-                    <div class="entry-actions" @click.stop>
-                      <button class="entry-act" @click.stop="exportData(c.id)" title="Export">
-                        <OhVueIcon name="md-cloud" scale="0.75" />
-                      </button>
-                      <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
-                        <OhVueIcon name="md-delete" scale="0.75" />
-                      </button>
-                    </div>
-                  </div>
-                  <div v-if="!campaigns.length" class="leaf-empty">
-                    <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
-                    <em>No campaigns yet. Write the first entry.</em>
-                  </div>
-                </template>
-
-                <!-- SYSTEMS -->
-                <template v-else-if="section === 'systems'">
-                  <div class="leaf-header">
-                    <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
-                    <span class="leaf-count">{{ systems.length }} defined</span>
-                  </div>
-                  <NuxtLink v-for="sys in systems" :key="sys.id!" :to="`/system/${sys.id}`" class="entry">
-                    <div class="entry-icon">
-                      <OhVueIcon name="gi-scroll-unfurled" scale="0.9" style="color:var(--arcane-l)" />
-                    </div>
-                    <span class="entry-name">{{ sys.name }}
-                      <em v-if="sys.description">— {{ sys.description }}</em>
-                    </span>
-                    <span class="entry-dots" />
-                    <span class="entry-tag" style="color:var(--ink-faded);border-color:var(--ink-ghost)">
-                      {{ sys.entityTypes.length }} types
-                    </span>
-                    <span class="entry-date">v{{ sys.version }}</span>
-                  </NuxtLink>
-                  <div v-if="!systems.length" class="leaf-empty">
-                    <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
-                    <em>No systems defined yet.</em>
-                  </div>
-                </template>
-
-                <!-- LIBRARY -->
-                <template v-else>
-                  <div class="leaf-header">
-                    <span class="leaf-type" style="color:var(--gold)">Library</span>
-                    <span class="leaf-count">all records</span>
-                  </div>
-                  <div v-if="!systems.length" class="leaf-empty">
-                    <em>Define a system first to populate the library.</em>
-                  </div>
-                  <div v-for="sys in systems" :key="sys.id!" class="lib-system">
-                    <div class="lib-system-head">
-                      <span class="lib-system-name">{{ sys.name }}</span>
-                      <span class="lib-rule" />
-                    </div>
-                    <div class="lib-chips">
-                      <NuxtLink v-for="et in sys.entityTypes" :key="et.id" :to="`/system/${sys.id}/${et.id}`"
-                        class="lib-chip" :style="{ '--chip-color': et.color }">
-                        <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
-                        {{ et.plural }}
-                      </NuxtLink>
+                    <div v-if="c.description || systemName(c.system_id)" class="entry-attrs">
+                      <span v-if="systemName(c.system_id)" class="ea-pill"
+                        style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
+                        {{ systemName(c.system_id) }}
+                      </span>
+                      <span v-if="c.description" class="ea-text">{{ c.description }}</span>
                     </div>
                   </div>
-                </template>
-              </div>
+                </div>
+                <div v-if="!campaigns.length" class="leaf-empty">
+                  <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
+                  <em>No campaigns yet. Write the first entry.</em>
+                </div>
+              </template>
 
-              <div class="leaf-footer">
-                <template v-if="section === 'campaigns'">
-                  <button class="leaf-new" @click="showNew = true">
-                    <span class="leaf-new-line-l"></span>
-                    <span class="leaf-new-label">✦ Begin New Campaign ✦</span>
-                    <span class="leaf-new-line-r"></span>
-                  </button>
-                  <div class="leaf-footnote">
-                    <label class="leaf-footnote-link">
-                      ↑ Restore from backup
-                      <input type="file" accept=".json" style="display:none" @change="importData" />
-                    </label>
+              <!-- SYSTEMS -->
+              <template v-else-if="section === 'systems'">
+                <div class="leaf-header">
+                  <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
+                  <span class="leaf-count">{{ systems.length }} defined</span>
+                </div>
+                <NuxtLink v-for="(sys, i) in leftEntries" :key="sys.id!" :to="`/system/${sys.id}`"
+                  class="entry" style="--et-color: var(--arcane-l); text-decoration: none">
+                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
+                  <div class="entry-icon"><div class="entry-badge">
+                    <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
+                  </div></div>
+                  <div class="entry-body">
+                    <div class="entry-top">
+                      <span class="entry-name">{{ sys.name }}</span>
+                      <span class="entry-leader" />
+                      <span class="entry-date">v{{ sys.version }}</span>
+                    </div>
+                    <div class="entry-attrs">
+                      <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
+                        {{ sys.entityTypes.length }} types
+                      </span>
+                      <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
+                    </div>
                   </div>
-                </template>
-                <template v-else-if="section === 'systems'">
-                  <button class="leaf-new" @click="showNewSystem = true">
-                    <span class="leaf-new-line-l"></span>
-                    <span class="leaf-new-label">✦ Define New System ✦</span>
-                    <span class="leaf-new-line-r"></span>
-                  </button>
-                  <div class="leaf-footnote">
-                    <label class="leaf-footnote-link">
-                      ↑ Import system schema
-                      <input type="file" accept=".json" style="display:none" @change="importSystem" />
-                    </label>
-                  </div>
-                </template>
-              </div>
+                </NuxtLink>
+                <div v-if="!systems.length" class="leaf-empty">
+                  <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
+                  <em>No systems defined yet.</em>
+                </div>
+              </template>
 
+              <!-- LIBRARY -->
+              <template v-else>
+                <div class="leaf-header">
+                  <span class="leaf-type" style="color:var(--gold)">Library</span>
+                  <span class="leaf-count">all records</span>
+                </div>
+                <div v-if="!systems.length" class="leaf-empty">
+                  <em>Define a system first to populate the library.</em>
+                </div>
+                <div v-for="sys in systems" :key="sys.id!" class="lib-system">
+                  <div class="lib-system-head">
+                    <span class="lib-system-name">{{ sys.name }}</span>
+                    <span class="lib-rule" />
+                  </div>
+                  <div class="lib-chips">
+                    <NuxtLink v-for="et in sys.entityTypes" :key="et.id" :to="`/system/${sys.id}/${et.id}`"
+                      class="lib-chip" :style="{ '--chip-color': et.color }">
+                      <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
+                      {{ et.plural }}
+                    </NuxtLink>
+                  </div>
+                </div>
+              </template>
+
+            </div>
+            <div v-if="section !== 'library'" class="leaf-footer">
+              <button class="leaf-nav-btn" :disabled="!hasPrevSpread" @click="prevSpread">
+                <OhVueIcon name="md-chevronleft" scale="0.9" />
+              </button>
+              <button v-if="section === 'campaigns'" class="leaf-new" @click="showNew = true">
+                <span class="leaf-new-line-l"></span>
+                <span class="leaf-new-label">✦ Begin New Campaign ✦</span>
+                <span class="leaf-new-line-r"></span>
+              </button>
+              <button v-else class="leaf-new" @click="showNewSystem = true">
+                <span class="leaf-new-line-l"></span>
+                <span class="leaf-new-label">✦ Define New System ✦</span>
+                <span class="leaf-new-line-r"></span>
+              </button>
+              <span class="leaf-folio-num">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
+            </div>
+            <div v-if="section !== 'library'" class="leaf-footnote-bar">
+              <label v-if="section === 'campaigns'" class="leaf-footnote-link">
+                ↑ Restore from backup
+                <input type="file" accept=".json" style="display:none" @change="importData" />
+              </label>
+              <label v-else class="leaf-footnote-link">
+                ↑ Import system schema
+                <input type="file" accept=".json" style="display:none" @change="importSystem" />
+              </label>
             </div>
           </div>
         </div>
@@ -144,20 +152,100 @@
           <div class="book-sheet-2"></div>
           <div class="book-sheet-1"></div>
           <div class="book-leaf book-leaf--right">
-            <div class="leaf-inner--right">
-              <template v-if="section === 'campaigns'">
-                <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.05;margin-bottom:24px" />
-                <p class="right-hint"><em>Select a campaign to continue<br>your adventure.</em></p>
-              </template>
-              <template v-else-if="section === 'systems'">
-                <OhVueIcon name="gi-scroll-unfurled" scale="4" style="opacity:0.05;margin-bottom:24px" />
-                <p class="right-hint"><em>Each system defines the entities<br>and fields for your campaigns.</em></p>
-              </template>
-              <template v-else>
-                <OhVueIcon name="gi-open-treasure-chest" scale="4" style="opacity:0.05;margin-bottom:24px" />
-                <p class="right-hint"><em>Browse all records across<br>every system.</em></p>
-              </template>
-            </div>
+            <template v-if="section !== 'library' && rightEntries.length > 0">
+              <div class="leaf-inner">
+
+                <!-- CAMPAIGNS right -->
+                <template v-if="section === 'campaigns'">
+                  <div class="leaf-header">
+                    <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
+                    <span class="leaf-count">continued</span>
+                  </div>
+                  <div v-for="(c, i) in rightEntries" :key="c.id" class="entry"
+                    style="--et-color: var(--blood)" @click="openCampaign(c)">
+                    <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
+                    <div class="entry-icon"><div class="entry-badge">
+                      <OhVueIcon name="gi-broadsword" scale="0.75" style="color:var(--blood)" />
+                    </div></div>
+                    <div class="entry-body">
+                      <div class="entry-top">
+                        <span class="entry-name">{{ c.name }}</span>
+                        <span class="entry-leader" />
+                        <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
+                        <div class="entry-actions" @click.stop>
+                          <button class="entry-act" @click.stop="exportData(c.id)" title="Export">
+                            <OhVueIcon name="md-cloud" scale="0.75" />
+                          </button>
+                          <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
+                            <OhVueIcon name="md-delete" scale="0.75" />
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="c.description || systemName(c.system_id)" class="entry-attrs">
+                        <span v-if="systemName(c.system_id)" class="ea-pill"
+                          style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
+                          {{ systemName(c.system_id) }}
+                        </span>
+                        <span v-if="c.description" class="ea-text">{{ c.description }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- SYSTEMS right -->
+                <template v-else-if="section === 'systems'">
+                  <div class="leaf-header">
+                    <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
+                    <span class="leaf-count">continued</span>
+                  </div>
+                  <NuxtLink v-for="(sys, i) in rightEntries" :key="sys.id!" :to="`/system/${sys.id}`"
+                    class="entry" style="--et-color: var(--arcane-l); text-decoration: none">
+                    <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
+                    <div class="entry-icon"><div class="entry-badge">
+                      <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
+                    </div></div>
+                    <div class="entry-body">
+                      <div class="entry-top">
+                        <span class="entry-name">{{ sys.name }}</span>
+                        <span class="entry-leader" />
+                        <span class="entry-date">v{{ sys.version }}</span>
+                      </div>
+                      <div class="entry-attrs">
+                        <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
+                          {{ sys.entityTypes.length }} types
+                        </span>
+                        <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
+                      </div>
+                    </div>
+                  </NuxtLink>
+                </template>
+
+              </div>
+              <div class="leaf-footer--right">
+                <span class="leaf-folio-num">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
+                <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
+                  <OhVueIcon name="md-chevronright" scale="0.9" />
+                </button>
+              </div>
+            </template>
+
+            <!-- PLACEHOLDER when right page is empty -->
+            <template v-else>
+              <div class="leaf-inner--right">
+                <template v-if="section === 'campaigns'">
+                  <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.13;margin-bottom:24px" />
+                  <p class="right-hint"><em>Select a campaign to continue<br>your adventure.</em></p>
+                </template>
+                <template v-else-if="section === 'systems'">
+                  <OhVueIcon name="gi-scroll-unfurled" scale="4" style="opacity:0.13;margin-bottom:24px" />
+                  <p class="right-hint"><em>Each system defines the entities<br>and fields for your campaigns.</em></p>
+                </template>
+                <template v-else>
+                  <OhVueIcon name="gi-open-treasure-chest" scale="4" style="opacity:0.13;margin-bottom:24px" />
+                  <p class="right-hint"><em>Browse all records across<br>every system.</em></p>
+                </template>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -258,6 +346,18 @@ const store = useSystemsStore()
 const section = ref<'campaigns' | 'systems' | 'library'>('campaigns')
 const campaigns = ref<any[]>([])
 const showNew = ref(false)
+
+const PAGE_HALF = 8
+const spreadPage = ref<number>(0)
+const activeList = computed(() => section.value === 'campaigns' ? campaigns.value : (systems.value as any[]))
+const hasPrevSpread = computed(() => spreadPage.value > 0)
+const hasNextSpread = computed(() => (spreadPage.value + 1) * PAGE_HALF * 2 < activeList.value.length)
+const totalSpreads = computed(() => Math.max(1, Math.ceil(activeList.value.length / (PAGE_HALF * 2))))
+const leftEntries = computed(() => activeList.value.slice(spreadPage.value * PAGE_HALF * 2, spreadPage.value * PAGE_HALF * 2 + PAGE_HALF))
+const rightEntries = computed(() => activeList.value.slice(spreadPage.value * PAGE_HALF * 2 + PAGE_HALF, (spreadPage.value + 1) * PAGE_HALF * 2))
+function prevSpread() { if (hasPrevSpread.value) spreadPage.value-- }
+function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
+watch(section, () => { spreadPage.value = 0 })
 const showNewSystem = ref(false)
 const newCamp = ref({ name: '', description: '', systemId: null as number | null })
 const newSys = ref({ name: '', shortId: '', description: '' })
@@ -409,49 +509,30 @@ function formatDate(dt: string) {
 }
 
 /* Entries */
-.entry-icon {
-  width: 26px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.entry { align-items: flex-start; border-left: 2px solid transparent; transition: border-color 0.15s, background 0.15s; }
+.entry:hover { border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent); background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent); }
+.entry-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); opacity: 0.4; width: 18px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1; }
+.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent); border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent); flex-shrink: 0; }
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.entry-top { display: flex; align-items: center; gap: 6px; }
+.entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
+.entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; flex-shrink: 0; white-space: nowrap; }
+.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
+.ea-pill { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px 2px 5px; border: 1px solid currentColor; border-radius: 2px; flex-shrink: 0; white-space: nowrap; }
+.ea-text { display: inline-flex; align-items: center; font-family: var(--font-ui); font-size: 11px; color: var(--ink-ghost); font-style: italic; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act { width: 20px; height: 20px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act:hover { background: rgba(28,20,16,0.12); }
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
 
-.entry-actions {
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.entry:hover .entry-actions {
-  opacity: 1;
-}
-
-.entry-act {
-  width: 20px;
-  height: 20px;
-  border-radius: 2px;
-  background: rgba(28, 20, 16, 0.06);
-  border: 1px solid transparent;
-  color: var(--ink-ghost);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-
-.entry-act:hover {
-  background: rgba(28, 20, 16, 0.12);
-}
-
-.entry-act--del:hover {
-  background: var(--blood-pale);
-  color: var(--blood);
-  border-color: var(--blood);
-}
+/* Footer pagination */
+.leaf-nav-btn { width: 26px; height: 26px; border-radius: 2px; background: none; border: 1px solid var(--parch-line); color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
+.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.leaf-folio-num { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); letter-spacing: 0.12em; white-space: nowrap; }
 
 /* Footer new entry */
 .leaf-new {
@@ -503,8 +584,21 @@ function formatDate(dt: string) {
 }
 
 .leaf-footer {
-  padding: 7px 26px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px 12px;
   border-top: 1px dashed var(--parch-line);
+  flex-shrink: 0;
+}
+.leaf-footer .leaf-new { flex: 1; width: auto; margin-bottom: 0; }
+.leaf-footer--right {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 8px 16px 12px;
+  border-top: 1px dashed var(--parch-line);
+  flex-shrink: 0;
+}
+
+.leaf-footnote-bar {
+  padding: 4px 16px 8px;
   flex-shrink: 0;
 }
 

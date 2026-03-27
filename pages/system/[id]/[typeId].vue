@@ -26,11 +26,11 @@
           </div>
           <div class="leaf-inner">
             <div class="leaf-index">
-              <div v-for="(rec, i) in filtered" :key="rec.id!" class="entry"
+              <div v-for="(rec, i) in pagedEntries" :key="rec.id!" class="entry"
                 :class="{ 'entry--active': selectedId === rec.id }"
                 :style="{ '--et-color': entityType?.color ?? 'var(--ink-ghost)' }"
                 @click="openRecord(rec)">
-                <span class="entry-num">{{ i + 1 }}</span>
+                <span class="entry-num">{{ listPage * PAGE_SIZE + i + 1 }}</span>
                 <div class="entry-icon">
                   <div class="entry-badge">
                     <img v-if="imageField && recordData(rec)[imageField.key]" :src="recordData(rec)[imageField.key]"
@@ -72,10 +72,17 @@
             </div>
           </div>
           <div class="leaf-footer">
+            <button class="leaf-nav-btn" :disabled="!hasPrevPage" @click="prevPage">
+              <OhVueIcon name="md-chevronleft" scale="0.9" />
+            </button>
             <button class="leaf-new" @click="createRecord">
               <span class="leaf-new-line-l"></span>
               <span class="leaf-new-label">✦ New {{ entityType?.name }} ✦</span>
               <span class="leaf-new-line-r"></span>
+            </button>
+            <span class="leaf-folio-num">{{ listPage + 1 }} / {{ totalPages }}</span>
+            <button class="leaf-nav-btn" :disabled="!hasNextPage" @click="nextPage">
+              <OhVueIcon name="md-chevronright" scale="0.9" />
             </button>
           </div>
         </div>
@@ -154,6 +161,20 @@ const filtered = computed(() => {
   const q = search.value.toLowerCase()
   return q ? records.value.filter(r => r.name.toLowerCase().includes(q)) : records.value
 })
+
+// Pagination — 10 entries per left page
+const PAGE_SIZE = 10
+const listPage = ref(0)
+const hasPrevPage = computed(() => listPage.value > 0)
+const hasNextPage = computed(() => (listPage.value + 1) * PAGE_SIZE < filtered.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
+const pagedEntries = computed(() => filtered.value.slice(listPage.value * PAGE_SIZE, (listPage.value + 1) * PAGE_SIZE))
+
+function prevPage() { if (hasPrevPage.value) listPage.value-- }
+function nextPage() { if (hasNextPage.value) listPage.value++ }
+
+watch(search, () => { listPage.value = 0 })
+watch(entityType, () => { listPage.value = 0 })
 
 onMounted(async () => {
   if (!systemsStore.systems.length) await systemsStore.loadAll()
@@ -454,6 +475,37 @@ function formatDate(dt: string) {
 .ea-sep {
   color: var(--gold); font-size: 7px; opacity: 0.6;
   flex-shrink: 0; align-self: center; user-select: none;
+}
+
+/* Pagination footer */
+.leaf-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 14px;
+}
+.leaf-footer .leaf-new { flex: 1; width: auto; }
+
+.leaf-nav-btn {
+  width: 26px; height: 26px;
+  border-radius: 2px;
+  background: none;
+  border: 1px solid var(--parch-line);
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
+.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+.leaf-folio-num {
+  font-family: var(--font-head);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
 }
 
 /* Detail pane */

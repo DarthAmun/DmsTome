@@ -40,17 +40,29 @@
                 <span class="leaf-count">{{ locations.length }} entries</span>
               </div>
               <div class="atlas-list">
-                <div v-for="loc in leftLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                <div v-for="(loc, i) in leftLocations" :key="loc.id" class="entry"
+                  style="--et-color: var(--gold)" @click="openLocation(loc)">
+                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
                   <div class="entry-icon">
-                    <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
-                    <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                    <div class="entry-badge">
+                      <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                      <OhVueIcon v-else name="gi-castle" scale="0.75" style="color:var(--gold)" />
+                    </div>
                   </div>
-                  <span class="entry-name">{{ loc.name }}
-                    <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
-                  </span>
-                  <span class="entry-dots" />
-                  <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
-                  <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+                  <div class="entry-body">
+                    <div class="entry-top">
+                      <span class="entry-name">{{ loc.name }}</span>
+                      <span class="entry-leader" />
+                      <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+                    </div>
+                    <div v-if="locAttrs(loc).locationType || locMap(loc)" class="entry-attrs">
+                      <span v-if="locAttrs(loc).locationType" class="ea-pill"
+                        style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
+                        {{ locAttrs(loc).locationType }}
+                      </span>
+                      <span v-if="locMap(loc)" class="ea-bool">map</span>
+                    </div>
+                  </div>
                 </div>
                 <div v-if="!locations.length" class="leaf-empty">
                   <OhVueIcon name="gi-treasure-map" scale="2.5" style="opacity:0.08;margin-bottom:12px" />
@@ -59,11 +71,15 @@
               </div>
             </div>
             <div class="leaf-footer">
+              <button class="leaf-nav-btn" :disabled="!hasPrevSpread" @click="prevSpread">
+                <OhVueIcon name="md-chevronleft" scale="0.9" />
+              </button>
               <button class="leaf-new" @click="createLocation">
                 <span class="leaf-new-line-l"></span>
                 <span class="leaf-new-label">✦ New Location ✦</span>
                 <span class="leaf-new-line-r"></span>
               </button>
+              <span class="leaf-folio-num">{{ spreadPage + 1 }}</span>
             </div>
           </div>
         </div>
@@ -78,25 +94,43 @@
           <div class="book-leaf book-leaf--right">
             <div class="leaf-inner">
               <div class="leaf-header leaf-header--right">
-                <span class="leaf-folio">continued</span>
+                <span class="leaf-folio">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
               </div>
               <div class="atlas-list">
-                <div v-for="loc in rightLocations" :key="loc.id" class="entry" @click="openLocation(loc)">
+                <div v-for="(loc, i) in rightLocations" :key="loc.id" class="entry"
+                  style="--et-color: var(--gold)" @click="openLocation(loc)">
+                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
                   <div class="entry-icon">
-                    <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
-                    <OhVueIcon v-else name="gi-castle" scale="0.85" style="color:var(--gold)" />
+                    <div class="entry-badge">
+                      <img v-if="locLogo(loc)" :src="locLogo(loc)!" class="entry-thumb" />
+                      <OhVueIcon v-else name="gi-castle" scale="0.75" style="color:var(--gold)" />
+                    </div>
                   </div>
-                  <span class="entry-name">{{ loc.name }}
-                    <em v-if="locAttrs(loc).locationType">— {{ locAttrs(loc).locationType }}</em>
-                  </span>
-                  <span class="entry-dots" />
-                  <span v-if="locMap(loc)" class="entry-tag" style="color:var(--gold);border-color:var(--gold)">map</span>
-                  <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+                  <div class="entry-body">
+                    <div class="entry-top">
+                      <span class="entry-name">{{ loc.name }}</span>
+                      <span class="entry-leader" />
+                      <span class="entry-date">{{ formatDate(loc.updatedAt) }}</span>
+                    </div>
+                    <div v-if="locAttrs(loc).locationType || locMap(loc)" class="entry-attrs">
+                      <span v-if="locAttrs(loc).locationType" class="ea-pill"
+                        style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
+                        {{ locAttrs(loc).locationType }}
+                      </span>
+                      <span v-if="locMap(loc)" class="ea-bool">map</span>
+                    </div>
+                  </div>
                 </div>
                 <div v-if="rightLocations.length === 0 && locations.length > 0" class="leaf-empty">
                   <em style="opacity:0.35">— end of entries —</em>
                 </div>
               </div>
+            </div>
+            <div class="leaf-footer leaf-footer--right">
+              <span class="leaf-folio-num">{{ spreadPage + 2 }}</span>
+              <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
+                <OhVueIcon name="md-chevronright" scale="0.9" />
+              </button>
             </div>
           </div>
         </div>
@@ -118,8 +152,17 @@ const campaignName = ref('Campaign')
 const previewLoc = ref<any>(null)
 
 const locations = computed(() => store.byType['location'] ?? [])
-const leftLocations = computed(() => { const a = locations.value; return a.slice(0, Math.ceil(a.length / 2)) })
-const rightLocations = computed(() => { const a = locations.value; return a.slice(Math.ceil(a.length / 2)) })
+
+const PAGE_HALF = 8
+const spreadPage = ref(0)
+const hasPrevSpread = computed(() => spreadPage.value > 0)
+const hasNextSpread = computed(() => (spreadPage.value + 1) * PAGE_HALF * 2 < locations.value.length)
+const totalSpreads = computed(() => Math.max(1, Math.ceil(locations.value.length / (PAGE_HALF * 2))))
+const leftLocations = computed(() => locations.value.slice(spreadPage.value * PAGE_HALF * 2, spreadPage.value * PAGE_HALF * 2 + PAGE_HALF))
+const rightLocations = computed(() => locations.value.slice(spreadPage.value * PAGE_HALF * 2 + PAGE_HALF, (spreadPage.value + 1) * PAGE_HALF * 2))
+
+function prevSpread() { if (hasPrevSpread.value) spreadPage.value-- }
+function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
 
 // All state in the URL:
 //   locationId = current map being viewed
@@ -349,26 +392,33 @@ function formatDate(dt: string) {
   gap: 8px;
 }
 
-.atlas-list {
-  display: flex;
-  flex-direction: column;
-}
+.atlas-list { display: flex; flex-direction: column; }
 
-.entry-icon {
-  width: 26px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+/* Entry */
+.entry { align-items: flex-start; border-left: 2px solid transparent; transition: border-color 0.15s, background 0.15s; }
+.entry:hover { border-left-color: color-mix(in srgb, var(--et-color, var(--gold)) 40%, transparent); background: color-mix(in srgb, var(--et-color, var(--gold)) 4%, transparent); }
 
-.entry-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--parch-dark);
-}
+.entry-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); opacity: 0.4; width: 18px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1; }
+.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--et-color, var(--gold)) 13%, transparent); border: 1px solid color-mix(in srgb, var(--et-color, var(--gold)) 30%, transparent); overflow: hidden; flex-shrink: 0; }
+.entry-thumb { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.entry-top { display: flex; align-items: center; gap: 6px; }
+.entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
+.entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; flex-shrink: 0; white-space: nowrap; }
+.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
+
+.ea-pill { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px 2px 5px; border: 1px solid currentColor; border-radius: 2px; flex-shrink: 0; white-space: nowrap; }
+.ea-bool { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px 2px 5px; border-radius: 2px; color: var(--gold); background: rgba(184,134,11,0.08); border: 1px solid rgba(184,134,11,0.3); flex-shrink: 0; }
+
+/* Pagination footer */
+.leaf-footer { display: flex; align-items: center; gap: 8px; padding: 8px 16px 14px; }
+.leaf-footer--right { justify-content: flex-end; }
+.leaf-footer .leaf-new { flex: 1; width: auto; }
+.leaf-nav-btn { width: 26px; height: 26px; border-radius: 2px; background: none; border: 1px solid var(--parch-line); color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
+.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.leaf-folio-num { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); letter-spacing: 0.12em; white-space: nowrap; }
 
 </style>
