@@ -24,23 +24,12 @@
       </div>
     </div>
 
-    <!-- EDITOR — when a note is selected -->
-    <div v-if="selectedId" class="notes-editor-full">
-      <div class="editor-back-bar">
-        <button class="back-crumb" @click="goBack">← All {{ activeTypeConfig?.plural }}</button>
-      </div>
-      <div class="editor-body-area">
-        <NoteEditor :entity-id="selectedId" :campaign-id="campaignId"
-          @navigate="navigateByTypeAndName" @deleted="goBack" />
-      </div>
-    </div>
-
-    <!-- GRAPH -->
-    <div v-else-if="showGraph" class="notes-graph-full">
+    <!-- GRAPH (full width) -->
+    <div v-if="showGraph" class="notes-graph-full">
       <NotesGraph :campaign-id="campaignId" @navigate="navigateByTypeAndName" />
     </div>
 
-    <!-- OPEN BOOK INDEX -->
+    <!-- OPEN BOOK — always visible (editor opens on right page) -->
     <div v-else class="open-book">
 
       <!-- LEFT PAGE -->
@@ -49,6 +38,20 @@
         <div class="book-sheet-2"></div>
         <div class="book-sheet-1"></div>
         <div class="book-leaf book-leaf--left">
+
+          <!-- EDITOR PANE — when an entry is selected -->
+          <template v-if="selectedId">
+            <div class="leaf-inner leaf-inner--editor">
+              <NoteEditor :entity-id="selectedId" :campaign-id="campaignId" side="editor"
+                @navigate="navigateByTypeAndName" @deleted="goBack" />
+            </div>
+            <div class="leaf-footer">
+              <button class="back-crumb" @click="goBack">← {{ activeTypeConfig?.plural }}</button>
+            </div>
+          </template>
+
+          <!-- LIST — left half of paginated index -->
+          <template v-else>
           <div class="leaf-inner">
             <div class="leaf-header">
               <span class="leaf-type" :style="{ color: activeTypeConfig?.color }">
@@ -58,6 +61,7 @@
             </div>
             <div class="leaf-index" v-if="leftEntries.length">
               <div v-for="(e, i) in leftEntries" :key="e.id" class="entry"
+                :class="{ 'entry--active': e.id === selectedId }"
                 :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
                 @click="selectEntity(e.id)">
                 <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
@@ -127,6 +131,7 @@
             </button>
             <span class="leaf-folio-num">{{ spreadPage + 1 }}</span>
           </div>
+          </template>
         </div>
       </div>
 
@@ -138,76 +143,89 @@
         <div class="book-sheet-2"></div>
         <div class="book-sheet-1"></div>
         <div class="book-leaf book-leaf--right">
-          <div class="leaf-inner">
-            <div class="leaf-header leaf-header--right">
-              <span class="leaf-folio">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
+
+          <!-- PREVIEW PANE — when an entry is selected -->
+          <template v-if="selectedId">
+            <div class="leaf-inner leaf-inner--editor">
+              <NoteEditor :entity-id="selectedId" :campaign-id="campaignId" side="preview"
+                @navigate="navigateByTypeAndName" />
             </div>
-            <div class="leaf-index">
-              <div v-for="(e, i) in rightEntries" :key="e.id" class="entry"
-                :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
-                @click="selectEntity(e.id)">
-                <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
-                <div class="entry-icon">
-                  <div class="entry-badge">
-                    <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
-                    <OhVueIcon v-else :name="entityIcon(e)" scale="0.75"
-                      :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
-                  </div>
-                </div>
-                <div class="entry-body">
-                  <div class="entry-top">
-                    <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
-                    <span class="entry-leader" />
-                    <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
-                    <div class="entry-actions" @click.stop>
-                      <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
-                        <OhVueIcon name="md-delete" scale="0.7" />
-                      </button>
+          </template>
+
+          <!-- LIST — right half of paginated index -->
+          <template v-else>
+            <div class="leaf-inner">
+              <div class="leaf-header leaf-header--right">
+                <span class="leaf-folio">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
+              </div>
+              <div class="leaf-index">
+                <div v-for="(e, i) in rightEntries" :key="e.id" class="entry"
+                  :style="{ '--et-color': isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }"
+                  @click="selectEntity(e.id)">
+                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
+                  <div class="entry-icon">
+                    <div class="entry-badge">
+                      <img v-if="entityImage(e)" :src="entityImage(e)" class="entry-thumb" />
+                      <OhVueIcon v-else :name="entityIcon(e)" scale="0.75"
+                        :style="{ color: isDeceased(e) ? 'var(--ink-ghost)' : activeTypeConfig?.color }" />
                     </div>
                   </div>
-                  <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
-                    class="entry-attrs">
-                    <template v-for="(item, ci) in summaries.get(e.id)?.primary ?? []" :key="item.key">
-                      <span v-if="ci > 0" class="ea-sep">✦</span>
-                      <span v-if="item.kind === 'pill'" class="ea-pill"
-                        :style="item.color ? { color: item.color, borderColor: item.color, background: `color-mix(in srgb, ${item.color} 10%, transparent)` } : {}">
-                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
-                      </span>
-                      <span v-else-if="item.kind === 'text'" class="ea-text">
-                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />
-                        <span v-if="item.label" class="ea-label">{{ item.label }}</span>{{ item.value }}
-                      </span>
-                      <span v-else-if="item.kind === 'bool'" class="ea-bool"
-                        :class="{ 'ea-bool--danger': item.danger, 'ea-bool--muted': item.muted }">
-                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.75" />{{ item.value }}
-                      </span>
-                      <template v-else-if="item.kind === 'tags'">
-                        <span v-for="t in item.tags" :key="t" class="ea-tag">{{ t }}</span>
+                  <div class="entry-body">
+                    <div class="entry-top">
+                      <span class="entry-name" :class="{ 'entry-name--deceased': isDeceased(e) }">{{ e.name }}</span>
+                      <span class="entry-leader" />
+                      <span class="entry-date">{{ formatEntryDate(e.updatedAt) }}</span>
+                      <div class="entry-actions" @click.stop>
+                        <button class="entry-act entry-act--del" @click.stop="confirmDelete(e)">
+                          <OhVueIcon name="md-delete" scale="0.7" />
+                        </button>
+                      </div>
+                    </div>
+                    <div v-if="(summaries.get(e.id)?.primary.length ?? 0) > 0 || (summaries.get(e.id)?.secondary.length ?? 0) > 0"
+                      class="entry-attrs">
+                      <template v-for="(item, ci) in summaries.get(e.id)?.primary ?? []" :key="item.key">
+                        <span v-if="ci > 0" class="ea-sep">✦</span>
+                        <span v-if="item.kind === 'pill'" class="ea-pill"
+                          :style="item.color ? { color: item.color, borderColor: item.color, background: `color-mix(in srgb, ${item.color} 10%, transparent)` } : {}">
+                          <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                        </span>
+                        <span v-else-if="item.kind === 'text'" class="ea-text">
+                          <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />
+                          <span v-if="item.label" class="ea-label">{{ item.label }}</span>{{ item.value }}
+                        </span>
+                        <span v-else-if="item.kind === 'bool'" class="ea-bool"
+                          :class="{ 'ea-bool--danger': item.danger, 'ea-bool--muted': item.muted }">
+                          <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.75" />{{ item.value }}
+                        </span>
+                        <template v-else-if="item.kind === 'tags'">
+                          <span v-for="t in item.tags" :key="t" class="ea-tag">{{ t }}</span>
+                        </template>
                       </template>
-                    </template>
-                    <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
-                    <template v-for="(item, si) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
-                      <span v-if="si > 0" class="ea-sep">✦</span>
-                      <span v-if="item.kind === 'text'" class="ea-secondary-item">
-                        <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
-                      </span>
-                    </template>
+                      <span v-if="(summaries.get(e.id)?.secondary.length ?? 0) > 0" class="ea-spacer" />
+                      <template v-for="(item, si) in summaries.get(e.id)?.secondary ?? []" :key="'s' + item.key">
+                        <span v-if="si > 0" class="ea-sep">✦</span>
+                        <span v-if="item.kind === 'text'" class="ea-secondary-item">
+                          <OhVueIcon v-if="item.icon" :name="item.icon" scale="0.7" />{{ item.value }}
+                        </span>
+                      </template>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-inner--right">
-                <OhVueIcon :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="4"
-                  :style="{ opacity: 0.13, marginBottom: '24px', color: activeTypeConfig?.color }" />
-                <p class="right-hint"><em>All {{ activeTypeConfig?.plural }} are<br>listed on the facing page.</em></p>
+                <div v-if="rightEntries.length === 0 && sortedEntities.length > 0" class="leaf-inner--right">
+                  <OhVueIcon :name="activeTypeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="4"
+                    :style="{ opacity: 0.13, marginBottom: '24px', color: activeTypeConfig?.color }" />
+                  <p class="right-hint"><em>All {{ activeTypeConfig?.plural }} are<br>listed on the facing page.</em></p>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="leaf-footer leaf-footer--right">
-            <span class="leaf-folio-num">{{ spreadPage + 2 }}</span>
-            <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
-              <OhVueIcon name="md-chevronright" scale="0.9" />
-            </button>
-          </div>
+            <div class="leaf-footer leaf-footer--right">
+              <span class="leaf-folio-num">{{ spreadPage + 2 }}</span>
+              <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
+                <OhVueIcon name="md-chevronright" scale="0.9" />
+              </button>
+            </div>
+          </template>
+
         </div>
       </div>
 
@@ -225,7 +243,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useNotesStore()
 const campaignId = Number(route.params.id)
-const campaignName = ref('Campaign')
+
 const search = ref('')
 const sortBy = ref('updated')
 const showGraph = ref(false)
@@ -233,7 +251,7 @@ const showGraph = ref(false)
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
 
 // All state is driven from the URL query string — this makes the browser back button work
-const activeType = computed(() => (route.query.type as EntityType) || 'note')
+const activeType = computed(() => (route.query.type as EntityType) || 'session')
 const selectedId = computed(() => route.query.id ? Number(route.query.id) : null)
 const activeTypeConfig = computed(() => ENTITY_TYPE_CONFIG[activeType.value])
 
@@ -271,10 +289,6 @@ watch([activeType, search], () => { spreadPage.value = 0 })
 
 onMounted(async () => {
   await store.loadAll(campaignId)
-  if (window.dmforge) {
-    const camps = await window.dmforge.campaigns.list()
-    campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? 'Campaign'
-  }
 })
 
 // Navigation — all push to router so back button works
@@ -550,19 +564,13 @@ async function confirmDelete(entity: any) {
   border-color: var(--blood);
 }
 
-/* Full editor when note open */
-.notes-editor-full {
+/* Editor on right leaf */
+.leaf-inner--editor {
   flex: 1;
+  overflow: hidden;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-.editor-back-bar {
-  padding: 8px 24px;
-  border-bottom: 1px dashed var(--parch-line);
-  flex-shrink: 0;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
 .back-crumb {
@@ -581,13 +589,6 @@ async function confirmDelete(entity: any) {
 
 .back-crumb:hover {
   color: var(--blood);
-}
-
-.editor-body-area {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .notes-graph-full {
@@ -733,6 +734,7 @@ async function confirmDelete(entity: any) {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .entry-name--deceased { text-decoration: line-through; color: var(--ink-ghost) !important; }
+.entry--active { border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 60%, transparent) !important; background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 7%, transparent) !important; }
 
 /* Dotted leader */
 .entry-leader {

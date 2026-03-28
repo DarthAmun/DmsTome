@@ -1,7 +1,7 @@
 <template>
   <div class="note-editor">
     <!-- Header -->
-    <div class="editor-header">
+    <div v-if="props.side !== 'preview'" class="editor-header">
       <div class="flex items-center gap-3 flex-1 min-w-0">
         <span class="entity-type-badge"
           :style="{ background: typeColor + '22', borderColor: typeColor + '55', color: typeColor }">
@@ -41,14 +41,68 @@
     <div class="editor-body">
 
       <!-- Attributes panel (slides in from right) -->
-      <div v-if="activePanel === 'attributes'" class="attributes-pane">
+      <div v-if="activePanel === 'attributes' && props.side !== 'preview'" class="attributes-pane">
         <h3 class="f-label mb-3">{{ typeLabel }} Details</h3>
         <AttributeEditor :type="entity!.type" :model-value="draftAttributes" @update:model-value="onAttributesChange" />
       </div>
 
       <!-- Session dual-pane -->
       <template v-else-if="entity?.type === 'session'">
-        <div class="split-pane">
+        <!-- Editor side only: script pane -->
+        <div v-if="props.side === 'editor'" class="edit-pane">
+          <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
+            <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
+            Script / Prep
+            <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only during session</span>
+          </div>
+          <div v-if="sessionMode !== 'planning'" class="preview-pane">
+            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
+          </div>
+          <div v-else class="editor-area-wrap" style="position:relative">
+            <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true"
+              @input="onScriptInput" placeholder="Write your session script and prep notes here…" />
+            <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
+              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
+                @mousedown.prevent="applyAutocomplete(item)">
+                <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
+                <span class="text-sm">{{ item.name }}</span>
+                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+              </button>
+              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
+            </div>
+          </div>
+        </div>
+        <!-- Preview side only: notes pane -->
+        <div v-else-if="props.side === 'preview'" class="edit-pane">
+          <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
+            <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
+            <span v-if="sessionMode === 'planning'">Script Preview</span>
+            <span v-else>Session Notes</span>
+            <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
+          </div>
+          <div v-if="sessionMode === 'running'" class="editor-area-wrap" style="position:relative">
+            <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
+              @input="onInput" placeholder="Take notes here while running the session…" />
+            <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
+              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
+                @mousedown.prevent="applyAutocomplete(item)">
+                <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
+                <span class="text-sm">{{ item.name }}</span>
+                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+              </button>
+              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
+            </div>
+          </div>
+          <div v-else-if="sessionMode === 'planning'" class="preview-pane">
+            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
+          </div>
+          <div v-else class="preview-pane">
+            <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
+            <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
+          </div>
+        </div>
+        <!-- Full split (default) -->
+        <div v-else class="split-pane">
           <!-- Script side -->
           <div class="edit-pane">
             <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
@@ -56,13 +110,21 @@
               Script / Prep
               <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only during session</span>
             </div>
-            <!-- Script: preview in running/finished, editor in planning -->
             <div v-if="sessionMode !== 'planning'" class="preview-pane">
               <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
             </div>
-            <div v-else class="editor-area-wrap">
+            <div v-else class="editor-area-wrap" style="position:relative">
               <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true"
                 @input="onScriptInput" placeholder="Write your session script and prep notes here…" />
+              <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
+                <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
+                  @mousedown.prevent="applyAutocomplete(item)">
+                  <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
+                  <span class="text-sm">{{ item.name }}</span>
+                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+                </button>
+                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
+              </div>
             </div>
           </div>
           <div class="split-divider" />
@@ -74,13 +136,18 @@
               <span v-else>Session Notes</span>
               <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
             </div>
-            <!-- Notes side: behaviour depends on mode -->
-            <!-- planning  → script preview (right side mirrors what you're editing left) -->
-            <!-- running   → notes editor (live note-taking) -->
-            <!-- finished  → notes preview -->
-            <div v-if="sessionMode === 'running'" class="editor-area-wrap">
+            <div v-if="sessionMode === 'running'" class="editor-area-wrap" style="position:relative">
               <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
                 @input="onInput" placeholder="Take notes here while running the session…" />
+              <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
+                <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
+                  @mousedown.prevent="applyAutocomplete(item)">
+                  <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
+                  <span class="text-sm">{{ item.name }}</span>
+                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+                </button>
+                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
+              </div>
             </div>
             <div v-else-if="sessionMode === 'planning'" class="preview-pane">
               <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
@@ -93,9 +160,56 @@
         </div>
       </template>
 
-      <!-- Regular content panel — split edit + preview -->
+      <!-- Regular content panel -->
       <template v-else>
-        <div class="split-pane">
+        <!-- Editor side only -->
+        <div v-if="props.side === 'editor'" class="edit-pane">
+          <div class="editor-toolbar">
+            <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
+            <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
+            <button class="tb-btn" title="Heading" @click="insertMarkdown('## ', '')">H</button>
+            <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
+            <div class="tb-divider" />
+            <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
+              :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">
+              {{ t.label.charAt(0) }}
+            </button>
+            <div class="tb-divider" />
+            <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
+          </div>
+          <div class="editor-area-wrap" style="position:relative">
+            <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
+              @input="onInput" />
+            <div v-if="autocomplete.show" class="autocomplete-dropdown">
+              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
+                @mousedown.prevent="applyAutocomplete(item)">
+                <span class="autocomplete-dot"
+                  :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
+                <span class="text-sm">{{ item.name }}</span>
+                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+              </button>
+              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches
+                — will link on save</p>
+            </div>
+          </div>
+        </div>
+        <!-- Preview side only -->
+        <div v-else-if="props.side === 'preview'" class="preview-pane">
+          <div v-if="entityImageUrl" class="preview-banner">
+            <img :src="entityImageUrl" class="preview-banner-img" />
+          </div>
+          <div class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
+          <div v-if="entityMapUrl" class="preview-map-section">
+            <div class="preview-map-label">
+              <OhVueIcon name="md-map" scale="0.8" /> Map
+            </div>
+            <div class="preview-map-img-wrap">
+              <img :src="entityMapUrl" class="preview-map-img" />
+            </div>
+          </div>
+        </div>
+        <!-- Full split (default) -->
+        <div v-else class="split-pane">
           <!-- Left: Editor -->
           <div class="edit-pane">
             <div class="editor-toolbar">
@@ -127,18 +241,14 @@
               </div>
             </div>
           </div>
-
           <!-- Divider -->
           <div class="split-divider" />
-
           <!-- Right: Preview -->
           <div class="preview-pane">
-            <!-- Entity image/portrait banner -->
             <div v-if="entityImageUrl" class="preview-banner">
               <img :src="entityImageUrl" class="preview-banner-img" />
             </div>
             <div class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-            <!-- Location map at bottom of preview -->
             <div v-if="entityMapUrl" class="preview-map-section">
               <div class="preview-map-label">
                 <OhVueIcon name="md-map" scale="0.8" /> Map
@@ -153,7 +263,7 @@
     </div>
 
     <!-- Links panel -->
-    <div v-if="outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0" class="links-panel">
+    <div v-if="(outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0) && props.side !== 'editor'" class="links-panel">
       <div v-if="pinnedOn.length > 0" class="links-section">
         <span class="f-label">Found in</span>
         <div class="links-list">
@@ -202,7 +312,7 @@ import { renderEntityRefs } from '~/composables/useEntityParser'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityAttributes } from '~/types/entities'
 
-const props = defineProps<{ entityId: number; campaignId: number }>()
+const props = defineProps<{ entityId: number; campaignId: number; side?: 'editor' | 'preview' }>()
 const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }>()
 
 const store = useNotesStore()
@@ -234,21 +344,24 @@ const entityImage = computed(() => {
   return src
 })
 
-const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0 })
+const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0, isScript: false })
 
 const sessionModes = [
   { value: 'planning', label: 'Planning' },
   { value: 'running',  label: 'Running' },
   { value: 'finished', label: 'Finished' },
 ]
-const sessionMode = computed(() => (draftAttributes.value as any).mode ?? 'planning')
+const sessionMode = computed(() => (entity.value?.attributes as any)?.mode ?? 'planning')
 const draftScript = ref('')
 const scriptRef = ref<HTMLTextAreaElement | null>(null)
 let scriptSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const renderedScript = computed(() => {
-  if (!draftScript.value) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
-  const html = md.render(draftScript.value)
+  const script = props.side === 'preview'
+    ? ((entity.value?.attributes as any)?.scriptContent ?? '')
+    : draftScript.value
+  if (!script) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
+  const html = md.render(script)
   return DOMPurify.sanitize(renderEntityRefs(html, entityLookup), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
@@ -258,6 +371,7 @@ function onScriptInput() {
     const attrs = { ...(entity.value?.attributes as any ?? {}), scriptContent: draftScript.value }
     await store.updateEntity(props.entityId, { attributes: attrs })
   }, 800)
+  checkAutocomplete(scriptRef.value, draftScript.value, true)
 }
 
 async function setSessionMode(mode: string) {
@@ -297,8 +411,9 @@ function entityLookup(type: string, name: string) {
 }
 
 const renderedContent = computed(() => {
-  if (!draftContent.value) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
-  const html = md.render(draftContent.value)
+  const content = props.side === 'preview' ? (entity.value?.content ?? '') : draftContent.value
+  if (!content) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
+  const html = md.render(content)
   const withRefs = renderEntityRefs(html, entityLookup)
   return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
@@ -335,7 +450,7 @@ async function saveName() {
 function onInput() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
-  checkAutocomplete()
+  checkAutocomplete(editorRef.value, draftContent.value, false)
 }
 
 function onAttributesChange(attrs: EntityAttributes) {
@@ -344,12 +459,10 @@ function onAttributesChange(attrs: EntityAttributes) {
   attrSaveTimer = setTimeout(() => store.updateEntity(props.entityId, { attributes: attrs }), 500)
 }
 
-function checkAutocomplete() {
-  const el = editorRef.value
+function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
   if (!el) return
   const pos = el.selectionStart
-  const text = draftContent.value.slice(0, pos)
-  const match = text.match(/\{\{(\w+):\s*([^}]*)$/)
+  const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
   if (!match) { autocomplete.value.show = false; return }
   const partialType = match[1].toLowerCase()
   const partialName = match[2]
@@ -358,19 +471,23 @@ function checkAutocomplete() {
       (!partialType || e.type.startsWith(partialType)) &&
       (!partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
   }).slice(0, 8)
-  autocomplete.value = { show: true, items: candidates, triggerStart: pos - match[0].length }
+  autocomplete.value = { show: true, items: candidates, triggerStart: pos - match[0].length, isScript }
 }
 
 function applyAutocomplete(item: any) {
-  const el = editorRef.value
+  const isScript = autocomplete.value.isScript
+  const el = isScript ? scriptRef.value : editorRef.value
   if (!el) return
   const pos = el.selectionStart
-  const before = draftContent.value.slice(0, autocomplete.value.triggerStart)
-  const after = draftContent.value.slice(pos)
-  draftContent.value = `${before}{{${item.type}: ${item.name}}}${after}`
+  const draft = isScript ? draftScript.value : draftContent.value
+  const before = draft.slice(0, autocomplete.value.triggerStart)
+  const after = draft.slice(pos)
+  const replacement = `{{${item.type}: ${item.name}}}`
+  if (isScript) draftScript.value = `${before}${replacement}${after}`
+  else draftContent.value = `${before}${replacement}${after}`
   autocomplete.value.show = false
   nextTick(() => {
-    const newPos = before.length + `{{${item.type}: ${item.name}}}`.length
+    const newPos = before.length + replacement.length
     el.setSelectionRange(newPos, newPos)
     el.focus()
   })
