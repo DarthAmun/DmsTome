@@ -86,6 +86,8 @@
 </template>
 
 <script setup lang="ts">
+import { useDiceRoll } from '~/composables/useDiceRoll'
+
 const DICE = [4, 6, 8, 10, 12, 20, 100] as const
 type DieSides = typeof DICE[number]
 
@@ -174,6 +176,46 @@ function clearAll() {
   modifier.value = 0
   result.value = null
 }
+
+// ── External roll trigger ─────────────────────────────────────
+const { pendingRoll, clearPendingRoll } = useDiceRoll()
+
+function parseDiceExpression(expr: string): boolean {
+  // Normalise: remove spaces, uppercase D → d
+  const s = expr.replace(/\s/g, '').replace(/D/g, 'd')
+  const tokenRe = /([+-]?)(\d*)d(\d+)|([+-]?\d+)/g
+  let matched = false
+  const newPool: Record<number, number> = { 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 }
+  let newMod = 0
+  let m: RegExpExecArray | null
+  while ((m = tokenRe.exec(s)) !== null) {
+    if (m[3] !== undefined) {
+      // dice term: e.g. 2d6, d20, -1d8
+      const sign = m[1] === '-' ? -1 : 1
+      const count = (m[2] ? parseInt(m[2]) : 1) * sign
+      const sides = parseInt(m[3])
+      if (sides in newPool) newPool[sides] += count
+      matched = true
+    } else if (m[4] !== undefined) {
+      // flat modifier: e.g. +5, -3
+      newMod += parseInt(m[4])
+      matched = true
+    }
+  }
+  if (!matched) return false
+  DICE.forEach(d => { pool[d] = Math.max(0, newPool[d]) })
+  modifier.value = newMod
+  return true
+}
+
+watch(pendingRoll, (expr) => {
+  if (!expr) return
+  clearPendingRoll()
+  if (parseDiceExpression(expr)) {
+    panelOpen.value = true
+    nextTick(rollDice)
+  }
+})
 
 function rollDice() {
   const rolls: { sides: number; values: number[] }[] = []
@@ -525,8 +567,8 @@ onUnmounted(() => {
 .dp-result {
   margin: 0 12px 10px;
   padding: 14px 12px 12px;
-  background: rgba(0,0,0,0.28);
-  border: 1px solid rgba(184,134,11,0.18);
+  background: rgba(60,45,25,0.55);
+  border: 1px solid rgba(184,134,11,0.22);
   border-radius: 8px;
   text-align: center;
 }
@@ -558,8 +600,8 @@ onUnmounted(() => {
 }
 .dp-result--fail .dp-result-total { color: var(--blood, #c03030); }
 .dp-result-breakdown {
-  font-size: 10px;
-  color: #9a8a72;
+  font-size: 11px;
+  color: #c8b896;
   font-family: monospace;
   line-height: 1.5;
   word-break: break-all;

@@ -56,6 +56,10 @@ export function renderEntityRefs(
   entityLookup?: (type: string, name: string) => { imageUrl?: string; color?: string } | null
 ): string {
   return html.replace(ENTITY_REGEX, (raw, type, name, metaStr) => {
+    if (type.toLowerCase() === 'roll') {
+      const expr = name.trim()
+      return `<span class="roll-ref" data-roll="${expr}">🎲 ${expr}</span>`
+    }
     if (!ENTITY_TYPES.includes(type.toLowerCase())) return raw
     const metadata = parseMeta(metaStr ?? '')
     const metaLabel = Object.entries(metadata).map(([k, v]) => `${k}: ${v}`).join(', ')

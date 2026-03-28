@@ -309,6 +309,7 @@ import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { useNotesStore } from '~/stores/notes'
 import { renderEntityRefs } from '~/composables/useEntityParser'
+import { useDiceRoll } from '~/composables/useDiceRoll'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityAttributes } from '~/types/entities'
 
@@ -465,6 +466,7 @@ function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScrip
   const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
   if (!match) { autocomplete.value.show = false; return }
   const partialType = match[1].toLowerCase()
+  if (partialType === 'roll') { autocomplete.value.show = false; return }
   const partialName = match[2]
   const candidates = store.entities.filter(e => {
     return e.campaignId === props.campaignId &&
@@ -505,8 +507,15 @@ function insertMarkdown(before: string, after: string) {
 
 function insertEntityRef(type: string) { insertMarkdown(`{{${type}: `, '}}') }
 
+const { triggerRoll } = useDiceRoll()
+
 function onPreviewClick(e: MouseEvent) {
   const target = e.target as HTMLElement
+  if (target.classList.contains('roll-ref')) {
+    const roll = target.dataset.roll
+    if (roll) triggerRoll(roll)
+    return
+  }
   if (target.classList.contains('entity-ref')) {
     const type = target.dataset.entityType
     const name = target.dataset.entityName
@@ -984,5 +993,26 @@ async function confirmDelete() {
   margin-right: 4px;
   margin-top: -1px;
   flex-shrink: 0;
+}
+
+.roll-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(184,134,11,0.1);
+  border: 1px solid rgba(184,134,11,0.35);
+  border-radius: 5px;
+  padding: 1px 8px;
+  color: var(--gold);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.88em;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.roll-ref:hover {
+  background: rgba(184,134,11,0.22);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(184,134,11,0.2);
 }
 </style>
