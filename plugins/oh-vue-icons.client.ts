@@ -19,6 +19,7 @@ import {
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,
   FaDragon, FaFeatherAlt, FaDice,
+  FaDiceD20,
 } from 'oh-vue-icons/icons/fa'
 
 // Add all Game Icons (gi-*) in one shot
@@ -41,6 +42,7 @@ addIcons(
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,
   FaDragon, FaFeatherAlt, FaDice,
+  FaDiceD20,
 )
 
 export default defineNuxtPlugin((nuxtApp) => {

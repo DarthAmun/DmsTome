@@ -1,6 +1,7 @@
 <template>
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
+    <DiceRoller />
     <div id="spark-layer" aria-hidden="true" />
     <Transition name="install">
       <button v-if="installPrompt" class="install-pill" @click="installApp" title="Install DM's Tome">
