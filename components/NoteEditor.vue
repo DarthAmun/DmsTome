@@ -381,19 +381,14 @@ function postProcessHtml(html: string): string {
     .replace(/<li>\s*\[x\]\s*/gi, '<li class="task-item task-item--done"><input type="checkbox" checked disabled> ')
 
   // Obsidian-style callouts: > [!TYPE] optional title
+  // With breaks:true, markdown-it renders as: <blockquote><p>[!TYPE] title<br>\nbody</p></blockquote>
   out = out.replace(
-    /<blockquote>\s*<p>\[!([\w]+)\](.*?)(<\/p>[\s\S]*?)<\/blockquote>/gi,
-    (_full, type, rest, bodyHtml) => {
+    /<blockquote>\s*<p>\[!([\w]+)\]([^<]*)(?:<br\s*\/?>)?\s*([\s\S]*?)<\/p>\s*<\/blockquote>/gi,
+    (_full, type, titleRaw, bodyRaw) => {
       const t = type.toLowerCase()
       const cfg = CALLOUT_TYPES[t] ?? { color: '#888', icon: '📌' }
-      // rest is the text after [!TYPE] on the first line (optional custom title)
-      const titleText = rest.replace(/<br\s*\/?>/i, '').trim()
-      const displayTitle = titleText || (t.charAt(0).toUpperCase() + t.slice(1))
-      // body is everything after the first <br> in the first <p>, plus any further <p> blocks
-      const brIdx = bodyHtml.search(/<br\s*\/?>/i)
-      const body = brIdx >= 0
-        ? bodyHtml.slice(brIdx).replace(/^<br\s*\/?>/i, '')
-        : ''
+      const displayTitle = titleRaw.trim() || (t.charAt(0).toUpperCase() + t.slice(1))
+      const body = bodyRaw.trim()
       return `<div class="callout callout--${t}" style="--callout-color:${cfg.color}">
 <div class="callout-title">${cfg.icon} ${displayTitle}</div>
 ${body ? `<div class="callout-body">${body}</div>` : ''}
@@ -1012,6 +1007,18 @@ async function confirmDelete() {
   font-style: italic;
 }
 
+.markdown-body a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-color: rgba(184, 134, 11, 0.5);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s;
+}
+
+.markdown-body a:hover {
+  text-decoration-color: var(--gold);
+}
+
 .markdown-body blockquote {
   border-left: 3px solid var(--gold);
   padding-left: 1em;
@@ -1168,27 +1175,30 @@ async function confirmDelete() {
 
 /* ── Callouts > [!NOTE] ───────────────────────────────────────── */
 .callout {
-  border-left: 3px solid var(--callout-color, var(--gold));
-  background: color-mix(in srgb, var(--callout-color, var(--gold)) 8%, transparent);
+  border-left: 4px solid var(--callout-color, var(--gold));
+  background: color-mix(in srgb, var(--callout-color, var(--gold)) 10%, transparent);
   border-radius: 0 6px 6px 0;
-  padding: 10px 16px 12px;
-  margin: 1em 0;
+  padding: 0;
+  margin: 1.1em 0;
+  overflow: hidden;
 }
 .callout-title {
   font-weight: 700;
   color: var(--callout-color, var(--gold));
-  font-size: 13px;
-  margin-bottom: 4px;
+  font-size: 12px;
+  padding: 7px 14px;
+  background: color-mix(in srgb, var(--callout-color, var(--gold)) 16%, transparent);
   display: flex;
   align-items: center;
   gap: 6px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 .callout-body {
   color: var(--ink);
   font-size: 15px;
   line-height: 1.7;
+  padding: 8px 14px 10px;
 }
 .callout-body p { margin: 0.3em 0; }
 
