@@ -317,7 +317,91 @@ const props = defineProps<{ entityId: number; campaignId: number; side?: 'editor
 const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }>()
 
 const store = useNotesStore()
-const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true, breaks: true })
+
+// ── Inline: ~~strikethrough~~
+md.inline.ruler.after('backticks', 'strikethrough', (state: any, silent: boolean) => {
+  const src = state.src
+  const start = state.pos
+  if (src.charCodeAt(start) !== 0x7E || src.charCodeAt(start + 1) !== 0x7E) return false
+  const end = src.indexOf('~~', start + 2)
+  if (end < 0 || end === start + 2) return false
+  if (!silent) {
+    const max = state.posMax
+    state.push('s_open', 's', 1)
+    state.pos = start + 2
+    state.posMax = end
+    state.md.inline.tokenize(state)
+    state.push('s_close', 's', -1)
+    state.pos = end + 2
+    state.posMax = max
+  } else {
+    state.pos = end + 2
+  }
+  return true
+})
+
+// ── Inline: ==highlight==
+md.inline.ruler.after('backticks', 'highlight_mark', (state: any, silent: boolean) => {
+  const src = state.src
+  const start = state.pos
+  if (src.charCodeAt(start) !== 0x3D || src.charCodeAt(start + 1) !== 0x3D) return false
+  const end = src.indexOf('==', start + 2)
+  if (end < 0 || end === start + 2) return false
+  if (!silent) {
+    const max = state.posMax
+    state.push('mark_open', 'mark', 1)
+    state.pos = start + 2
+    state.posMax = end
+    state.md.inline.tokenize(state)
+    state.push('mark_close', 'mark', -1)
+    state.pos = end + 2
+    state.posMax = max
+  } else {
+    state.pos = end + 2
+  }
+  return true
+})
+
+// ── Post-processing: task lists + callouts
+const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
+  note:      { color: '#5b8ee6', icon: 'ℹ️' },
+  info:      { color: '#5b8ee6', icon: 'ℹ️' },
+  tip:       { color: '#5aad6e', icon: '💡' },
+  warning:   { color: '#e6a93b', icon: '⚠️' },
+  caution:   { color: '#e05a5a', icon: '⚠️' },
+  danger:    { color: '#e05a5a', icon: '🔥' },
+  important: { color: '#9b59d4', icon: '❗' },
+}
+
+function postProcessHtml(html: string): string {
+  // Task list checkboxes
+  let out = html
+    .replace(/<li>\s*\[ \]\s*/g, '<li class="task-item"><input type="checkbox" disabled> ')
+    .replace(/<li>\s*\[x\]\s*/gi, '<li class="task-item task-item--done"><input type="checkbox" checked disabled> ')
+
+  // Obsidian-style callouts: > [!TYPE] optional title
+  out = out.replace(
+    /<blockquote>\s*<p>\[!([\w]+)\](.*?)(<\/p>[\s\S]*?)<\/blockquote>/gi,
+    (_full, type, rest, bodyHtml) => {
+      const t = type.toLowerCase()
+      const cfg = CALLOUT_TYPES[t] ?? { color: '#888', icon: '📌' }
+      // rest is the text after [!TYPE] on the first line (optional custom title)
+      const titleText = rest.replace(/<br\s*\/?>/i, '').trim()
+      const displayTitle = titleText || (t.charAt(0).toUpperCase() + t.slice(1))
+      // body is everything after the first <br> in the first <p>, plus any further <p> blocks
+      const brIdx = bodyHtml.search(/<br\s*\/?>/i)
+      const body = brIdx >= 0
+        ? bodyHtml.slice(brIdx).replace(/^<br\s*\/?>/i, '')
+        : ''
+      return `<div class="callout callout--${t}" style="--callout-color:${cfg.color}">
+<div class="callout-title">${cfg.icon} ${displayTitle}</div>
+${body ? `<div class="callout-body">${body}</div>` : ''}
+</div>`
+    }
+  )
+  return out
+}
 
 const entity = computed(() => store.entities.find(e => e.id === props.entityId) ?? store.currentEntity)
 const isPreview = computed(() => viewMode.value === 'preview')
@@ -362,8 +446,8 @@ const renderedScript = computed(() => {
     ? ((entity.value?.attributes as any)?.scriptContent ?? '')
     : draftScript.value
   if (!script) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
-  const html = md.render(script)
-  return DOMPurify.sanitize(renderEntityRefs(html, entityLookup), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
+  const html = postProcessHtml(md.render(script))
+  return DOMPurify.sanitize(renderEntityRefs(html, entityLookup), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
 function onScriptInput() {
@@ -414,9 +498,9 @@ function entityLookup(type: string, name: string) {
 const renderedContent = computed(() => {
   const content = props.side === 'preview' ? (entity.value?.content ?? '') : draftContent.value
   if (!content) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
-  const html = md.render(content)
+  const html = postProcessHtml(md.render(content))
   const withRefs = renderEntityRefs(html, entityLookup)
-  return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
+  return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
 const outgoingLinks = computed(() => store.linksFrom(props.entityId))
@@ -550,7 +634,8 @@ async function confirmDelete() {
 .note-editor {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: transparent;
 }
@@ -578,6 +663,7 @@ async function confirmDelete() {
 
 .editor-body {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -614,6 +700,7 @@ async function confirmDelete() {
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
 }
 
 .split-divider {
@@ -628,6 +715,7 @@ async function confirmDelete() {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  min-height: 0;
 }
 
 .preview-pane {
@@ -636,6 +724,7 @@ async function confirmDelete() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 /* ── Editor toolbar ───────────────────────────────────────────────── */
@@ -684,16 +773,19 @@ async function confirmDelete() {
   display: flex;
   flex-direction: column;
   position: relative;
+  min-height: 0;
 }
 
 .editor-textarea {
   flex: 1;
+  min-height: 0;
   width: 100%;
   padding: 20px 24px;
   background: transparent;
   border: none;
   outline: none;
   resize: none;
+  overflow-y: auto;
   color: var(--ink);
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
@@ -880,9 +972,30 @@ async function confirmDelete() {
   margin: 0.6em 0;
 }
 
-.markdown-body ul,
-.markdown-body ol {
+.markdown-body ul {
+  list-style: none;
   padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.markdown-body ul > li {
+  position: relative;
+}
+
+.markdown-body ul > li::before {
+  content: '✦';
+  position: absolute;
+  left: -1.2em;
+  top: 1.46em;
+  transform: translateY(-50%);
+  color: var(--gold);
+  font-size: 0.6em;
+  line-height: 1;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+  padding-left: 1.8em;
   margin: 0.5em 0;
 }
 
@@ -994,6 +1107,90 @@ async function confirmDelete() {
   margin-top: -1px;
   flex-shrink: 0;
 }
+
+/* ── Tables ───────────────────────────────────────────────────── */
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-size: 15px;
+}
+.markdown-body th {
+  background: rgba(184,134,11,0.1);
+  border: 1px solid var(--parch-line, rgba(255,255,255,0.08));
+  padding: 7px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--gold);
+}
+.markdown-body td {
+  border: 1px solid var(--parch-line, rgba(255,255,255,0.08));
+  padding: 6px 12px;
+}
+.markdown-body tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+/* ── Task lists ───────────────────────────────────────────────── */
+.markdown-body .task-item {
+  list-style: none;
+  margin-left: -1.2em;
+}
+.markdown-body .task-item::before {
+  display: none;
+}
+.markdown-body .task-item input[type="checkbox"] {
+  margin-right: 7px;
+  accent-color: var(--gold);
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  cursor: default;
+}
+.markdown-body .task-item--done {
+  color: var(--ink-ghost, rgba(200,185,165,0.5));
+  text-decoration: line-through;
+}
+
+/* ── Highlight ==text== ───────────────────────────────────────── */
+.markdown-body mark {
+  background: rgba(235,189,52,0.22);
+  color: var(--ink);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-style: normal;
+}
+
+/* ── Strikethrough ~~text~~ ───────────────────────────────────── */
+.markdown-body s, .markdown-body del {
+  color: var(--ink-ghost, rgba(200,185,165,0.5));
+}
+
+/* ── Callouts > [!NOTE] ───────────────────────────────────────── */
+.callout {
+  border-left: 3px solid var(--callout-color, var(--gold));
+  background: color-mix(in srgb, var(--callout-color, var(--gold)) 8%, transparent);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 16px 12px;
+  margin: 1em 0;
+}
+.callout-title {
+  font-weight: 700;
+  color: var(--callout-color, var(--gold));
+  font-size: 13px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.callout-body {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.callout-body p { margin: 0.3em 0; }
 
 .roll-ref {
   display: inline-flex;

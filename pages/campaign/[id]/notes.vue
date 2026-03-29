@@ -462,7 +462,8 @@ async function confirmDelete(entity: any) {
 
 <style scoped>
 .notes-folio {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
@@ -567,6 +568,7 @@ async function confirmDelete(entity: any) {
 /* Editor on right leaf */
 .leaf-inner--editor {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   padding: 0;
   display: flex;

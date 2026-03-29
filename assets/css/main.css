@@ -188,7 +188,7 @@ html, body, #__nuxt {
 /* ══ BOOK SPREAD — open book with stacked sheets + paper texture ══ */
 
 .open-book {
-  flex: 1; display: flex;
+  flex: 1; min-height: 0; display: flex;
   overflow: visible; /* sheets peek left/right */
   background: var(--leather); gap: 0;
   position: relative; z-index: 1;
@@ -197,7 +197,7 @@ html, body, #__nuxt {
 /* Stack wrapper — holds the sheets + top page */
 .book-stack {
   position: relative;
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; min-height: 0;
   display: flex;
   overflow: visible; /* allow sheets to peek outside */
 }
@@ -257,7 +257,7 @@ html, body, #__nuxt {
 /* ── Top page surface ── */
 .book-leaf {
   position: relative; z-index: 2;
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   overflow: hidden;

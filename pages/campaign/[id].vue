@@ -37,5 +37,5 @@ const id = computed(() => route.params.id)
 
 <style scoped>
 .book-shell { display: flex; height: 100vh; background: var(--leather); }
-.tome-page { flex: 1; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; margin: 20px 60px 20px 20px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: visible; position: relative; z-index: 1; }
+.tome-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; margin: 20px 60px 20px 20px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: visible; position: relative; z-index: 1; }
 </style>
