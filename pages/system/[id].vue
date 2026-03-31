@@ -5,26 +5,22 @@
     </div>
     <nav class="spine-tabs">
       <SpineSeal />
-      <NuxtLink to="/" class="spine-tab">
+      <NuxtLink to="/" class="spine-tab" title="Tome">
         <OhVueIcon name="md-arrowback" scale="0.85" />
-        Tome
       </NuxtLink>
-      <NuxtLink :to="`/system/${systemId}`" class="spine-tab"
+      <NuxtLink :to="`/system/${systemId}`" class="spine-tab" title="Overview"
         :class="{ active: route.path === `/system/${systemId}` }">
         <OhVueIcon name="gi-book-aura" scale="0.85" />
-        Overview
       </NuxtLink>
-      <NuxtLink :to="`/system/${systemId}/builder`" class="spine-tab"
+      <NuxtLink :to="`/system/${systemId}/builder`" class="spine-tab" title="Builder"
         :class="{ active: route.path.includes('/builder') }">
         <OhVueIcon name="md-settings" scale="0.85" />
-        Builder
       </NuxtLink>
       <button v-for="et in entityTypes" :key="et.id" class="spine-tab"
         :class="{ active: route.params.typeId === et.id }"
         :title="et.plural"
         @click="$router.push(`/system/${systemId}/${et.id}`)">
         <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
-        {{ et.name }}
       </button>
     </nav>
   </div>
@@ -59,7 +55,7 @@ onMounted(async () => {
 .system-tome-page {
   flex: 1; display: flex; flex-direction: column;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
-  margin: 20px 60px 20px 20px;
+  margin: 20px 20px 20px 60px;
   border-radius: 2px;
   box-shadow: var(--page-shadow);
   overflow: visible; position: relative; z-index: 1;

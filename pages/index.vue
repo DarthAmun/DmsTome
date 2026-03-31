@@ -255,17 +255,14 @@
     <!-- SPINE TABS -->
     <nav class="spine-tabs">
       <SpineSeal />
-      <button class="spine-tab" :class="{ active: section === 'campaigns' }" @click="section = 'campaigns'">
+      <button class="spine-tab" title="Campaigns" :class="{ active: section === 'campaigns' }" @click="section = 'campaigns'">
         <OhVueIcon name="gi-broadsword" scale="0.85" />
-        Campaigns
       </button>
-      <button class="spine-tab" :class="{ active: section === 'systems' }" @click="section = 'systems'">
+      <button class="spine-tab" title="Systems" :class="{ active: section === 'systems' }" @click="section = 'systems'">
         <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
-        Systems
       </button>
-      <button class="spine-tab" :class="{ active: section === 'library' }" @click="section = 'library'">
+      <button class="spine-tab" title="Library" :class="{ active: section === 'library' }" @click="section = 'library'">
         <OhVueIcon name="gi-open-treasure-chest" scale="0.85" />
-        Library
       </button>
     </nav>
 
@@ -455,7 +452,7 @@ function formatDate(dt: string) {
   display: flex;
   flex-direction: column;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
-  margin: 20px 60px 20px 20px;
+  margin: 20px 20px 20px 60px;
   border-radius: 2px;
   box-shadow: var(--page-shadow);
   overflow: visible;

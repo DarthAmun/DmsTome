@@ -126,37 +126,29 @@ html, body, #__nuxt {
 
 .spine-tabs {
   position: fixed;
-  right: 0;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   z-index: 100;
 }
 
 .spine-tab {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 18px 8px;
+  padding: 16px 10px;
   background: var(--tab-color, var(--leather));
   border: 1px solid rgba(0,0,0,0.35);
-  border-right: none;
+  border-left: none;
   color: rgba(232,220,197,0.45);
-  font-family: var(--font-head);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
   cursor: pointer;
   transition: color 0.2s, width 0.2s;
   border-radius: 0;
-  min-height: 72px;
+  min-height: 52px;
   width: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
   position: relative;
   text-decoration: none;
 }
@@ -165,14 +157,14 @@ html, body, #__nuxt {
 .spine-tab + .spine-tab { margin-top: -1px; }
 
 /* Rounded corners only on the outermost tab edges */
-.spine-tab:first-child { border-radius: 3px 0 0 0; }
-.spine-tab:last-child  { border-radius: 0 0 0 3px; }
+.spine-tab:first-child { border-radius: 0 3px 0 0; }
+.spine-tab:last-child  { border-radius: 0 0 3px 0; }
 
 .spine-tab:hover {
-  color: rgba(232,220,197,0.75);
+  color: rgba(232,220,197,0.85);
 }
 
-/* Active tab: extends left to sit flush with the open page */
+/* Active tab: extends right to sit flush with the open page */
 .spine-tab.active {
   background-color: var(--parch);
   background-image: var(--paper);
@@ -181,6 +173,33 @@ html, body, #__nuxt {
   width: 60px;
   border-color: rgba(28,20,16,0.12);
   z-index: 1;
+}
+
+/* Hover tooltip — label appears to the right of the tab */
+.spine-tab::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--leather);
+  color: rgba(232,220,197,0.9);
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 3px;
+  border: 1px solid rgba(184,134,11,0.3);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.spine-tab:hover::after {
+  opacity: 1;
 }
 
 
