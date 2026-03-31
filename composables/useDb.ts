@@ -167,6 +167,11 @@ export const dbApi = {
       const id = await db.campaigns.add({ name: data.name, description: data.description ?? '', created_at: ts, updated_at: ts })
       return db.campaigns.get(id)
     },
+    async update(id: number, data: { name?: string; description?: string; system_id?: number | null }) {
+      const db = getDb()
+      await db.campaigns.update(id, { ...data, updated_at: now() })
+      return db.campaigns.get(id)
+    },
     async delete(id: number) {
       const db = getDb()
       // Cascade: delete encounters, entities

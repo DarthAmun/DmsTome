@@ -35,6 +35,9 @@
                       <span class="entry-leader" />
                       <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                       <div class="entry-actions" @click.stop>
+                        <button class="entry-act" @click.stop="startEditCampaign(c)">
+                          <OhVueIcon name="md-editnote" scale="0.75" />
+                        </button>
                         <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
                           <OhVueIcon name="md-delete" scale="0.75" />
                         </button>
@@ -61,8 +64,8 @@
                   <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
                   <span class="leaf-count">{{ systems.length }} defined</span>
                 </div>
-                <NuxtLink v-for="(sys, i) in leftEntries" :key="sys.id!" :to="`/system/${sys.id}`"
-                  class="entry" style="--et-color: var(--arcane-l); text-decoration: none">
+                <div v-for="(sys, i) in leftEntries" :key="sys.id!" class="entry"
+                  style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}`)">
                   <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
                   <div class="entry-icon"><div class="entry-badge">
                     <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
@@ -72,6 +75,14 @@
                       <span class="entry-name">{{ sys.name }}</span>
                       <span class="entry-leader" />
                       <span class="entry-date">v{{ sys.version }}</span>
+                      <div class="entry-actions" @click.stop>
+                        <button class="entry-act" @click.stop="startEditSystem(sys)">
+                          <OhVueIcon name="md-editnote" scale="0.75" />
+                        </button>
+                        <button class="entry-act entry-act--del" @click.stop="deleteSystem(sys.id!)">
+                          <OhVueIcon name="md-delete" scale="0.75" />
+                        </button>
+                      </div>
                     </div>
                     <div class="entry-attrs">
                       <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
@@ -80,7 +91,7 @@
                       <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
                     </div>
                   </div>
-                </NuxtLink>
+                </div>
                 <div v-if="!systems.length" class="leaf-empty">
                   <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
                   <em>No systems defined yet.</em>
@@ -160,6 +171,9 @@
                         <span class="entry-leader" />
                         <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                         <div class="entry-actions" @click.stop>
+                          <button class="entry-act" @click.stop="startEditCampaign(c)">
+                            <OhVueIcon name="md-editnote" scale="0.75" />
+                          </button>
                           <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
                             <OhVueIcon name="md-delete" scale="0.75" />
                           </button>
@@ -182,8 +196,8 @@
                     <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
                     <span class="leaf-count">continued</span>
                   </div>
-                  <NuxtLink v-for="(sys, i) in rightEntries" :key="sys.id!" :to="`/system/${sys.id}`"
-                    class="entry" style="--et-color: var(--arcane-l); text-decoration: none">
+                  <div v-for="(sys, i) in rightEntries" :key="sys.id!" class="entry"
+                    style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}`)">
                     <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
                     <div class="entry-icon"><div class="entry-badge">
                       <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
@@ -193,6 +207,14 @@
                         <span class="entry-name">{{ sys.name }}</span>
                         <span class="entry-leader" />
                         <span class="entry-date">v{{ sys.version }}</span>
+                        <div class="entry-actions" @click.stop>
+                          <button class="entry-act" @click.stop="startEditSystem(sys)">
+                            <OhVueIcon name="md-editnote" scale="0.75" />
+                          </button>
+                          <button class="entry-act entry-act--del" @click.stop="deleteSystem(sys.id!)">
+                            <OhVueIcon name="md-delete" scale="0.75" />
+                          </button>
+                        </div>
                       </div>
                       <div class="entry-attrs">
                         <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
@@ -201,7 +223,7 @@
                         <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
                       </div>
                     </div>
-                  </NuxtLink>
+                  </div>
                 </template>
 
               </div>
@@ -264,24 +286,89 @@
             </button>
           </div>
           <div class="pv-dialog-content">
-            <div style="margin-bottom:16px">
+            <div class="dlg-field">
               <label class="f-label">Title</label>
               <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…"
                 @keyup.enter="createCampaign" autofocus />
             </div>
-            <div style="margin-bottom:16px">
+            <div class="dlg-field">
               <label class="f-label">Chronicle</label>
-              <input class="f-input-box" v-model="newCamp.description" placeholder="A dark tale of…" />
+              <textarea class="f-input-box f-textarea" v-model="newCamp.description" placeholder="A dark tale of…" rows="3" />
             </div>
-            <div>
+            <div class="dlg-field">
               <label class="f-label">System</label>
-              <Select v-model="newCamp.systemId" :options="sysOptions" option-label="label" option-value="value"
-                placeholder="— none —" />
+              <select class="f-input-box f-select" v-model="newCamp.systemId">
+                <option :value="null">— none —</option>
+                <option v-for="s in store.systems" :key="s.id" :value="s.id">{{ s.name }}</option>
+              </select>
             </div>
           </div>
           <div class="pv-dialog-footer">
             <button class="ghost-btn" @click="showNew = false">Cancel</button>
             <button class="seal-btn" @click="createCampaign">Begin</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDIT CAMPAIGN -->
+      <div v-if="editingCamp" class="pv-dialog-mask" @click.self="editingCamp = null">
+        <div class="pv-dialog">
+          <div class="pv-dialog-header">
+            <span class="pv-dialog-title">Edit Campaign</span>
+            <button class="pv-dialog-close" @click="editingCamp = null">
+              <OhVueIcon name="md-close" scale="0.85" />
+            </button>
+          </div>
+          <div class="pv-dialog-content">
+            <div class="dlg-field">
+              <label class="f-label">Title</label>
+              <input class="f-input-box" v-model="editCampForm.name" @keyup.enter="saveEditCampaign" autofocus />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Chronicle</label>
+              <textarea class="f-input-box f-textarea" v-model="editCampForm.description" rows="3" />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">System</label>
+              <select class="f-input-box f-select" v-model="editCampForm.systemId">
+                <option :value="null">— none —</option>
+                <option v-for="s in store.systems" :key="s.id" :value="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="pv-dialog-footer">
+            <button class="ghost-btn" @click="editingCamp = null">Cancel</button>
+            <button class="seal-btn" @click="saveEditCampaign">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDIT SYSTEM -->
+      <div v-if="editingSys" class="pv-dialog-mask" @click.self="editingSys = null">
+        <div class="pv-dialog">
+          <div class="pv-dialog-header">
+            <span class="pv-dialog-title">Edit System</span>
+            <button class="pv-dialog-close" @click="editingSys = null">
+              <OhVueIcon name="md-close" scale="0.85" />
+            </button>
+          </div>
+          <div class="pv-dialog-content">
+            <div class="dlg-field">
+              <label class="f-label">Name</label>
+              <input class="f-input-box" v-model="editSysForm.name" @keyup.enter="saveEditSystem" autofocus />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Short ID</label>
+              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="editSysForm.shortId" />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Description</label>
+              <textarea class="f-input-box f-textarea" v-model="editSysForm.description" rows="3" />
+            </div>
+          </div>
+          <div class="pv-dialog-footer">
+            <button class="ghost-btn" @click="editingSys = null">Cancel</button>
+            <button class="seal-btn" @click="saveEditSystem">Save</button>
           </div>
         </div>
       </div>
@@ -295,18 +382,18 @@
             </button>
           </div>
           <div class="pv-dialog-content">
-            <div style="margin-bottom:16px">
+            <div class="dlg-field">
               <label class="f-label">Name</label>
               <input class="f-input-box" v-model="newSys.name" placeholder="Pathfinder 2e…" autofocus />
             </div>
-            <div style="margin-bottom:16px">
+            <div class="dlg-field">
               <label class="f-label">Short ID</label>
               <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId"
                 placeholder="pf2e" />
             </div>
-            <div>
+            <div class="dlg-field">
               <label class="f-label">Description</label>
-              <input class="f-input-box" v-model="newSys.description" placeholder="Optional…" />
+              <textarea class="f-input-box f-textarea" v-model="newSys.description" placeholder="Optional…" rows="3" />
             </div>
           </div>
           <div class="pv-dialog-footer">
@@ -345,10 +432,14 @@ watch(section, () => { spreadPage.value = 0 })
 const showNewSystem = ref(false)
 const newCamp = ref({ name: '', description: '', systemId: null as number | null })
 const newSys = ref({ name: '', shortId: '', description: '' })
+const editingCamp = ref<any>(null)
+const editCampForm = ref({ name: '', description: '', systemId: null as number | null })
+const editingSys = ref<any>(null)
+const editSysForm = ref({ name: '', shortId: '', description: '' })
 
 const chapterTitle = computed(() => ({ campaigns: 'The Chronicle', systems: 'The Codex', library: 'The Library' }[section.value]))
 const systems = computed(() => store.systems)
-const sysOptions = computed(() => [{ label: '— none —', value: null }, ...store.systems.map(s => ({ label: s.name, value: s.id! }))])
+
 function systemName(id?: number | null) { return id ? store.getSystem(id)?.name ?? null : null }
 
 onMounted(async () => {
@@ -380,6 +471,43 @@ async function deleteCampaign(id: number) {
   if (!confirm('Delete this campaign?')) return
   await window.dmforge.campaigns.delete(id)
   campaigns.value = campaigns.value.filter(c => c.id !== id)
+}
+
+function startEditCampaign(c: any) {
+  editingCamp.value = c
+  editCampForm.value = { name: c.name, description: c.description ?? '', systemId: c.system_id ?? null }
+}
+
+async function saveEditCampaign() {
+  if (!editingCamp.value || !editCampForm.value.name.trim()) return
+  const updated = await window.dmforge.campaigns.update(editingCamp.value.id, {
+    name: editCampForm.value.name,
+    description: editCampForm.value.description,
+    system_id: editCampForm.value.systemId ?? undefined,
+  })
+  const idx = campaigns.value.findIndex(c => c.id === editingCamp.value.id)
+  if (idx !== -1 && updated) campaigns.value[idx] = updated
+  editingCamp.value = null
+}
+
+function startEditSystem(sys: any) {
+  editingSys.value = sys
+  editSysForm.value = { name: sys.name, shortId: sys.shortId, description: sys.description ?? '' }
+}
+
+async function saveEditSystem() {
+  if (!editingSys.value || !editSysForm.value.name.trim()) return
+  await store.updateSystem(editingSys.value.id, {
+    name: editSysForm.value.name,
+    shortId: editSysForm.value.shortId,
+    description: editSysForm.value.description,
+  })
+  editingSys.value = null
+}
+
+async function deleteSystem(id: number) {
+  if (!confirm('Delete this system and all its records?')) return
+  await store.deleteSystem(id)
 }
 
 

@@ -845,7 +845,7 @@ html, body, #__nuxt {
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--ink-ui-dim);
+  color: var(--ink-faded);
   margin-bottom: 5px;
 }
 
@@ -867,21 +867,26 @@ html, body, #__nuxt {
 .f-input:focus, .pv-input:focus { border-color: var(--gold); }
 .f-input::placeholder, .pv-input::placeholder { color: var(--ink-ui-dim); }
 
-/* Dialog input box */
+/* Dialog input box — parchment surface */
 .f-input-box {
   display: block; width: 100%;
   padding: 8px 12px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--rim);
-  border-radius: var(--r);
-  color: var(--ink-ui);
+  background: rgba(28,20,16,0.05);
+  border: 1px solid rgba(28,20,16,0.2);
+  border-radius: 1px;
+  color: var(--ink);
   font-family: var(--font-ui);
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
 }
-.f-input-box:focus { border-color: var(--gold); }
-.f-input-box::placeholder { color: var(--ink-ui-dim); }
+.f-input-box:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,134,11,0.1); }
+.f-input-box::placeholder { color: var(--ink-ghost); }
+.f-textarea { resize: vertical; line-height: 1.6; min-height: 64px; font-family: var(--font-body); }
+.f-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a4e42'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.f-select option { background: var(--parch); color: var(--ink); }
+.dlg-field { margin-bottom: 16px; }
+.dlg-field:last-child { margin-bottom: 0; }
 
 .f-section-title {
   font-family: var(--font-head); font-size: 9px; font-weight: 600;
@@ -1001,37 +1006,99 @@ html, body, #__nuxt {
 ═══════════════════════════════════════════════════════════════════════ */
 .pv-dialog-mask {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(8px);
+  background: rgba(10,6,4,0.75);
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000; animation: fadeIn 0.15s;
 }
 
 .pv-dialog {
-  background: var(--chrome);
-  border: 1px solid var(--rim-l);
-  border-radius: var(--r);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.8);
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border: none;
+  border-radius: 1px;
+  box-shadow: 0 12px 60px rgba(0,0,0,0.65), 0 2px 8px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(28,20,16,0.12);
   width: 480px; max-width: 92vw;
   animation: scrollUnfurl 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
+  isolation: isolate;
 }
 
-/* Gold rule at top */
+/* Sheet 2 — tilted left, peeking behind */
 .pv-dialog::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(to right, transparent 0%, var(--gold) 30%, var(--gold-l) 50%, var(--gold) 70%, transparent 100%);
+  inset: 0;
+  background-color: #ddd0b3;
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border-radius: 1px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  transform: rotate(-2.8deg) translateX(-10px) translateY(7px);
+  z-index: -1;
 }
 
-.pv-dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 24px 0; }
-.pv-dialog-title { font-family: var(--font-head); font-size: 14px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: #e8dcc5; }
-.pv-dialog-content { padding: 18px 24px; }
-.pv-dialog-footer { padding: 0 24px 22px; display: flex; justify-content: flex-end; gap: 10px; }
-.pv-dialog-close { width: 28px; height: 28px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border: 1px solid var(--rim); color: var(--ink-ui-dim); cursor: pointer; transition: all 0.15s; }
-.pv-dialog-close:hover { color: var(--ink-ui); border-color: var(--rim-l); }
+/* Sheet 3 — tilted right, peeking the other way */
+.pv-dialog::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: #e4d8be;
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border-radius: 1px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  transform: rotate(2.2deg) translateX(8px) translateY(10px);
+  z-index: -1;
+}
+
+.pv-dialog-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 24px 12px;
+  border-bottom: 1px solid var(--parch-line);
+  position: relative;
+}
+
+/* Gold rule accent under header */
+.pv-dialog-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 24px; right: 24px; height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold) 20%, var(--gold-l) 50%, var(--gold) 80%, transparent);
+  opacity: 0.5;
+}
+.pv-dialog-title {
+  font-family: var(--font-head);
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink);
+}
+.pv-dialog-content { padding: 20px 24px 4px; }
+.pv-dialog-footer {
+  padding: 16px 24px 22px;
+  display: flex; justify-content: flex-end; gap: 10px;
+  border-top: 1px dashed var(--parch-line);
+}
+.pv-dialog-footer .ghost-btn {
+  border-color: rgba(28,20,16,0.25);
+  color: var(--ink-faded);
+  background: transparent;
+}
+.pv-dialog-footer .ghost-btn:hover {
+  border-color: var(--ink-faded);
+  color: var(--ink);
+  background: rgba(28,20,16,0.05);
+}
+.pv-dialog-close {
+  width: 26px; height: 26px; border-radius: 1px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: 1px solid var(--parch-line);
+  color: var(--ink-ghost); cursor: pointer; transition: all 0.15s;
+}
+.pv-dialog-close:hover { color: var(--blood); border-color: var(--blood); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    ENCOUNTER / MISC CHROME
