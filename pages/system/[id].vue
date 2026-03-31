@@ -14,7 +14,7 @@
       </NuxtLink>
       <NuxtLink :to="`/system/${systemId}/builder`" class="spine-tab" title="Builder"
         :class="{ active: route.path.includes('/builder') }">
-        <OhVueIcon name="md-settings" scale="0.85" />
+        <OhVueIcon name="gi-blacksmith" scale="0.85" />
       </NuxtLink>
       <button v-for="et in entityTypes" :key="et.id" class="spine-tab"
         :class="{ active: route.params.typeId === et.id }"
