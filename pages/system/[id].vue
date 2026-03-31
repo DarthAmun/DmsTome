@@ -18,6 +18,7 @@
       </NuxtLink>
       <button v-for="et in entityTypes" :key="et.id" class="spine-tab"
         :class="{ active: route.params.typeId === et.id }"
+        :style="et.color ? { '--tab-color': et.color + '33', '--tab-icon-color': et.color + 'cc' } : {}"
         :title="et.plural"
         @click="$router.push(`/system/${systemId}/${et.id}`)">
         <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />

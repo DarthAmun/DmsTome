@@ -107,13 +107,36 @@ html, body, #__nuxt {
 
 /* Washed-out rainbow — one muted hue per section                           */
 /* SpineSeal is :nth-child(1); tabs start at :nth-child(2)                  */
-.spine-tab:nth-child(2) { --tab-color: #5c3535; } /* dusty rose    */
-.spine-tab:nth-child(3) { --tab-color: #5c4a28; } /* burnt amber   */
-.spine-tab:nth-child(4) { --tab-color: #3d5228; } /* sage green    */
-.spine-tab:nth-child(5) { --tab-color: #245244; } /* forest teal   */
-.spine-tab:nth-child(6) { --tab-color: #243858; } /* slate blue    */
-.spine-tab:nth-child(7) { --tab-color: #3d2458; } /* dusty violet  */
-.spine-tab:nth-child(8) { --tab-color: #522438; } /* antique mauve */
+.spine-tab:nth-child(2)  { --tab-color: #5c3535; } /* dusty rose       */
+.spine-tab:nth-child(3)  { --tab-color: #5c4a28; } /* burnt amber      */
+.spine-tab:nth-child(4)  { --tab-color: #3d5228; } /* sage green       */
+.spine-tab:nth-child(5)  { --tab-color: #245244; } /* forest teal      */
+.spine-tab:nth-child(6)  { --tab-color: #243858; } /* slate blue       */
+.spine-tab:nth-child(7)  { --tab-color: #3d2458; } /* dusty violet     */
+.spine-tab:nth-child(8)  { --tab-color: #522438; } /* antique mauve    */
+.spine-tab:nth-child(9)  { --tab-color: #3b3528; } /* dark khaki       */
+.spine-tab:nth-child(10) { --tab-color: #1e3a2f; } /* deep moss        */
+.spine-tab:nth-child(11) { --tab-color: #3a2218; } /* dark sienna      */
+.spine-tab:nth-child(12) { --tab-color: #1e2e4a; } /* midnight navy    */
+.spine-tab:nth-child(13) { --tab-color: #4a2040; } /* deep plum        */
+.spine-tab:nth-child(14) { --tab-color: #2e4438; } /* hunter green     */
+.spine-tab:nth-child(15) { --tab-color: #4a3820; } /* dark caramel     */
+.spine-tab:nth-child(16) { --tab-color: #3a1e1e; } /* oxblood          */
+/* Cycle back through the palette for tabs 17+ */
+.spine-tab:nth-child(17) { --tab-color: #5c3535; }
+.spine-tab:nth-child(18) { --tab-color: #5c4a28; }
+.spine-tab:nth-child(19) { --tab-color: #3d5228; }
+.spine-tab:nth-child(20) { --tab-color: #245244; }
+.spine-tab:nth-child(21) { --tab-color: #243858; }
+.spine-tab:nth-child(22) { --tab-color: #3d2458; }
+.spine-tab:nth-child(23) { --tab-color: #522438; }
+.spine-tab:nth-child(24) { --tab-color: #3b3528; }
+.spine-tab:nth-child(25) { --tab-color: #1e3a2f; }
+.spine-tab:nth-child(26) { --tab-color: #3a2218; }
+.spine-tab:nth-child(27) { --tab-color: #1e2e4a; }
+.spine-tab:nth-child(28) { --tab-color: #4a2040; }
+.spine-tab:nth-child(29) { --tab-color: #2e4438; }
+.spine-tab:nth-child(30) { --tab-color: #4a3820; }
 
 /* Width cascade — each tab's left edge aligns with the right edge of its book-sheet.
    tome-page margin-right is 60px, sheet offsets are 5 / 9 / 14 px:
@@ -140,7 +163,7 @@ html, body, #__nuxt {
   background: var(--tab-color, var(--leather));
   border: 1px solid rgba(0,0,0,0.35);
   border-left: none;
-  color: rgba(232,220,197,0.45);
+  color: var(--tab-icon-color, rgba(232,220,197,0.45));
   cursor: pointer;
   transition: color 0.2s, width 0.2s;
   border-radius: 0;

@@ -1,180 +1,211 @@
 <template>
   <div class="book-shell">
-    <div class="tome-page">
+    <div class="tome-page page-enter">
+      <div class="open-book">
 
-      <div class="page-header">
-        <div class="page-chapter-num">DM's Tome</div>
-        <h1 class="page-title">Settings &amp; Preferences</h1>
-        <div class="page-rule" />
-      </div>
+        <!-- ── LEFT PAGE — Appearance ── -->
+        <div class="book-stack book-stack--left">
+          <div class="book-sheet-3" />
+          <div class="book-sheet-2" />
+          <div class="book-sheet-1" />
+          <div class="book-leaf book-leaf--left">
 
-      <div class="sett-body">
-
-        <!-- ── Appearance ──────────────────────────────────────── -->
-        <section class="sett-section">
-          <h2 class="sett-section-title">
-            <OhVueIcon name="md-brightness-4" scale="0.85" /> Appearance
-          </h2>
-          <div class="sett-group">
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Paper Texture</span>
-                <span class="sett-desc">Aged parchment effect on pages</span>
-              </div>
-              <button class="sett-toggle" :class="{ on: settings.paperTexture }"
-                @click="update('paperTexture', !settings.paperTexture)" />
-            </div>
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Page Animations</span>
-                <span class="sett-desc">Page flip and entrance transitions when navigating</span>
-              </div>
-              <button class="sett-toggle" :class="{ on: settings.pageAnimations }"
-                @click="update('pageAnimations', !settings.pageAnimations)" />
-            </div>
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Arcane Sparks</span>
-                <span class="sett-desc">Particle burst on button clicks</span>
-              </div>
-              <button class="sett-toggle" :class="{ on: settings.sparkEffects }"
-                @click="update('sparkEffects', !settings.sparkEffects)" />
-            </div>
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Ink Write Effect</span>
-                <span class="sett-desc">Animate headings letter by letter on page load</span>
-              </div>
-              <button class="sett-toggle" :class="{ on: settings.inkWrite }"
-                @click="update('inkWrite', !settings.inkWrite)" />
-            </div>
-          </div>
-        </section>
-
-        <!-- ── Data Management ────────────────────────────────── -->
-        <section class="sett-section">
-          <h2 class="sett-section-title">
-            <OhVueIcon name="md-storage" scale="0.85" /> Data Management
-          </h2>
-          <div class="sett-group">
-
-            <!-- All -->
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Everything</span>
-                <span class="sett-desc">All campaigns, systems, tokens and records in one file</span>
-              </div>
-              <div class="sett-btn-pair">
-                <button class="sett-btn" @click="exportAll">
-                  <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                </button>
-                <label class="sett-btn">
-                  <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                  <input type="file" accept=".json" style="display:none" @change="importAll" />
-                </label>
-              </div>
+            <div class="page-header">
+              <div class="page-chapter-num">DM's Tome</div>
+              <h1 class="page-title">Settings</h1>
+              <div class="page-rule" />
             </div>
 
-            <!-- Campaigns -->
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Campaigns</span>
-                <span class="sett-desc">All campaigns with their encounters, notes and entity links</span>
-              </div>
-              <div class="sett-btn-pair">
-                <button class="sett-btn" @click="exportCampaigns">
-                  <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                </button>
-                <label class="sett-btn">
-                  <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                  <input type="file" accept=".json" style="display:none" @change="importCampaigns" />
-                </label>
-              </div>
-            </div>
+            <div class="leaf-inner">
 
-            <!-- Systems (schema only) -->
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Systems</span>
-                <span class="sett-desc">Rule system schemas without records</span>
-              </div>
-              <div class="sett-btn-pair">
-                <button class="sett-btn" @click="exportSystems(false)">
-                  <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                </button>
-                <label class="sett-btn">
-                  <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                  <input type="file" accept=".json" style="display:none" @change="importSystems" />
-                </label>
-              </div>
-            </div>
+              <!-- Appearance -->
+              <section class="sett-section">
+                <h2 class="sett-section-title">
+                  <OhVueIcon name="md-brightness-4" scale="0.8" /> Appearance
+                </h2>
+                <div class="sett-group">
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Paper Texture</span>
+                      <span class="sett-desc">Aged parchment effect on pages</span>
+                    </div>
+                    <button class="sett-toggle" :class="{ on: settings.paperTexture }"
+                      @click="update('paperTexture', !settings.paperTexture)" />
+                  </div>
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Page Animations</span>
+                      <span class="sett-desc">Page flip and entrance transitions</span>
+                    </div>
+                    <button class="sett-toggle" :class="{ on: settings.pageAnimations }"
+                      @click="update('pageAnimations', !settings.pageAnimations)" />
+                  </div>
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Arcane Sparks</span>
+                      <span class="sett-desc">Particle burst on button clicks</span>
+                    </div>
+                    <button class="sett-toggle" :class="{ on: settings.sparkEffects }"
+                      @click="update('sparkEffects', !settings.sparkEffects)" />
+                  </div>
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Ink Write Effect</span>
+                      <span class="sett-desc">Animate headings letter by letter</span>
+                    </div>
+                    <button class="sett-toggle" :class="{ on: settings.inkWrite }"
+                      @click="update('inkWrite', !settings.inkWrite)" />
+                  </div>
+                </div>
+              </section>
 
-            <!-- Systems + records -->
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Systems + Records</span>
-                <span class="sett-desc">Rule system schemas including all their data records</span>
-              </div>
-              <div class="sett-btn-pair">
-                <button class="sett-btn" @click="exportSystems(true)">
-                  <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                </button>
-                <label class="sett-btn">
-                  <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                  <input type="file" accept=".json" style="display:none" @change="importSystemsWithRecords" />
-                </label>
-              </div>
-            </div>
+              <!-- About -->
+              <section class="sett-section sett-section--about">
+                <h2 class="sett-section-title">
+                  <OhVueIcon name="gi-book-cover" scale="0.8" /> About
+                </h2>
+                <div class="sett-about">
+                  <img src="/icons/icon-512.png" class="sett-about-logo" alt="DM's Tome" />
+                  <div class="sett-about-info">
+                    <div class="sett-about-name">DM's Tome</div>
+                    <div class="sett-about-version">Version {{ version }}</div>
+                    <div class="sett-about-desc">Offline-first campaign manager for Dungeon Masters. All data lives in your browser.</div>
+                  </div>
+                </div>
+              </section>
 
-            <!-- Tokens -->
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Tokens</span>
-                <span class="sett-desc">All token templates and their images</span>
-              </div>
-              <div class="sett-btn-pair">
-                <button class="sett-btn" @click="exportTokens">
-                  <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                </button>
-                <label class="sett-btn">
-                  <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                  <input type="file" accept=".json" style="display:none" @change="importTokens" />
-                </label>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        <!-- ── Danger Zone ─────────────────────────────────────── -->
-        <section class="sett-section sett-section--danger">
-          <h2 class="sett-section-title">
-            <OhVueIcon name="md-warning-amber" scale="0.85" /> Danger Zone
-          </h2>
-          <div class="sett-group">
-            <div class="sett-row">
-              <div class="sett-row-text">
-                <span class="sett-label">Wipe All Data</span>
-                <span class="sett-desc">Permanently delete every campaign, session, system and token. This cannot be undone.</span>
-              </div>
-              <button class="sett-btn sett-btn--danger" @click="clearAll">
-                <OhVueIcon name="md-delete-outlined" scale="0.8" /> Wipe
-              </button>
             </div>
           </div>
-        </section>
+        </div>
 
-        <!-- ── About ──────────────────────────────────────────── -->
-        <section class="sett-section sett-section--about">
-          <div class="sett-about">
-            <img src="/icons/icon-512.png" class="sett-about-logo" alt="DM's Tome" />
-            <div class="sett-about-info">
-              <div class="sett-about-name">DM's Tome</div>
-              <div class="sett-about-version">Version {{ version }}</div>
-              <div class="sett-about-desc">An offline-first campaign manager for Dungeon Masters. All data lives in your browser.</div>
+        <div class="book-binding" />
+
+        <!-- ── RIGHT PAGE — Data ── -->
+        <div class="book-stack book-stack--right">
+          <div class="book-sheet-3" />
+          <div class="book-sheet-2" />
+          <div class="book-sheet-1" />
+          <div class="book-leaf book-leaf--right">
+
+            <div class="page-header">
+              <div class="page-chapter-num">Grimoire</div>
+              <h1 class="page-title">Data &amp; Backups</h1>
+              <div class="page-rule" />
+            </div>
+
+            <div class="leaf-inner">
+
+              <!-- Data Management -->
+              <section class="sett-section">
+                <h2 class="sett-section-title">
+                  <OhVueIcon name="md-storage" scale="0.8" /> Import &amp; Export
+                </h2>
+                <div class="sett-group">
+
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Everything</span>
+                      <span class="sett-desc">All campaigns, systems, tokens and records</span>
+                    </div>
+                    <div class="sett-btn-pair">
+                      <button class="sett-btn" @click="exportAll">
+                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
+                      </button>
+                      <label class="sett-btn">
+                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
+                        <input type="file" accept=".json" style="display:none" @change="importAll" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Campaigns</span>
+                      <span class="sett-desc">Campaigns with encounters, notes and links</span>
+                    </div>
+                    <div class="sett-btn-pair">
+                      <button class="sett-btn" @click="exportCampaigns">
+                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
+                      </button>
+                      <label class="sett-btn">
+                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
+                        <input type="file" accept=".json" style="display:none" @change="importCampaigns" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Systems</span>
+                      <span class="sett-desc">Rule system schemas only, no records</span>
+                    </div>
+                    <div class="sett-btn-pair">
+                      <button class="sett-btn" @click="exportSystems(false)">
+                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
+                      </button>
+                      <label class="sett-btn">
+                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
+                        <input type="file" accept=".json" style="display:none" @change="importSystems" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Systems + Records</span>
+                      <span class="sett-desc">System schemas including all data records</span>
+                    </div>
+                    <div class="sett-btn-pair">
+                      <button class="sett-btn" @click="exportSystems(true)">
+                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
+                      </button>
+                      <label class="sett-btn">
+                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
+                        <input type="file" accept=".json" style="display:none" @change="importSystemsWithRecords" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Tokens</span>
+                      <span class="sett-desc">Token templates and their images</span>
+                    </div>
+                    <div class="sett-btn-pair">
+                      <button class="sett-btn" @click="exportTokens">
+                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
+                      </button>
+                      <label class="sett-btn">
+                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
+                        <input type="file" accept=".json" style="display:none" @change="importTokens" />
+                      </label>
+                    </div>
+                  </div>
+
+                </div>
+              </section>
+
+              <!-- Danger Zone -->
+              <section class="sett-section sett-section--danger">
+                <h2 class="sett-section-title">
+                  <OhVueIcon name="md-warning-amber" scale="0.8" /> Danger Zone
+                </h2>
+                <div class="sett-group">
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Wipe All Data</span>
+                      <span class="sett-desc">Permanently delete every campaign, session, system and token. Cannot be undone.</span>
+                    </div>
+                    <button class="sett-btn sett-btn--danger" @click="clearAll">
+                      <OhVueIcon name="md-delete-outlined" scale="0.8" /> Wipe
+                    </button>
+                  </div>
+                </div>
+              </section>
+
             </div>
           </div>
-        </section>
+        </div>
 
       </div>
     </div>
@@ -346,55 +377,44 @@ async function clearAll() {
   margin: 20px 20px 20px 60px;
   border-radius: 2px;
   box-shadow: var(--page-shadow);
-  overflow: hidden;
+  overflow: visible;
 }
 
-/* ── Scrollable body ── */
-.sett-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 24px 36px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Override leaf-inner default padding/overflow for settings */
+.leaf-inner {
+  padding: 16px 28px 24px;
 }
 
 /* ── Section ── */
 .sett-section {
-  padding: 20px 0 4px;
+  padding: 16px 0 4px;
   border-bottom: 1px solid var(--parch-line);
 }
 .sett-section:last-child { border-bottom: none; }
 
 .sett-section-title {
   font-family: var(--font-head);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ink-ghost);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
-
 .sett-section--danger .sett-section-title { color: #c05040; }
 
-/* ── Row ── */
-.sett-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+/* ── Rows ── */
+.sett-group { display: flex; flex-direction: column; }
 
 .sett-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 10px 0;
+  gap: 16px;
+  padding: 9px 0;
   border-bottom: 1px solid var(--parch-line);
 }
 .sett-row:last-child { border-bottom: none; }
@@ -402,30 +422,31 @@ async function clearAll() {
 .sett-row-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
+  min-width: 0;
 }
 
 .sett-label {
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink);
 }
 
 .sett-desc {
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-ghost);
   line-height: 1.4;
 }
 
-/* ── Toggle switch ── */
+/* ── Toggle ── */
 .sett-toggle {
   flex-shrink: 0;
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
   background: rgba(28, 20, 16, 0.12);
   border: 1px solid var(--parch-line);
   position: relative;
@@ -435,96 +456,49 @@ async function clearAll() {
 .sett-toggle::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 14px;
-  height: 14px;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--ink-ghost);
   transition: transform 0.2s, background 0.2s;
 }
-.sett-toggle.on {
-  background: rgba(184, 134, 11, 0.25);
-  border-color: rgba(184, 134, 11, 0.5);
-}
-.sett-toggle.on::after {
-  transform: translateX(18px);
-  background: var(--gold);
-}
+.sett-toggle.on { background: rgba(184,134,11,0.25); border-color: rgba(184,134,11,0.5); }
+.sett-toggle.on::after { transform: translateX(18px); background: var(--gold); }
 
-/* ── Action button ── */
+/* ── Buttons ── */
 .sett-btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: var(--r-pill, 999px);
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
   background: var(--parch-dark);
   border: 1px solid var(--parch-line);
   color: var(--ink-faded);
   font-family: var(--font-head);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.sett-btn:hover {
-  color: var(--ink);
-  border-color: var(--gold);
-}
-.sett-btn-pair {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
+.sett-btn:hover { color: var(--ink); border-color: var(--gold); }
 
-.sett-btn--danger {
-  color: #c05040;
-  border-color: rgba(192, 80, 64, 0.3);
-}
-.sett-btn--danger:hover {
-  border-color: #c05040;
-  background: rgba(192, 80, 64, 0.08);
-}
+.sett-btn-pair { display: flex; gap: 5px; flex-shrink: 0; }
+
+.sett-btn--danger { color: #c05040; border-color: rgba(192,80,64,0.3); }
+.sett-btn--danger:hover { border-color: #c05040; background: rgba(192,80,64,0.08); }
 
 /* ── About ── */
-.sett-section--about { border-bottom: none; padding-top: 24px; }
-
-.sett-about {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 0;
-}
-.sett-about-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
-  opacity: 0.85;
-}
-.sett-about-name {
-  font-family: var(--font-deco);
-  font-size: 16px;
-  color: var(--ink);
-  margin-bottom: 3px;
-}
+.sett-section--about { border-bottom: none; }
+.sett-about { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
+.sett-about-logo { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; opacity: 0.85; }
+.sett-about-name { font-family: var(--font-deco); font-size: 15px; color: var(--ink); margin-bottom: 2px; }
 .sett-about-version {
-  font-family: var(--font-head);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 5px;
+  font-family: var(--font-head); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px;
 }
-.sett-about-desc {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  color: var(--ink-ghost);
-  line-height: 1.5;
-}
+.sett-about-desc { font-family: var(--font-ui); font-size: 11px; color: var(--ink-ghost); line-height: 1.5; }
 </style>
