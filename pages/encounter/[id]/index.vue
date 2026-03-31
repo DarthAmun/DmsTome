@@ -1,519 +1,829 @@
 <template>
-  <div class="encounter-page" :class="{ 'fog-paint-mode': activeTool === 'fog' }">
-
-    <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
-    <header class="encounter-toolbar">
-      <div class="toolbar-left">
-        <NuxtLink :to="encounter?.campaignId ? `/campaign/${encounter.campaignId}/encounters` : '/'" class="pill-btn">
-          <OhVueIcon name="md-arrowback" scale="0.85" /> Back
-        </NuxtLink>
-        <div class="encounter-title">
-          <input class="encounter-name-input" :value="encounter?.name"
-            @blur="store.updateName(($event.target as HTMLInputElement).value)"
-            @keyup.enter="($event.target as HTMLInputElement).blur()" />
+  <div class="encounter-shell">
+    <div class="enc-sheet enc-sheet-3"></div>
+    <div class="enc-sheet enc-sheet-2"></div>
+    <div
+      class="encounter-page"
+      :class="{ 'fog-paint-mode': activeTool === 'fog' }"
+    >
+      <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
+      <header class="encounter-toolbar">
+        <div class="toolbar-left">
+          <NuxtLink
+            :to="
+              encounter?.campaignId
+                ? `/campaign/${encounter.campaignId}/encounters`
+                : '/'
+            "
+            class="back-btn"
+          >
+            <OhVueIcon name="md-arrowback" scale="0.75" /> Back
+          </NuxtLink>
+          <div class="encounter-title">
+            <input
+              class="encounter-name-input"
+              :value="encounter?.name"
+              @blur="
+                store.updateName(($event.target as HTMLInputElement).value)
+              "
+              @keyup.enter="($event.target as HTMLInputElement).blur()"
+            />
+          </div>
         </div>
-      </div>
 
-      <!-- Tool selector -->
-      <div class="toolbar-tools">
-        <button v-for="tool in tools" :key="tool.id" class="tool-btn" :class="{ active: activeTool === tool.id }"
-          :title="tool.label" @click="activeTool = tool.id">
-          <OhVueIcon :name="tool.icon" scale="1.1" />
-        </button>
-      </div>
+        <!-- Tool selector -->
+        <div class="toolbar-tools">
+          <button
+            v-for="tool in tools"
+            :key="tool.id"
+            class="tool-btn"
+            :class="{ active: activeTool === tool.id }"
+            :title="tool.label"
+            @click="activeTool = tool.id"
+          >
+            <OhVueIcon :name="tool.icon" scale="1.1" />
+          </button>
+        </div>
 
-      <div class="toolbar-right">
-        <!-- Player window toggle -->
-        <Button :severity="playerWindowOpen ? undefined : 'secondary'" @click="togglePlayerWindow">
-          <template #icon>
-            <OhVueIcon name="md-desktopmac" scale="0.9" />
-          </template>
-          {{ playerWindowOpen ? 'Close Player View' : 'Open Player View' }}
-        </Button>
-      </div>
-    </header>
+        <div class="toolbar-right">
+          <!-- Player window toggle -->
+          <button
+            class="back-btn"
+            :class="{ 'back-btn--active': playerWindowOpen }"
+            @click="togglePlayerWindow"
+          >
+            <OhVueIcon name="md-desktopmac" scale="0.85" />
+            {{ playerWindowOpen ? "Close Player View" : "Open Player View" }}
+          </button>
+        </div>
+      </header>
 
-    <!-- ── Main layout ─────────────────────────────────────────────────────── -->
-    <div class="encounter-layout">
-
-      <!-- Left sidebar: Token library -->
-      <aside class="encounter-sidebar left-sidebar">
-        <div class="sidebar-section">
-          <div class="sidebar-header">
-            <span class="f-label">Token Library</span>
-            <Button severity="secondary" size="small" @click="showAddToken = true">
-              <template #icon>
-                <OhVueIcon name="md-add" scale="0.8" />
-              </template>Add
-            </Button>
-          </div>
-
-          <div class="token-search">
-            <InputText v-model="tokenSearch" placeholder="Search tokens…" />
-          </div>
-
-          <!-- Draggable token list -->
-          <div class="token-list">
-            <div v-for="token in filteredLibrary" :key="token.id" class="token-chip" draggable="true"
-              @dragstart="onTokenDragStart($event, token)">
-              <div class="token-thumb">
-                <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
-                <span v-else class="font-display text-amber-500 text-sm">{{ token.name.charAt(0) }}</span>
-              </div>
-              <span class="token-lib-name">{{ token.name }}</span>
-              <button class="icon-btn-sq icon-btn-sq--danger" @click.stop="removeFromLibrary(token.id)">
-                <OhVueIcon name="md-close" scale="0.75" />
-              </button>
+      <!-- ── Main layout ─────────────────────────────────────────────────────── -->
+      <div class="encounter-layout">
+        <!-- Left sidebar: Token library -->
+        <aside class="encounter-sidebar left-sidebar">
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Token Library</span>
+              <Button
+                severity="secondary"
+                size="small"
+                @click="showAddToken = true"
+              >
+                <template #icon>
+                  <OhVueIcon name="md-add" scale="0.8" /> </template
+                >Add
+              </Button>
             </div>
-            <p v-if="filteredLibrary.length === 0" class="text-stone-500 text-sm text-center py-4">
-              No tokens yet
+
+            <div class="token-search">
+              <InputText v-model="tokenSearch" placeholder="Search tokens…" />
+            </div>
+
+            <!-- Draggable token list -->
+            <div class="token-list">
+              <div
+                v-for="token in filteredLibrary"
+                :key="token.id"
+                class="token-chip"
+                draggable="true"
+                @dragstart="onTokenDragStart($event, token)"
+              >
+                <div class="token-thumb">
+                  <img
+                    v-if="token.imageSource"
+                    :src="getImageUrl(token)"
+                    class="enc-token-img"
+                  />
+                  <span v-else class="font-display text-amber-500 text-sm">{{
+                    token.name.charAt(0)
+                  }}</span>
+                </div>
+                <span class="token-lib-name">{{ token.name }}</span>
+                <button
+                  class="icon-btn-sq icon-btn-sq--danger"
+                  @click.stop="removeFromLibrary(token.id)"
+                >
+                  <OhVueIcon name="md-close" scale="0.75" />
+                </button>
+              </div>
+              <p
+                v-if="filteredLibrary.length === 0"
+                class="text-stone-500 text-sm text-center py-4"
+              >
+                No tokens yet
+              </p>
+            </div>
+          </div>
+
+          <!-- Grid settings -->
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Grid Settings</span>
+            </div>
+            <div class="space-y-2">
+              <label class="f-label">Cell Size (px)</label>
+              <input
+                type="range"
+                min="1"
+                max="200"
+                step="1"
+                :value="encounter?.gridSize ?? 70"
+                class="w-full accent-amber-500"
+                @input="onGridSizeChange"
+              />
+              <div class="enc-grid-range-labels">
+                <span>1px</span>
+                <span style="color: var(--ink)"
+                  >{{ encounter?.gridSize ?? 70 }}px</span
+                >
+                <span>200px</span>
+              </div>
+
+              <label class="f-label mt-2">Offset X</label>
+              <InputNumber
+                :model-value="encounter?.gridOffsetX ?? 0"
+                @update:model-value="(val) => onOffsetChange('x', val)"
+              />
+              <label class="f-label">Offset Y</label>
+              <InputNumber
+                :model-value="encounter?.gridOffsetY ?? 0"
+                @update:model-value="(val) => onOffsetChange('y', val)"
+              />
+
+              <Button
+                severity="secondary"
+                style="width: 100%; justify-content: center; margin-top: 6px"
+                @click="onSetMap"
+              >
+                <OhVueIcon name="md-map" scale="0.85" />
+                Load Map
+              </Button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Centre: PixiJS Canvas -->
+        <main
+          class="encounter-canvas-wrapper"
+          @dragover.prevent
+          @drop="onCanvasDrop"
+        >
+          <div
+            id="pixi-canvas"
+            ref="canvasContainer"
+            style="width: 100%; height: 100%"
+          />
+
+          <!-- Drop hint when no map -->
+          <div v-if="!encounter?.mapSource" class="canvas-empty-state">
+            <OhVueIcon name="md-map" scale="4" class="enc-empty-icon" />
+            <p class="enc-empty-text">
+              Drop a map image here or use the sidebar to load one
             </p>
           </div>
-        </div>
+        </main>
 
-        <!-- Grid settings -->
-        <div class="sidebar-section">
-          <div class="sidebar-header">
-            <span class="f-label">Grid Settings</span>
-          </div>
-          <div class="space-y-2">
-            <label class="f-label">Cell Size (px)</label>
-            <input type="range" min="1" max="200" step="1" :value="encounter?.gridSize ?? 70"
-              class="w-full accent-amber-500" @input="onGridSizeChange" />
-            <div class="enc-grid-range-labels">
-              <span>1px</span>
-              <span style="color:var(--ink)">{{ encounter?.gridSize ?? 70 }}px</span>
-              <span>200px</span>
+        <!-- Right sidebar: Selected token / encounter tokens -->
+        <aside class="encounter-sidebar right-sidebar">
+          <!-- Active encounter tokens -->
+          <div class="sidebar-section flex-1 overflow-y-auto">
+            <div class="sidebar-header">
+              <span class="f-label">On Map ({{ encounterTokens.length }})</span>
             </div>
-
-            <label class="f-label mt-2">Offset X</label>
-            <InputNumber :model-value="encounter?.gridOffsetX ?? 0"
-              @update:model-value="val => onOffsetChange('x', val)" />
-            <label class="f-label">Offset Y</label>
-            <InputNumber :model-value="encounter?.gridOffsetY ?? 0"
-              @update:model-value="val => onOffsetChange('y', val)" />
-
-            <Button severity="secondary" style="width:100%;justify-content:center;margin-top:6px" @click="onSetMap">
-              <OhVueIcon name="md-map" scale="0.85" />
-              Load Map
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      <!-- Centre: PixiJS Canvas -->
-      <main class="encounter-canvas-wrapper" @dragover.prevent @drop="onCanvasDrop">
-        <div id="pixi-canvas" ref="canvasContainer" style="width:100%;height:100%;" />
-
-        <!-- Drop hint when no map -->
-        <div v-if="!encounter?.mapSource" class="canvas-empty-state">
-          <OhVueIcon name="md-map" scale="4" class="enc-empty-icon" />
-          <p class="enc-empty-text">Drop a map image here or use the sidebar to load one</p>
-        </div>
-      </main>
-
-      <!-- Right sidebar: Selected token / encounter tokens -->
-      <aside class="encounter-sidebar right-sidebar">
-        <!-- Active encounter tokens -->
-        <div class="sidebar-section flex-1 overflow-y-auto">
-          <div class="sidebar-header">
-            <span class="f-label">On Map ({{ encounterTokens.length }})</span>
-          </div>
-          <div class="enc-token-list">
-            <div v-for="token in sortedEncounterTokens" :key="token.id" class="encounter-token-row"
-              @click="selectToken(token)">
-              <div class="token-thumb-sm">
-                <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
-                <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
-              </div>
-              <div class="enc-token-info">
-                <div class="enc-token-name">{{ token.label || token.name }}</div>
-                <div class="enc-token-sub">
-                  <span v-if="token.hpMax" class="enc-token-hp">
-                    HP {{ token.hpCurrent }}/{{ token.hpMax }}
-                  </span>
+            <div class="enc-token-list">
+              <div
+                v-for="token in sortedEncounterTokens"
+                :key="token.id"
+                class="encounter-token-row"
+                @click="selectToken(token)"
+              >
+                <div class="token-thumb-sm">
+                  <img
+                    v-if="token.imageSource"
+                    :src="getImageUrl(token)"
+                    class="enc-token-img"
+                  />
+                  <span v-else class="enc-token-initial">{{
+                    token.name.charAt(0)
+                  }}</span>
                 </div>
-              </div>
-              <div class="enc-token-btns">
-                <button class="icon-btn-sq" :title="token.isVisible ? 'Hide from players' : 'Show to players'"
-                  @click.stop="store.updateToken(token.id, { isVisible: !token.isVisible })">
-                  <OhVueIcon :name="token.isVisible ? 'md-visibility' : 'md-visibilityoff'" scale="0.85" />
-                </button>
-                <button class="icon-btn-sq" :title="token.isDead ? 'Mark alive' : 'Mark dead'"
-                  :class="token.isDead ? 'icon-btn-sq--danger' : ''"
-                  @click.stop="store.updateToken(token.id, { isDead: !token.isDead })">
-                  <OhVueIcon name="fa-skull-crossbones" scale="0.85" />
-                </button>
-                <button class="icon-btn-sq icon-btn-sq--danger" @click.stop="store.removeToken(token.id)">
-                  <OhVueIcon name="md-delete" scale="0.85" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Selected token detail panel -->
-        <div v-if="selectedToken" class="sidebar-section">
-          <div class="sidebar-header">
-            <span class="f-label">Selected Token</span>
-            <Button severity="secondary" size="small" @click="selectedToken = null">✕</Button>
-          </div>
-          <div class="space-y-2 text-sm">
-            <div>
-              <label class="f-label">Label</label>
-              <InputText :value="selectedToken.label || selectedToken.name"
-                @change="store.updateToken(selectedToken!.id, { label: ($event.target as HTMLInputElement).value })" />
-            </div>
-            <div class="enc-grid-2">
-              <div>
-                <label class="f-label">HP Current</label>
-                <InputNumber :model-value="selectedToken.hpCurrent"
-                  @update:model-value="val => store.updateToken(selectedToken!.id, { hpCurrent: val })" />
-              </div>
-              <div>
-                <label class="f-label">HP Max</label>
-                <InputNumber :model-value="selectedToken.hpMax"
-                  @update:model-value="val => store.updateToken(selectedToken!.id, { hpMax: val })" />
-              </div>
-            </div>
-            <div class="enc-grid-2">
-              <div>
-                <label class="f-label">Initiative</label>
-                <InputNumber :model-value="selectedToken.initiative"
-                  @update:model-value="val => store.updateToken(selectedToken!.id, { initiative: val })" />
-              </div>
-              <div>
-                <label class="f-label">Size (tiles)</label>
-                <Select :model-value="selectedToken.size" :options="tokenSizeOptions" option-label="label"
-                  option-value="value" @update:model-value="store.updateToken(selectedToken!.id, { size: $event })" />
-              </div>
-            </div>
-
-            <!-- Conditions -->
-            <div>
-              <label class="f-label block mb-1.5">Conditions</label>
-
-              <!-- Active conditions -->
-              <div class="enc-conditions-list">
-                <div v-for="(cond, idx) in selectedToken.conditions" :key="idx" class="condition-tag">
-                  <span>{{ cond.name }}</span>
-                  <div v-if="cond.value !== null" class="condition-value-controls">
-                    <button class="cond-ctrl-btn" @click="adjustConditionValue(idx, -1)">−</button>
-                    <span>{{ cond.value }}</span>
-                    <button class="cond-ctrl-btn" @click="adjustConditionValue(idx, 1)">+</button>
+                <div class="enc-token-info">
+                  <div class="enc-token-name">
+                    {{ token.label || token.name }}
                   </div>
-                  <button class="condition-remove" @click="removeCondition(idx)">✕</button>
+                  <div class="enc-token-sub">
+                    <span v-if="token.hpMax" class="enc-token-hp">
+                      HP {{ token.hpCurrent }}/{{ token.hpMax }}
+                    </span>
+                  </div>
                 </div>
-                <span v-if="selectedToken.conditions.length === 0" class="enc-no-conditions">None</span>
-              </div>
-
-              <!-- Add condition -->
-              <div class="enc-add-condition">
-                <AutoComplete v-model="newConditionName" :suggestions="filteredConditions" placeholder="Condition name…"
-                  @complete="searchConditions" @keyup.enter="addCondition" />
-                <InputNumber v-model="newConditionValue" :min="1" />
-                <Button severity="secondary" size="small" @click="addCondition">+</Button>
-              </div>
-              <p class="enc-token-hp">Leave value empty for conditions without a degree.</p>
-            </div>
-
-            <!-- Notes -->
-            <div>
-              <label class="f-label">Notes</label>
-              <Textarea :value="selectedToken.notes || ''" placeholder="Anything to remember…" :rows="3"
-                @change="store.updateToken(selectedToken!.id, { notes: ($event.target as HTMLTextAreaElement).value })" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Fog controls -->
-        <div class="sidebar-section">
-          <div class="sidebar-header">
-            <span class="f-label">Fog of War</span>
-          </div>
-          <div class="enc-grid-2">
-            <Button severity="secondary" size="small" style="width:100%;justify-content:center"
-              @click="store.hideAllFog()">
-              <OhVueIcon name="md-cloud" scale="0.85" />
-              Hide All
-            </Button>
-            <Button severity="secondary" size="small" style="width:100%;justify-content:center"
-              @click="store.revealAllFog()">
-              <OhVueIcon name="md-sunny" scale="0.85" /> Reveal All
-            </Button>
-          </div>
-          <p class="enc-hint">
-            Select the fog tool and click/paint cells to toggle visibility.
-          </p>
-        </div>
-      </aside>
-    </div>
-
-    <!-- ── Add Token Modal ──────────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div v-if="showAddToken" class="modal-overlay" @click.self="showAddToken = false">
-        <div class="modal-box">
-          <div class="modal-title">Add Token to Library</div>
-          <div class="space-y-3">
-            <div>
-              <label class="f-label">Name</label>
-              <InputText v-model="newToken.name" placeholder="Goblin, Wizard, etc." autofocus />
-            </div>
-            <div>
-              <label class="f-label">Image</label>
-              <div class="enc-add-condition">
-                <InputText v-model="newToken.imageSource" placeholder="URL or file path" class="flex-1" />
-                <Button class="icon-btn-sq" @click="browseTokenImage">
-                  <OhVueIcon name="fa-folder-open" scale="0.9" />
-                </Button>
+                <div class="enc-token-btns">
+                  <button
+                    class="icon-btn-sq"
+                    :title="
+                      token.isVisible ? 'Hide from players' : 'Show to players'
+                    "
+                    @click.stop="
+                      store.updateToken(token.id, {
+                        isVisible: !token.isVisible,
+                      })
+                    "
+                  >
+                    <OhVueIcon
+                      :name="
+                        token.isVisible ? 'md-visibility' : 'md-visibilityoff'
+                      "
+                      scale="0.85"
+                    />
+                  </button>
+                  <button
+                    class="icon-btn-sq"
+                    :title="token.isDead ? 'Mark alive' : 'Mark dead'"
+                    :class="token.isDead ? 'icon-btn-sq--danger' : ''"
+                    @click.stop="
+                      store.updateToken(token.id, { isDead: !token.isDead })
+                    "
+                  >
+                    <OhVueIcon name="fa-skull-crossbones" scale="0.85" />
+                  </button>
+                  <button
+                    class="icon-btn-sq icon-btn-sq--danger"
+                    @click.stop="store.removeToken(token.id)"
+                  >
+                    <OhVueIcon name="md-delete" scale="0.85" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-          <div class="flex justify-end gap-2 mt-4">
-            <Button severity="secondary" @click="showAddToken = false">Cancel</Button>
-            <Button @click="confirmAddToken">Add Token</Button>
+
+          <!-- Selected token detail panel -->
+          <div v-if="selectedToken" class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Selected Token</span>
+              <Button
+                severity="secondary"
+                size="small"
+                @click="selectedToken = null"
+                >✕</Button
+              >
+            </div>
+            <div class="space-y-2 text-sm">
+              <div>
+                <label class="f-label">Label</label>
+                <InputText
+                  :value="selectedToken.label || selectedToken.name"
+                  @change="
+                    store.updateToken(selectedToken!.id, {
+                      label: ($event.target as HTMLInputElement).value,
+                    })
+                  "
+                />
+              </div>
+              <div class="enc-grid-2">
+                <div>
+                  <label class="f-label">HP Current</label>
+                  <InputNumber
+                    :model-value="selectedToken.hpCurrent"
+                    @update:model-value="
+                      (val) =>
+                        store.updateToken(selectedToken!.id, { hpCurrent: val })
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="f-label">HP Max</label>
+                  <InputNumber
+                    :model-value="selectedToken.hpMax"
+                    @update:model-value="
+                      (val) =>
+                        store.updateToken(selectedToken!.id, { hpMax: val })
+                    "
+                  />
+                </div>
+              </div>
+              <div class="enc-grid-2">
+                <div>
+                  <label class="f-label">Initiative</label>
+                  <InputNumber
+                    :model-value="selectedToken.initiative"
+                    @update:model-value="
+                      (val) =>
+                        store.updateToken(selectedToken!.id, {
+                          initiative: val,
+                        })
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="f-label">Size (tiles)</label>
+                  <Select
+                    :model-value="selectedToken.size"
+                    :options="tokenSizeOptions"
+                    option-label="label"
+                    option-value="value"
+                    @update:model-value="
+                      store.updateToken(selectedToken!.id, { size: $event })
+                    "
+                  />
+                </div>
+              </div>
+
+              <!-- Conditions -->
+              <div>
+                <label class="f-label block mb-1.5">Conditions</label>
+
+                <!-- Active conditions -->
+                <div class="enc-conditions-list">
+                  <div
+                    v-for="(cond, idx) in selectedToken.conditions"
+                    :key="idx"
+                    class="condition-tag"
+                  >
+                    <span>{{ cond.name }}</span>
+                    <div
+                      v-if="cond.value !== null"
+                      class="condition-value-controls"
+                    >
+                      <button
+                        class="cond-ctrl-btn"
+                        @click="adjustConditionValue(idx, -1)"
+                      >
+                        −
+                      </button>
+                      <span>{{ cond.value }}</span>
+                      <button
+                        class="cond-ctrl-btn"
+                        @click="adjustConditionValue(idx, 1)"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      class="condition-remove"
+                      @click="removeCondition(idx)"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <span
+                    v-if="selectedToken.conditions.length === 0"
+                    class="enc-no-conditions"
+                    >None</span
+                  >
+                </div>
+
+                <!-- Add condition -->
+                <div class="enc-add-condition">
+                  <AutoComplete
+                    v-model="newConditionName"
+                    :suggestions="filteredConditions"
+                    placeholder="Condition name…"
+                    @complete="searchConditions"
+                    @keyup.enter="addCondition"
+                  />
+                  <InputNumber v-model="newConditionValue" :min="1" />
+                  <Button
+                    severity="secondary"
+                    size="small"
+                    @click="addCondition"
+                    >+</Button
+                  >
+                </div>
+                <p class="enc-token-hp">
+                  Leave value empty for conditions without a degree.
+                </p>
+              </div>
+
+              <!-- Notes -->
+              <div>
+                <label class="f-label">Notes</label>
+                <Textarea
+                  :value="selectedToken.notes || ''"
+                  placeholder="Anything to remember…"
+                  :rows="3"
+                  @change="
+                    store.updateToken(selectedToken!.id, {
+                      notes: ($event.target as HTMLTextAreaElement).value,
+                    })
+                  "
+                />
+              </div>
+            </div>
           </div>
-        </div>
+
+          <!-- Fog controls -->
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Fog of War</span>
+            </div>
+            <div class="enc-grid-2">
+              <Button
+                severity="secondary"
+                size="small"
+                style="width: 100%; justify-content: center"
+                @click="store.hideAllFog()"
+              >
+                <OhVueIcon name="md-cloud" scale="0.85" />
+                Hide All
+              </Button>
+              <Button
+                severity="secondary"
+                size="small"
+                style="width: 100%; justify-content: center"
+                @click="store.revealAllFog()"
+              >
+                <OhVueIcon name="md-sunny" scale="0.85" /> Reveal All
+              </Button>
+            </div>
+            <p class="enc-hint">
+              Select the fog tool and click/paint cells to toggle visibility.
+            </p>
+          </div>
+        </aside>
       </div>
-    </Teleport>
 
+      <!-- ── Add Token Modal ──────────────────────────────────────────────────── -->
+      <Teleport to="body">
+        <div
+          v-if="showAddToken"
+          class="modal-overlay"
+          @click.self="showAddToken = false"
+        >
+          <div class="modal-box">
+            <div class="modal-title">Add Token to Library</div>
+            <div class="space-y-3">
+              <div>
+                <label class="f-label">Name</label>
+                <InputText
+                  v-model="newToken.name"
+                  placeholder="Goblin, Wizard, etc."
+                  autofocus
+                />
+              </div>
+              <div>
+                <label class="f-label">Image</label>
+                <div class="enc-add-condition">
+                  <InputText
+                    v-model="newToken.imageSource"
+                    placeholder="URL or file path"
+                    class="flex-1"
+                  />
+                  <Button class="icon-btn-sq" @click="browseTokenImage">
+                    <OhVueIcon name="fa-folder-open" scale="0.9" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+              <Button severity="secondary" @click="showAddToken = false"
+                >Cancel</Button
+              >
+              <Button @click="confirmAddToken">Add Token</Button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+    </div>
+    <!-- end encounter-page -->
   </div>
+  <!-- end encounter-shell -->
 </template>
 
 <script setup lang="ts">
-import { useEncounterStore } from '~/stores/encounter'
-import { useEncounterCanvas } from '~/composables/useEncounterCanvas'
-import { dbApi } from '~/composables/useDb'
+import { useEncounterStore } from "~/stores/encounter";
+import { useEncounterCanvas } from "~/composables/useEncounterCanvas";
+import { dbApi } from "~/composables/useDb";
 
-const route = useRoute()
-const store = useEncounterStore()
-const canvasContainer = ref<HTMLElement | null>(null)
+const route = useRoute();
+const store = useEncounterStore();
+const canvasContainer = ref<HTMLElement | null>(null);
 
-const activeTool = ref<'select' | 'fog' | 'measure'>('select')
+const activeTool = ref<"select" | "fog" | "measure">("select");
 
 const tokenSizeOptions = [
-  { label: '1×1 (medium)', value: 1 },
-  { label: '2×2 (large)', value: 2 },
-  { label: '3×3 (huge)', value: 3 },
-  { label: '4×4 (gargantuan)', value: 4 },
-]
-const selectedToken = ref<any>(null)
-const showAddToken = ref(false)
-const tokenSearch = ref('')
-const newToken = ref({ name: '', imageSource: '', imageType: 'file' as 'file' | 'url' })
+  { label: "1×1 (medium)", value: 1 },
+  { label: "2×2 (large)", value: 2 },
+  { label: "3×3 (huge)", value: 3 },
+  { label: "4×4 (gargantuan)", value: 4 },
+];
+const selectedToken = ref<any>(null);
+const showAddToken = ref(false);
+const tokenSearch = ref("");
+const newToken = ref({
+  name: "",
+  imageSource: "",
+  imageType: "file" as "file" | "url",
+});
 
 const tools = [
-  { id: 'select', icon: 'md-shield', label: 'Select / Move' },
-  { id: 'fog', icon: 'md-cloud', label: 'Fog of War' },
-]
+  { id: "select", icon: "md-shield", label: "Select / Move" },
+  { id: "fog", icon: "md-cloud", label: "Fog of War" },
+];
 
-const encounter = computed(() => store.current)
-const encounterTokens = computed(() => store.allTokens)
+const encounter = computed(() => store.current);
+const encounterTokens = computed(() => store.allTokens);
 const sortedEncounterTokens = computed(() =>
   store.allTokens.sort((a, b) => {
     // Tokens with initiative set come first, sorted descending
-    if (a.initiative === null && b.initiative === null) return 0
-    if (a.initiative === null) return 1
-    if (b.initiative === null) return -1
-    return b.initiative - a.initiative
-  })
-)
-const playerWindowOpen = computed(() => store.playerWindowOpen)
+    if (a.initiative === null && b.initiative === null) return 0;
+    if (a.initiative === null) return 1;
+    if (b.initiative === null) return -1;
+    return b.initiative - a.initiative;
+  }),
+);
+const playerWindowOpen = computed(() => store.playerWindowOpen);
 const filteredLibrary = computed(() =>
-  store.tokenLibrary.filter(t =>
-    t.name.toLowerCase().includes(tokenSearch.value.toLowerCase())
-  )
-)
+  store.tokenLibrary.filter((t) =>
+    t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
+  ),
+);
 
-let canvas: ReturnType<typeof useEncounterCanvas> | null = null
+let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 
-const newConditionName = ref('')
-const newConditionValue = ref<number | null>(null)
-const filteredConditions = ref<string[]>([])
+const newConditionName = ref("");
+const newConditionValue = ref<number | null>(null);
+const filteredConditions = ref<string[]>([]);
 
 function searchConditions(event: { query: string }) {
-  const q = event.query.toLowerCase()
+  const q = event.query.toLowerCase();
   filteredConditions.value = q
-    ? conditionSuggestions.filter(c => c.toLowerCase().includes(q))
-    : [...conditionSuggestions]
+    ? conditionSuggestions.filter((c) => c.toLowerCase().includes(q))
+    : [...conditionSuggestions];
 }
 
 const conditionSuggestions = [
-  'Blinded', 'Broken', 'Clumsy', 'Confused', 'Controlled', 'Dazzled',
-  'Deafened', 'Doomed', 'Drained', 'Dying', 'Encumbered', 'Enfeebled',
-  'Fascinated', 'Fatigued', 'Flat-Footed', 'Fleeing', 'Frightened',
-  'Grabbed', 'Hidden', 'Immobilized', 'Invisible', 'Observed',
-  'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Quickened',
-  'Restrained', 'Sickened', 'Slowed', 'Stunned', 'Stupefied',
-  'Unconscious', 'Undetected', 'Unnoticed', 'Wounded',
-]
+  "Blinded",
+  "Broken",
+  "Clumsy",
+  "Confused",
+  "Controlled",
+  "Dazzled",
+  "Deafened",
+  "Doomed",
+  "Drained",
+  "Dying",
+  "Encumbered",
+  "Enfeebled",
+  "Fascinated",
+  "Fatigued",
+  "Flat-Footed",
+  "Fleeing",
+  "Frightened",
+  "Grabbed",
+  "Hidden",
+  "Immobilized",
+  "Invisible",
+  "Observed",
+  "Paralyzed",
+  "Petrified",
+  "Poisoned",
+  "Prone",
+  "Quickened",
+  "Restrained",
+  "Sickened",
+  "Slowed",
+  "Stunned",
+  "Stupefied",
+  "Unconscious",
+  "Undetected",
+  "Unnoticed",
+  "Wounded",
+];
 
 function addCondition() {
-  if (!selectedToken.value || !newConditionName.value.trim()) return
-  const current = [...selectedToken.value.conditions]
+  if (!selectedToken.value || !newConditionName.value.trim()) return;
+  const current = [...selectedToken.value.conditions];
   current.push({
     name: newConditionName.value.trim(),
     value: newConditionValue.value ?? null,
-  })
-  store.updateToken(selectedToken.value.id, { conditions: current })
-  newConditionName.value = ''
-  newConditionValue.value = null
+  });
+  store.updateToken(selectedToken.value.id, { conditions: current });
+  newConditionName.value = "";
+  newConditionValue.value = null;
 }
 
 function removeCondition(idx: number) {
-  if (!selectedToken.value) return
-  const current = [...selectedToken.value.conditions]
-  current.splice(idx, 1)
-  store.updateToken(selectedToken.value.id, { conditions: current })
+  if (!selectedToken.value) return;
+  const current = [...selectedToken.value.conditions];
+  current.splice(idx, 1);
+  store.updateToken(selectedToken.value.id, { conditions: current });
 }
 
 function adjustConditionValue(idx: number, delta: number) {
-  if (!selectedToken.value) return
-  const current = [...selectedToken.value.conditions].map(c => ({ ...c }))
-  const cond = current[idx]
-  if (cond.value === null) return
-  cond.value = cond.value + delta
+  if (!selectedToken.value) return;
+  const current = [...selectedToken.value.conditions].map((c) => ({ ...c }));
+  const cond = current[idx];
+  if (cond.value === null) return;
+  cond.value = cond.value + delta;
   if (cond.value <= 0) {
-    current.splice(idx, 1)
+    current.splice(idx, 1);
   }
-  store.updateToken(selectedToken.value.id, { conditions: current })
+  store.updateToken(selectedToken.value.id, { conditions: current });
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 onMounted(async () => {
-  const id = Number(route.params.id)
-  await store.loadEncounter(id)
-  await store.loadTokenLibrary()
+  const id = Number(route.params.id);
+  await store.loadEncounter(id);
+  await store.loadTokenLibrary();
 
-  if (!canvasContainer.value) return
+  if (!canvasContainer.value) return;
 
   canvas = useEncounterCanvas({
     container: canvasContainer.value,
     isDmMode: true,
     getActiveTool: () => activeTool.value,
     onTokenMoved: (instanceId, gridX, gridY) => {
-      store.moveToken(instanceId, gridX, gridY)
+      store.moveToken(instanceId, gridX, gridY);
     },
     onFogToggle: (cellKey, newState) => {
-      store.setFogCell(cellKey, newState)
-      canvas?.redrawFog()
+      store.setFogCell(cellKey, newState);
+      canvas?.redrawFog();
     },
-  })
+  });
 
-  await canvas.init()
+  await canvas.init();
 
   if (store.current?.mapSource) {
-    await canvas.loadMap(store.current.mapSource, store.current.mapType)
+    await canvas.loadMap(store.current.mapSource, store.current.mapType);
   }
-  await canvas.renderTokens()
+  await canvas.renderTokens();
 
   // Listen for player window close
   dbApi.window.onPlayerClosed(() => {
-    store.playerWindowOpen = false
-  })
-})
+    store.playerWindowOpen = false;
+  });
+});
 
-watch(() => store.current?.mapSource, async (src, old) => {
-  if (src && src !== old && canvas) {
-    await canvas.loadMap(src, store.current!.mapType)
-  }
-})
+watch(
+  () => store.current?.mapSource,
+  async (src, old) => {
+    if (src && src !== old && canvas) {
+      await canvas.loadMap(src, store.current!.mapType);
+    }
+  },
+);
 
-watch(() => store.current?.tokens, async () => {
-  await canvas?.renderTokens()
-}, { deep: true })
+watch(
+  () => store.current?.tokens,
+  async () => {
+    await canvas?.renderTokens();
+  },
+  { deep: true },
+);
 
-watch(() => store.current?.fogData, () => {
-  canvas?.redrawFog()
-}, { deep: true })
+watch(
+  () => store.current?.fogData,
+  () => {
+    canvas?.redrawFog();
+  },
+  { deep: true },
+);
 
-watch(() => [store.current?.gridSize, store.current?.gridOffsetX, store.current?.gridOffsetY], () => {
-  canvas?.drawGrid()
-  canvas?.redrawFog()
-})
+watch(
+  () => [
+    store.current?.gridSize,
+    store.current?.gridOffsetX,
+    store.current?.gridOffsetY,
+  ],
+  () => {
+    canvas?.drawGrid();
+    canvas?.redrawFog();
+  },
+);
 
-onUnmounted(() => canvas?.destroy())
+onUnmounted(() => canvas?.destroy());
 
 // ── Handlers ───────────────────────────────────────────────────────────────
 async function onSetMap() {
-  const dataUrl = await dbApi.system.openFileDialog()
-  if (dataUrl) await store.setMap(dataUrl, 'file')
+  const dataUrl = await dbApi.system.openFileDialog();
+  if (dataUrl) await store.setMap(dataUrl, "file");
 }
 
 async function onGridSizeChange(e: Event) {
-  const size = Number((e.target as HTMLInputElement).value)
-  const enc = store.current
-  if (!enc) return
-  await store.updateGrid(size, enc.gridOffsetX, enc.gridOffsetY)
+  const size = Number((e.target as HTMLInputElement).value);
+  const enc = store.current;
+  if (!enc) return;
+  await store.updateGrid(size, enc.gridOffsetX, enc.gridOffsetY);
 }
 
-async function onOffsetChange(axis: 'x' | 'y', val: number | null) {
-  if (val === null) return
-  const enc = store.current
-  if (!enc) return
-  if (axis === 'x') await store.updateGrid(enc.gridSize, val, enc.gridOffsetY)
-  else await store.updateGrid(enc.gridSize, enc.gridOffsetX, val)
+async function onOffsetChange(axis: "x" | "y", val: number | null) {
+  if (val === null) return;
+  const enc = store.current;
+  if (!enc) return;
+  if (axis === "x") await store.updateGrid(enc.gridSize, val, enc.gridOffsetY);
+  else await store.updateGrid(enc.gridSize, enc.gridOffsetX, val);
 }
 
-let draggingTokenId: number | null = null
+let draggingTokenId: number | null = null;
 function onTokenDragStart(e: DragEvent, token: any) {
-  draggingTokenId = token.id
-  e.dataTransfer?.setData('tokenId', String(token.id))
+  draggingTokenId = token.id;
+  e.dataTransfer?.setData("tokenId", String(token.id));
 }
 
 async function onCanvasDrop(e: DragEvent) {
-  if (!canvas || draggingTokenId === null) return
-  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY)
-  await store.addTokenToEncounter(draggingTokenId, gridX, gridY)
-  draggingTokenId = null
+  if (!canvas || draggingTokenId === null) return;
+  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY);
+  await store.addTokenToEncounter(draggingTokenId, gridX, gridY);
+  draggingTokenId = null;
 }
 
 async function togglePlayerWindow() {
-  if (playerWindowOpen.value) await store.closePlayerWindow()
-  else await store.openPlayerWindow()
+  if (playerWindowOpen.value) await store.closePlayerWindow();
+  else await store.openPlayerWindow();
 }
 
 function selectToken(token: any) {
-  selectedToken.value = token
+  selectedToken.value = token;
 }
 
 async function browseTokenImage() {
-  const dataUrl = await dbApi.system.openFileDialog()
+  const dataUrl = await dbApi.system.openFileDialog();
   if (dataUrl) {
-    newToken.value.imageSource = dataUrl
-    newToken.value.imageType = 'file'
+    newToken.value.imageSource = dataUrl;
+    newToken.value.imageType = "file";
   }
 }
 
 async function confirmAddToken() {
-  if (!newToken.value.name.trim()) return
-  const type = newToken.value.imageSource.startsWith('http') ? 'url' : 'file'  // data: URLs are stored as 'file' type
-  await store.addToLibrary(newToken.value.name, newToken.value.imageSource || null, type)
-  newToken.value = { name: '', imageSource: '', imageType: 'file' }
-  showAddToken.value = false
+  if (!newToken.value.name.trim()) return;
+  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file"; // data: URLs are stored as 'file' type
+  await store.addToLibrary(
+    newToken.value.name,
+    newToken.value.imageSource || null,
+    type,
+  );
+  newToken.value = { name: "", imageSource: "", imageType: "file" };
+  showAddToken.value = false;
 }
 
 async function removeFromLibrary(id: number) {
-  await dbApi.tokens.delete(id)
-  store.tokenLibrary = store.tokenLibrary.filter(t => t.id !== id)
+  await dbApi.tokens.delete(id);
+  store.tokenLibrary = store.tokenLibrary.filter((t) => t.id !== id);
 }
 
 function getImageUrl(token: any): string {
-  if (!token.imageSource) return ''
-  if (token.imageType === 'url') return token.imageSource
-  return `${token.imageSource}`
+  if (!token.imageSource) return "";
+  if (token.imageType === "url") return token.imageSource;
+  return `${token.imageSource}`;
 }
 </script>
 
 <style scoped>
 /* ── Encounter VTT — parchment sidebars + dark canvas ── */
 
+.encounter-shell {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  padding: 20px 28px;
+  box-sizing: border-box;
+  background: var(--leather);
+  overflow: hidden;
+}
+
+.enc-sheet {
+  position: absolute;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Sheet 3 — furthest back, rotated right, slightly larger */
+.enc-sheet-3 {
+  inset: 18px 20px 12px 20px;
+  background-color: #b8ac96;
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  transform: rotate(1.4deg) translateX(10px);
+  transform-origin: top center;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* Sheet 2 — middle, rotated left */
+.enc-sheet-2 {
+  inset: 18px 20px 12px 20px;
+  background-color: #cdc09e;
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  transform: rotate(-1.0deg) translateX(-8px);
+  transform-origin: top center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
+}
+
 .encounter-page {
+  position: relative;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border-radius: 2px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* ── Toolbar — parchment page header ── */
@@ -572,7 +882,7 @@ function getImageUrl(token: any): string {
 }
 
 .page-rule-wrapper::before {
-  content: '✦';
+  content: "✦";
   font-size: 10px;
   color: var(--gold);
   flex-shrink: 0;
@@ -581,7 +891,7 @@ function getImageUrl(token: any): string {
 }
 
 .page-rule-wrapper::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: linear-gradient(to right, var(--ink-faded), transparent);
@@ -605,10 +915,17 @@ function getImageUrl(token: any): string {
   padding: 2px 6px;
   outline: none;
   min-width: 120px;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
-.encounter-name-input:hover { border-color: var(--parch-line); }
-.encounter-name-input:focus { border-color: var(--ink-ghost); background: var(--parch-dark); }
+.encounter-name-input:hover {
+  border-color: var(--parch-line);
+}
+.encounter-name-input:focus {
+  border-color: var(--ink-ghost);
+  background: var(--parch-dark);
+}
 
 /* ── Main layout ── */
 .encounter-layout {
@@ -624,7 +941,9 @@ function getImageUrl(token: any): string {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
   overflow-y: auto;
 }
 
@@ -952,7 +1271,9 @@ function getImageUrl(token: any): string {
 }
 
 .modal-box {
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
   border: 1px solid var(--parch-line);
   border-radius: 2px;
   padding: 24px;

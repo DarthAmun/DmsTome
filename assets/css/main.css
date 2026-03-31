@@ -942,6 +942,42 @@ html, body, #__nuxt {
 }
 .ghost-btn:hover { border-color: var(--rim-l); color: #e8dcc5; background: rgba(255,255,255,0.04); }
 
+/* Back button — consistent parchment style for all back/nav links */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid rgba(28,20,16,0.2);
+  border-radius: 2px;
+  color: var(--ink-faded);
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.back-btn:hover {
+  border-color: var(--blood);
+  color: var(--blood);
+  background: var(--blood-pale);
+}
+.back-btn--active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-pale);
+}
+.back-btn--active:hover {
+  border-color: var(--blood);
+  color: var(--blood);
+  background: var(--blood-pale);
+}
+
 /* Parchment button — on light pages */
 .parch-btn {
   display: inline-flex;

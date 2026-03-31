@@ -1,11 +1,11 @@
 <template>
   <div class="book-shell">
-    <div class="tome-page">
+    <div class="tome-page" :class="{ 'tome-page--full': spineHidden }">
       <NuxtPage />
     </div>
 
     <!-- Campaign spine tabs -->
-    <nav class="spine-tabs">
+    <nav v-if="!spineHidden" class="spine-tabs">
       <SpineSeal />
       <NuxtLink to="/" class="spine-tab" title="Home">
         <OhVueIcon name="md-arrowback" scale="0.85" />
@@ -30,11 +30,14 @@
 </template>
 
 <script setup lang="ts">
+import { usePageChrome } from '~/composables/usePageChrome'
 const route = useRoute()
 const id = computed(() => route.params.id)
+const { spineHidden } = usePageChrome()
 </script>
 
 <style scoped>
 .book-shell { display: flex; height: 100vh; background: var(--leather); }
-.tome-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; margin: 20px 20px 20px 60px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: visible; position: relative; z-index: 1; }
+.tome-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; margin: 20px 20px 20px 60px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: visible; position: relative; z-index: 1; transition: margin 0.2s; }
+.tome-page--full { margin: 20px 20px 20px 20px; }
 </style>
