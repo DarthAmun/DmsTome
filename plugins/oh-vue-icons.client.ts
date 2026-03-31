@@ -11,7 +11,9 @@ import {
   MdDesktopmac, MdSettings,
   MdViewmodule, MdMenubook,
   MdDraghandle, MdArrowdropdown,
-  MdChevronleft, MdChevronright
+  MdChevronleft, MdChevronright,
+  MdFiledownload, MdFileupload, MdWarningamber,
+  MdBrightness4, MdAnimation, MdStorage,
 } from 'oh-vue-icons/icons/md'
 
 import {
@@ -38,6 +40,8 @@ addIcons(
   MdViewmodule, MdMenubook,
   MdDraghandle, MdArrowdropdown,
   MdChevronleft, MdChevronright,
+  MdFiledownload, MdFileupload, MdWarningamber,
+  MdBrightness4, MdAnimation, MdStorage,
   FaEye, FaEyeSlash,
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,

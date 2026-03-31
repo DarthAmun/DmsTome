@@ -22,6 +22,9 @@
         @click="$router.push(`/system/${systemId}/${et.id}`)">
         <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
       </button>
+      <NuxtLink to="/settings" class="spine-tab" title="Settings">
+        <OhVueIcon name="md-settings" scale="0.85" />
+      </NuxtLink>
     </nav>
   </div>
 </template>

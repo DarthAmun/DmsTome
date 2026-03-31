@@ -22,6 +22,9 @@
         :class="{ active: route.path.includes('/map') }">
         <OhVueIcon name="gi-treasure-map" scale="0.85" />
       </NuxtLink>
+      <NuxtLink to="/settings" class="spine-tab" title="Settings">
+        <OhVueIcon name="md-settings" scale="0.85" />
+      </NuxtLink>
     </nav>
   </div>
 </template>

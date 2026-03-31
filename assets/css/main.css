@@ -1117,6 +1117,12 @@ html, body, #__nuxt {
   animation: inkAppear 0.001s forwards;
 }
 
+/* ── Settings: reduced motion / no-animations class ── */
+.no-animations .page-enter  { animation: none !important; }
+.no-animations .ink-drop    { animation: none !important; opacity: 1 !important; }
+.no-animations .ink-c       { animation: none !important; opacity: 1 !important; }
+.no-animations .arcane-spark { display: none !important; }
+
 @keyframes fadeIn      { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slideUp     { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
 @keyframes scrollUnfurl { from { opacity: 0; transform: scaleY(0.85) translateY(-10px); transform-origin: top; } to { opacity: 1; transform: scaleY(1) translateY(0); } }

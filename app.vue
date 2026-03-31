@@ -13,6 +13,9 @@
 </template>
 
 <script setup lang="ts">
+import { useSettings } from '~/composables/useSettings'
+const { settings } = useSettings()
+
 // ── Ink write animation ──────────────────────────────────────────
 const INK_SELECTORS = [
   '.entry-name',
@@ -85,6 +88,7 @@ async function installApp() {
 const router = useRouter()
 router.afterEach(() => {
   nextTick(() => {
+    if (!settings.value.inkWrite) return
     document.querySelectorAll(INK_SELECTORS.join(',')).forEach(el => {
       (el as HTMLElement).style.opacity = '0'
     })
@@ -93,6 +97,7 @@ router.afterEach(() => {
 })
 
 function onMagicClick(e: MouseEvent) {
+  if (!settings.value.sparkEffects) return
   const el = e.target as HTMLElement
   if (!el.closest('button, a, .spine-tab, .ink-card, .v6-card, .ink-card-new, .entry')) return
   const layer = document.getElementById('spark-layer')

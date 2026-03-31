@@ -35,9 +35,6 @@
                       <span class="entry-leader" />
                       <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                       <div class="entry-actions" @click.stop>
-                        <button class="entry-act" @click.stop="exportData(c.id)" title="Export">
-                          <OhVueIcon name="md-cloud" scale="0.75" />
-                        </button>
                         <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
                           <OhVueIcon name="md-delete" scale="0.75" />
                         </button>
@@ -131,16 +128,6 @@
               </button>
               <span class="leaf-folio-num">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
             </div>
-            <div v-if="section !== 'library'" class="leaf-footnote-bar">
-              <label v-if="section === 'campaigns'" class="leaf-footnote-link">
-                ↑ Restore from backup
-                <input type="file" accept=".json" style="display:none" @change="importData" />
-              </label>
-              <label v-else class="leaf-footnote-link">
-                ↑ Import system schema
-                <input type="file" accept=".json" style="display:none" @change="importSystem" />
-              </label>
-            </div>
           </div>
         </div>
 
@@ -173,9 +160,6 @@
                         <span class="entry-leader" />
                         <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                         <div class="entry-actions" @click.stop>
-                          <button class="entry-act" @click.stop="exportData(c.id)" title="Export">
-                            <OhVueIcon name="md-cloud" scale="0.75" />
-                          </button>
                           <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
                             <OhVueIcon name="md-delete" scale="0.75" />
                           </button>
@@ -264,6 +248,9 @@
       <button class="spine-tab" title="Library" :class="{ active: section === 'library' }" @click="section = 'library'">
         <OhVueIcon name="gi-open-treasure-chest" scale="0.85" />
       </button>
+      <NuxtLink to="/settings" class="spine-tab" title="Settings">
+        <OhVueIcon name="md-settings" scale="0.85" />
+      </NuxtLink>
     </nav>
 
     <!-- DIALOGS -->
@@ -395,44 +382,6 @@ async function deleteCampaign(id: number) {
   campaigns.value = campaigns.value.filter(c => c.id !== id)
 }
 
-async function importSystem(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return
-  const sys = await store.importSystem(await file.text())
-  router.push(`/system/${sys.id}`)
-}
-
-async function exportData(campaignId: number) {
-  const db = getDb(); const camp = campaigns.value.find(c => c.id === campaignId)
-  const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
-  const encIds = encounters.map((e: any) => e.id as number)
-  const encounterTokens = encIds.length ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray() : []
-  const entities = await db.entities.where('campaign_id').equals(campaignId).toArray()
-  const entIds = entities.map((e: any) => e.id as number)
-  const entityLinks = entIds.length ? await db.entityLinks.where('source_id').anyOf(entIds).toArray() : []
-  const tokens = await db.tokens.toArray()
-  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), campaign: camp, encounters, encounterTokens, entities, entityLinks, tokens }, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob); const a = document.createElement('a')
-  a.href = url; a.download = `dmstome-${camp?.name?.replace(/\s+/g, '-') ?? campaignId}-${new Date().toISOString().slice(0, 10)}.json`
-  a.click(); URL.revokeObjectURL(url)
-}
-
-async function importData(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return
-  if (!confirm('Import this backup?')) return
-  try {
-    const payload = JSON.parse(await file.text())
-    if (!payload.version || !payload.campaign) { alert('Invalid backup'); return }
-    const db = getDb(); const now = new Date().toISOString()
-    await db.campaigns.put({ ...payload.campaign, updated_at: payload.campaign.updated_at ?? now, created_at: payload.campaign.created_at ?? now })
-    for (const t of payload.tokens ?? []) await db.tokens.put(t)
-    for (const enc of payload.encounters ?? []) await db.encounters.put(enc)
-    for (const et of payload.encounterTokens ?? []) await db.encounterTokens.put(et)
-    for (const ent of payload.entities ?? []) await db.entities.put(ent)
-    for (const lnk of payload.entityLinks ?? []) await db.entityLinks.put(lnk)
-    campaigns.value = await window.dmforge.campaigns.list()
-    alert('Import successful!')
-  } catch (err: any) { alert('Import failed: ' + err.message) }
-}
 
 function formatDate(dt: string) {
   if (!dt) return ''
