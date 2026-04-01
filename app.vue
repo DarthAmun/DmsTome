@@ -1,7 +1,7 @@
 <template>
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
-    <DiceRoller />
+    <DiceRoller v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
     <Transition name="install">
       <button v-if="installPrompt" class="install-pill" @click="installApp" title="Install DM's Tome">
@@ -15,6 +15,9 @@
 <script setup lang="ts">
 import { useSettings } from '~/composables/useSettings'
 const { settings } = useSettings()
+
+const route = useRoute()
+const isPlayerRoute = computed(() => route.path.endsWith('/player'))
 
 // ── Ink write animation ──────────────────────────────────────────
 const INK_SELECTORS = [

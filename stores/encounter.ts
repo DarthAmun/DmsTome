@@ -57,6 +57,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   const isLoading = ref(false)
   const playerWindowOpen = ref(false)
   const isDmMode = ref(true)
+  const shapeOverlays = ref<any[]>([])
 
   // ── Computed ───────────────────────────────────────────────────────────────
   const visibleTokens = computed(() =>
@@ -226,6 +227,11 @@ export const useEncounterStore = defineStore('encounter', () => {
     playerWindowOpen.value = false
   }
 
+  function setShapeOverlays(shapes: any[]) {
+    shapeOverlays.value = shapes
+    syncToPlayer()
+  }
+
   function syncToPlayer() {
     if (!current.value) return
     dbApi.window.syncEncounter({
@@ -238,6 +244,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       gridSize: current.value.gridSize,
       gridOffsetX: current.value.gridOffsetX,
       gridOffsetY: current.value.gridOffsetY,
+      shapes: shapeOverlays.value.map(s => ({ ...toRaw(s) })),
     })
   }
 
@@ -291,6 +298,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     setMap, updateGrid, updateViewport, updateName,
     setFogCell, revealAllFog, hideAllFog,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
-    openPlayerWindow, closePlayerWindow, syncToPlayer,
+    openPlayerWindow, closePlayerWindow, syncToPlayer, setShapeOverlays,
   }
 })

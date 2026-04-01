@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { useEncounterCanvas } from '~/composables/useEncounterCanvas'
+import { useEncounterCanvas, type ShapeOverlay } from '../../../composables/useEncounterCanvas'
 import { useEncounterStore } from '~/stores/encounter'
 
 const route = useRoute()
@@ -40,6 +40,9 @@ onMounted(async () => {
   await canvas.renderTokens()
   canvas.redrawFog()
 
+  // Track rendered shape ids so we can diff on each sync
+  let renderedShapeIds = new Set<string>()
+
   // Live sync from DM window via BroadcastChannel
   window.dmforge.window.onEncounterSync(async (data: any) => {
     if (!store.current) return
@@ -56,6 +59,19 @@ onMounted(async () => {
     canvas?.drawGrid()
     canvas?.redrawFog()
     await canvas?.renderTokens()
+
+    // Sync shape overlays
+    const incoming: ShapeOverlay[] = data.shapes ?? []
+    const incomingIds = new Set(incoming.map((s: ShapeOverlay) => s.id))
+    // Remove shapes no longer present
+    for (const id of renderedShapeIds) {
+      if (!incomingIds.has(id)) canvas?.removeShapeOverlay(id)
+    }
+    // Add new shapes
+    for (const shape of incoming) {
+      if (!renderedShapeIds.has(shape.id)) canvas?.addShapeOverlay(shape)
+    }
+    renderedShapeIds = incomingIds
   })
 
   // Notify DM window when this tab closes

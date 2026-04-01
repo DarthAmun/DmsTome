@@ -875,6 +875,10 @@ watch(activeTool, (tool: string) => {
   if (tool !== "shapes") canvas?.clearShapeAnchor();
 });
 
+watch(shapes, () => {
+  store.setShapeOverlays(shapes.value);
+}, { deep: true });
+
 async function removeFromLibrary(id: number) {
   await dbApi.tokens.delete(id);
   store.tokenLibrary = store.tokenLibrary.filter((t) => t.id !== id);
