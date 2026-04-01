@@ -308,8 +308,10 @@
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { useNotesStore } from '~/stores/notes'
+import { useSystemsStore } from '~/stores/systems'
 import { renderEntityRefs } from '~/composables/useEntityParser'
 import { useDiceRoll } from '~/composables/useDiceRoll'
+import { getDb } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityAttributes } from '~/types/entities'
 
@@ -317,6 +319,33 @@ const props = defineProps<{ entityId: number; campaignId: number; side?: 'editor
 const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }>()
 
 const store = useNotesStore()
+const systemsStore = useSystemsStore()
+const router = useRouter()
+
+// System linked to this campaign
+const campaignSystemId = ref<number | null>(null)
+const systemEntityTypes = ref<{ id: string; name: string; color: string; icon: string }[]>([])
+const systemRecordCache = ref<Map<string, { color: string }>>(new Map())
+
+watch(() => props.campaignId, async (id) => {
+  if (!id) return
+  const campaign = await getDb().campaigns.get(id)
+  const sysId = campaign?.system_id ?? null
+  campaignSystemId.value = sysId
+  if (!sysId) { systemEntityTypes.value = []; return }
+  const sys = systemsStore.getSystem(sysId)
+  if (!sys) { systemEntityTypes.value = []; return }
+  systemEntityTypes.value = sys.entityTypes.map(t => ({ id: t.id, name: t.name, color: t.color, icon: t.icon }))
+  // Pre-cache records from system for entity lookup
+  const records = await getDb().records.where('systemId').equals(sysId).toArray()
+  const cache = new Map<string, { color: string }>()
+  for (const rec of records) {
+    const et = sys.entityTypes.find(t => t.id === rec.entityTypeId)
+    if (et) cache.set(`${rec.entityTypeId}:${rec.name.toLowerCase()}`, { color: et.color })
+  }
+  systemRecordCache.value = cache
+}, { immediate: true })
+
 const md = new MarkdownIt({ html: false, linkify: true, typographer: true, breaks: true })
 
 // ── Inline: ~~strikethrough~~
@@ -442,7 +471,7 @@ const renderedScript = computed(() => {
     : draftScript.value
   if (!script) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
   const html = postProcessHtml(md.render(script))
-  return DOMPurify.sanitize(renderEntityRefs(html, entityLookup), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
+  return DOMPurify.sanitize(renderEntityRefs(html, entityLookup, systemEntityTypes.value.map(t => t.id)), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
 function onScriptInput() {
@@ -479,22 +508,30 @@ watch(() => props.entityId, async (id) => {
 }, { immediate: true })
 
 function entityLookup(type: string, name: string) {
+  // Check campaign entities first
   const entity = store.findByTypeAndName(type, name)
-  if (!entity) return null
-  const attrs = entity.attributes as any
-  const src = attrs.portraitSource || attrs.imageSource
-  const srcType = attrs.portraitType || attrs.imageType
-  const imageUrl = src ? src : undefined
-  const color = typeColorMap[entity.type] ?? '#888'
-  const icon = entity.type
-  return { imageUrl, icon, color }
+  if (entity) {
+    const attrs = entity.attributes as any
+    const src = attrs.portraitSource || attrs.imageSource
+    const imageUrl = src ? src : undefined
+    const color = typeColorMap[entity.type] ?? '#888'
+    const icon = entity.type
+    return { imageUrl, icon, color }
+  }
+  // Check system entity types
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+  if (sysType) {
+    const cached = systemRecordCache.value.get(`${sysType.id}:${name.toLowerCase()}`)
+    return { imageUrl: undefined, icon: sysType.icon, color: cached?.color ?? sysType.color }
+  }
+  return null
 }
 
 const renderedContent = computed(() => {
   const content = props.side === 'preview' ? (entity.value?.content ?? '') : draftContent.value
   if (!content) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
   const html = postProcessHtml(md.render(content))
-  const withRefs = renderEntityRefs(html, entityLookup)
+  const withRefs = renderEntityRefs(html, entityLookup, systemEntityTypes.value.map(t => t.id))
   return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
@@ -539,7 +576,7 @@ function onAttributesChange(attrs: EntityAttributes) {
   attrSaveTimer = setTimeout(() => store.updateEntity(props.entityId, { attributes: attrs }), 500)
 }
 
-function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
+async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
   if (!el) return
   const pos = el.selectionStart
   const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
@@ -547,12 +584,26 @@ function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScrip
   const partialType = match[1].toLowerCase()
   if (partialType === 'roll') { autocomplete.value.show = false; return }
   const partialName = match[2]
-  const candidates = store.entities.filter(e => {
+  // Campaign entities
+  const campaignCandidates = store.entities.filter(e => {
     return e.campaignId === props.campaignId &&
       (!partialType || e.type.startsWith(partialType)) &&
       (!partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
-  }).slice(0, 8)
-  autocomplete.value = { show: true, items: candidates, triggerStart: pos - match[0].length, isScript }
+  }).map(e => ({ type: e.type, name: e.name }))
+  // System entity records
+  let sysCandidates: { type: string; name: string }[] = []
+  if (campaignSystemId.value) {
+    const matchingSysType = systemEntityTypes.value.find(t => !partialType || t.id.toLowerCase().startsWith(partialType))
+    if (matchingSysType) {
+      const rows = await getDb().records
+        .where('systemId').equals(campaignSystemId.value)
+        .filter(r => r.entityTypeId === matchingSysType.id && (!partialName || r.name.toLowerCase().includes(partialName.toLowerCase())))
+        .toArray()
+      sysCandidates = rows.map(r => ({ type: matchingSysType.id, name: r.name }))
+    }
+  }
+  const candidates = [...campaignCandidates, ...sysCandidates].slice(0, 8)
+  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, isScript }
 }
 
 function applyAutocomplete(item: any) {
@@ -598,7 +649,14 @@ function onPreviewClick(e: MouseEvent) {
   if (target.classList.contains('entity-ref')) {
     const type = target.dataset.entityType
     const name = target.dataset.entityName
-    if (type && name) emit('navigate', type, name)
+    if (!type || !name) return
+    // Check if this is a system entity type
+    const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+    if (sysType && campaignSystemId.value) {
+      router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
+    } else {
+      emit('navigate', type, name)
+    }
   }
 }
 

@@ -410,6 +410,21 @@
                 @input="patchField(fieldConfigIdx!, { config: { ...activeField.config, slotLevelNames: ($event.target as HTMLTextAreaElement).value.split('\n').map(s => s.trim()).filter(Boolean) } })" />
             </div>
           </template>
+
+          <!-- Entity Link config -->
+          <template v-if="activeField.component === 'entity-link'">
+            <div class="config-field">
+              <label class="f-label">Links to entity type</label>
+              <select class="f-select"
+                :value="activeField.config.entityTypeId ?? ''"
+                @change="patchField(fieldConfigIdx!, { config: { ...activeField.config, entityTypeId: ($event.target as HTMLSelectElement).value || undefined } })">
+                <option value="">— choose type —</option>
+                <option v-for="et in (activeType ? system?.entityTypes.filter(t => t.id !== activeType.id) : system?.entityTypes)" :key="et.id" :value="et.id">
+                  {{ et.name }}
+                </option>
+              </select>
+            </div>
+          </template>
         </div>
       </template>
 

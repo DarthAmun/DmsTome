@@ -53,14 +53,16 @@ export function parseEntityRefs(content: string): EntityRef[] {
 
 export function renderEntityRefs(
   html: string,
-  entityLookup?: (type: string, name: string) => { imageUrl?: string; color?: string } | null
+  entityLookup?: (type: string, name: string) => { imageUrl?: string; color?: string } | null,
+  extraTypes?: string[]
 ): string {
+  const allTypes = extraTypes?.length ? [...ENTITY_TYPES, ...extraTypes.map(t => t.toLowerCase())] : ENTITY_TYPES
   return html.replace(ENTITY_REGEX, (raw, type, name, metaStr) => {
     if (type.toLowerCase() === 'roll') {
       const expr = name.trim()
       return `<span class="roll-ref" data-roll="${expr}">🎲 ${expr}</span>`
     }
-    if (!ENTITY_TYPES.includes(type.toLowerCase())) return raw
+    if (!allTypes.includes(type.toLowerCase())) return raw
     const metadata = parseMeta(metaStr ?? '')
     const metaLabel = Object.entries(metadata).map(([k, v]) => `${k}: ${v}`).join(', ')
     const tooltip = metaLabel ? ` (${metaLabel})` : ''

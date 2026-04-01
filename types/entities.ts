@@ -132,6 +132,7 @@ export type FieldComponentType =
   | 'conditions'
   | 'attack'
   | 'speed'
+  | 'entity-link'
 
 export interface FieldSchema {
   key: string
@@ -164,6 +165,8 @@ export interface FieldSchema {
     // spellslots / resource levels
     slotLevels?: number         // number of levels, default 9
     slotLevelNames?: string[]   // labels for each level
+    // entity-link
+    entityTypeId?: string       // which entity type this field links to
   }
   required: boolean
   showInCard: boolean           // show on summary card
@@ -237,4 +240,5 @@ export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string
   { value: 'conditions',  label: 'Conditions',   icon: 'gi-poison' },
   { value: 'attack',      label: 'Attack',       icon: 'gi-crossed-swords' },
   { value: 'speed',       label: 'Speed',        icon: 'gi-boot-stomp' },
+  { value: 'entity-link', label: 'Entity Link',  icon: 'gi-linked-rings' },
 ]

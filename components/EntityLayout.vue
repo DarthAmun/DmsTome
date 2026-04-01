@@ -13,6 +13,7 @@
               :field="fieldByKey(key)!"
               :value="data[key]"
               :mode="mode"
+              :system-id="systemId"
               @update="v => $emit('update', key, v)"
             />
           </div>
@@ -30,6 +31,7 @@ const props = defineProps<{
   data: Record<string, any>
   mode: 'view' | 'edit'
   accentColor?: string
+  systemId?: number
 }>()
 defineEmits<{ update: [key: string, value: any] }>()
 

@@ -4,6 +4,7 @@
     :field="field"
     :value="value"
     :mode="mode"
+    :system-id="systemId"
     @update="v => $emit('update', v)"
   />
 </template>
@@ -29,11 +30,13 @@ import FieldSpellSlots from '~/components/fields/FieldSpellSlots.vue'
 import FieldConditions from '~/components/fields/FieldConditions.vue'
 import FieldAttack from '~/components/fields/FieldAttack.vue'
 import FieldSpeed from '~/components/fields/FieldSpeed.vue'
+import FieldEntityLink from '~/components/fields/FieldEntityLink.vue'
 
 const props = defineProps<{
   field: FieldSchema
   value: any
   mode: 'view' | 'edit'
+  systemId?: number
 }>()
 defineEmits<{ update: [any] }>()
 
@@ -57,8 +60,9 @@ const fieldComponent = computed(() => {
     case 'spellslots':  return FieldSpellSlots
     case 'conditions':  return FieldConditions
     case 'attack':      return FieldAttack
-    case 'speed':       return FieldSpeed
-    default:            return FieldText
+    case 'speed':         return FieldSpeed
+    case 'entity-link':   return FieldEntityLink
+    default:              return FieldText
   }
 })
 </script>

@@ -119,6 +119,7 @@
                 :data="draftData"
                 :mode="editMode ? 'edit' : 'view'"
                 :accent-color="entityType.color"
+                :system-id="systemId"
                 @update="(key, value) => updateField(key, value)"
               />
             </template>
@@ -179,6 +180,12 @@ watch(entityType, () => { listPage.value = 0 })
 onMounted(async () => {
   if (!systemsStore.systems.length) await systemsStore.loadAll()
   await loadRecords()
+  // Support ?open=name deep link (from entity refs in markdown)
+  const openName = route.query.open as string | undefined
+  if (openName) {
+    const target = records.value.find(r => r.name.toLowerCase() === openName.toLowerCase())
+    if (target) openRecord(target)
+  }
 })
 
 async function loadRecords() {
