@@ -1,12 +1,29 @@
 import * as PIXI from 'pixi.js'
-import { useEncounterStore } from '~/stores/encounter'
+import { useEncounterStore } from '../stores/encounter'
+
+export type ShapeType = 'circle' | 'square' | 'cone'
+
+export interface ShapeOverlay {
+  id: string
+  type: ShapeType
+  anchorCol: number
+  anchorRow: number
+  endCol: number
+  endRow: number
+  colorHex: number
+}
 
 export interface CanvasOptions {
   container: HTMLElement
   isDmMode: boolean
   getActiveTool: () => string
+  getFogMode?: () => 'add' | 'remove'
+  getFogBrushSize?: () => number
+  getShapeType?: () => ShapeType
+  getShapeColor?: () => number
   onTokenMoved?: (instanceId: number, gridX: number, gridY: number) => void
   onFogToggle?: (cellKey: string, newState: 'revealed' | 'hidden') => void
+  onShapeCommit?: (anchorCol: number, anchorRow: number, endCol: number, endRow: number) => void
 }
 
 export function useEncounterCanvas(options: CanvasOptions) {
@@ -15,8 +32,11 @@ export function useEncounterCanvas(options: CanvasOptions) {
   let worldContainer: PIXI.Container | null = null
   let mapSprite: PIXI.Sprite | null = null
   let gridGraphics: PIXI.Graphics | null = null
+  let shapesContainer: PIXI.Container | null = null
   let fogContainer: PIXI.Container | null = null
   let tokenContainer: PIXI.Container | null = null
+  let rulerLayer: PIXI.Container | null = null
+  let shapePreviewLayer: PIXI.Container | null = null
 
   let viewport = { x: 0, y: 0, scale: 1 }
   let isPanning = false
@@ -24,7 +44,20 @@ export function useEncounterCanvas(options: CanvasOptions) {
   let panViewStart = { x: 0, y: 0 }
 
   let fogPaintActive = false
-  let fogPaintMode: 'revealed' | 'hidden' = 'revealed'
+  let fogPaintMode: 'revealed' | 'hidden' = 'hidden'
+
+  let rulerStart: { col: number; row: number } | null = null
+  let shapeAnchor: { col: number; row: number } | null = null
+  const shapeGraphicsMap = new Map<string, PIXI.Graphics>()
+
+  // Snaps to nearest half-cell: 0.0=corner, 0.5=tile-center, 1.0=next corner, etc.
+  function screenToHalfGrid(screenX: number, screenY: number, enc: { gridSize: number; gridOffsetX: number; gridOffsetY: number }) {
+    const worldX = (screenX - viewport.x) / viewport.scale
+    const worldY = (screenY - viewport.y) / viewport.scale
+    const col = Math.round((worldX - enc.gridOffsetX) / enc.gridSize * 2) / 2
+    const row = Math.round((worldY - enc.gridOffsetY) / enc.gridSize * 2) / 2
+    return { col, row }
+  }
 
   // ── Fog painting ───────────────────────────────────────────────────────────
   function paintFogAtScreen(screenX: number, screenY: number) {
@@ -33,12 +66,177 @@ export function useEncounterCanvas(options: CanvasOptions) {
     const { gridSize, gridOffsetX, gridOffsetY } = enc
     const worldX = (screenX - viewport.x) / viewport.scale
     const worldY = (screenY - viewport.y) / viewport.scale
-    const col = Math.floor((worldX - gridOffsetX) / gridSize)
-    const row = Math.floor((worldY - gridOffsetY) / gridSize)
-    if (col < 0 || row < 0) return
+    const centerCol = Math.floor((worldX - gridOffsetX) / gridSize)
+    const centerRow = Math.floor((worldY - gridOffsetY) / gridSize)
 
-    console.log('painting fog at', col, row, fogPaintMode)  // ← add this
-    options.onFogToggle?.(`${col},${row}`, fogPaintMode)
+    const brushSize = options.getFogBrushSize?.() ?? 1
+    const half = Math.floor(brushSize / 2)
+
+    for (let dc = -half; dc <= half; dc++) {
+      for (let dr = -half; dr <= half; dr++) {
+        const col = centerCol + dc
+        const row = centerRow + dr
+        if (col < 0 || row < 0) continue
+        options.onFogToggle?.(`${col},${row}`, fogPaintMode)
+      }
+    }
+  }
+
+  // ── Ruler ──────────────────────────────────────────────────────────────────
+  function drawRuler(endCol: number, endRow: number) {
+    if (!rulerLayer || !rulerStart) return
+    const enc = store.current
+    if (!enc) return
+    const { gridSize, gridOffsetX, gridOffsetY } = enc
+
+    rulerLayer.removeChildren()
+
+    const x1 = gridOffsetX + rulerStart.col * gridSize
+    const y1 = gridOffsetY + rulerStart.row * gridSize
+    const x2 = gridOffsetX + endCol * gridSize
+    const y2 = gridOffsetY + endRow * gridSize
+
+    const dx = endCol - rulerStart.col
+    const dy = endRow - rulerStart.row
+    const distance = Math.round(Math.sqrt(dx * dx + dy * dy) * 10) / 10
+
+    const g = new PIXI.Graphics()
+
+    // Draw line
+    g.moveTo(x1, y1)
+    g.lineTo(x2, y2)
+    g.stroke({ color: 0xffcc44, width: 2 / viewport.scale, alpha: 0.9 })
+
+    // Endpoint dots
+    g.circle(x1, y1, 5 / viewport.scale)
+    g.fill({ color: 0xffcc44, alpha: 1 })
+    g.circle(x2, y2, 5 / viewport.scale)
+    g.fill({ color: 0xffcc44, alpha: 1 })
+
+    rulerLayer.addChild(g)
+
+    // Distance label
+    const text = new PIXI.Text({
+      text: `${distance} sq`,
+      style: {
+        fontSize: 14 / viewport.scale,
+        fill: 0xffcc44,
+        fontFamily: 'system-ui',
+        fontWeight: 'bold',
+        stroke: { color: 0x000000, width: 3 / viewport.scale },
+      },
+    })
+    text.anchor.set(0.5)
+    text.x = (x1 + x2) / 2
+    text.y = (y1 + y2) / 2 - 18 / viewport.scale
+    rulerLayer.addChild(text)
+  }
+
+  function clearRuler() {
+    rulerLayer?.removeChildren()
+    rulerStart = null
+  }
+
+  // ── Shape overlays ─────────────────────────────────────────────────────────
+  function drawShapeGraphics(g: PIXI.Graphics, shape: ShapeOverlay) {
+    const enc = store.current
+    if (!enc) return
+    const { gridSize, gridOffsetX, gridOffsetY } = enc
+
+    const ax = gridOffsetX + shape.anchorCol * gridSize
+    const ay = gridOffsetY + shape.anchorRow * gridSize
+    const ex = gridOffsetX + shape.endCol * gridSize
+    const ey = gridOffsetY + shape.endRow * gridSize
+    const dx = ex - ax
+    const dy = ey - ay
+    const dist = Math.sqrt(dx * dx + dy * dy)
+
+    g.clear()
+    if (dist < 1) return
+
+    if (shape.type === 'circle') {
+      g.circle(ax, ay, dist)
+      g.fill({ color: shape.colorHex, alpha: 0.22 })
+      g.circle(ax, ay, dist)
+      g.stroke({ color: shape.colorHex, width: 2, alpha: 0.85 })
+    } else if (shape.type === 'square') {
+      g.rect(ax - dist, ay - dist, dist * 2, dist * 2)
+      g.fill({ color: shape.colorHex, alpha: 0.22 })
+      g.rect(ax - dist, ay - dist, dist * 2, dist * 2)
+      g.stroke({ color: shape.colorHex, width: 2, alpha: 0.85 })
+    } else if (shape.type === 'cone') {
+      const angle = Math.atan2(dy, dx)
+      const perp = angle + Math.PI / 2
+      const halfWidth = dist * 0.5
+      const farX = ax + Math.cos(angle) * dist
+      const farY = ay + Math.sin(angle) * dist
+      const lx = farX + Math.cos(perp) * halfWidth
+      const ly = farY + Math.sin(perp) * halfWidth
+      const rx = farX - Math.cos(perp) * halfWidth
+      const ry = farY - Math.sin(perp) * halfWidth
+      g.poly([ax, ay, lx, ly, rx, ry])
+      g.fill({ color: shape.colorHex, alpha: 0.22 })
+      g.poly([ax, ay, lx, ly, rx, ry])
+      g.stroke({ color: shape.colorHex, width: 2, alpha: 0.85 })
+    }
+  }
+
+  function drawShapePreview(endCol: number, endRow: number) {
+    if (!shapePreviewLayer || !shapeAnchor) return
+    const enc = store.current
+    if (!enc) return
+    const { gridSize, gridOffsetX, gridOffsetY } = enc
+
+    shapePreviewLayer.removeChildren()
+
+    const preview: ShapeOverlay = {
+      id: 'preview',
+      type: options.getShapeType?.() ?? 'circle',
+      anchorCol: shapeAnchor.col,
+      anchorRow: shapeAnchor.row,
+      endCol,
+      endRow,
+      colorHex: options.getShapeColor?.() ?? 0xe84040,
+    }
+
+    const g = new PIXI.Graphics()
+    drawShapeGraphics(g, preview)
+    g.alpha = 0.65
+    shapePreviewLayer.addChild(g)
+
+    // Anchor dot
+    const dot = new PIXI.Graphics()
+    const ax = gridOffsetX + shapeAnchor.col * gridSize
+    const ay = gridOffsetY + shapeAnchor.row * gridSize
+    dot.circle(ax, ay, 5 / viewport.scale)
+    dot.fill({ color: preview.colorHex, alpha: 0.9 })
+    shapePreviewLayer.addChild(dot)
+  }
+
+  function addShapeOverlay(shape: ShapeOverlay) {
+    if (!shapesContainer) return
+    const g = new PIXI.Graphics()
+    drawShapeGraphics(g, shape)
+    shapeGraphicsMap.set(shape.id, g)
+    shapesContainer.addChild(g)
+  }
+
+  function removeShapeOverlay(id: string) {
+    const g = shapeGraphicsMap.get(id)
+    if (g) {
+      shapesContainer?.removeChild(g)
+      shapeGraphicsMap.delete(id)
+    }
+  }
+
+  function clearShapeOverlays() {
+    shapesContainer?.removeChildren()
+    shapeGraphicsMap.clear()
+  }
+
+  function clearShapeAnchor() {
+    shapeAnchor = null
+    shapePreviewLayer?.removeChildren()
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -59,20 +257,26 @@ export function useEncounterCanvas(options: CanvasOptions) {
 
     mapSprite = new PIXI.Sprite()
     gridGraphics = new PIXI.Graphics()
+    shapesContainer = new PIXI.Container()
     fogContainer = new PIXI.Container()
     tokenContainer = new PIXI.Container()
+    rulerLayer = new PIXI.Container()
+    shapePreviewLayer = new PIXI.Container()
 
     worldContainer.addChild(mapSprite)
     worldContainer.addChild(gridGraphics)
+    worldContainer.addChild(shapesContainer)
     worldContainer.addChild(fogContainer)
     worldContainer.addChild(tokenContainer)
+    worldContainer.addChild(rulerLayer)
+    worldContainer.addChild(shapePreviewLayer)
 
     setupInteraction()
     return app
   }
 
   // ── Map ────────────────────────────────────────────────────────────────────
-  async function loadMap(source: string, type: 'file' | 'url') {
+  async function loadMap(source: string, _type: 'file' | 'url') {
     if (!app || !worldContainer || !mapSprite) return
 
     let url = source
@@ -151,7 +355,6 @@ export function useEncounterCanvas(options: CanvasOptions) {
           gridSize
         )
         cell.fill({ color: 0x0a0a19, alpha })
-        // No interactive/pointer events on cells — handled at stage level
         fogContainer.addChild(cell)
       }
     }
@@ -164,7 +367,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     const enc = store.current
     if (!enc) return
 
-    const tokens = options.isDmMode ? enc.tokens : enc.tokens.filter(t => t.isVisible)
+    const tokens = options.isDmMode ? enc.tokens : enc.tokens.filter((t: any) => t.isVisible)
     for (const token of tokens) {
       await renderToken(token)
     }
@@ -197,18 +400,15 @@ export function useEncounterCanvas(options: CanvasOptions) {
     container.addChild(ring)
 
     if (hasConditions && (options.isDmMode || token.isVisible)) {
-      // Condition overlay — hidden by default, shown on hover
       const overlay = new PIXI.Container()
       overlay.alpha = 0
       overlay.zIndex = 100
 
-      // Dark background circle
       const bg = new PIXI.Graphics()
       bg.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 - 1)
       bg.fill({ color: 0x0a0a19, alpha: 0.85 })
       overlay.addChild(bg)
 
-      // Condition text lines
       const conditions = token.conditions as any[]
       const lineHeight = Math.min(14, (pixelSize - 8) / conditions.length)
       const fontSize = Math.max(6, Math.min(11, lineHeight * 0.8))
@@ -235,7 +435,6 @@ export function useEncounterCanvas(options: CanvasOptions) {
 
       container.addChild(overlay)
 
-      // Hover to show/hide
       if (options.isDmMode) {
         container.interactive = true
         container.on('pointerenter', () => { overlay.alpha = 1 })
@@ -248,11 +447,9 @@ export function useEncounterCanvas(options: CanvasOptions) {
     if (token.imageSource) {
       try {
         let url = token.imageSource
-        // Images stored as data URLs - use directly
         if (token.imageSource) url = token.imageSource
         const texture = await PIXI.Assets.load(url)
         const sprite = new PIXI.Sprite(texture)
-        // Scale to fill (cover) the circle, then center
         const scale = (pixelSize - 4) / Math.min(texture.width, texture.height)
         sprite.scale.set(scale)
         sprite.x = (pixelSize - sprite.width) / 2
@@ -306,7 +503,6 @@ export function useEncounterCanvas(options: CanvasOptions) {
       container.addChild(eye)
     }
 
-    // Token drag — DM only, only when select tool is active
     if (options.isDmMode) {
       container.interactive = true
       container.cursor = 'grab'
@@ -356,25 +552,52 @@ export function useEncounterCanvas(options: CanvasOptions) {
     app.stage.hitArea = { contains: () => true } as any
 
     app.stage.on('pointerdown', (e) => {
-      // Fog painting — stage level, correct coordinates
-      if (options.isDmMode && options.getActiveTool() === 'fog' && e.button === 0) {
-        const enc = store.current
+      const tool = options.getActiveTool()
+      const enc = store.current
+
+      // Fog painting
+      if (options.isDmMode && tool === 'fog' && e.button === 0) {
         if (enc) {
-          const worldX = (e.global.x - viewport.x) / viewport.scale
-          const worldY = (e.global.y - viewport.y) / viewport.scale
-          const col = Math.floor((worldX - enc.gridOffsetX) / enc.gridSize)
-          const row = Math.floor((worldY - enc.gridOffsetY) / enc.gridSize)
-          const key = `${col},${row}`
-          const current = enc.fogData[key]
-          fogPaintMode = (!current || current === 'hidden') ? 'revealed' : 'hidden'
+          const mode = options.getFogMode?.() ?? 'add'
+          fogPaintMode = mode === 'add' ? 'hidden' : 'revealed'
           fogPaintActive = true
           paintFogAtScreen(e.global.x, e.global.y)
         }
         return
       }
 
+      // Ruler: first click sets start, second click clears
+      if (tool === 'measure' && e.button === 0) {
+        if (enc) {
+          const { col, row } = screenToHalfGrid(e.global.x, e.global.y, enc)
+          if (rulerStart) {
+            clearRuler()
+          } else {
+            rulerStart = { col, row }
+            drawRuler(col, row)
+          }
+        }
+        return
+      }
+
+      // Shape placement — two-click: anchor then end
+      if (options.isDmMode && tool === 'shapes') {
+        if (e.button === 2) { clearShapeAnchor(); return }
+        if (e.button === 0 && enc) {
+          const { col, row } = screenToHalfGrid(e.global.x, e.global.y, enc)
+          if (!shapeAnchor) {
+            shapeAnchor = { col, row }
+            drawShapePreview(col, row)
+          } else {
+            options.onShapeCommit?.(shapeAnchor.col, shapeAnchor.row, col, row)
+            clearShapeAnchor()
+          }
+        }
+        return
+      }
+
       // Pan — middle mouse or alt+left
-      if (e.button === 1 || (e.button === 0 && e.originalEvent?.altKey)) {
+      if (e.button === 1 || (e.button === 0 && (e.originalEvent as unknown as PointerEvent)?.altKey)) {
         isPanning = true
         panStart = { x: e.global.x, y: e.global.y }
         panViewStart = { x: viewport.x, y: viewport.y }
@@ -387,6 +610,29 @@ export function useEncounterCanvas(options: CanvasOptions) {
         paintFogAtScreen(e.global.x, e.global.y)
         return
       }
+
+      const tool = options.getActiveTool()
+
+      // Update shape preview
+      if (tool === 'shapes' && shapeAnchor) {
+        const enc = store.current
+        if (enc) {
+          const { col, row } = screenToHalfGrid(e.global.x, e.global.y, enc)
+          drawShapePreview(col, row)
+        }
+        return
+      }
+
+      // Update ruler preview
+      if (tool === 'measure' && rulerStart) {
+        const enc = store.current
+        if (enc) {
+          const { col, row } = screenToHalfGrid(e.global.x, e.global.y, enc)
+          drawRuler(col, row)
+        }
+        return
+      }
+
       if (!isPanning) return
       viewport.x = panViewStart.x + (e.global.x - panStart.x)
       viewport.y = panViewStart.y + (e.global.y - panStart.y)
@@ -446,5 +692,19 @@ export function useEncounterCanvas(options: CanvasOptions) {
     app = null
   }
 
-  return { init, loadMap, drawGrid, redrawFog, renderTokens, applyExternalViewport, getGridPosFromScreen, destroy }
+  return {
+    init,
+    loadMap,
+    drawGrid,
+    redrawFog,
+    renderTokens,
+    applyExternalViewport,
+    getGridPosFromScreen,
+    addShapeOverlay,
+    removeShapeOverlay,
+    clearShapeOverlays,
+    clearShapeAnchor,
+    clearRuler,
+    destroy,
+  }
 }

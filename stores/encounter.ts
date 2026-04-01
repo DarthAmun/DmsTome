@@ -126,10 +126,6 @@ export const useEncounterStore = defineStore('encounter', () => {
   // ── Actions — Fog of War ───────────────────────────────────────────────────
   async function setFogCell(key: string, state: 'hidden' | 'revealed' | 'partial') {
     if (!current.value) return
-    // Ensure the all-hidden base layer is always set so redrawFog renders
-    if (!(current.value.fogData as any)._allHidden) {
-      (current.value.fogData as any)._allHidden = 'hidden'
-    }
     current.value.fogData[key] = state
     await persistFog()
     syncToPlayer()

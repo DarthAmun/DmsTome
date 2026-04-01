@@ -4,7 +4,7 @@
     <div class="enc-sheet enc-sheet-2"></div>
     <div
       class="encounter-page"
-      :class="{ 'fog-paint-mode': activeTool === 'fog' }"
+      :class="{ 'fog-paint-mode': activeTool === 'fog' || activeTool === 'measure' || activeTool === 'shapes' }"
     >
       <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
       <header class="encounter-toolbar">
@@ -29,20 +29,6 @@
               @keyup.enter="($event.target as HTMLInputElement).blur()"
             />
           </div>
-        </div>
-
-        <!-- Tool selector -->
-        <div class="toolbar-tools">
-          <button
-            v-for="tool in tools"
-            :key="tool.id"
-            class="tool-btn"
-            :class="{ active: activeTool === tool.id }"
-            :title="tool.label"
-            @click="activeTool = tool.id"
-          >
-            <OhVueIcon :name="tool.icon" scale="1.1" />
-          </button>
         </div>
 
         <div class="toolbar-right">
@@ -181,6 +167,34 @@
             <p class="enc-empty-text">
               Drop a map image here or use the sidebar to load one
             </p>
+          </div>
+
+          <!-- Floating tool buttons -->
+          <div class="map-tool-dock">
+            <button
+              class="map-tool-btn"
+              :class="{ active: activeTool === 'fog' }"
+              title="Fog of War"
+              @click="toggleTool('fog')"
+            >
+              <OhVueIcon name="gi-fog" scale="1.1" />
+            </button>
+            <button
+              class="map-tool-btn"
+              :class="{ active: activeTool === 'measure' }"
+              title="Ruler"
+              @click="toggleTool('measure')"
+            >
+              <OhVueIcon name="gi-pencil-ruler" scale="1.1" />
+            </button>
+            <button
+              class="map-tool-btn"
+              :class="{ active: activeTool === 'shapes' }"
+              title="Shape Overlays"
+              @click="toggleTool('shapes')"
+            >
+              <OhVueIcon name="fa-shapes" scale="1.0" />
+            </button>
           </div>
         </main>
 
@@ -413,33 +427,90 @@
             </div>
           </div>
 
-          <!-- Fog controls -->
-          <div class="sidebar-section">
+          <!-- Fog controls — only when fog tool active -->
+          <div v-if="activeTool === 'fog'" class="sidebar-section">
             <div class="sidebar-header">
               <span class="f-label">Fog of War</span>
             </div>
-            <div class="enc-grid-2">
-              <Button
-                severity="secondary"
-                size="small"
-                style="width: 100%; justify-content: center"
-                @click="store.hideAllFog()"
+            <!-- Mode toggle -->
+            <div class="enc-grid-2" style="margin-bottom:8px">
+              <button
+                class="tool-option-btn"
+                :class="{ active: fogMode === 'add' }"
+                @click="fogMode = 'add'"
               >
-                <OhVueIcon name="md-cloud" scale="0.85" />
-                Hide All
-              </Button>
-              <Button
-                severity="secondary"
-                size="small"
-                style="width: 100%; justify-content: center"
-                @click="store.revealAllFog()"
+                <OhVueIcon name="md-cloud" scale="0.8" /> Add
+              </button>
+              <button
+                class="tool-option-btn"
+                :class="{ active: fogMode === 'remove' }"
+                @click="fogMode = 'remove'"
               >
-                <OhVueIcon name="md-sunny" scale="0.85" /> Reveal All
-              </Button>
+                <OhVueIcon name="md-sunny" scale="0.8" /> Remove
+              </button>
             </div>
-            <p class="enc-hint">
-              Select the fog tool and click/paint cells to toggle visibility.
-            </p>
+            <!-- Brush size -->
+            <label class="f-label">Brush Size: {{ fogBrushSize }}×{{ fogBrushSize }}</label>
+            <input
+              v-model.number="fogBrushSize"
+              type="range" min="1" max="7" step="2"
+              class="w-full accent-amber-500"
+              style="margin-top:4px; margin-bottom:8px"
+            />
+            <div class="enc-grid-2">
+              <button
+                class="tool-option-btn"
+                style="justify-content:center"
+                @click="store.hideAllFog()"
+              >Hide All</button>
+              <button
+                class="tool-option-btn"
+                style="justify-content:center"
+                @click="store.revealAllFog()"
+              >Reveal All</button>
+            </div>
+            <p class="enc-hint">Click or drag to paint fog.</p>
+          </div>
+
+          <!-- Ruler hint — only when measure tool active -->
+          <div v-if="activeTool === 'measure'" class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Ruler</span>
+            </div>
+            <p class="enc-hint">Click on the map to set the start point. Move to preview distance. Click again to clear.</p>
+          </div>
+
+          <!-- Shape overlays — only when shapes tool active -->
+          <div v-if="activeTool === 'shapes'" class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Shape Overlays</span>
+            </div>
+            <!-- Shape type -->
+            <label class="f-label" style="margin-bottom:4px">Type</label>
+            <div class="enc-shape-types">
+              <button class="tool-option-btn" :class="{ active: shapeType === 'circle' }" @click="shapeType = 'circle'">⬤ Circle</button>
+              <button class="tool-option-btn" :class="{ active: shapeType === 'square' }" @click="shapeType = 'square'">■ Square</button>
+              <button class="tool-option-btn" :class="{ active: shapeType === 'cone' }" @click="shapeType = 'cone'">▲ Cone</button>
+            </div>
+            <!-- Color -->
+            <label class="f-label" style="margin-bottom:4px">Color</label>
+            <input v-model="shapeColor" type="color" class="enc-color-input" />
+            <p class="enc-hint" style="margin-top:6px">1st click: anchor (center/tip). 2nd click: edge/end. Right-click to cancel.</p>
+            <!-- Placed shapes list -->
+            <div v-if="shapes.length" style="margin-top:8px">
+              <label class="f-label" style="margin-bottom:4px">Placed Shapes</label>
+              <div
+                v-for="s in shapes"
+                :key="s.id"
+                class="enc-shape-row"
+              >
+                <span class="enc-shape-dot" :style="{ background: shapeColor }" />
+                <span class="enc-shape-label">{{ s.type }}</span>
+                <button class="icon-btn-sq icon-btn-sq--danger" @click="removeShape(s.id)">
+                  <OhVueIcon name="md-delete" scale="0.75" />
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -493,14 +564,27 @@
 
 <script setup lang="ts">
 import { useEncounterStore } from "~/stores/encounter";
-import { useEncounterCanvas } from "~/composables/useEncounterCanvas";
+import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
 import { dbApi } from "~/composables/useDb";
 
 const route = useRoute();
 const store = useEncounterStore();
 const canvasContainer = ref<HTMLElement | null>(null);
 
-const activeTool = ref<"select" | "fog" | "measure">("select");
+const activeTool = ref<"select" | "fog" | "measure" | "shapes">("select");
+
+// Fog tool state
+const fogMode = ref<"add" | "remove">("add");
+const fogBrushSize = ref(1);
+
+// Shape tool state
+const shapeType = ref<ShapeType>("circle");
+const shapeColor = ref("#e84040");
+const shapes = ref<ShapeOverlay[]>([]);
+
+function hexToPixi(hex: string): number {
+  return parseInt(hex.replace("#", ""), 16);
+}
 
 const tokenSizeOptions = [
   { label: "1×1 (medium)", value: 1 },
@@ -517,10 +601,9 @@ const newToken = ref({
   imageType: "file" as "file" | "url",
 });
 
-const tools = [
-  { id: "select", icon: "md-shield", label: "Select / Move" },
-  { id: "fog", icon: "md-cloud", label: "Fog of War" },
-];
+function toggleTool(tool: "fog" | "measure" | "shapes") {
+  activeTool.value = activeTool.value === tool ? "select" : tool;
+}
 
 const encounter = computed(() => store.current);
 const encounterTokens = computed(() => store.allTokens);
@@ -635,12 +718,19 @@ onMounted(async () => {
     container: canvasContainer.value,
     isDmMode: true,
     getActiveTool: () => activeTool.value,
+    getFogMode: () => fogMode.value,
+    getFogBrushSize: () => fogBrushSize.value,
+    getShapeType: () => shapeType.value,
+    getShapeColor: () => hexToPixi(shapeColor.value),
     onTokenMoved: (instanceId, gridX, gridY) => {
       store.moveToken(instanceId, gridX, gridY);
     },
     onFogToggle: (cellKey, newState) => {
       store.setFogCell(cellKey, newState);
       canvas?.redrawFog();
+    },
+    onShapeCommit: (anchorCol, anchorRow, endCol, endRow) => {
+      addShape(anchorCol, anchorRow, endCol, endRow);
     },
   });
 
@@ -758,6 +848,32 @@ async function confirmAddToken() {
   newToken.value = { name: "", imageSource: "", imageType: "file" };
   showAddToken.value = false;
 }
+
+function addShape(anchorCol: number, anchorRow: number, endCol: number, endRow: number) {
+  const id = `shape-${Date.now()}`;
+  const shape: ShapeOverlay = {
+    id,
+    type: shapeType.value,
+    anchorCol,
+    anchorRow,
+    endCol,
+    endRow,
+    colorHex: hexToPixi(shapeColor.value),
+  };
+  shapes.value.push(shape);
+  canvas?.addShapeOverlay(shape);
+}
+
+function removeShape(id: string) {
+  shapes.value = shapes.value.filter((s: ShapeOverlay) => s.id !== id);
+  canvas?.removeShapeOverlay(id);
+}
+
+// Clear ruler when switching away from measure tool
+watch(activeTool, (tool: string) => {
+  if (tool !== "measure") canvas?.clearRuler();
+  if (tool !== "shapes") canvas?.clearShapeAnchor();
+});
 
 async function removeFromLibrary(id: number) {
   await dbApi.tokens.delete(id);
@@ -1294,8 +1410,109 @@ function getImageUrl(token: any): string {
   border-bottom: 1px solid var(--parch-line);
 }
 
-/* Fog */
-.fog-paint-mode {
-  cursor: crosshair;
+/* Fog / measure / shapes cursor */
+.fog-paint-mode { cursor: crosshair; }
+
+/* ── Floating tool dock ── */
+.map-tool-dock {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(12, 8, 4, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 220, 197, 0.12);
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  pointer-events: all;
+  z-index: 20;
+}
+
+.map-tool-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 220, 197, 0.15);
+  background: rgba(232, 220, 197, 0.06);
+  color: rgba(232, 220, 197, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.map-tool-btn:hover {
+  background: rgba(232, 220, 197, 0.14);
+  color: rgba(232, 220, 197, 0.9);
+  border-color: rgba(232, 220, 197, 0.35);
+}
+.map-tool-btn.active {
+  background: rgba(184, 134, 11, 0.25);
+  color: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(184,134,11,0.3);
+}
+
+/* Tool option buttons (fog mode, shape type) */
+.tool-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  padding: 4px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--parch-line);
+  background: rgba(28,20,16,0.04);
+  color: var(--ink-ghost);
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tool-option-btn:hover { border-color: var(--ink-faded); color: var(--ink); }
+.tool-option-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(184,134,11,0.08); }
+
+/* Shape type row — 3 buttons */
+.enc-shape-types { display: flex; gap: 4px; margin-bottom: 2px; }
+
+/* Color picker */
+.enc-color-input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  padding: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Placed shapes list */
+.enc-shape-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--parch-line);
+}
+.enc-shape-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+.enc-shape-label {
+  flex: 1;
+  font-family: var(--font-head);
+  font-size: 10px;
+  color: var(--ink);
+  text-transform: capitalize;
 }
 </style>
