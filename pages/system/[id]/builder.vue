@@ -587,7 +587,7 @@ const keyError = computed(() => {
 })
 
 onMounted(async () => {
-  if (!systemsStore.systems.length) await systemsStore.loadAll()
+  await systemsStore.loadAll()
   if (system.value?.entityTypes.length) activeTypeId.value = system.value.entityTypes[0].id
 })
 

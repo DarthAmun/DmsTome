@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ref, toRaw } from 'vue'
 import type { SystemSchema, EntityTypeSchema } from '~/types/entities'
 import { getDb } from '~/composables/useDb'
 
@@ -41,17 +42,26 @@ export const useSystemsStore = defineStore('systems', () => {
   }
 
   async function updateSystem(id: number, updates: Partial<SystemSchema>) {
-    const payload: any = { updatedAt: new Date().toISOString() }
+    const ts = new Date().toISOString()
+    const payload: any = { updatedAt: ts }
     if (updates.name !== undefined) payload.name = updates.name
     if (updates.shortId !== undefined) payload.shortId = updates.shortId
     if (updates.description !== undefined) payload.description = updates.description
     if (updates.version !== undefined) payload.version = updates.version
     if (updates.entityTypes !== undefined) payload.entityTypes = JSON.stringify(updates.entityTypes)
-    await getDb().systems.update(id, payload)
-    const updated = normalizeSystem((await getDb().systems.get(id))!)
+
+    // Update in-memory immediately so computed values derived from the store
+    // (e.g. cardFields in [typeId].vue) reflect the change without waiting for the DB round-trip
     const idx = systems.value.findIndex(s => s.id === id)
-    if (idx >= 0) systems.value[idx] = updated
-    return updated
+    if (idx >= 0) {
+      systems.value[idx] = normalizeSystem({ ...toRaw(systems.value[idx]), ...payload })
+    }
+
+    await getDb().systems.update(id, payload)
+    // Reconcile with DB-confirmed data (handles any normalisation differences)
+    const confirmed = normalizeSystem((await getDb().systems.get(id))!)
+    if (idx >= 0) systems.value[idx] = confirmed
+    return confirmed
   }
 
   async function deleteSystem(id: number) {

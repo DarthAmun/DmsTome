@@ -178,7 +178,7 @@ watch(search, () => { listPage.value = 0 })
 watch(entityType, () => { listPage.value = 0 })
 
 onMounted(async () => {
-  if (!systemsStore.systems.length) await systemsStore.loadAll()
+  await systemsStore.loadAll()   // always reload so showInCard changes from the builder are visible
   await loadRecords()
   // Support ?open=name deep link (from entity refs in markdown)
   const openName = route.query.open as string | undefined
@@ -188,12 +188,18 @@ onMounted(async () => {
   }
 })
 
+function parseRecordData(data: any): Record<string, any> {
+  if (!data) return {}
+  if (typeof data === 'object') return data  // already parsed (e.g. imported from external file)
+  try { return JSON.parse(data) } catch { return {} }
+}
+
 async function loadRecords() {
   const rows = await getDb().records
     .where('systemId').equals(systemId)
     .filter(r => r.entityTypeId === typeId)
     .toArray()
-  records.value = rows.map(r => ({ ...r, _data: JSON.parse(r.data || '{}') }))
+  records.value = rows.map(r => ({ ...r, _data: parseRecordData(r.data) }))
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 }
 
@@ -264,12 +270,23 @@ function trunc(s: string): { value: string; full?: string } {
     : { value: s }
 }
 
+// Resolve a field value from record data — tries exact key first, then
+// case-insensitive fallback so imported data with different casing still shows.
+function resolveFieldValue(data: Record<string, any>, key: string): any {
+  if (key in data) return data[key]
+  const lower = key.toLowerCase()
+  for (const k of Object.keys(data)) {
+    if (k.toLowerCase() === lower) return data[k]
+  }
+  return undefined
+}
+
 function recordChips(rec: any): ChipKind[] {
   if (!entityType.value) return []
   const data = recordData(rec)
   const chips: ChipKind[] = []
   for (const f of cardFields.value) {
-    const v = data[f.key]
+    const v = resolveFieldValue(data, f.key)
     if (v === undefined || v === null || v === '') continue
     switch (f.component) {
       case 'select': {
