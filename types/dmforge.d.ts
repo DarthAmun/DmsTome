@@ -47,7 +47,9 @@ interface Window {
       closePlayer: () => Promise<void>
       syncEncounter: (data: any) => void
       onPlayerClosed: (cb: () => void) => void
+      offPlayerClosed: () => void
       onEncounterSync: (cb: (data: any) => void) => void
+      offEncounterSync: () => void
     }
     isElectron: boolean
   }

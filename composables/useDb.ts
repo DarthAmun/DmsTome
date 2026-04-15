@@ -351,6 +351,8 @@ export const dbApi = {
   // ── Window — replaces Electron IPC window management ─────────────────
   window: {
     _channel: null as BroadcastChannel | null,
+    _syncHandler: null as ((e: MessageEvent) => void) | null,
+    _closedHandler: null as ((e: MessageEvent) => void) | null,
     _getChannel() {
       if (!this._channel) this._channel = new BroadcastChannel('dmforge-player')
       return this._channel
@@ -370,14 +372,32 @@ export const dbApi = {
       this._getChannel().postMessage({ type: 'sync', data })
     },
     onPlayerClosed(cb: () => void): void {
-      this._getChannel().addEventListener('message', (e: MessageEvent) => {
+      const ch = this._getChannel()
+      if (this._closedHandler) ch.removeEventListener('message', this._closedHandler)
+      this._closedHandler = (e: MessageEvent) => {
         if (e.data?.type === 'player-closed') cb()
-      })
+      }
+      ch.addEventListener('message', this._closedHandler)
+    },
+    offPlayerClosed(): void {
+      if (this._closedHandler) {
+        this._getChannel().removeEventListener('message', this._closedHandler)
+        this._closedHandler = null
+      }
     },
     onEncounterSync(cb: (data: any) => void): void {
-      this._getChannel().addEventListener('message', (e: MessageEvent) => {
+      const ch = this._getChannel()
+      if (this._syncHandler) ch.removeEventListener('message', this._syncHandler)
+      this._syncHandler = (e: MessageEvent) => {
         if (e.data?.type === 'sync') cb(e.data.data)
-      })
+      }
+      ch.addEventListener('message', this._syncHandler)
+    },
+    offEncounterSync(): void {
+      if (this._syncHandler) {
+        this._getChannel().removeEventListener('message', this._syncHandler)
+        this._syncHandler = null
+      }
     },
   },
 

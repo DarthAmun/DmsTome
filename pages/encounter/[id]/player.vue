@@ -82,7 +82,10 @@ onMounted(async () => {
   })
 })
 
-onUnmounted(() => canvas?.destroy())
+onUnmounted(() => {
+  window.dmforge.window.offEncounterSync()
+  canvas?.destroy()
+})
 </script>
 
 <style scoped>
