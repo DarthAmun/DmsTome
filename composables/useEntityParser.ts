@@ -13,7 +13,7 @@ export interface ParsedLink {
   metadata: Record<string, string>
 }
 
-const ENTITY_TYPES = ['note', 'npc', 'item', 'location', 'faction', 'quest', 'event', 'session']
+const ENTITY_TYPES = ['note', 'npc', 'item', 'location', 'faction', 'quest', 'event', 'session', 'encounter']
 
 // Allows apostrophes and other special chars in names — stops only at | or }
 const ENTITY_REGEX = /\{\{(\w+):\s*([^|}\n]+?)\s*(?:\|\s*([^}]*))?\}\}/g
@@ -53,7 +53,7 @@ export function parseEntityRefs(content: string): EntityRef[] {
 
 export function renderEntityRefs(
   html: string,
-  entityLookup?: (type: string, name: string) => { imageUrl?: string; color?: string } | null,
+  entityLookup?: (type: string, name: string) => { imageUrl?: string; iconHtml?: string; color?: string } | null,
   extraTypes?: string[]
 ): string {
   const allTypes = extraTypes?.length ? [...ENTITY_TYPES, ...extraTypes.map(t => t.toLowerCase())] : ENTITY_TYPES
@@ -69,9 +69,11 @@ export function renderEntityRefs(
     const extra = entityLookup ? entityLookup(type.toLowerCase(), name.trim()) : null
     const avatarHtml = extra?.imageUrl
       ? `<img class="entity-ref-avatar" src="${extra.imageUrl}" />`
-      : extra
-        ? `<span class="entity-ref-dot" style="background:${extra.color ?? '#888'}"></span>`
-        : ''
+      : extra?.iconHtml
+        ? extra.iconHtml
+        : extra
+          ? `<span class="entity-ref-dot" style="background:${extra.color ?? '#888'}"></span>`
+          : ''
     return `<span class="entity-ref entity-ref--${type.toLowerCase()}" data-entity-type="${type.toLowerCase()}" data-entity-name="${name.trim()}" title="${name.trim()}${tooltip}">${avatarHtml}${name.trim()}${metaLabel ? ` <em>${metaLabel}</em>` : ''}</span>`
   })
 }

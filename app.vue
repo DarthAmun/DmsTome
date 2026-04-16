@@ -17,7 +17,9 @@ import { useSettings } from '~/composables/useSettings'
 const { settings } = useSettings()
 
 const route = useRoute()
-const isPlayerRoute = computed(() => route.path.endsWith('/player'))
+const isPlayerRoute = computed(() =>
+  route.path.endsWith('/player') || route.path.endsWith('/map-player')
+)
 
 // ── Ink write animation ──────────────────────────────────────────
 const INK_SELECTORS = [

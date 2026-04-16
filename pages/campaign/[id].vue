@@ -1,11 +1,11 @@
 <template>
   <div class="book-shell">
-    <div class="tome-page" :class="{ 'tome-page--full': spineHidden }">
+    <div class="tome-page" :class="isPlayerRoute ? 'tome-page--bare' : spineHidden ? 'tome-page--full' : ''">
       <NuxtPage />
     </div>
 
     <!-- Campaign spine tabs -->
-    <nav v-if="!spineHidden" class="spine-tabs">
+    <nav v-if="!spineHidden && !isPlayerRoute" class="spine-tabs">
       <SpineSeal />
       <NuxtLink to="/" class="spine-tab" title="Home">
         <OhVueIcon name="md-arrowback" scale="0.85" />
@@ -34,10 +34,14 @@ import { usePageChrome } from '~/composables/usePageChrome'
 const route = useRoute()
 const id = computed(() => route.params.id)
 const { spineHidden } = usePageChrome()
+const isPlayerRoute = computed(() =>
+  route.path.endsWith('/player') || route.path.endsWith('/map-player')
+)
 </script>
 
 <style scoped>
 .book-shell { display: flex; height: 100vh; background: var(--leather); }
 .tome-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; margin: 20px 20px 20px 60px; border-radius: 2px; box-shadow: var(--page-shadow); overflow: visible; position: relative; z-index: 1; transition: margin 0.2s; }
 .tome-page--full { margin: 20px 20px 20px 20px; }
+.tome-page--bare { margin: 0; border-radius: 0; box-shadow: none; background: none; }
 </style>

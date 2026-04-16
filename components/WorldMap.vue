@@ -1,7 +1,7 @@
 <template>
-  <div class="world-map-shell">
-    <!-- Breadcrumb nav -->
-    <div class="map-breadcrumb">
+  <div class="world-map-shell" :class="{ 'player-mode': playerMode }">
+    <!-- Breadcrumb nav (DM only) -->
+    <div v-if="!playerMode" class="map-breadcrumb">
       <button
         v-for="(crumb, i) in breadcrumb" :key="crumb.id"
         class="crumb-btn"
@@ -14,8 +14,8 @@
       <span v-if="breadcrumb.length === 0" class="crumb-hint">World Map</span>
     </div>
 
-    <!-- Toolbar -->
-    <div class="map-toolbar">
+    <!-- Toolbar (DM only) -->
+    <div v-if="!playerMode" class="map-toolbar">
       <span class="map-name">{{ currentMapName }}</span>
       <div class="toolbar-gap" />
       <Button severity="secondary" size="small" @click="openLoadMap">
@@ -31,10 +31,14 @@
         <template #icon><OhVueIcon name="gi-all-seeing-eye" scale="0.85" /></template>
         {{ pinMode ? 'Cancel Pin' : 'Add Pin' }}
       </Button>
+      <Button severity="secondary" size="small" title="Open player map view" @click="openPlayerView">
+        <template #icon><OhVueIcon name="md-openinnew" scale="0.85" /></template>
+        Player View
+      </Button>
     </div>
 
-    <!-- Pin entity picker (shown when pinMode is active) -->
-    <div v-if="pinMode" class="pin-picker">
+    <!-- Pin entity picker (DM only, shown when pinMode is active) -->
+    <div v-if="!playerMode && pinMode" class="pin-picker">
       <div class="pin-picker-top">
         <div class="pin-search-wrap">
           <OhVueIcon name="fa-search" scale="0.8" style="color:var(--ink-ghost)" />
@@ -57,9 +61,9 @@
           :style="{ borderColor: entityColor(e.type) + (selectedEntityForPin?.id === e.id ? 'cc' : '33') }"
           @click="selectedEntityForPin = e"
         >
-          <div class="pin-entity-avatar" :style="{ background: entityColor(e.type) + '22' }">
+          <div class="pin-entity-avatar" :style="{ background: pinImage(e.id) ? entityColor(e.type) + '22' : entityColor(e.type) + '99' }">
             <img v-if="pinImage(e.id)" :src="pinImage(e.id)!" class="w-full h-full object-cover" style="border-radius:50%" />
-            <OhVueIcon v-else :name="entityIcon(e.type)" scale="0.75" :style="{ color: entityColor(e.type) }" />
+            <OhVueIcon v-else :name="entityIcon(e.type)" scale="0.75" :style="{ color: '#fff' }" />
           </div>
           <div class="pin-entity-info">
             <span class="pin-entity-name">{{ e.name }}</span>
@@ -90,8 +94,9 @@
 
         <!-- Pins -->
         <div
-          v-for="pin in currentPins" :key="pin.entityId"
+          v-for="pin in renderedPins" :key="pin.entityId"
           class="map-pin"
+          :class="{ 'map-pin--hidden': pin.hidden && !playerMode }"
           :style="{
             left: pin.x * imgNaturalW + 'px',
             top:  pin.y * imgNaturalH + 'px',
@@ -99,14 +104,19 @@
             borderColor: entityColor(pinEntity(pin.entityId)?.type ?? 'note'),
           }"
           @click.stop="openPinPreview(pin)"
-          @contextmenu.prevent="removePin(pin.entityId)"
+          @contextmenu.prevent="!playerMode && removePin(pin.entityId)"
         >
-          <div class="pin-avatar" :style="{ background: entityColor(pinEntity(pin.entityId)?.type ?? 'note') + '22' }">
+          <div class="pin-avatar"
+            :style="{ background: pinImage(pin.entityId) ? entityColor(pinEntity(pin.entityId)?.type ?? 'note') + '22' : entityColor(pinEntity(pin.entityId)?.type ?? 'note') + '99' }">
             <img v-if="pinImage(pin.entityId)" :src="pinImage(pin.entityId)!" class="pin-avatar-img" />
             <OhVueIcon v-else :name="entityIcon(pinEntity(pin.entityId)?.type ?? 'note')" scale="0.8"
-              :style="{ color: entityColor(pinEntity(pin.entityId)?.type ?? 'note') }" />
+              :style="{ color: '#fff' }" />
           </div>
           <div class="pin-label">{{ pinEntity(pin.entityId)?.name }}</div>
+          <!-- Hidden indicator (DM only) -->
+          <div v-if="pin.hidden && !playerMode" class="pin-hidden-badge" title="Hidden from players">
+            <OhVueIcon name="md-visibilityoff" scale="0.65" />
+          </div>
         </div>
       </div>
 
@@ -137,24 +147,43 @@
           <div v-if="previewAttrs.role" class="pin-preview-sub">{{ previewAttrs.role }}</div>
           <div v-if="previewAttrs.locationType" class="pin-preview-sub capitalize">{{ previewAttrs.locationType }}</div>
           <div v-if="previewAttrs.status" class="pin-preview-status">{{ previewAttrs.status }}</div>
-          <p v-if="previewEntity?.content" class="pin-preview-excerpt">
-            {{ previewEntity.content.replace(/[#*`\[\]{}]/g, '').slice(0, 120).trim() }}…
-          </p>
+          <div v-if="previewLinks.length > 0" class="pin-preview-links">
+            <button
+              v-for="link in previewLinks" :key="`${link.type}:${link.name}`"
+              class="pin-link-chip"
+              :style="{ borderColor: entityColor(link.type) + '55' }"
+              @click="navigatePinLink(link.type, link.name)"
+            >
+              <OhVueIcon :name="entityIcon(link.type)" scale="0.7" :style="{ color: entityColor(link.type), flexShrink: 0 }" />
+              <span>{{ link.name }}</span>
+              <span class="pin-link-type">{{ link.type }}</span>
+            </button>
+          </div>
           <div class="pin-preview-actions">
-            <Button size="small" severity="secondary" @click="$emit('navigate-entity', previewEntity!); previewPin = null">
+            <Button v-if="!playerMode" size="small" severity="secondary" @click="$emit('navigate-entity', previewEntity!); previewPin = null">
               <template #icon><OhVueIcon name="md-editnote" scale="0.85" /></template>
               Open Note
             </Button>
-            <!-- Drill-down: only for locations with a map image -->
+            <!-- Drill-down: only for locations with a map image (DM only) -->
             <Button
-              v-if="canDrillDown"
+              v-if="!playerMode && canDrillDown"
               size="small"
               @click="drillDown"
             >
               <template #icon><OhVueIcon name="md-map" scale="0.85" /></template>
               Open Map
             </Button>
-            <button class="pin-remove-btn" title="Remove pin" @click="removePin(previewPin!.entityId); previewPin = null">
+            <!-- Visibility toggle (DM only) -->
+            <button
+              v-if="!playerMode"
+              class="pin-visibility-btn"
+              :class="{ 'pin-visibility-btn--hidden': previewPin?.hidden }"
+              :title="previewPin?.hidden ? 'Show to players' : 'Hide from players'"
+              @click="togglePinVisibility(previewPin!.entityId)"
+            >
+              <OhVueIcon :name="previewPin?.hidden ? 'md-visibility' : 'md-visibilityoff'" scale="0.85" />
+            </button>
+            <button v-if="!playerMode" class="pin-remove-btn" title="Remove pin" @click="removePin(previewPin!.entityId); previewPin = null">
               <OhVueIcon name="md-delete" scale="0.85" />
             </button>
           </div>
@@ -167,6 +196,7 @@
 <script setup lang="ts">
 import { useNotesStore } from '~/stores/notes'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import { extractLinks } from '~/composables/useEntityParser'
 import type { MapPin } from '~/types/entities'
 
 const props = defineProps<{
@@ -174,6 +204,8 @@ const props = defineProps<{
   rootLocationId?: number | null
   // Stack of previous location IDs for breadcrumb — managed by parent via router
   locationStack?: number[]
+  // When true: hides DM controls and only renders visible pins
+  playerMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -211,6 +243,22 @@ const currentPins = computed<MapPin[]>(() => {
   const attrs = currentMap.value?.attributes as any
   return attrs?.mapPins ?? []
 })
+
+// Player only sees visible pins; DM sees all (hidden ones rendered dimmed)
+const renderedPins = computed<MapPin[]>(() =>
+  props.playerMode ? currentPins.value.filter(p => !p.hidden) : currentPins.value
+)
+
+async function togglePinVisibility(entityId: number) {
+  if (!currentMap.value) return
+  const attrs = { ...(currentMap.value.attributes as any) }
+  attrs.mapPins = (attrs.mapPins ?? []).map((p: MapPin) =>
+    p.entityId === entityId ? { ...p, hidden: !p.hidden } : p
+  )
+  await store.updateEntity(currentMap.value.id, { attributes: attrs })
+  // Notify player window of the data change so it can refresh
+  if (!props.playerMode) window.dmforge.window.syncMap(currentLocationId.value)
+}
 
 const mapImageUrl = computed(() => {
   const attrs = currentMap.value?.attributes as any
@@ -348,12 +396,25 @@ const pinPreviewImageUrl = computed(() => {
   if (!src) return null
   return src
 })
+const previewLinks = computed(() => {
+  const content = previewEntity.value?.content ?? ''
+  return extractLinks(content)
+})
+
 const canDrillDown = computed(() => {
   if (!previewEntity.value) return false
   if (previewEntity.value.type !== 'location') return false
   const attrs = previewAttrs.value
   return !!attrs.imageSource  // location must have a dedicated map image
 })
+
+function navigatePinLink(type: string, name: string) {
+  const entity = store.entities.find(e => e.type === type && e.name.toLowerCase() === name.toLowerCase())
+  if (entity) {
+    emit('navigate-entity', entity)
+    previewPin.value = null
+  }
+}
 
 function openPinPreview(pin: MapPin) {
   previewPin.value = pin
@@ -410,10 +471,17 @@ function entityIcon(type: string) {
 }
 
 // Reset pan/zoom when root location changes (navigation handled by parent)
-watch(() => props.rootLocationId, () => {
+watch(() => props.rootLocationId, (newId) => {
   pan.value = { x: 0, y: 0 }
   zoom.value = 1
+  // Keep player window in sync when DM navigates
+  if (!props.playerMode && newId) window.dmforge.window.syncMap(newId)
 })
+
+function openPlayerView() {
+  if (!currentLocationId.value) return
+  window.dmforge.window.openMapPlayer(props.campaignId, currentLocationId.value)
+}
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
@@ -423,6 +491,7 @@ onUnmounted(() => {
 
 <style scoped>
 .world-map-shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
+.world-map-shell.player-mode { background: transparent; }
 
 .map-breadcrumb {
   display: flex; align-items: center; gap: 4px;
@@ -540,6 +609,19 @@ onUnmounted(() => {
 
 .map-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
 
+/* Hidden pins (DM view) */
+.map-pin--hidden { opacity: 0.35; filter: grayscale(0.6) drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+.map-pin--hidden:hover { opacity: 0.65; }
+.pin-hidden-badge {
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: rgba(28,20,16,0.75);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.7);
+}
+
 /* Preview popup */
 .pin-preview-overlay {
   position: absolute; inset: 0; z-index: 100;
@@ -558,8 +640,49 @@ onUnmounted(() => {
 .pin-preview-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
 .pin-preview-sub { font-size: 12px; color: var(--ink-faded); margin-bottom: 2px; }
 .pin-preview-status { font-size: 11px; color: var(--gold); font-style: italic; margin-top: 2px; }
-.pin-preview-excerpt { font-size: 12px; color: var(--ink-faded); line-height: 1.5; margin-top: 8px; margin-bottom: 12px; }
+.pin-preview-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.pin-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 20px;
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  transition: background 0.15s;
+}
+.pin-link-chip:hover { background: var(--parch-line); }
+.pin-link-type {
+  font-size: 10px;
+  color: var(--ink-ghost);
+  margin-left: 2px;
+}
 .pin-preview-actions { display: flex; align-items: center; gap: 8px; }
+.pin-visibility-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(184,134,11,0.08); border: 1px solid rgba(184,134,11,0.25);
+  color: var(--gold); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.pin-visibility-btn:hover { background: rgba(184,134,11,0.18); }
+.pin-visibility-btn--hidden {
+  background: rgba(28,20,16,0.08); border-color: var(--parch-line);
+  color: var(--ink-ghost);
+}
+.pin-visibility-btn--hidden:hover { background: rgba(28,20,16,0.15); color: var(--ink); }
 .pin-remove-btn { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: var(--danger-dim); border: none; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .pin-remove-btn:hover { background: rgba(224,85,85,0.25); }
 </style>

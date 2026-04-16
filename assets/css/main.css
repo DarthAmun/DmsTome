@@ -73,9 +73,10 @@ html, body, #__nuxt {
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(28,20,16,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(28,20,16,0.35); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    THE BOOK SHELL — the physical tome
@@ -1021,18 +1022,17 @@ html, body, #__nuxt {
 /* ═══════════════════════════════════════════════════════════════════════
    DROPDOWNS / SELECTS
 ═══════════════════════════════════════════════════════════════════════ */
-.pv-select { position: relative; display: flex; align-items: center; width: 100%; min-height: 34px; background: rgba(255,255,255,0.05); border: 1px solid var(--rim); border-radius: var(--r); cursor: pointer; user-select: none; transition: border-color 0.2s; }
-.pv-select:hover { border-color: var(--rim-l); }
+.pv-select { position: relative; display: flex; align-items: center; width: 100%; min-height: 34px; background: var(--parch-dark); border: 1px solid var(--parch-line); border-radius: var(--r); cursor: pointer; user-select: none; transition: border-color 0.2s; }
+.pv-select:hover { border-color: var(--ink-ghost); }
 .pv-select:focus-within { border-color: var(--gold); }
-.pv-select-label { flex: 1; padding: 7px 10px; font-size: 13px; font-family: var(--font-ui); color: var(--ink-ui); }
-.pv-select-placeholder { color: var(--ink-ui-dim); }
-.pv-select-chevron { padding: 0 10px; color: var(--ink-ui-dim); display: flex; align-items: center; font-size: 10px; }
-.pv-select-chevron::after { content: '▾'; }
-.pv-dropdown { position: fixed; z-index: 9999; background: var(--chrome); border: 1px solid var(--rim-l); border-radius: var(--r); box-shadow: 0 16px 48px rgba(0,0,0,0.8); min-width: 160px; animation: fadeIn 0.1s; }
+.pv-select-label { flex: 1; padding: 7px 10px; font-size: 13px; font-family: var(--font-ui); color: var(--ink); }
+.pv-select-placeholder { color: var(--ink-ghost); }
+.pv-select-chevron { padding: 0 10px; color: var(--ink-ghost); display: flex; align-items: center; font-size: 10px; }
+.pv-dropdown { position: fixed; z-index: 9999; background: var(--parch-dark); border: 1px solid var(--parch-line); border-radius: var(--r); box-shadow: 0 8px 32px rgba(28,20,16,0.25); min-width: 160px; animation: fadeIn 0.1s; }
 .pv-dropdown-list { padding: 4px; max-height: 240px; overflow-y: auto; }
-.pv-option { display: flex; align-items: center; padding: 7px 10px; border-radius: var(--r); font-size: 12px; font-family: var(--font-ui); color: var(--ink-ui-dim); cursor: pointer; transition: all 0.1s; }
-.pv-option:hover, .pv-option--focused { background: rgba(255,255,255,0.07); color: var(--ink-ui); }
-.pv-option--selected { color: var(--gold); background: var(--gold-pale); }
+.pv-option { display: flex; align-items: center; padding: 7px 10px; border-radius: var(--r); font-size: 12px; font-family: var(--font-ui); color: var(--ink-faded); cursor: pointer; transition: all 0.1s; }
+.pv-option:hover, .pv-option--focused { background: rgba(28,20,16,0.06); color: var(--ink); }
+.pv-option--selected { color: var(--gold); background: rgba(184,134,11,0.1); }
 .pv-option-label { flex: 1; }
 .pv-autocomplete { display: flex; width: 100%; }
 .pv-autocomplete .pv-input { flex: 1; }
@@ -1183,8 +1183,8 @@ html, body, #__nuxt {
 
 #pixi-canvas canvas, #pixi-canvas-player canvas { display: block; width: 100% !important; height: 100% !important; }
 .no-select { user-select: none; -webkit-user-select: none; }
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+.chrome-shell ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+.chrome-shell ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); }
 
 /* ── Chrome context overrides — explicit light colors inside dark chrome ──── */
 .chrome-shell .f-label,
@@ -1217,6 +1217,22 @@ html, body, #__nuxt {
 
 .chrome-shell .pv-select-label {
   color: #e8dcc5;
+}
+
+.chrome-shell .pv-dropdown {
+  background: var(--chrome);
+  border-color: var(--rim-l);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+}
+
+.chrome-shell .pv-option {
+  color: var(--ink-ui-dim);
+}
+
+.chrome-shell .pv-option:hover,
+.chrome-shell .pv-option--focused {
+  background: rgba(255,255,255,0.07);
+  color: var(--ink-ui);
 }
 
 /* top-bar on dark pages */

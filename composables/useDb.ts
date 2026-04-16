@@ -399,6 +399,36 @@ export const dbApi = {
         this._syncHandler = null
       }
     },
+    // ── Map player ───────────────────────────────────────────────────────
+    _mapChannel: null as BroadcastChannel | null,
+    _mapSyncHandler: null as ((e: MessageEvent) => void) | null,
+    _getMapChannel() {
+      if (!this._mapChannel) this._mapChannel = new BroadcastChannel('dmforge-map')
+      return this._mapChannel
+    },
+    openMapPlayer(campaignId: number, locationId: number): Promise<void> {
+      const base = location.origin + location.pathname.replace(/\/+$/, '')
+      const url = `${base}/#/campaign/${campaignId}/map-player?locationId=${locationId}`
+      window.open(url, 'dmforge-map-player', 'width=1280,height=900')
+      return Promise.resolve()
+    },
+    syncMap(locationId: number | null): void {
+      this._getMapChannel().postMessage({ type: 'map-sync', locationId })
+    },
+    onMapSync(cb: (locationId: number | null) => void): void {
+      const ch = this._getMapChannel()
+      if (this._mapSyncHandler) ch.removeEventListener('message', this._mapSyncHandler)
+      this._mapSyncHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'map-sync') cb(e.data.locationId)
+      }
+      ch.addEventListener('message', this._mapSyncHandler)
+    },
+    offMapSync(): void {
+      if (this._mapSyncHandler) {
+        this._getMapChannel().removeEventListener('message', this._mapSyncHandler)
+        this._mapSyncHandler = null
+      }
+    },
   },
 
   // ── Systems ───────────────────────────────────────────────────────────

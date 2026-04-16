@@ -15,6 +15,7 @@ export interface MapPin {
   entityId: number
   x: number   // 0–1 fraction of image width
   y: number   // 0–1 fraction of image height
+  hidden?: boolean  // DM-only: hide this pin from the player view
 }
 
 export interface LocationAttributes {

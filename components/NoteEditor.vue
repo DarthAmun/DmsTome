@@ -48,72 +48,31 @@
 
       <!-- Session dual-pane -->
       <template v-else-if="entity?.type === 'session'">
-        <!-- Editor side only: script pane -->
+
+        <!-- ── LEFT PAGE (side="editor"): Script / Prep ── -->
+        <!-- Planning: editor + links bar   Running/Finished: preview + links bar -->
         <div v-if="props.side === 'editor'" class="edit-pane">
           <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
             <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
             Script / Prep
-            <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only during session</span>
+            <span v-if="sessionMode !== 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only</span>
           </div>
-          <div v-if="sessionMode !== 'planning'" class="preview-pane">
-            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
-          </div>
-          <div v-else class="editor-area-wrap" style="position:relative">
-            <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true"
-              @input="onScriptInput" placeholder="Write your session script and prep notes here…" />
-            <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
-              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                @mousedown.prevent="applyAutocomplete(item)">
-                <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                <span class="text-sm">{{ item.name }}</span>
-                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
+          <!-- Planning: editable -->
+          <template v-if="sessionMode === 'planning'">
+            <div class="editor-toolbar">
+              <button class="tb-btn" title="Bold" @click="insertMarkdownScript('**', '**')"><strong>B</strong></button>
+              <button class="tb-btn italic" title="Italic" @click="insertMarkdownScript('*', '*')"><em>I</em></button>
+              <button class="tb-btn" title="Heading" @click="insertMarkdownScript('## ', '')">H</button>
+              <button class="tb-btn" title="List" @click="insertMarkdownScript('\n- ', '')">—</button>
+              <div class="tb-divider" />
+              <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
+                :title="`Link ${t.label}`" @click="insertEntityRefScript(t.type)">
+                {{ t.label.charAt(0) }}
               </button>
-              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
+              <div class="tb-divider" />
+              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
             </div>
-          </div>
-        </div>
-        <!-- Preview side only: notes pane -->
-        <div v-else-if="props.side === 'preview'" class="edit-pane">
-          <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
-            <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
-            <span v-if="sessionMode === 'planning'">Script Preview</span>
-            <span v-else>Session Notes</span>
-            <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
-          </div>
-          <div v-if="sessionMode === 'running'" class="editor-area-wrap" style="position:relative">
-            <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
-              @input="onInput" placeholder="Take notes here while running the session…" />
-            <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
-              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                @mousedown.prevent="applyAutocomplete(item)">
-                <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                <span class="text-sm">{{ item.name }}</span>
-                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
-              </button>
-              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
-            </div>
-          </div>
-          <div v-else-if="sessionMode === 'planning'" class="preview-pane">
-            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
-          </div>
-          <div v-else class="preview-pane">
-            <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-            <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
-          </div>
-        </div>
-        <!-- Full split (default) -->
-        <div v-else class="split-pane">
-          <!-- Script side -->
-          <div class="edit-pane">
-            <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
-              <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
-              Script / Prep
-              <span v-if="sessionMode === 'running'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only during session</span>
-            </div>
-            <div v-if="sessionMode !== 'planning'" class="preview-pane">
-              <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
-            </div>
-            <div v-else class="editor-area-wrap" style="position:relative">
+            <div class="editor-area-wrap" style="position:relative">
               <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true"
                 @input="onScriptInput" placeholder="Write your session script and prep notes here…" />
               <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
@@ -126,17 +85,61 @@
                 <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
               </div>
             </div>
+          </template>
+          <!-- Running / Finished: read-only preview -->
+          <div v-else class="preview-pane">
+            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
           </div>
-          <div class="split-divider" />
-          <!-- Notes side -->
-          <div class="edit-pane">
-            <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
-              <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
-              <span v-if="sessionMode === 'planning'">Script Preview</span>
-              <span v-else>Session Notes</span>
-              <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
+          <!-- Script links bar — always visible at bottom of left page -->
+          <div v-if="scriptOutgoingLinks.length > 0" class="links-panel">
+            <div class="links-section">
+              <span class="f-label">Script Links</span>
+              <div class="links-list">
+                <button v-for="link in scriptOutgoingLinks" :key="`${link.type}:${link.name}`" class="link-chip"
+                  :style="{ borderColor: (typeColorMap[link.type] ?? 'var(--ink-faded)') + '55' }"
+                  @click="$emit('navigate', link.type, link.name)">
+                  <template v-if="linkAvatar(link.type, link.name).imageUrl">
+                    <img :src="linkAvatar(link.type, link.name).imageUrl!" class="link-avatar" />
+                  </template>
+                  <OhVueIcon v-else :name="linkAvatar(link.type, link.name).iconName" scale="0.75"
+                    :style="{ color: linkAvatar(link.type, link.name).color, flexShrink: 0 }" />
+                  <span class="text-sm">{{ link.name }}</span>
+                  <span class="text-xs text-ink-ghost">{{ link.type }}</span>
+                </button>
+              </div>
             </div>
-            <div v-if="sessionMode === 'running'" class="editor-area-wrap" style="position:relative">
+          </div>
+        </div>
+
+        <!-- ── RIGHT PAGE (side="preview"): Notes / Preview ── -->
+        <!-- Planning: script preview (no links bar)   Running/Finished: notes editor/preview + links bar -->
+        <div v-else-if="props.side === 'preview'" class="edit-pane">
+          <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
+            <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
+            <span v-if="sessionMode === 'planning'">Script Preview</span>
+            <span v-else>Session Notes</span>
+            <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
+          </div>
+          <!-- Planning: script preview only -->
+          <div v-if="sessionMode === 'planning'" class="preview-pane">
+            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
+          </div>
+          <!-- Running: notes editor -->
+          <template v-else-if="sessionMode === 'running'">
+            <div class="editor-toolbar">
+              <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
+              <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
+              <button class="tb-btn" title="Heading" @click="insertMarkdown('## ', '')">H</button>
+              <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
+              <div class="tb-divider" />
+              <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
+                :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">
+                {{ t.label.charAt(0) }}
+              </button>
+              <div class="tb-divider" />
+              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
+            </div>
+            <div class="editor-area-wrap" style="position:relative">
               <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
                 @input="onInput" placeholder="Take notes here while running the session…" />
               <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
@@ -149,12 +152,77 @@
                 <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
               </div>
             </div>
-            <div v-else-if="sessionMode === 'planning'" class="preview-pane">
-              <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
+          </template>
+          <!-- Finished: notes preview -->
+          <div v-else class="preview-pane">
+            <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
+            <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
+          </div>
+          <!-- Notes links bar — shown in running and finished modes -->
+          <div v-if="outgoingLinks.length > 0 && sessionMode !== 'planning'" class="links-panel">
+            <div class="links-section">
+              <span class="f-label">Notes Links</span>
+              <div class="links-list">
+                <button v-for="link in outgoingLinks" :key="link.id" class="link-chip"
+                  :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--ink-faded)') + '55' }"
+                  @click="$emit('navigate', link.targetType, link.targetName)">
+                  <template v-if="linkAvatar(link.targetType, link.targetName).imageUrl">
+                    <img :src="linkAvatar(link.targetType, link.targetName).imageUrl!" class="link-avatar" />
+                  </template>
+                  <OhVueIcon v-else :name="linkAvatar(link.targetType, link.targetName).iconName" scale="0.75"
+                    :style="{ color: linkAvatar(link.targetType, link.targetName).color, flexShrink: 0 }" />
+                  <span class="text-sm">{{ link.targetName }}</span>
+                  <span class="text-xs text-ink-ghost">{{ link.targetType }}</span>
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Full split (no side prop — not used by notes.vue but kept for completeness) -->
+        <div v-else class="split-pane">
+          <div class="edit-pane">
+            <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
+              <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />Script / Prep
+            </div>
+            <template v-if="sessionMode === 'planning'">
+              <div class="editor-toolbar">
+                <button class="tb-btn" title="Bold" @click="insertMarkdownScript('**', '**')"><strong>B</strong></button>
+                <button class="tb-btn italic" title="Italic" @click="insertMarkdownScript('*', '*')"><em>I</em></button>
+                <button class="tb-btn" title="Heading" @click="insertMarkdownScript('## ', '')">H</button>
+                <button class="tb-btn" title="List" @click="insertMarkdownScript('\n- ', '')">—</button>
+                <div class="tb-divider" />
+                <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
+                  :title="`Link ${t.label}`" @click="insertEntityRefScript(t.type)">{{ t.label.charAt(0) }}</button>
+              </div>
+              <div class="editor-area-wrap" style="position:relative">
+                <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true" @input="onScriptInput" placeholder="Write your session script…" />
+              </div>
+            </template>
+            <div v-else class="preview-pane"><div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" /></div>
+          </div>
+          <div class="split-divider" />
+          <div class="edit-pane">
+            <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
+              <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />Session Notes
+            </div>
+            <template v-if="sessionMode === 'running'">
+              <div class="editor-toolbar">
+                <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
+                <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
+                <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
+                <div class="tb-divider" />
+                <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
+                  :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">{{ t.label.charAt(0) }}</button>
+              </div>
+              <div class="editor-area-wrap" style="position:relative">
+                <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true" @input="onInput" placeholder="Take notes here…" />
+              </div>
+            </template>
+            <div v-else-if="sessionMode === 'planning'" class="preview-pane"><div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" /></div>
             <div v-else class="preview-pane">
               <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-              <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
+              <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No notes yet…</p>
             </div>
           </div>
         </div>
@@ -263,13 +331,17 @@
     </div>
 
     <!-- Links panel -->
-    <div v-if="(outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0) && props.side !== 'editor'" class="links-panel">
+    <!-- Global links panel — shown for non-session entities only (sessions render their own per-pane links) -->
+    <div v-if="(outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0) && props.side !== 'editor' && entity?.type !== 'session'" class="links-panel">
       <div v-if="pinnedOn.length > 0" class="links-section">
         <span class="f-label">Found in</span>
         <div class="links-list">
           <NuxtLink v-for="p in pinnedOn" :key="p.location.id"
             :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`" class="link-chip pinned-chip">
-            <span class="link-dot" style="background:var(--gold)" />
+            <template v-if="linkAvatar('location', p.location.name).imageUrl">
+              <img :src="linkAvatar('location', p.location.name).imageUrl!" class="link-avatar" />
+            </template>
+            <OhVueIcon v-else name="gi-castle" scale="0.75" style="color:var(--gold);flex-shrink:0" />
             <span class="text-sm">{{ p.location.name }}</span>
             <span class="text-xs text-ink-ghost">map</span>
           </NuxtLink>
@@ -281,7 +353,13 @@
           <button v-for="link in outgoingLinks" :key="link.id" class="link-chip"
             :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--ink-faded)') + '55' }"
             @click="$emit('navigate', link.targetType, link.targetName)">
-            <span class="link-dot" :style="{ background: typeColorMap[link.targetType] ?? 'var(--ink-faded)' }" />
+            <template v-if="linkAvatar(link.targetType, link.targetName).imageUrl">
+              <img :src="linkAvatar(link.targetType, link.targetName).imageUrl!" class="link-avatar" />
+            </template>
+            <OhVueIcon v-else
+              :name="linkAvatar(link.targetType, link.targetName).iconName"
+              scale="0.75"
+              :style="{ color: linkAvatar(link.targetType, link.targetName).color, flexShrink: 0 }" />
             <span class="text-sm">{{ link.targetName }}</span>
             <span class="text-xs text-ink-ghost">{{ link.targetType }}</span>
             <span v-if="Object.keys(link.metadata).length > 0" class="link-meta">{{
@@ -293,8 +371,13 @@
         <span class="f-label">Referenced by</span>
         <div class="links-list">
           <button v-for="bl in backlinks" :key="bl.sourceId" class="link-chip" @click="navigateToSource(bl.sourceId)">
-            <span class="link-dot"
-              :style="{ background: typeColorMap[sourceEntity(bl.sourceId)?.type ?? ''] ?? 'var(--ink-faded)' }" />
+            <template v-if="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').imageUrl">
+              <img :src="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').imageUrl!" class="link-avatar" />
+            </template>
+            <OhVueIcon v-else
+              :name="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').iconName"
+              scale="0.75"
+              :style="{ color: linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').color, flexShrink: 0 }" />
             <span class="text-sm">{{ sourceEntity(bl.sourceId)?.name }}</span>
             <span class="text-xs text-ink-ghost">{{ sourceEntity(bl.sourceId)?.type }}</span>
           </button>
@@ -307,13 +390,40 @@
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
+import * as GiIcons from 'oh-vue-icons/icons/gi'
 import { useNotesStore } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
-import { renderEntityRefs } from '~/composables/useEntityParser'
+import { renderEntityRefs, extractLinks } from '~/composables/useEntityParser'
 import { useDiceRoll } from '~/composables/useDiceRoll'
 import { getDb } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityAttributes } from '~/types/entities'
+
+// ── Icon helpers ─────────────────────────────────────────────────────────────
+function giNameToExport(name: string): string {
+  // 'gi-scroll-unfurled' → 'GiScrollUnfurled'
+  const body = name.replace(/^gi-/, '')
+  const pascal = body.charAt(0).toUpperCase() + body.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase())
+  return 'Gi' + pascal
+}
+function iconToSvg(icon: any, color: string): string {
+  const vb = `${icon.minX ?? 0} ${icon.minY ?? 0} ${icon.width} ${icon.height}`
+  return `<svg viewBox="${vb}" fill="${color}" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:3px;margin-top:-2px;flex-shrink:0">${icon.raw}</svg>`
+}
+function typeIconHtml(type: string, color: string): string {
+  const TYPE_ICON_NAMES: Record<string, string> = {
+    note: 'gi-scroll-unfurled', npc: 'gi-person', item: 'gi-open-treasure-chest',
+    location: 'gi-castle', faction: 'gi-american-shield', quest: 'gi-holy-grail',
+    event: 'gi-sands-of-time', session: 'gi-book-aura', encounter: 'gi-broadsword',
+  }
+  const iconName = TYPE_ICON_NAMES[type]
+  if (!iconName) return ''
+  const icon = (GiIcons as any)[giNameToExport(iconName)]
+  return icon ? iconToSvg(icon, color) : ''
+}
+function giIconByName(name: string): any | null {
+  return (GiIcons as any)[giNameToExport(name)] ?? null
+}
 
 const props = defineProps<{ entityId: number; campaignId: number; side?: 'editor' | 'preview' }>()
 const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }>()
@@ -322,6 +432,9 @@ const store = useNotesStore()
 const systemsStore = useSystemsStore()
 const router = useRouter()
 
+// Encounters for this campaign (for {{encounter: Name}} refs)
+const campaignEncounters = ref<{ id: number; name: string; mapSource?: string }[]>([])
+
 // System linked to this campaign
 const campaignSystemId = ref<number | null>(null)
 const systemEntityTypes = ref<{ id: string; name: string; color: string; icon: string }[]>([])
@@ -329,6 +442,10 @@ const systemRecordCache = ref<Map<string, { color: string }>>(new Map())
 
 watch(() => props.campaignId, async (id) => {
   if (!id) return
+  // Load encounters for {{encounter: Name}} refs
+  campaignEncounters.value = await getDb().encounters
+    .where('campaign_id').equals(id).toArray()
+    .then(rows => rows.map(r => ({ id: r.id!, name: r.name, mapSource: r.map_source ?? undefined })))
   const campaign = await getDb().campaigns.get(id)
   const sysId = campaign?.system_id ?? null
   campaignSystemId.value = sysId
@@ -440,8 +557,15 @@ const editorRef = ref<HTMLTextAreaElement | null>(null)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let attrSaveTimer: ReturnType<typeof setTimeout> | null = null
 
-const entityTypes = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, label: cfg.plural, color: cfg.color }))
-const typeColorMap = Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]))
+const ENCOUNTER_COLOR = '#e8a87a'
+const entityTypes = [
+  ...Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, label: cfg.plural, color: cfg.color })),
+  { type: 'encounter', label: 'Encounters', color: ENCOUNTER_COLOR },
+]
+const typeColorMap: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color])),
+  encounter: ENCOUNTER_COLOR,
+}
 const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--ink-faded)')
 const typeLabel = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.label ?? '')
 
@@ -507,22 +631,30 @@ watch(() => props.entityId, async (id) => {
   activePanel.value = 'content'
 }, { immediate: true })
 
-function entityLookup(type: string, name: string) {
-  // Check campaign entities first
-  const entity = store.findByTypeAndName(type, name)
+function entityLookup(type: string, name: string): { imageUrl?: string; iconHtml?: string; color: string } | null {
+  const typeKey = type.toLowerCase()
+  // Encounters — show map image or broadsword icon
+  if (typeKey === 'encounter') {
+    const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+    const imageUrl = enc?.mapSource
+    const color = ENCOUNTER_COLOR
+    return { imageUrl, iconHtml: imageUrl ? undefined : typeIconHtml('encounter', color), color }
+  }
+  // Campaign entities
+  const entity = store.findByTypeAndName(typeKey, name)
   if (entity) {
     const attrs = entity.attributes as any
-    const src = attrs.portraitSource || attrs.imageSource
-    const imageUrl = src ? src : undefined
+    const imageUrl = attrs.portraitSource || attrs.logoSource || attrs.imageSource || undefined
     const color = typeColorMap[entity.type] ?? '#888'
-    const icon = entity.type
-    return { imageUrl, icon, color }
+    return { imageUrl, iconHtml: imageUrl ? undefined : typeIconHtml(entity.type, color), color }
   }
-  // Check system entity types
-  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+  // System entity types
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === typeKey)
   if (sysType) {
     const cached = systemRecordCache.value.get(`${sysType.id}:${name.toLowerCase()}`)
-    return { imageUrl: undefined, icon: sysType.icon, color: cached?.color ?? sysType.color }
+    const color = cached?.color ?? sysType.color
+    const icon = giIconByName(sysType.icon)
+    return { iconHtml: icon ? iconToSvg(icon, color) : undefined, color }
   }
   return null
 }
@@ -535,7 +667,31 @@ const renderedContent = computed(() => {
   return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
 })
 
+function linkAvatar(type: string, name: string): { imageUrl: string | null; iconName: string; color: string } {
+  const typeKey = type.toLowerCase()
+  if (typeKey === 'encounter') {
+    const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+    return { imageUrl: enc?.mapSource ?? null, iconName: 'gi-broadsword', color: ENCOUNTER_COLOR }
+  }
+  const entity = store.findByTypeAndName(typeKey, name)
+  if (entity) {
+    const attrs = entity.attributes as any
+    const imageUrl = attrs.portraitSource || attrs.logoSource || attrs.imageSource || null
+    const cfg = ENTITY_TYPE_CONFIG[entity.type as keyof typeof ENTITY_TYPE_CONFIG]
+    return { imageUrl, iconName: cfg?.defaultIcon ?? 'gi-scroll-unfurled', color: typeColorMap[entity.type] ?? '#888' }
+  }
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === typeKey)
+  if (sysType) return { imageUrl: null, iconName: sysType.icon, color: sysType.color }
+  const cfg = ENTITY_TYPE_CONFIG[typeKey as keyof typeof ENTITY_TYPE_CONFIG]
+  return { imageUrl: null, iconName: cfg?.defaultIcon ?? 'gi-scroll-unfurled', color: typeColorMap[typeKey] ?? '#888' }
+}
+
 const outgoingLinks = computed(() => store.linksFrom(props.entityId))
+const scriptOutgoingLinks = computed(() => {
+  if (entity.value?.type !== 'session') return []
+  const scriptContent = (entity.value?.attributes as any)?.scriptContent ?? ''
+  return extractLinks(scriptContent)
+})
 const pinnedOn = computed(() => {
   if (!entity.value) return []
   return store.pinnedLocationsFor(entity.value.id)
@@ -590,6 +746,12 @@ async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, i
       (!partialType || e.type.startsWith(partialType)) &&
       (!partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
   }).map(e => ({ type: e.type, name: e.name }))
+  // Encounters
+  const encounterCandidates = 'encounter'.startsWith(partialType)
+    ? campaignEncounters.value
+        .filter(e => !partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
+        .map(e => ({ type: 'encounter', name: e.name }))
+    : []
   // System entity records
   let sysCandidates: { type: string; name: string }[] = []
   if (campaignSystemId.value) {
@@ -602,7 +764,7 @@ async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, i
       sysCandidates = rows.map(r => ({ type: matchingSysType.id, name: r.name }))
     }
   }
-  const candidates = [...campaignCandidates, ...sysCandidates].slice(0, 8)
+  const candidates = [...campaignCandidates, ...encounterCandidates, ...sysCandidates].slice(0, 8)
   autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, isScript }
 }
 
@@ -637,6 +799,18 @@ function insertMarkdown(before: string, after: string) {
 
 function insertEntityRef(type: string) { insertMarkdown(`{{${type}: `, '}}') }
 
+function insertMarkdownScript(before: string, after: string) {
+  const el = scriptRef.value
+  if (!el) return
+  const start = el.selectionStart
+  const end = el.selectionEnd
+  const selected = draftScript.value.slice(start, end)
+  draftScript.value = draftScript.value.slice(0, start) + before + selected + after + draftScript.value.slice(end)
+  nextTick(() => { el.setSelectionRange(start + before.length, start + before.length + selected.length); el.focus() })
+}
+
+function insertEntityRefScript(type: string) { insertMarkdownScript(`{{${type}: `, '}}') }
+
 const { triggerRoll } = useDiceRoll()
 
 function onPreviewClick(e: MouseEvent) {
@@ -650,6 +824,12 @@ function onPreviewClick(e: MouseEvent) {
     const type = target.dataset.entityType
     const name = target.dataset.entityName
     if (!type || !name) return
+    // Encounter: navigate to the encounter editor
+    if (type === 'encounter') {
+      const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+      if (enc) router.push(`/encounter/${enc.id}`)
+      return
+    }
     // Check if this is a system entity type
     const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
     if (sysType && campaignSystemId.value) {
@@ -985,6 +1165,15 @@ async function confirmDelete() {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.link-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(28,20,16,0.1);
 }
 
 .link-meta {

@@ -83,7 +83,7 @@
                       }}</span>
                     </div>
                     <div
-                      v-if="locAttrs(loc).locationType || locMap(loc)"
+                      v-if="locAttrs(loc).locationType || locMap(loc) || pinCount(loc) > 0"
                       class="entry-attrs"
                     >
                       <span
@@ -102,6 +102,10 @@
                         {{ locAttrs(loc).locationType }}
                       </span>
                       <span v-if="locMap(loc)" class="ea-bool">map</span>
+                      <span v-if="pinCount(loc) > 0" class="ea-bool ea-pins">
+                        <OhVueIcon name="gi-pin" scale="0.7" />
+                        {{ pinCount(loc) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -182,7 +186,7 @@
                       }}</span>
                     </div>
                     <div
-                      v-if="locAttrs(loc).locationType || locMap(loc)"
+                      v-if="locAttrs(loc).locationType || locMap(loc) || pinCount(loc) > 0"
                       class="entry-attrs"
                     >
                       <span
@@ -201,6 +205,10 @@
                         {{ locAttrs(loc).locationType }}
                       </span>
                       <span v-if="locMap(loc)" class="ea-bool">map</span>
+                      <span v-if="pinCount(loc) > 0" class="ea-bool ea-pins">
+                        <OhVueIcon name="gi-pin" scale="0.7" />
+                        {{ pinCount(loc) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -686,6 +694,11 @@ function formatDate(dt: string) {
   background: rgba(184, 134, 11, 0.08);
   border: 1px solid rgba(184, 134, 11, 0.3);
   flex-shrink: 0;
+}
+.ea-pins {
+  color: var(--ink-faded);
+  background: rgba(28, 20, 16, 0.06);
+  border-color: rgba(28, 20, 16, 0.15);
 }
 
 /* Pagination footer */
