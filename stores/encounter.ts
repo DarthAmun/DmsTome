@@ -58,6 +58,8 @@ export const useEncounterStore = defineStore('encounter', () => {
   const playerWindowOpen = ref(false)
   const isDmMode = ref(true)
   const shapeOverlays = ref<any[]>([])
+  const currentTurnIndex = ref(0)
+  const roundNumber = ref(1)
 
   // ── Computed ───────────────────────────────────────────────────────────────
   const visibleTokens = computed(() =>
@@ -65,6 +67,19 @@ export const useEncounterStore = defineStore('encounter', () => {
   )
 
   const allTokens = computed(() => current.value?.tokens ?? [])
+
+  // Tokens that participate in turn order: visible and alive, sorted by initiative descending
+  const initiativeOrder = computed(() =>
+    (current.value?.tokens ?? [])
+      .filter(t => t.isVisible && !t.isDead)
+      .slice()
+      .sort((a, b) => {
+        if (a.initiative === null && b.initiative === null) return 0
+        if (a.initiative === null) return 1
+        if (b.initiative === null) return -1
+        return b.initiative - a.initiative
+      })
+  )
 
   // ── Actions — Loading ──────────────────────────────────────────────────────
   async function loadEncounter(id: number) {
@@ -232,6 +247,29 @@ export const useEncounterStore = defineStore('encounter', () => {
     syncToPlayer()
   }
 
+  function nextTurn() {
+    if (!initiativeOrder.value.length) return
+    currentTurnIndex.value++
+    if (currentTurnIndex.value >= initiativeOrder.value.length) {
+      currentTurnIndex.value = 0
+      roundNumber.value++
+    }
+    syncToPlayer()
+  }
+
+  function prevTurn() {
+    if (!initiativeOrder.value.length) return
+    if (currentTurnIndex.value === 0) {
+      if (roundNumber.value > 1) {
+        roundNumber.value--
+        currentTurnIndex.value = initiativeOrder.value.length - 1
+      }
+    } else {
+      currentTurnIndex.value--
+    }
+    syncToPlayer()
+  }
+
   function syncToPlayer() {
     if (!current.value) return
     dbApi.window.syncEncounter({
@@ -245,6 +283,8 @@ export const useEncounterStore = defineStore('encounter', () => {
       gridOffsetX: current.value.gridOffsetX,
       gridOffsetY: current.value.gridOffsetY,
       shapes: shapeOverlays.value.map(s => ({ ...toRaw(s) })),
+      currentTurnIndex: currentTurnIndex.value,
+      roundNumber: roundNumber.value,
     })
   }
 
@@ -293,11 +333,13 @@ export const useEncounterStore = defineStore('encounter', () => {
 
   return {
     current, tokenLibrary, isLoading, playerWindowOpen, isDmMode,
+    currentTurnIndex, roundNumber, initiativeOrder,
     visibleTokens, allTokens,
     loadEncounter, loadTokenLibrary,
     setMap, updateGrid, updateViewport, updateName,
     setFogCell, revealAllFog, hideAllFog,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
     openPlayerWindow, closePlayerWindow, syncToPlayer, setShapeOverlays,
+    nextTurn, prevTurn,
   }
 })

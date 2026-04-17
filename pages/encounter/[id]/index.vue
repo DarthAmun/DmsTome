@@ -200,73 +200,80 @@
 
         <!-- Right sidebar: Selected token / encounter tokens -->
         <aside class="encounter-sidebar right-sidebar">
-          <!-- Active encounter tokens -->
+          <!-- Active encounter tokens + initiative tracker -->
           <div class="sidebar-section flex-1 overflow-y-auto">
             <div class="sidebar-header">
               <span class="f-label">On Map ({{ encounterTokens.length }})</span>
             </div>
-            <div class="enc-token-list">
+            <!-- Round counter + prev/next turn -->
+            <div class="initiative-bar">
+              <button class="init-nav-btn" @click="store.prevTurn()">
+                <OhVueIcon name="md-chevronleft" scale="0.8" />
+              </button>
+              <span class="init-round-label">Round {{ store.roundNumber }}</span>
+              <button class="init-nav-btn" @click="store.nextTurn()">
+                <OhVueIcon name="md-chevronright" scale="0.8" />
+              </button>
+            </div>
+            <div class="enc-token-cards">
               <div
                 v-for="token in sortedEncounterTokens"
                 :key="token.id"
-                class="encounter-token-row"
+                class="token-card"
+                :class="{
+                  'token-card--selected': selectedToken?.id === token.id,
+                  'token-card--active': token.id === currentTurnTokenId,
+                  'token-card--dead': token.isDead,
+                  'token-card--hidden': !token.isVisible,
+                }"
                 @click="selectToken(token)"
               >
-                <div class="token-thumb-sm">
-                  <img
-                    v-if="token.imageSource"
-                    :src="getImageUrl(token)"
-                    class="enc-token-img"
-                  />
-                  <span v-else class="enc-token-initial">{{
-                    token.name.charAt(0)
-                  }}</span>
-                </div>
-                <div class="enc-token-info">
-                  <div class="enc-token-name">
-                    {{ token.label || token.name }}
-                  </div>
-                  <div class="enc-token-sub">
-                    <span v-if="token.hpMax" class="enc-token-hp">
-                      HP {{ token.hpCurrent }}/{{ token.hpMax }}
-                    </span>
-                  </div>
-                </div>
-                <div class="enc-token-btns">
-                  <button
-                    class="icon-btn-sq"
-                    :title="
-                      token.isVisible ? 'Hide from players' : 'Show to players'
-                    "
-                    @click.stop="
-                      store.updateToken(token.id, {
-                        isVisible: !token.isVisible,
-                      })
-                    "
-                  >
-                    <OhVueIcon
-                      :name="
-                        token.isVisible ? 'md-visibility' : 'md-visibilityoff'
-                      "
-                      scale="0.85"
+                <!-- Row 1: avatar + name + initiative -->
+                <div class="token-card-top">
+                  <div class="token-thumb-sm">
+                    <img
+                      v-if="token.imageSource"
+                      :src="getImageUrl(token)"
+                      class="enc-token-img"
                     />
-                  </button>
-                  <button
-                    class="icon-btn-sq"
-                    :title="token.isDead ? 'Mark alive' : 'Mark dead'"
-                    :class="token.isDead ? 'icon-btn-sq--danger' : ''"
-                    @click.stop="
-                      store.updateToken(token.id, { isDead: !token.isDead })
-                    "
-                  >
-                    <OhVueIcon name="fa-skull-crossbones" scale="0.85" />
-                  </button>
-                  <button
-                    class="icon-btn-sq icon-btn-sq--danger"
-                    @click.stop="store.removeToken(token.id)"
-                  >
-                    <OhVueIcon name="md-delete" scale="0.85" />
-                  </button>
+                    <span v-else class="enc-token-initial">{{
+                      token.name.charAt(0)
+                    }}</span>
+                  </div>
+                  <span class="token-card-name">{{ token.label || token.name }}</span>
+                  <span class="token-card-init" :class="{ 'token-card-init--set': token.initiative !== null }">
+                    {{ token.initiative !== null ? `⚡${token.initiative}` : '—' }}
+                  </span>
+                </div>
+                <!-- Row 2: HP + action buttons -->
+                <div class="token-card-bottom">
+                  <span v-if="token.hpMax" class="enc-token-hp">
+                    HP {{ token.hpCurrent }}/{{ token.hpMax }}
+                  </span>
+                  <span v-else class="enc-token-hp" style="opacity:0.3">no HP</span>
+                  <div class="token-card-btns">
+                    <button
+                      class="icon-btn-sq"
+                      :title="token.isVisible ? 'Hide from players' : 'Show to players'"
+                      @click.stop="store.updateToken(token.id, { isVisible: !token.isVisible })"
+                    >
+                      <OhVueIcon :name="token.isVisible ? 'md-visibility' : 'md-visibilityoff'" scale="0.8" />
+                    </button>
+                    <button
+                      class="icon-btn-sq"
+                      :title="token.isDead ? 'Mark alive' : 'Mark dead'"
+                      :class="token.isDead ? 'icon-btn-sq--danger' : ''"
+                      @click.stop="store.updateToken(token.id, { isDead: !token.isDead })"
+                    >
+                      <OhVueIcon name="fa-skull-crossbones" scale="0.8" />
+                    </button>
+                    <button
+                      class="icon-btn-sq icon-btn-sq--danger"
+                      @click.stop="store.removeToken(token.id)"
+                    >
+                      <OhVueIcon name="md-delete" scale="0.8" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -628,6 +635,37 @@ let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 const newConditionName = ref("");
 const newConditionValue = ref<number | null>(null);
 const filteredConditions = ref<string[]>([]);
+
+// ── Initiative tracker ─────────────────────────────────────────────────────
+const rollingInitiativeFor = ref<number | null>(null);
+const initInputValue = ref("");
+
+const currentTurnTokenId = computed(
+  () => store.initiativeOrder[store.currentTurnIndex]?.id ?? null
+);
+
+function startRollInitiative(e: Event, token: any) {
+  e.stopPropagation();
+  rollingInitiativeFor.value = token.id;
+  initInputValue.value = token.initiative !== null ? String(token.initiative) : "";
+  nextTick(() => {
+    (document.querySelector(".init-input-inline") as HTMLInputElement | null)?.focus();
+  });
+}
+
+async function confirmInitiative(e: Event, tokenId: number) {
+  e.stopPropagation();
+  const val = parseInt(initInputValue.value);
+  if (!isNaN(val)) await store.updateToken(tokenId, { initiative: val });
+  rollingInitiativeFor.value = null;
+  initInputValue.value = "";
+}
+
+function cancelInitiative(e: Event) {
+  e.stopPropagation();
+  rollingInitiativeFor.value = null;
+  initInputValue.value = "";
+}
 
 function searchConditions(event: { query: string }) {
   const q = event.query.toLowerCase();
@@ -1126,6 +1164,103 @@ function getImageUrl(token: any): string {
   gap: 0;
 }
 
+/* ── Token cards (right sidebar) ── */
+.enc-token-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.token-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--parch-line);
+  border-left: 3px solid transparent;
+  background: rgba(28, 20, 16, 0.03);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.token-card:hover {
+  border-color: var(--parch-line);
+  border-left-color: var(--ink-ghost);
+  background: rgba(28, 20, 16, 0.06);
+}
+.token-card--selected {
+  border-left-color: var(--blood) !important;
+  background: rgba(139, 26, 26, 0.06) !important;
+}
+.token-card--active {
+  border-left-color: var(--gold) !important;
+  background: rgba(184, 134, 11, 0.08) !important;
+}
+.token-card--dead { opacity: 0.45; }
+.token-card--hidden { opacity: 0.55; }
+
+/* Top row: avatar + name + initiative */
+.token-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.token-card-name {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.token-card-init {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+}
+.token-card-init--set { color: var(--gold); }
+
+/* Bottom row: HP + buttons */
+.token-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding-left: 33px; /* align with name, past avatar */
+}
+.token-card-btns {
+  display: flex;
+  gap: 0;
+}
+
+/* Ghost icon buttons inside cards — no border, smaller, always visible */
+.token-card-btns .icon-btn-sq {
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+}
+.token-card-btns .icon-btn-sq:hover {
+  background: none;
+  border: none;
+  color: var(--ink);
+  opacity: 1;
+}
+.token-card-btns .icon-btn-sq--danger:hover {
+  background: none;
+  color: var(--blood);
+  opacity: 1;
+}
+.token-card-btns .icon-btn-sq.init-roll-btn { color: var(--gold); opacity: 0.5; }
+.token-card-btns .icon-btn-sq.init-roll-btn:hover { opacity: 1; }
+
 /* Single shared token-row style */
 .token-chip,
 .encounter-token-row {
@@ -1210,7 +1345,7 @@ function getImageUrl(token: any): string {
 .enc-token-hp {
   font-family: var(--font-head);
   font-size: 9px;
-  color: var(--ink-ghost);
+  color: var(--ink);
 }
 
 .enc-token-btns {
@@ -1522,5 +1657,63 @@ function getImageUrl(token: any): string {
   font-size: 10px;
   color: var(--ink);
   text-transform: capitalize;
+}
+
+/* ── Base border for token rows (enables hover + current-turn colour) ── */
+.token-chip,
+.encounter-token-row {
+  border-left: 2px solid transparent;
+}
+
+/* ── Initiative tracker bar ── */
+.initiative-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 6px 7px;
+  border-bottom: 1px solid var(--parch-line);
+  margin-bottom: 2px;
+}
+.init-round-label {
+  font-family: 'Cinzel', var(--font-head);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+.init-nav-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  border: 1px solid var(--parch-line);
+  background: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.init-nav-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── Current-turn highlight ── */
+.encounter-token-row.current-turn {
+  border-left-color: var(--gold) !important;
+  background: rgba(184, 134, 11, 0.07) !important;
+}
+
+/* ── Initiative badge ── */
+.enc-initiative-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+/* ── Roll-initiative button ── */
+.init-roll-btn {
+  font-size: 11px;
+  line-height: 1;
 }
 </style>
