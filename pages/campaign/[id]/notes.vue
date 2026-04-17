@@ -15,9 +15,23 @@
           <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
           <input v-model="search" class="ribbon-search-input" placeholder="Search…" />
         </div>
-        <button class="ribbon-tool" :class="{ active: showGraph }" @click="toggleGraph" title="Graph view">
-          <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
-        </button>
+        <!-- Session-specific: 3-way view toggle -->
+        <template v-if="activeType === 'session'">
+          <button class="ribbon-tool" :class="{ active: viewMode === 'list' }" @click="setView('list')" title="List view">
+            <OhVueIcon name="md-menubook" scale="0.85" />
+          </button>
+          <button class="ribbon-tool" :class="{ active: viewMode === 'log' }" @click="setView('log')" title="Session log">
+            <OhVueIcon name="gi-book-aura" scale="0.85" />
+          </button>
+          <button class="ribbon-tool" :class="{ active: viewMode === 'graph' }" @click="setView('graph')" title="Graph view">
+            <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
+          </button>
+        </template>
+        <template v-else>
+          <button class="ribbon-tool" :class="{ active: viewMode === 'graph' }" @click="toggleGraph" title="Graph view">
+            <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
+          </button>
+        </template>
         <button class="ribbon-tool" @click="createNew" :title="`New ${activeTypeConfig?.label}`">
           <OhVueIcon name="md-add" scale="0.9" />
         </button>
@@ -25,8 +39,54 @@
     </div>
 
     <!-- GRAPH (full width) -->
-    <div v-if="showGraph" class="notes-graph-full">
+    <div v-if="viewMode === 'graph'" class="notes-graph-full">
       <NotesGraph :campaign-id="campaignId" @navigate="navigateByTypeAndName" />
+    </div>
+
+    <!-- SESSION LOG (full width, sessions only) -->
+    <div v-else-if="viewMode === 'log' && activeType === 'session'" class="session-log">
+      <div v-if="!logSessions.length" class="slog-empty-state">
+        <OhVueIcon name="gi-book-aura" scale="3" style="opacity:0.08;margin-bottom:12px" />
+        <em>{{ search ? 'No sessions match your search' : 'No sessions recorded yet' }}</em>
+      </div>
+      <div v-for="sess in logSessions" :key="sess.id" class="slog-chapter">
+        <!-- Header -->
+        <div class="slog-header" @click="toggleExpand(sess.id)">
+          <span class="slog-num">
+            {{ sess.attributes?.sessionNumber ? 'Session ' + sess.attributes.sessionNumber : '—' }}
+          </span>
+          <span class="slog-bullet">·</span>
+          <span class="slog-title">{{ sess.name }}</span>
+          <span class="slog-spacer" />
+          <span v-if="sess.attributes?.date" class="slog-date">{{ formatSessionDate(sess.attributes.date) }}</span>
+          <span v-if="sess.attributes?.mode" class="slog-status"
+            :style="{ color: sessionStatusColor(sess.attributes.mode), borderColor: sessionStatusColor(sess.attributes.mode) + '66' }">
+            ●&thinsp;{{ sess.attributes.mode }}
+          </span>
+        </div>
+        <div class="slog-rule" />
+        <!-- Body — collapsed by default, expanded when in expandedIds -->
+        <div class="slog-body" :class="{ 'slog-body--expanded': expandedIds.has(sess.id) }">
+          <div v-if="sess.attributes?.scriptContent"
+            class="slog-content"
+            v-html="renderSessionNotes(sess.attributes.scriptContent)" />
+          <div v-else class="slog-no-notes">
+            <em>No live notes recorded for this session.</em>
+          </div>
+          <div v-if="!expandedIds.has(sess.id) && sess.attributes?.scriptContent" class="slog-fade" />
+        </div>
+        <!-- Footer -->
+        <div class="slog-footer">
+          <button v-if="sess.attributes?.scriptContent" class="slog-expand-btn"
+            @click.stop="toggleExpand(sess.id)">
+            {{ expandedIds.has(sess.id) ? '▲ Collapse' : '▼ Expand' }}
+          </button>
+          <span class="slog-footer-spacer" />
+          <button class="slog-readmore-btn" @click.stop="selectEntity(sess.id)">
+            Read more →
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- OPEN BOOK — always visible (editor opens on right page) -->
@@ -235,6 +295,7 @@
 
 
 <script setup lang="ts">
+import MarkdownIt from 'markdown-it'
 import { useNotesStore } from '~/stores/notes'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
@@ -246,7 +307,54 @@ const campaignId = Number(route.params.id)
 
 const search = ref('')
 const sortBy = ref('updated')
-const showGraph = ref(false)
+
+const viewMode = computed<'list' | 'log' | 'graph'>(() => {
+  const v = route.query.view as string | undefined
+  if (v === 'graph') return 'graph'
+  if (v === 'log' && activeType.value === 'session') return 'log'
+  return 'list'
+})
+const showGraph = computed(() => viewMode.value === 'graph')
+
+// Session log state — expanded ids (default: all collapsed)
+const expandedIds = ref<Set<number>>(new Set())
+function toggleExpand(id: number) {
+  const s = new Set(expandedIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  expandedIds.value = s
+}
+
+const mdParser = new MarkdownIt({ html: false, linkify: true, typographer: true, breaks: true })
+function renderSessionNotes(content: string): string {
+  return mdParser.render(content || '')
+}
+
+const logSessions = computed((): Array<{ id: number; name: string; attributes: any }> => {
+  const list = (store.byType['session'] ?? [])
+    .filter(e => !search.value || e.name.toLowerCase().includes(search.value.toLowerCase()))
+  return [...list].sort((a, b) => {
+    // Use explicit integer sessionNumber when both entries have one; fall back to
+    // creation-order id (auto-increment) so the sort is always stable and predictable.
+    const na = parseInt((a.attributes as any)?.sessionNumber ?? '', 10)
+    const nb = parseInt((b.attributes as any)?.sessionNumber ?? '', 10)
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb
+    return a.id - b.id
+  })
+})
+
+function sessionStatusColor(mode: string | undefined): string {
+  return { planning: '#6b9fe8', running: '#5a8a3a', finished: '#b87de8' }[mode ?? ''] ?? 'var(--ink-ghost)'
+}
+
+function formatSessionDate(dateStr: string): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
+  return d.toLocaleDateString('en-US', opts)
+}
 
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
 
@@ -300,10 +408,13 @@ function selectEntity(id: number) {
   router.push({ query: { type: activeType.value, id: String(id) } })
 }
 
+function setView(mode: 'list' | 'log' | 'graph') {
+  if (mode === 'list') router.push({ query: { type: activeType.value } })
+  else router.push({ query: { type: activeType.value, view: mode } })
+}
+
 function toggleGraph() {
-  showGraph.value = !showGraph.value
-  if (showGraph.value) router.push({ query: { type: activeType.value, view: 'graph' } })
-  else router.push({ query: { type: activeType.value } })
+  setView(viewMode.value === 'graph' ? 'list' : 'graph')
 }
 
 function goBack() {
@@ -830,5 +941,214 @@ async function confirmDelete(entity: any) {
 .entry:hover .entry-actions { opacity: 1; }
 .entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
+
+/* ─── Session Log view ──────────────────────────────────────────── */
+.session-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 40px 40px;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+}
+
+.slog-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  color: var(--ink-ghost);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* Chapter block */
+.slog-chapter {
+  max-width: 720px;
+  margin: 0 auto 12px;
+  border-top: 1.5px dashed rgba(184, 134, 11, 0.35);
+  padding-top: 20px;
+}
+.slog-chapter:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Header row */
+.slog-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding-bottom: 10px;
+}
+
+.slog-num {
+  font-family: 'Cinzel Decorative', var(--font-deco);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(139, 26, 26, 0.55);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.slog-bullet {
+  color: rgba(139, 26, 26, 0.3);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.slog-title {
+  font-family: 'Cinzel', var(--font-deco);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.slog-spacer { flex: 1; min-width: 12px; }
+
+.slog-date {
+  font-family: var(--font-head);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+}
+
+.slog-status {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+/* Rule below header */
+.slog-rule {
+  height: 1px;
+  background: var(--parch-line);
+  margin-bottom: 14px;
+}
+
+/* Body — collapsed by default; --expanded removes the cap */
+.slog-body {
+  position: relative;
+  max-height: 120px;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.slog-body--expanded {
+  max-height: 4000px;
+}
+
+.slog-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, var(--parch));
+  pointer-events: none;
+}
+
+/* Prose content */
+.slog-content {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-faded);
+}
+/* Basic markdown-it output styles scoped to log */
+.slog-content :deep(p) { margin: 0 0 0.6em; }
+.slog-content :deep(h1),
+.slog-content :deep(h2),
+.slog-content :deep(h3) {
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  margin: 0.9em 0 0.35em;
+}
+.slog-content :deep(ul),
+.slog-content :deep(ol) { padding-left: 1.4em; margin: 0 0 0.6em; }
+.slog-content :deep(li) { margin-bottom: 0.2em; }
+.slog-content :deep(strong) { color: var(--ink); font-weight: 600; }
+.slog-content :deep(em) { color: var(--ink-faded); }
+.slog-content :deep(blockquote) {
+  border-left: 2px solid rgba(184,134,11,0.4);
+  padding-left: 12px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  margin: 0.5em 0;
+}
+.slog-content :deep(hr) { border: none; border-top: 1px dashed var(--parch-line); margin: 0.8em 0; }
+.slog-content :deep(code) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: rgba(28,20,16,0.06);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.slog-no-notes {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Footer */
+.slog-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+.slog-footer-spacer { flex: 1; }
+
+.slog-expand-btn {
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.slog-expand-btn:hover { color: var(--gold); }
+
+.slog-readmore-btn {
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(139, 26, 26, 0.6);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.slog-readmore-btn:hover { color: var(--blood); }
 
 </style>
