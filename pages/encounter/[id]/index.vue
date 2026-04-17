@@ -81,7 +81,7 @@
                     :src="getImageUrl(token)"
                     class="enc-token-img"
                   />
-                  <span v-else class="font-display text-amber-500 text-sm">{{
+                  <span v-else class="enc-token-initial">{{
                     token.name.charAt(0)
                   }}</span>
                 </div>
@@ -95,7 +95,7 @@
               </div>
               <p
                 v-if="filteredLibrary.length === 0"
-                class="text-stone-500 text-sm text-center py-4"
+                class="enc-hint"
               >
                 No tokens yet
               </p>
@@ -107,7 +107,7 @@
             <div class="sidebar-header">
               <span class="f-label">Grid Settings</span>
             </div>
-            <div class="space-y-2">
+            <div class="enc-grid-col">
               <label class="f-label">Cell Size (px)</label>
               <input
                 type="range"
@@ -115,7 +115,7 @@
                 max="200"
                 step="1"
                 :value="encounter?.gridSize ?? 70"
-                class="w-full accent-amber-500"
+                class="enc-range"
                 @input="onGridSizeChange"
               />
               <div class="enc-grid-range-labels">
@@ -283,7 +283,7 @@
                 >✕</Button
               >
             </div>
-            <div class="space-y-2 text-sm">
+            <div class="enc-token-detail">
               <div>
                 <label class="f-label">Label</label>
                 <InputText
@@ -454,7 +454,7 @@
             <input
               v-model.number="fogBrushSize"
               type="range" min="1" max="7" step="2"
-              class="w-full accent-amber-500"
+              class="enc-range"
               style="margin-top:4px; margin-bottom:8px"
             />
             <div class="enc-grid-2">
@@ -1331,6 +1331,10 @@ function getImageUrl(token: any): string {
   margin-top: 4px;
   line-height: 1.5;
 }
+
+.enc-grid-col { display: flex; flex-direction: column; gap: 8px; }
+.enc-range { width: 100%; accent-color: var(--gold); }
+.enc-token-detail { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink); }
 
 .condition-tag {
   display: inline-flex;

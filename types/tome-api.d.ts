@@ -1,6 +1,6 @@
 /**
- * Type declarations for window.dmforge
- * Previously the Electron contextBridge API, now backed by Dexie/IndexedDB.
+ * Type declarations for window.dmforge — browser-based API backed by Dexie/IndexedDB.
+ * The dmforge name on window is kept for historical compatibility with all stores and pages.
  */
 interface Window {
   dmforge: {

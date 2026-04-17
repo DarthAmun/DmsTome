@@ -14,7 +14,7 @@
         :class="{ active: route.path.includes('/notes') }">
         <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
       </NuxtLink>
-      <NuxtLink :to="`/campaign/${id}/encounters`" class="spine-tab" title="Battle"
+      <NuxtLink :to="`/campaign/${id}/encounters`" class="spine-tab" title="Encounters"
         :class="{ active: route.path.includes('/encounter') }">
         <OhVueIcon name="gi-broadsword" scale="0.85" />
       </NuxtLink>
