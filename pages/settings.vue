@@ -21,7 +21,7 @@
               <!-- Appearance -->
               <section class="sett-section">
                 <h2 class="sett-section-title">
-                  <OhVueIcon name="md-brightness-4" scale="0.8" /> Appearance
+                  <OhVueIcon name="md-brightness4" scale="0.8" /> Appearance
                 </h2>
                 <div class="sett-group">
                   <div class="sett-row">
@@ -209,13 +209,34 @@
                     </div>
                   </div>
 
+                  <!-- Campaign → Markdown -->
+                  <div class="sett-row">
+                    <div class="sett-row-text">
+                      <span class="sett-label">Export as Markdown</span>
+                      <span class="sett-desc">Download a campaign's notes and encounters as a Markdown zip</span>
+                      <select v-if="campaigns.length" v-model="mdExportCampaignId" class="sett-md-select">
+                        <option :value="null">— choose campaign —</option>
+                        <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+                      </select>
+                      <span v-else class="sett-desc" style="margin-top:4px">No campaigns found</span>
+                    </div>
+                    <button
+                      class="sett-btn"
+                      :disabled="!mdExportCampaignId || mdExporting"
+                      @click="exportCampaignMarkdown"
+                    >
+                      <OhVueIcon :name="mdExporting ? 'md-animation' : 'md-filedownload'" scale="0.8" />
+                      {{ mdExporting ? 'Exporting…' : 'Export' }}
+                    </button>
+                  </div>
+
                 </div>
               </section>
 
               <!-- Danger Zone -->
               <section class="sett-section sett-section--danger">
                 <h2 class="sett-section-title">
-                  <OhVueIcon name="md-warning-amber" scale="0.8" /> Danger Zone
+                  <OhVueIcon name="md-warningamber" scale="0.8" /> Danger Zone
                 </h2>
                 <div class="sett-group">
                   <div class="sett-row">
@@ -267,7 +288,8 @@
 </template>
 
 <script setup lang="ts">
-import { getDb } from '~/composables/useDb'
+import JSZip from 'jszip'
+import { getDb, dbApi } from '~/composables/useDb'
 import type { ImportSection, EntityTypeRow, LogLine } from '../components/ImportModal.vue'
 
 const { public: { version } } = useRuntimeConfig()
@@ -282,6 +304,15 @@ interface DbStats {
 
 const stats = ref<DbStats | null>(null)
 
+// ── Campaign list for Markdown export ─────────────────────────────
+const campaigns = ref<{ id: number; name: string }[]>([])
+const mdExportCampaignId = ref<number | null>(null)
+const mdExporting = ref(false)
+
+async function loadCampaigns() {
+  campaigns.value = (await dbApi.campaigns.list()).map((c: any) => ({ id: c.id, name: c.name }))
+}
+
 async function loadStats() {
   const db = getDb()
   const [c, enc, et, ent, el, tok, sys, rec] = await Promise.all([
@@ -292,7 +323,7 @@ async function loadStats() {
   stats.value = { campaigns: c, encounters: enc, encounterTokens: et, entities: ent, entityLinks: el, tokens: tok, systems: sys, records: rec }
 }
 
-onMounted(loadStats)
+onMounted(() => { loadStats(); loadCampaigns() })
 
 // ── Helpers ────────────────────────────────────────────────────────
 function download(data: object, filename: string) {
@@ -348,6 +379,90 @@ async function exportTokens() {
   const db = getDb()
   const tokens = await db.tokens.toArray()
   download({ version: 1, type: 'tokens', exportedAt: new Date().toISOString(), tokens }, `dmstome-tokens-${slug()}.json`)
+}
+
+// ── Export Campaign as Markdown ────────────────────────────────────
+function wikilinkify(text: string): string {
+  if (!text) return ''
+  // Convert {{type: Name}} inline refs to [[Name]]
+  return text.replace(/\{\{(\w+):\s*([^}]+)\}\}/g, (_m, _type, name) => `[[${name.trim()}]]`)
+}
+
+function entityFrontmatter(e: any): string {
+  const lines = [
+    '---',
+    `name: "${(e.name ?? '').replace(/"/g, '\\"')}"`,
+    `type: "${e.type ?? ''}"`,
+  ]
+  if (e.tags?.length) lines.push(`tags: [${e.tags.map((t: string) => `"${t}"`).join(', ')}]`)
+  lines.push('---')
+  return lines.join('\n')
+}
+
+async function exportCampaignMarkdown() {
+  if (!mdExportCampaignId.value) return
+  mdExporting.value = true
+
+  try {
+    const db = getDb()
+    const campaignId = mdExportCampaignId.value
+
+    // Load data
+    const campaign = (await dbApi.campaigns.list()).find((c: any) => c.id === campaignId)
+    if (!campaign) { alert('Campaign not found.'); return }
+
+    const entities = (await dbApi.entities.list(campaignId)) as any[]
+    const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
+
+    const zip = new JSZip()
+    const root = zip.folder(campaign.name.replace(/[/\\:*?"<>|]/g, '_'))!
+
+    // _index.md — campaign overview
+    const campaignMd = [
+      `---`,
+      `name: "${campaign.name.replace(/"/g, '\\"')}"`,
+      `created: "${campaign.createdAt ?? ''}"`,
+      `---`,
+      ``,
+      `# ${campaign.name}`,
+      ``,
+      campaign.description ? wikilinkify(campaign.description) : '_No description._',
+    ].join('\n')
+    root.file('_index.md', campaignMd)
+
+    // notes/{type}/{name}.md
+    const notesFolder = root.folder('notes')!
+    for (const e of entities) {
+      const typeName = (e.type ?? 'misc').replace(/[/\\:*?"<>|]/g, '_')
+      const folder = notesFolder.folder(typeName)!
+      const safeName = (e.name ?? 'Unnamed').replace(/[/\\:*?"<>|]/g, '_')
+      const body = wikilinkify(e.content ?? e.notes ?? '')
+      const md = [entityFrontmatter(e), '', `# ${e.name ?? 'Unnamed'}`, '', body || '_No content._'].join('\n')
+      folder.file(`${safeName}.md`, md)
+    }
+
+    // encounters/_index.md — encounter list
+    if (encounters.length) {
+      const encFolder = root.folder('encounters')!
+      const listMd = [
+        `# Encounters — ${campaign.name}`,
+        '',
+        ...encounters.map(enc => `- **${enc.name ?? 'Unnamed'}**${enc.notes ? ': ' + enc.notes : ''}`),
+      ].join('\n')
+      encFolder.file('_index.md', listMd)
+    }
+
+    // Download
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${campaign.name.replace(/[/\\:*?"<>|]/g, '_')}-${slug()}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    mdExporting.value = false
+  }
 }
 
 // ── Import modal state ─────────────────────────────────────────────
@@ -707,6 +822,25 @@ async function clearAll() {
 
 .sett-btn--danger { color: #c05040; border-color: rgba(192,80,64,0.3); }
 .sett-btn--danger:hover { border-color: #c05040; background: rgba(192,80,64,0.08); }
+.sett-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sett-btn:disabled:hover { color: var(--ink-faded); border-color: var(--parch-line); }
+
+/* Markdown export campaign select */
+.sett-md-select {
+  margin-top: 6px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  width: 100%;
+  max-width: 220px;
+  cursor: pointer;
+  outline: none;
+}
+.sett-md-select:focus { border-color: var(--gold); }
 
 /* ── About ── */
 .sett-section--about { border-bottom: none; }
