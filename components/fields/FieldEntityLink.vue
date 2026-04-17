@@ -66,7 +66,7 @@ function onChange(e: Event) {
 
 function navigate() {
   if (!props.value || !props.systemId || !targetTypeId.value) return
-  router.push(`/system/${props.systemId}/${targetTypeId.value}?open=${encodeURIComponent(props.value)}`)
+  router.push(`/system/${props.systemId}/${targetTypeId.value}?record=${encodeURIComponent(props.value)}`)
 }
 </script>
 

@@ -260,7 +260,7 @@ function navigate(item: SearchResult) {
       query: { type: item.type, id: String(item.id) },
     })
   } else if (item.kind === 'record') {
-    router.push(`/system/${item.systemId}/${item.entityTypeId}`)
+    router.push(`/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`)
   }
   close()
 }

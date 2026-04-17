@@ -180,8 +180,9 @@ watch(entityType, () => { listPage.value = 0 })
 onMounted(async () => {
   await systemsStore.loadAll()   // always reload so showInCard changes from the builder are visible
   await loadRecords()
-  // Support ?open=name deep link (from entity refs in markdown)
-  const openName = route.query.open as string | undefined
+  // Support ?record=name deep link (from FieldEntityLink chips and GlobalSearch)
+  // Also support legacy ?open=name for any existing links
+  const openName = (route.query.record ?? route.query.open) as string | undefined
   if (openName) {
     const target = records.value.find(r => r.name.toLowerCase() === openName.toLowerCase())
     if (target) openRecord(target)
