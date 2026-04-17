@@ -1,6 +1,7 @@
 <template>
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
+    <GlobalSearch v-if="!isPlayerRoute" />
     <DiceRoller v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
     <Transition name="install">
