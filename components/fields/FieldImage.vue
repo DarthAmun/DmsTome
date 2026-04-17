@@ -14,7 +14,7 @@ import type { FieldSchema } from '~/types/entities'
 defineProps<{ field: FieldSchema; value: any; mode: 'view' | 'edit' }>()
 const emit = defineEmits<{ update: [any] }>()
 async function browse() {
-  const dataUrl = await window.dmforge.system.openFileDialog()
+  const dataUrl = await window.dmstome.system.openFileDialog()
   if (dataUrl) emit('update', dataUrl)
 }
 </script>

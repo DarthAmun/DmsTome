@@ -223,7 +223,7 @@ function addTag() {
 }
 function removeTag(i: number) { set('tags', currentTags.value.filter((_, idx) => idx !== i)) }
 async function browseImage(sourceKey: string, typeKey: string) {
-  const dataUrl = await window.dmforge.system.openFileDialog()
+  const dataUrl = await window.dmstome.system.openFileDialog()
   if (dataUrl) emit('update:modelValue', { ...props.modelValue, [sourceKey]: dataUrl, [typeKey]: 'file' })
 }
 </script>

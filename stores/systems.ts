@@ -1,3 +1,5 @@
+// Manages DbRecord (records table) — system-scoped structured library entries.
+// See the DATA MODEL NOTE in composables/useDb.ts for the full two-system explanation.
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import type { SystemSchema, EntityTypeSchema } from '~/types/entities'

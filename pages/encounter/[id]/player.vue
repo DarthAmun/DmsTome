@@ -44,7 +44,7 @@ onMounted(async () => {
   let renderedShapeIds = new Set<string>()
 
   // Live sync from DM window via BroadcastChannel
-  window.dmforge.window.onEncounterSync(async (data: any) => {
+  window.dmstome.window.onEncounterSync(async (data: any) => {
     if (!store.current) return
     store.current.tokens = data.tokens
     store.current.fogData = data.fogData
@@ -83,7 +83,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.dmforge.window.offEncounterSync()
+  window.dmstome.window.offEncounterSync()
   canvas?.destroy()
 })
 </script>

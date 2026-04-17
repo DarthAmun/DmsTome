@@ -28,7 +28,7 @@ const locationId = ref<number | null>(
 onMounted(async () => {
   await store.loadAll(campaignId)
 
-  window.dmforge.window.onMapSync(async (newLocationId) => {
+  window.dmstome.window.onMapSync(async (newLocationId) => {
     locationId.value = newLocationId
     if (newLocationId) await store.loadAll(campaignId)
   })
@@ -41,7 +41,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.dmforge.window.offMapSync()
+  window.dmstome.window.offMapSync()
 })
 </script>
 

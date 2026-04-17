@@ -493,9 +493,16 @@ async function runImport() {
     if (!enabledTypeIds.has(row.entityTypeId)) continue
     const targetSystemId = systemIdRemap.get(row.systemId)
     if (targetSystemId === undefined) continue // no matching system, skip
+    const rec: any = { ...row, systemId: targetSystemId }
+    // Normalise: import files may use 'attributes' or 'data' for the field values
+    if (rec.attributes !== undefined && rec.data === undefined) {
+      rec.data = typeof rec.attributes === 'string' ? rec.attributes : JSON.stringify(rec.attributes)
+      delete rec.attributes
+    }
     // Ensure `data` is stored as a JSON string regardless of how the import file encoded it
-    const data = typeof row.data === 'string' ? row.data : JSON.stringify(row.data ?? {})
-    work.push({ table: db.records, row: { ...row, systemId: targetSystemId, data } })
+    if (typeof rec.data !== 'string') rec.data = JSON.stringify(rec.data ?? {})
+    if (!rec.data) rec.data = '{}'
+    work.push({ table: db.records, row: rec })
   }
 
   const systemCount = systemsSec?.enabled ? (payload.systems?.length ?? 0) : 0

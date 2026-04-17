@@ -21,7 +21,7 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'Offline-first campaign manager for Dungeon Masters' },
-        { name: 'theme-color', content: 'var(--blood)' },
+        { name: 'theme-color', content: '#8b1a1a' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: asset('favicon.ico') },

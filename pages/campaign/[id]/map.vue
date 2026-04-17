@@ -240,6 +240,7 @@
 <script setup lang="ts">
 import { useNotesStore } from "~/stores/notes";
 import { usePageChrome } from "~/composables/usePageChrome";
+import { dbApi } from "~/composables/useDb";
 
 const route = useRoute();
 const router = useRouter();
@@ -298,11 +299,9 @@ const activeLocationName = computed(
 
 onMounted(async () => {
   await store.loadAll(campaignId);
-  if (window.dmforge) {
-    const camps = await window.dmforge.campaigns.list();
-    campaignName.value =
-      camps.find((c: any) => c.id === campaignId)?.name ?? "Campaign";
-  }
+  const camps = await dbApi.campaigns.list();
+  campaignName.value =
+    camps.find((c: any) => c.id === campaignId)?.name ?? "Campaign";
   if (activeLocationId.value) hideSpine();
 });
 

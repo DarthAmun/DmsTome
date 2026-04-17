@@ -1,5 +1,8 @@
+// Manages DbEntity (entities table) — campaign-scoped notes and lore.
+// See the DATA MODEL NOTE in composables/useDb.ts for the full two-system explanation.
 import { defineStore } from 'pinia'
 import { extractLinks } from '~/composables/useEntityParser'
+import { dbApi } from '~/composables/useDb'
 import type { EntityType, EntityAttributes } from '~/types/entities'
 
 export interface Entity {
@@ -40,8 +43,8 @@ export const useNotesStore = defineStore('notes', () => {
     isLoading.value = true
     try {
       const [ents, lnks] = await Promise.all([
-        window.dmforge.entities.list(campaignId),
-        window.dmforge.entities.listLinks(campaignId),
+        dbApi.entities.list(campaignId),
+        dbApi.entities.listLinks(campaignId),
       ])
       entities.value = ents.map(normalize)
       links.value = lnks.map(normalizeLink)
@@ -51,14 +54,14 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   async function loadEntity(id: number) {
-    const raw = await window.dmforge.entities.get(id)
+    const raw = await dbApi.entities.get(id)
     if (!raw) return null
     currentEntity.value = normalize(raw)
     return currentEntity.value
   }
 
   async function createEntity(campaignId: number, type: EntityType, name: string) {
-    const raw = await window.dmforge.entities.create({ campaignId, type, name, content: '', attributes: '{}' })
+    const raw = await dbApi.entities.create({ campaignId, type, name, content: '', attributes: '{}' })
     const entity = normalize(raw)
     entities.value.unshift(entity)
     return entity
@@ -67,7 +70,7 @@ export const useNotesStore = defineStore('notes', () => {
   async function duplicateEntity(id: number) {
     const source = entities.value.find(e => e.id === id)
     if (!source) return
-    const raw = await window.dmforge.entities.create({
+    const raw = await dbApi.entities.create({
       campaignId: source.campaignId,
       type: source.type,
       name: source.name + ' (Copy)',
@@ -89,13 +92,13 @@ export const useNotesStore = defineStore('notes', () => {
     if (updates.content !== undefined) payload.content = updates.content
     if (updates.attributes !== undefined) payload.attributes = JSON.stringify(updates.attributes)
 
-    await window.dmforge.entities.update(payload)
+    await dbApi.entities.update(payload)
 
     if (updates.content !== undefined) await syncLinks(id, updates.content)
   }
 
   async function deleteEntity(id: number) {
-    await window.dmforge.entities.delete(id)
+    await dbApi.entities.delete(id)
     entities.value = entities.value.filter(e => e.id !== id)
     links.value = links.value.filter(l => l.sourceId !== id)
     if (currentEntity.value?.id === id) currentEntity.value = null
@@ -103,10 +106,10 @@ export const useNotesStore = defineStore('notes', () => {
 
   async function syncLinks(entityId: number, content: string) {
     const parsed = extractLinks(content)
-    await window.dmforge.entities.deleteLinks(entityId)
+    await dbApi.entities.deleteLinks(entityId)
     const newLinks: EntityLink[] = []
     for (const link of parsed) {
-      const raw = await window.dmforge.entities.createLink({
+      const raw = await dbApi.entities.createLink({
         sourceId: entityId,
         targetType: link.type,
         targetName: link.name,

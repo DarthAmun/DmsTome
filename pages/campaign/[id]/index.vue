@@ -67,12 +67,13 @@
 
 
 <script setup lang="ts">
+import { dbApi } from '~/composables/useDb'
 const route = useRoute()
 const id = route.params.id
 const name = ref('')
 const desc = ref('')
 onMounted(async () => {
-  const camps = await window.dmforge.campaigns.list()
+  const camps = await dbApi.campaigns.list()
   const c = camps.find((x: any) => x.id === Number(id))
   name.value = c?.name ?? ''
   desc.value = c?.description ?? ''

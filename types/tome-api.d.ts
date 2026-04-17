@@ -1,9 +1,8 @@
 /**
- * Type declarations for window.dmforge — browser-based API backed by Dexie/IndexedDB.
- * The dmforge name on window is kept for historical compatibility with all stores and pages.
+ * Type declarations for window.dmstome — browser-based API backed by Dexie/IndexedDB.
  */
 interface Window {
-  dmforge: {
+  dmstome: {
     campaigns: {
       list: () => Promise<any[]>
       create: (data: { name: string; description?: string }) => Promise<any>

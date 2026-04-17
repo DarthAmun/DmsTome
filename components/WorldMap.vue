@@ -257,7 +257,7 @@ async function togglePinVisibility(entityId: number) {
   )
   await store.updateEntity(currentMap.value.id, { attributes: attrs })
   // Notify player window of the data change so it can refresh
-  if (!props.playerMode) window.dmforge.window.syncMap(currentLocationId.value)
+  if (!props.playerMode) window.dmstome.window.syncMap(currentLocationId.value)
 }
 
 const mapImageUrl = computed(() => {
@@ -438,7 +438,7 @@ function navigateToCrumb(i: number) {
 // Load map dialog
 async function openLoadMap() {
   if (!currentMap.value) return
-  const dataUrl = await window.dmforge.system.openFileDialog()
+  const dataUrl = await window.dmstome.system.openFileDialog()
   if (!dataUrl) return
   const attrs = { ...(currentMap.value.attributes as any), imageSource: dataUrl, imageType: 'file' }
   await store.updateEntity(currentMap.value.id, { attributes: attrs })
@@ -475,12 +475,12 @@ watch(() => props.rootLocationId, (newId) => {
   pan.value = { x: 0, y: 0 }
   zoom.value = 1
   // Keep player window in sync when DM navigates
-  if (!props.playerMode && newId) window.dmforge.window.syncMap(newId)
+  if (!props.playerMode && newId) window.dmstome.window.syncMap(newId)
 })
 
 function openPlayerView() {
   if (!currentLocationId.value) return
-  window.dmforge.window.openMapPlayer(props.campaignId, currentLocationId.value)
+  window.dmstome.window.openMapPlayer(props.campaignId, currentLocationId.value)
 }
 
 onUnmounted(() => {

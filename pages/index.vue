@@ -409,7 +409,7 @@
 
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
-import { getDb } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
 
 const router = useRouter()
 const store = useSystemsStore()
@@ -444,14 +444,14 @@ function systemName(id?: number | null) { return id ? store.getSystem(id)?.name 
 
 onMounted(async () => {
   await store.loadAll()
-  campaigns.value = await window.dmforge.campaigns.list()
+  campaigns.value = await dbApi.campaigns.list()
 })
 
 function openCampaign(c: any) { router.push(`/campaign/${c.id}`) }
 
 async function createCampaign() {
   if (!newCamp.value.name.trim()) return
-  const c = await window.dmforge.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
+  const c = await dbApi.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
   if (newCamp.value.systemId) { await getDb().campaigns.update(c.id, { system_id: newCamp.value.systemId }); c.system_id = newCamp.value.systemId }
   campaigns.value.unshift(c)
   newCamp.value = { name: '', description: '', systemId: null }
@@ -469,7 +469,7 @@ async function createSystem() {
 
 async function deleteCampaign(id: number) {
   if (!confirm('Delete this campaign?')) return
-  await window.dmforge.campaigns.delete(id)
+  await dbApi.campaigns.delete(id)
   campaigns.value = campaigns.value.filter(c => c.id !== id)
 }
 
@@ -480,7 +480,7 @@ function startEditCampaign(c: any) {
 
 async function saveEditCampaign() {
   if (!editingCamp.value || !editCampForm.value.name.trim()) return
-  const updated = await window.dmforge.campaigns.update(editingCamp.value.id, {
+  const updated = await dbApi.campaigns.update(editingCamp.value.id, {
     name: editCampForm.value.name,
     description: editCampForm.value.description,
     system_id: editCampForm.value.systemId ?? undefined,

@@ -4,6 +4,25 @@
  * Schema mirrors the SQLite tables exactly so the store layer barely changes.
  * Images are stored as base64 data URLs instead of file paths.
  */
+
+/**
+ * DATA MODEL NOTE — Two parallel record systems exist:
+ *
+ * 1. DbEntity (entities table) — Campaign-scoped notes and lore.
+ *    Used by: stores/notes.ts, pages/campaign/[id]/notes.vue
+ *    Fields: campaign_id, type (note/npc/item/location/faction/quest/event/session),
+ *            name, content (markdown), attributes (JSON)
+ *    Linked by: DbEntityLink (entityLinks table) for the knowledge graph
+ *
+ * 2. DbRecord (records table) — System-scoped structured records.
+ *    Used by: stores/systems.ts, pages/system/[id]/[typeId].vue
+ *    Fields: systemId, entityTypeId (spell/creature/etc), name, data (JSON)
+ *    These are the "library" entries created via the system builder.
+ *
+ * They are intentionally separate: DbEntity is campaign narrative (freeform markdown + typed attributes).
+ * DbRecord is rules library data (structured fields defined by EntityTypeSchema).
+ * A future 'entity-link' field type in DbRecord can reference DbRecords by name.
+ */
 import Dexie, { type Table } from 'dexie'
 
 // ── Types ──────────────────────────────────────────────────────────────────
