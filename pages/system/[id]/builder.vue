@@ -30,7 +30,7 @@
           :style="activeTypeId === et.id ? { borderColor: et.color + '88', background: et.color + '11' } : {}"
           @click="activeTypeId = et.id; fieldConfigIdx = null"
         >
-          <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.9" :style="{ color: et.color }" />
+          <OhVueIcon :name="safeIcon(et.icon)" scale="0.9" :style="{ color: et.color }" />
           <div class="type-row-info">
             <span class="type-row-name">{{ et.name || 'Unnamed' }}</span>
             <span class="type-row-count">{{ et.fields.length }} fields</span>
@@ -437,7 +437,7 @@
         <div class="preview-body">
           <div class="prev-detail">
             <div class="prev-detail-header" :style="{ borderColor: activeType.color + '55' }">
-              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1" :style="{ color: activeType.color }" />
+              <OhVueIcon :name="safeIcon(activeType.icon)" scale="1" :style="{ color: activeType.color }" />
               <h2 class="prev-rec-name">Sample {{ activeType.name }}</h2>
               <span class="prev-type-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
                 {{ activeType.name }}
@@ -470,7 +470,7 @@
               <span class="prev-entry-num">1</span>
               <div class="prev-entry-icon">
                 <div class="prev-entry-badge">
-                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                  <OhVueIcon :name="safeIcon(activeType.icon)" scale="0.75" :style="{ color: activeType.color }" />
                 </div>
               </div>
               <div class="prev-entry-body">
@@ -493,7 +493,7 @@
               <span class="prev-entry-num">2</span>
               <div class="prev-entry-icon">
                 <div class="prev-entry-badge">
-                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                  <OhVueIcon :name="safeIcon(activeType.icon)" scale="0.75" :style="{ color: activeType.color }" />
                 </div>
               </div>
               <div class="prev-entry-body">
@@ -508,7 +508,7 @@
               <span class="prev-entry-num">3</span>
               <div class="prev-entry-icon">
                 <div class="prev-entry-badge">
-                  <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: activeType.color }" />
+                  <OhVueIcon :name="safeIcon(activeType.icon)" scale="0.75" :style="{ color: activeType.color }" />
                 </div>
               </div>
               <div class="prev-entry-body">
@@ -525,7 +525,7 @@
           <div class="preview-label" style="margin-top:20px">Detail View</div>
           <div class="prev-detail">
             <div class="prev-detail-header" :style="{ borderColor: activeType.color + '55' }">
-              <OhVueIcon :name="activeType.icon || 'gi-scroll-unfurled'" scale="1" :style="{ color: activeType.color }" />
+              <OhVueIcon :name="safeIcon(activeType.icon)" scale="1" :style="{ color: activeType.color }" />
               <h2 class="prev-rec-name">Sample {{ activeType.name }}</h2>
               <span class="prev-type-tag" :style="{ color: activeType.color, borderColor: activeType.color }">
                 {{ activeType.name }}
@@ -558,6 +558,13 @@
 import { useSystemsStore } from '~/stores/systems'
 import { FIELD_COMPONENT_OPTIONS, SECTION_STYLE_OPTIONS, labelToKey } from '~/types/entities'
 import type { FieldSchema, EntityTypeSchema, FieldComponentType, SectionDef, SectionStyle } from '~/types/entities'
+import { GI_ICON_NAMES } from '~/plugins/oh-vue-icons.client'
+
+const VALID_ICONS = new Set(GI_ICON_NAMES)
+function safeIcon(name: string | undefined): string {
+  if (!name) return 'gi-scroll-unfurled'
+  return VALID_ICONS.has(name) ? name : 'gi-scroll-unfurled'
+}
 
 const route = useRoute()
 const systemsStore = useSystemsStore()

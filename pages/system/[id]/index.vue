@@ -25,7 +25,7 @@
               <span class="entry-num">{{ listPage * PAGE_SIZE + i + 1 }}</span>
               <div class="entry-icon">
                 <div class="entry-badge">
-                  <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.75" :style="{ color: et.color }" />
+                  <OhVueIcon :name="safeIcon(et.icon)" scale="0.75" :style="{ color: et.color }" />
                 </div>
               </div>
               <div class="entry-body">
@@ -118,6 +118,13 @@
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
 import { getDb } from '~/composables/useDb'
+import { GI_ICON_NAMES } from '~/plugins/oh-vue-icons.client'
+
+const VALID_ICONS = new Set(GI_ICON_NAMES)
+function safeIcon(name: string | undefined): string {
+  if (!name) return 'gi-scroll-unfurled'
+  return VALID_ICONS.has(name) ? name : 'gi-scroll-unfurled'
+}
 
 const route = useRoute()
 const systemsStore = useSystemsStore()

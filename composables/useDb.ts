@@ -45,6 +45,7 @@ export interface DbEncounter {
   grid_offset_y: number
   fog_data: string            // JSON
   viewport: string            // JSON
+  combat_log: string          // JSON: CombatLogEntry[]
   created_at: string
   updated_at: string
 }
@@ -73,6 +74,7 @@ export interface DbEncounterToken {
   hp_max: number | null
   initiative: number | null
   notes: string | null
+  linked_record_id: number | null
 }
 
 export interface DbEntity {
@@ -142,6 +144,28 @@ class DmForgeDb extends Dexie {
       encounters:     '++id, campaign_id, created_at',
       tokens:         '++id, is_template, name',
       encounterTokens:'++id, encounter_id, token_id',
+      entities:       '++id, campaign_id, type, name',
+      entityLinks:    '++id, source_id, target_type, target_name',
+      systems:        '++id, shortId, updatedAt',
+      records:        '++id, systemId, entityTypeId, name, updatedAt',
+    })
+    // v3: index linked_record_id on encounterTokens for stat-block linking
+    this.version(3).stores({
+      campaigns:      '++id, updated_at, system_id',
+      encounters:     '++id, campaign_id, created_at',
+      tokens:         '++id, is_template, name',
+      encounterTokens:'++id, encounter_id, token_id, linked_record_id',
+      entities:       '++id, campaign_id, type, name',
+      entityLinks:    '++id, source_id, target_type, target_name',
+      systems:        '++id, shortId, updatedAt',
+      records:        '++id, systemId, entityTypeId, name, updatedAt',
+    })
+    // v4: no store changes — combat_log is a non-indexed JSON column; schema unchanged
+    this.version(4).stores({
+      campaigns:      '++id, updated_at, system_id',
+      encounters:     '++id, campaign_id, created_at',
+      tokens:         '++id, is_template, name',
+      encounterTokens:'++id, encounter_id, token_id, linked_record_id',
       entities:       '++id, campaign_id, type, name',
       entityLinks:    '++id, source_id, target_type, target_name',
       systems:        '++id, shortId, updatedAt',
@@ -229,7 +253,7 @@ export const dbApi = {
     async create(data: { campaignId: number; name: string }) {
       const db = getDb()
       const ts = now()
-      const id = await db.encounters.add({ campaign_id: data.campaignId, name: data.name, map_source: null, map_type: 'file', grid_size: 70, grid_offset_x: 0, grid_offset_y: 0, fog_data: '{}', viewport: '{"x":0,"y":0,"scale":1}', created_at: ts, updated_at: ts })
+      const id = await db.encounters.add({ campaign_id: data.campaignId, name: data.name, map_source: null, map_type: 'file', grid_size: 70, grid_offset_x: 0, grid_offset_y: 0, fog_data: '{}', viewport: '{"x":0,"y":0,"scale":1}', combat_log: '[]', created_at: ts, updated_at: ts })
       return db.encounters.get(id)
     },
     async update(data: { id: number; [key: string]: any }) {
@@ -273,6 +297,7 @@ export const dbApi = {
         label: data.label ?? null, conditions: '[]',
         hp_current: data.hpCurrent ?? null, hp_max: data.hpMax ?? null,
         initiative: data.initiative ?? null, notes: null,
+        linked_record_id: null,
       })
       const et = await db.encounterTokens.get(id)
       const tok = await db.tokens.get(et!.token_id)

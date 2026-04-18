@@ -57,6 +57,19 @@
           <div class="leaf-inner--right">
             <OhVueIcon name="gi-spell-book" scale="5" style="opacity:0.05;margin-bottom:28px" />
             <p class="right-hint"><em>Choose a chapter to begin.</em></p>
+
+            <!-- System link -->
+            <div class="sys-link-block">
+              <div class="sys-link-label">Linked System</div>
+              <p class="sys-link-hint">Link a rules system to enable token stat auto-fill and condition lookups in encounters.</p>
+              <select class="sys-link-select" :value="linkedSystemId ?? ''" @change="setLinkedSystem($event)">
+                <option value="">— None —</option>
+                <option v-for="s in availableSystems" :key="s.id" :value="s.id">{{ s.name }}</option>
+              </select>
+              <span v-if="linkedSystemId" class="sys-link-badge">
+                <OhVueIcon name="md-check" scale="0.7" /> linked
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -67,17 +80,31 @@
 
 
 <script setup lang="ts">
-import { dbApi } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
 const route = useRoute()
 const id = route.params.id
 const name = ref('')
 const desc = ref('')
+const linkedSystemId = ref<number | null>(null)
+const availableSystems = ref<Array<{ id: number; name: string }>>([])
+
 onMounted(async () => {
   const camps = await dbApi.campaigns.list()
   const c = camps.find((x: any) => x.id === Number(id))
   name.value = c?.name ?? ''
   desc.value = c?.description ?? ''
+  linkedSystemId.value = (c as any)?.system_id ?? null
+
+  const sys = await getDb().systems.toArray()
+  availableSystems.value = sys.map(s => ({ id: s.id!, name: s.name }))
 })
+
+async function setLinkedSystem(e: Event) {
+  const val = (e.target as HTMLSelectElement).value
+  const sysId = val ? Number(val) : null
+  linkedSystemId.value = sysId
+  await dbApi.campaigns.update(Number(id), { system_id: sysId })
+}
 </script>
 
 <style scoped>
@@ -114,4 +141,52 @@ onMounted(async () => {
 .folio-chapter-arrow { font-size: 18px; color: var(--ink-ghost); transition: color 0.18s, transform 0.18s; }
 .folio-chapter:hover .folio-chapter-arrow { color: var(--blood); transform: translateX(6px); }
 
+.leaf-inner--right {
+  flex: 1; overflow-y: auto; padding: 24px 32px 20px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.right-hint { color: var(--ink-ghost); font-style: italic; font-size: 14px; margin: 0 0 32px; }
+
+.sys-link-block {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px dashed var(--parch-line);
+}
+.sys-link-label {
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  margin-bottom: 6px;
+}
+.sys-link-hint {
+  font-size: 12px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.sys-link-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  background: var(--parch);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+.sys-link-select:focus { outline: 1px solid var(--gold); }
+.sys-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #4a8f5a;
+  font-family: var(--font-ui);
+}
 </style>

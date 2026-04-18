@@ -200,6 +200,14 @@
 
         <!-- Right sidebar: Selected token / encounter tokens -->
         <aside class="encounter-sidebar right-sidebar">
+          <!-- Tab switcher -->
+          <div class="rsb-tabs">
+            <button class="rsb-tab" :class="{ 'rsb-tab--active': rightTab === 'tokens' }" @click="rightTab = 'tokens'">Tokens</button>
+            <button class="rsb-tab" :class="{ 'rsb-tab--active': rightTab === 'log' }" @click="rightTab = 'log'">Log</button>
+          </div>
+
+          <!-- ── Tokens tab ──────────────────────────────────────────────── -->
+          <template v-if="rightTab === 'tokens'">
           <!-- Active encounter tokens + initiative tracker -->
           <div class="sidebar-section flex-1 overflow-y-auto">
             <div class="sidebar-header">
@@ -291,6 +299,14 @@
               >
             </div>
             <div class="enc-token-detail">
+              <!-- Linked record badge -->
+              <div v-if="selectedToken.linkedRecordId && selectedTokenLinkedName" class="enc-linked-record">
+                <button class="enc-linked-btn" @click="openRecordPanel(selectedToken.linkedRecordId)">
+                  📖 {{ selectedTokenLinkedName }}
+                </button>
+                <button class="enc-linked-unlink" title="Unlink record"
+                  @click="store.updateToken(selectedToken.id, { linkedRecordId: null })">✕</button>
+              </div>
               <div>
                 <label class="f-label">Label</label>
                 <InputText
@@ -362,7 +378,7 @@
                     :key="idx"
                     class="condition-tag"
                   >
-                    <span>{{ cond.name }}</span>
+                    <span class="condition-tag-name" @click="openConditionPanel(cond.name, cond.value)">{{ cond.name }}</span>
                     <div
                       v-if="cond.value !== null"
                       class="condition-value-controls"
@@ -519,8 +535,133 @@
               </div>
             </div>
           </div>
+          </template>
+
+          <!-- ── Log tab ────────────────────────────────────────────────── -->
+          <template v-else-if="rightTab === 'log'">
+            <!-- Add note row -->
+            <div class="log-note-bar">
+              <select v-model="logNoteTokenId" class="log-note-select">
+                <option :value="null" disabled>Token…</option>
+                <option v-for="t in encounterTokens" :key="t.id" :value="t.id">
+                  {{ t.label || t.name }}
+                </option>
+              </select>
+              <input v-model="logNoteText" class="log-note-input" placeholder="Note…" @keyup.enter="submitLogNote" />
+              <button class="log-note-add" :disabled="!logNoteTokenId || !logNoteText.trim()" @click="submitLogNote">+</button>
+            </div>
+
+            <!-- Log entries — newest first -->
+            <div class="log-entries">
+              <div v-if="!store.current?.combatLog.length" class="log-empty">No events yet this session.</div>
+              <div
+                v-for="entry in reversedLog"
+                :key="entry.id"
+                class="log-row"
+              >
+                <span class="log-round-badge">R{{ entry.round }}</span>
+                <span class="log-token-name">{{ entry.tokenName }}</span>
+                <span class="log-event" :class="`log-event--${entry.type}`">
+                  <template v-if="entry.type === 'damage'">took {{ entry.value }} damage</template>
+                  <template v-else-if="entry.type === 'healing'">healed {{ entry.value }} HP</template>
+                  <template v-else-if="entry.type === 'condition-added'">gained {{ entry.conditionName }}</template>
+                  <template v-else-if="entry.type === 'condition-removed'">lost {{ entry.conditionName }}</template>
+                  <template v-else-if="entry.type === 'death'">fell unconscious ☠</template>
+                  <template v-else-if="entry.type === 'revival'">revived</template>
+                  <template v-else-if="entry.type === 'note'">{{ entry.note }}</template>
+                </span>
+              </div>
+            </div>
+
+            <!-- Clear log -->
+            <div class="log-footer">
+              <button class="log-clear-btn" @click="confirmClearLog">Clear Log</button>
+            </div>
+          </template>
         </aside>
       </div>
+
+      <!-- ── Log clear confirmation ─────────────────────────────────────────── -->
+      <Teleport to="body">
+        <div v-if="clearLogConfirm" class="pv-dialog-mask" @click.self="clearLogConfirm = false">
+          <div class="pv-dialog" style="max-width:360px">
+            <div class="link-modal-header">
+              <span class="link-modal-title">Clear Combat Log?</span>
+              <button class="link-modal-close" @click="clearLogConfirm = false">✕</button>
+            </div>
+            <p class="link-modal-hint">This cannot be undone.</p>
+            <div class="link-modal-footer">
+              <button class="link-btn link-btn--skip" @click="clearLogConfirm = false">Cancel</button>
+              <button class="link-btn link-btn--link" style="background:var(--blood)" @click="doClearLog">Clear</button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- ── Link to Stat Block Modal ───────────────────────────────────────────── -->
+      <Teleport to="body">
+        <div v-if="linkModalOpen" class="pv-dialog-mask" @click.self="linkModalOpen = false">
+          <div class="pv-dialog link-modal">
+            <div class="link-modal-header">
+              <span class="link-modal-title">Link to Stat Block?</span>
+              <button class="link-modal-close" @click="linkModalOpen = false">✕</button>
+            </div>
+            <p class="link-modal-hint">Auto-fill HP, AC and conditions from a system record.</p>
+            <div class="link-modal-search">
+              <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
+              <input v-model="linkSearch" class="link-search-input" placeholder="Search records…" autocomplete="off" />
+            </div>
+            <div class="link-record-list">
+              <button v-for="rec in filteredLinkRecords" :key="rec.id"
+                class="link-record-row"
+                :class="{ 'link-record-row--selected': linkSelectedId === rec.id }"
+                @click="linkSelectedId = rec.id">
+                {{ rec.name }}
+              </button>
+              <div v-if="!filteredLinkRecords.length" class="link-record-empty">
+                {{ linkSearch ? 'No matches' : 'No creature records found' }}
+              </div>
+            </div>
+            <div class="link-modal-footer">
+              <button class="link-btn link-btn--skip" @click="linkModalOpen = false">Skip</button>
+              <button class="link-btn link-btn--link" :disabled="!linkSelectedId" @click="confirmLink">Link</button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- ── Record Slide-In Panel ───────────────────────────────────────────── -->
+      <Teleport to="body">
+        <Transition name="record-panel-slide">
+          <div v-if="recordPanel?.open" class="record-panel">
+            <button class="record-panel-close" @click="recordPanel = null">✕</button>
+            <div class="record-panel-inner">
+              <div v-if="recordPanel.entityType" class="record-panel-title">
+                {{ recordPanel.record?.name }}
+              </div>
+              <EntityLayout v-if="recordPanel.entityType"
+                :entity-type="recordPanel.entityType"
+                :data="recordPanel.record.data"
+                mode="view"
+                :system-id="recordPanel.systemId"
+                :accent-color="recordPanel.entityType?.color"
+              />
+              <div v-else class="record-panel-fallback">
+                <pre class="record-panel-raw">{{ JSON.stringify(recordPanel.record?.data, null, 2) }}</pre>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- ── Condition Reference Panel ─────────────────────────────────────────── -->
+      <ConditionPanel
+        :condition-name="conditionPanelName"
+        :system-id="linkCampaignSystemId"
+        :value="conditionPanelValue"
+        :open="conditionPanelOpen"
+        @close="conditionPanelOpen = false"
+      />
 
       <!-- ── Add Token Modal ──────────────────────────────────────────────────── -->
       <Teleport to="body">
@@ -572,10 +713,12 @@
 <script setup lang="ts">
 import { useEncounterStore } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
-import { dbApi } from "~/composables/useDb";
+import { dbApi, getDb } from "~/composables/useDb";
+import { useSystemsStore } from "~/stores/systems";
 
 const route = useRoute();
 const store = useEncounterStore();
+const systemsStore = useSystemsStore();
 const canvasContainer = ref<HTMLElement | null>(null);
 
 const activeTool = ref<"select" | "fog" | "measure" | "shapes">("select");
@@ -600,6 +743,242 @@ const tokenSizeOptions = [
   { label: "4×4 (gargantuan)", value: 4 },
 ];
 const selectedToken = ref<any>(null);
+
+// ── Stat-block link modal ──────────────────────────────────────────────────
+const linkModalOpen = ref(false);
+const linkPendingTokenId = ref<number | null>(null);
+const linkCampaignSystemId = ref<number | null>(null);
+const linkRecords = ref<Array<{ id: number; name: string; entityTypeId: string; data: string }>>([]);
+const linkSelectedId = ref<number | null>(null);
+const linkSearch = ref('');
+
+const filteredLinkRecords = computed(() =>
+  linkRecords.value.filter(r =>
+    r.name.toLowerCase().includes(linkSearch.value.toLowerCase())
+  )
+);
+
+// Resolve a record name from id — used in the token detail badge
+const linkedRecordCache = ref<Map<number, string>>(new Map());
+async function resolveRecordName(id: number): Promise<string> {
+  if (linkedRecordCache.value.has(id)) return linkedRecordCache.value.get(id)!;
+  const db = getDb();
+  const rec = await db.records.get(id);
+  const name = rec?.name ?? '(unknown)';
+  linkedRecordCache.value.set(id, name);
+  return name;
+}
+const selectedTokenLinkedName = ref<string | null>(null);
+watch(() => selectedToken.value?.linkedRecordId, async (id) => {
+  selectedTokenLinkedName.value = id ? await resolveRecordName(id) : null;
+}, { immediate: true });
+
+async function openLinkModal(tokenId: number) {
+  if (!store.current) return;
+  // Load campaign to find system_id
+  const campaign = await getDb().campaigns.get(store.current.campaignId);
+  const systemId: number | null | undefined = (campaign as any)?.system_id;
+  if (!systemId) return; // no linked system — skip modal
+
+  linkCampaignSystemId.value = systemId;
+  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll();
+  const sys = systemsStore.getSystem(systemId);
+  if (!sys) return;
+
+  // Find entity types that look like combatants — check key AND label for HP/AC hints.
+  // Fall back to ALL entity types if none match, so custom key names still work.
+  const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i;
+  const AC_RE = /\b(ac|armou?r.?class|armor)\b/i;
+  const NON_COMBAT = /\b(condition|spell|item|feat|trait|skill|background|ancestry)\b/i;
+  const allTypes: any[] = sys.entityTypes ?? [];
+  let creatureTypeIds: string[] = allTypes
+    .filter((et: any) => {
+      const fields: any[] = et.fields ?? [];
+      return fields.some((f: any) =>
+        HP_RE.test(f.key) || HP_RE.test(f.label ?? '') ||
+        AC_RE.test(f.key) || AC_RE.test(f.label ?? '')
+      );
+    })
+    .map((et: any) => et.id);
+
+  // Fallback: show all non-utility types so custom field keys still work
+  if (!creatureTypeIds.length) {
+    creatureTypeIds = allTypes
+      .filter((et: any) => !NON_COMBAT.test(et.name ?? '') && !NON_COMBAT.test(et.id ?? ''))
+      .map((et: any) => et.id);
+  }
+  // Last resort: show everything
+  if (!creatureTypeIds.length) {
+    creatureTypeIds = allTypes.map((et: any) => et.id);
+  }
+  if (!creatureTypeIds.length) return;
+
+  // Load all records of creature types for this system
+  const db = getDb();
+  const rows: any[] = [];
+  for (const typeId of creatureTypeIds) {
+    const recs = await db.records
+      .where('systemId').equals(systemId)
+      .filter((r: any) => r.entityTypeId === typeId)
+      .toArray();
+    rows.push(...recs);
+  }
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+
+  linkRecords.value = rows;
+  linkSelectedId.value = null;
+  linkSearch.value = '';
+  linkPendingTokenId.value = tokenId;
+  linkModalOpen.value = true;
+}
+
+async function confirmLink() {
+  if (!linkSelectedId.value || !linkPendingTokenId.value) return;
+  const db = getDb();
+  const rec = await db.records.get(linkSelectedId.value);
+  if (!rec) return;
+
+  const data: Record<string, any> =
+    typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : (rec.data ?? {});
+
+  // Extract HP — try known keys first, then scan all fields by label
+  let hpCurrent: number | null = null;
+  let hpMax: number | null = null;
+  const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i;
+  const AC_RE = /\b(ac|armou?r.?class|armor)\b/i;
+
+  // Get entity type field metadata for label-based fallback
+  if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll();
+  const recSys = systemsStore.getSystem(rec.systemId);
+  const recEt: any = recSys?.entityTypes?.find((et: any) => et.id === rec.entityTypeId);
+  const recFields: any[] = recEt?.fields ?? [];
+
+  function extractStatValue(data: Record<string, any>, keyRe: RegExp): number | null {
+    // 1. Try well-known keys by regex on key name
+    for (const k of Object.keys(data)) {
+      if (keyRe.test(k)) {
+        const raw = data[k];
+        if (raw && typeof raw === 'object' && 'max' in raw) return Number(raw.max) || null;
+        const n = Number(raw);
+        return !isNaN(n) && n > 0 ? n : null;
+      }
+    }
+    // 2. Try by field label from entity type schema
+    for (const f of recFields) {
+      if (keyRe.test(f.label ?? '')) {
+        const raw = data[f.key];
+        if (raw === undefined || raw === null) continue;
+        if (raw && typeof raw === 'object' && 'max' in raw) return Number(raw.max) || null;
+        const n = Number(raw);
+        return !isNaN(n) && n > 0 ? n : null;
+      }
+    }
+    return null;
+  }
+
+  function extractHp(data: Record<string, any>): { current: number | null; max: number | null } {
+    for (const k of Object.keys(data)) {
+      if (HP_RE.test(k)) {
+        const raw = data[k];
+        if (raw && typeof raw === 'object' && 'max' in raw) {
+          return { max: Number(raw.max) || null, current: Number(raw.current ?? raw.max) || null };
+        }
+        const n = Number(raw);
+        if (!isNaN(n) && n > 0) return { max: n, current: n };
+      }
+    }
+    for (const f of recFields) {
+      if (HP_RE.test(f.label ?? '')) {
+        const raw = data[f.key];
+        if (raw === undefined || raw === null) continue;
+        if (raw && typeof raw === 'object' && 'max' in raw) {
+          return { max: Number(raw.max) || null, current: Number(raw.current ?? raw.max) || null };
+        }
+        const n = Number(raw);
+        if (!isNaN(n) && n > 0) return { max: n, current: n };
+      }
+    }
+    return { max: null, current: null };
+  }
+
+  const hpResult = extractHp(data);
+  hpMax = hpResult.max;
+  hpCurrent = hpResult.current;
+
+  // Extract AC
+  let ac: number | null = extractStatValue(data, AC_RE);
+
+  const token = store.current?.tokens.find(t => t.id === linkPendingTokenId.value);
+  const updates: Record<string, any> = { linkedRecordId: rec.id };
+  if (hpMax !== null) { updates.hpMax = hpMax; updates.hpCurrent = hpCurrent; }
+  if (!token?.label) updates.label = rec.name;
+
+  // Extract conditions if present
+  if (Array.isArray(data.conditions) && data.conditions.length) {
+    updates.conditions = data.conditions.map((c: any) =>
+      typeof c === 'string' ? { name: c, value: null } : c
+    );
+  }
+
+  await store.updateToken(linkPendingTokenId.value, updates as any);
+  linkModalOpen.value = false;
+  linkPendingTokenId.value = null;
+}
+
+// ── Record slide-in panel ──────────────────────────────────────────────────
+const recordPanel = ref<{ open: boolean; record: any; entityType: any; systemId: number } | null>(null);
+
+async function openRecordPanel(recordId: number) {
+  const db = getDb();
+  const rec = await db.records.get(recordId);
+  if (!rec) return;
+  if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll();
+  const sys = systemsStore.getSystem(rec.systemId);
+  const entityType = sys?.entityTypes?.find((et: any) => et.id === rec.entityTypeId) ?? null;
+  recordPanel.value = {
+    open: true,
+    record: { ...rec, data: typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : rec.data },
+    entityType,
+    systemId: rec.systemId,
+  };
+}
+
+// ── Condition reference panel ──────────────────────────────────────────────
+const conditionPanelOpen = ref(false);
+const conditionPanelName = ref('');
+const conditionPanelValue = ref<number | null>(null);
+
+function openConditionPanel(name: string, value: number | null = null) {
+  conditionPanelName.value = name;
+  conditionPanelValue.value = value;
+  conditionPanelOpen.value = true;
+}
+
+// ── Right sidebar tab ─────────────────────────────────────────────────────
+const rightTab = ref<'tokens' | 'log'>('tokens');
+
+// ── Combat log UI ─────────────────────────────────────────────────────────
+const logNoteTokenId = ref<number | null>(null);
+const logNoteText = ref('');
+const clearLogConfirm = ref(false);
+
+const reversedLog = computed(() =>
+  store.current ? [...store.current.combatLog].reverse() : []
+);
+
+function submitLogNote() {
+  if (!logNoteTokenId.value || !logNoteText.value.trim()) return;
+  store.addLogNote(logNoteTokenId.value, logNoteText.value.trim());
+  logNoteText.value = '';
+}
+
+function confirmClearLog() { clearLogConfirm.value = true; }
+
+async function doClearLog() {
+  await store.clearCombatLog();
+  clearLogConfirm.value = false;
+}
+
 const showAddToken = ref(false);
 const tokenSearch = ref("");
 const newToken = ref({
@@ -635,6 +1014,28 @@ let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 const newConditionName = ref("");
 const newConditionValue = ref<number | null>(null);
 const filteredConditions = ref<string[]>([]);
+const dbConditionNames = ref<string[]>([]);
+
+async function loadConditionNames(systemId: number) {
+  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll();
+  const sys = systemsStore.getSystem(systemId);
+  if (!sys) return;
+  // Find all entity types whose id or name contains "condition"
+  const condTypeIds: string[] = (sys.entityTypes ?? [])
+    .filter((et: any) => /condition/i.test(et.id ?? '') || /condition/i.test(et.name ?? ''))
+    .map((et: any) => et.id);
+  if (!condTypeIds.length) return;
+  const db = getDb();
+  const names: string[] = [];
+  for (const typeId of condTypeIds) {
+    const recs = await db.records
+      .where('systemId').equals(systemId)
+      .filter((r: any) => r.entityTypeId === typeId)
+      .toArray();
+    names.push(...recs.map((r: any) => r.name));
+  }
+  dbConditionNames.value = names.sort((a, b) => a.localeCompare(b));
+}
 
 // ── Initiative tracker ─────────────────────────────────────────────────────
 const rollingInitiativeFor = ref<number | null>(null);
@@ -669,9 +1070,11 @@ function cancelInitiative(e: Event) {
 
 function searchConditions(event: { query: string }) {
   const q = event.query.toLowerCase();
+  // Merge DB conditions (from linked system) with hardcoded fallback list
+  const merged = [...new Set([...dbConditionNames.value, ...conditionSuggestions])];
   filteredConditions.value = q
-    ? conditionSuggestions.filter((c) => c.toLowerCase().includes(q))
-    : [...conditionSuggestions];
+    ? merged.filter((c) => c.toLowerCase().includes(q))
+    : merged;
 }
 
 const conditionSuggestions = [
@@ -749,6 +1152,13 @@ onMounted(async () => {
   const id = Number(route.params.id);
   await store.loadEncounter(id);
   await store.loadTokenLibrary();
+
+  // Load condition names from the campaign's linked system
+  const camp = await getDb().campaigns.get(store.current!.campaignId);
+  if ((camp as any)?.system_id) {
+    linkCampaignSystemId.value = (camp as any).system_id;
+    loadConditionNames((camp as any).system_id);
+  }
 
   if (!canvasContainer.value) return;
 
@@ -855,6 +1265,8 @@ async function onCanvasDrop(e: DragEvent) {
   if (!canvas || draggingTokenId === null) return;
   const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY);
   await store.addTokenToEncounter(draggingTokenId, gridX, gridY);
+  const newToken = store.current?.tokens[store.current.tokens.length - 1];
+  if (newToken) await openLinkModal(newToken.id);
   draggingTokenId = null;
 }
 
@@ -1486,6 +1898,13 @@ function getImageUrl(token: any): string {
   letter-spacing: 0.06em;
 }
 
+.condition-tag-name {
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.condition-tag-name:hover { text-decoration: underline; opacity: 0.8; }
+
 .condition-value-controls {
   display: flex;
   align-items: center;
@@ -1716,4 +2135,369 @@ function getImageUrl(token: any): string {
   font-size: 11px;
   line-height: 1;
 }
+
+/* ── Linked record badge ── */
+.enc-linked-record {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.enc-linked-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  transition: color 0.15s;
+}
+.enc-linked-btn:hover { color: var(--ink); }
+.enc-linked-unlink {
+  background: none;
+  border: none;
+  font-size: 10px;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.enc-linked-unlink:hover { color: var(--blood); }
+
+/* ── Link to Stat Block modal ── */
+.link-modal {
+  width: 420px;
+  max-width: 94vw;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.link-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--parch-line);
+}
+.link-modal-title {
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.link-modal-close {
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.link-modal-close:hover { color: var(--blood); }
+.link-modal-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  padding: 8px 16px 4px;
+}
+.link-modal-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--parch-line);
+}
+.link-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+}
+.link-search-input::placeholder { color: var(--ink-ghost); font-style: italic; }
+.link-record-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.link-record-row {
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.link-record-row:hover { background: rgba(184,134,11,0.06); }
+.link-record-row--selected {
+  background: rgba(184,134,11,0.12);
+  color: var(--ink);
+  font-weight: 600;
+  border-left: 2px solid var(--gold);
+  padding-left: 14px;
+}
+.link-record-empty {
+  padding: 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  text-align: center;
+}
+.link-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--parch-line);
+}
+.link-btn {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.link-btn--skip {
+  background: none;
+  color: var(--ink-ghost);
+  border-color: var(--parch-line);
+}
+.link-btn--skip:hover { color: var(--ink); border-color: var(--ink-ghost); }
+.link-btn--link {
+  background: rgba(184,134,11,0.12);
+  color: var(--gold);
+  border-color: rgba(184,134,11,0.4);
+}
+.link-btn--link:hover:not(:disabled) { background: rgba(184,134,11,0.22); border-color: var(--gold); }
+.link-btn--link:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Record slide-in panel ── */
+.record-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  z-index: 500;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  box-shadow: -4px 0 32px rgba(28, 20, 16, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.record-panel-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  z-index: 1;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.15s;
+}
+.record-panel-close:hover { color: var(--blood); }
+.record-panel-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px 24px;
+}
+.record-panel-title {
+  font-family: 'Cinzel', var(--font-deco);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--parch-line);
+}
+.record-panel-raw {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faded);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.record-panel-slide-enter-active,
+.record-panel-slide-leave-active { transition: transform 0.25s ease; }
+.record-panel-slide-enter-from,
+.record-panel-slide-leave-to { transform: translateX(100%); }
+
+/* ── Right sidebar tabs ── */
+.rsb-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--parch-line);
+  flex-shrink: 0;
+}
+.rsb-tab {
+  flex: 1;
+  padding: 7px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.rsb-tab:hover { color: var(--ink); }
+.rsb-tab--active { color: var(--blood); border-bottom-color: var(--blood); }
+
+/* ── Log tab layout ── */
+.log-note-bar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--parch-line);
+  flex-shrink: 0;
+}
+.log-note-select {
+  flex: 0 0 90px;
+  font-size: 11px;
+  padding: 3px 4px;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  background: var(--parch);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+.log-note-input {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  background: var(--parch);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+.log-note-input::placeholder { color: var(--ink-ghost); }
+.log-note-add {
+  flex: 0 0 26px;
+  height: 26px;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  background: var(--parch);
+  color: var(--ink-ghost);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.log-note-add:not(:disabled):hover { color: var(--ink); border-color: var(--gold); }
+.log-note-add:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.log-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-ghost);
+  font-style: italic;
+}
+.log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(28,20,16,0.04);
+}
+.log-row:last-child { border-bottom: none; }
+.log-round-badge {
+  flex: 0 0 auto;
+  background: var(--parch-dark, rgba(28,20,16,0.08));
+  color: var(--ink-ghost);
+  font-family: 'Cinzel', serif;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+}
+.log-token-name {
+  flex: 0 0 auto;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-faded);
+  font-style: italic;
+  font-size: 10px;
+}
+.log-event { flex: 1; }
+.log-event--damage        { color: var(--blood); }
+.log-event--healing       { color: #4a8f5a; }
+.log-event--condition-added  { color: var(--arcane-l, #9f7abf); }
+.log-event--condition-removed { color: var(--ink-ghost); }
+.log-event--death         { color: var(--blood); font-weight: 700; }
+.log-event--revival       { color: #4a8f5a; }
+.log-event--note          { color: var(--ink-faded); font-style: italic; }
+
+.log-footer {
+  padding: 8px 10px;
+  border-top: 1px solid var(--parch-line);
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.log-clear-btn {
+  background: none;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  padding: 3px 12px;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  cursor: pointer;
+}
+.log-clear-btn:hover { border-color: var(--blood); color: var(--blood); }
 </style>

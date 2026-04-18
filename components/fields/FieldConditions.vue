@@ -18,7 +18,7 @@ const emit = defineEmits<{ update: [any] }>()
 const KNOWN: Record<string, { icon: string; color: string }> = {
   'Blinded':       { icon: 'gi-dead-eye',       color: '#6b6b6b' },
   'Charmed':       { icon: 'gi-love-mystery',    color: '#e05599' },
-  'Deafened':      { icon: 'gi-ear',             color: '#6b6b6b' },
+  'Deafened':      { icon: 'gi-human-ear',        color: '#6b6b6b' },
   'Exhausted':     { icon: 'gi-tired-eye',       color: '#c07840' },
   'Frightened':    { icon: 'gi-screaming',       color: '#9b4fd8' },
   'Grappled':      { icon: 'gi-grab',            color: '#7a5c3a' },
@@ -28,9 +28,9 @@ const KNOWN: Record<string, { icon: string; color: string }> = {
   'Petrified':     { icon: 'gi-stone-pile',      color: '#888' },
   'Poisoned':      { icon: 'gi-poison',          color: '#4ab84a' },
   'Prone':         { icon: 'gi-falling',         color: '#c07840' },
-  'Restrained':    { icon: 'gi-chain',           color: '#7a5c3a' },
+  'Restrained':    { icon: 'gi-wavy-chains',      color: '#7a5c3a' },
   'Stunned':       { icon: 'gi-knockout',        color: '#e0c050' },
-  'Unconscious':   { icon: 'gi-sleeping',        color: '#6b6b6b' },
+  'Unconscious':   { icon: 'gi-sleepy',           color: '#6b6b6b' },
 }
 const DEFAULT_CONDITIONS = Object.keys(KNOWN)
 

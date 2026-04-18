@@ -1,6 +1,18 @@
 import { defineStore } from 'pinia'
 import { dbApi } from '~/composables/useDb'
 
+export interface CombatLogEntry {
+  id: number
+  round: number
+  timestamp: number
+  tokenId: number
+  tokenName: string
+  type: 'damage' | 'healing' | 'condition-added' | 'condition-removed' | 'death' | 'revival' | 'note'
+  value?: number
+  conditionName?: string
+  note?: string
+}
+
 export interface Token {
   id: number
   name: string
@@ -34,6 +46,7 @@ export interface EncounterToken {
   hpMax: number | null
   initiative: number | null
   notes: string | null
+  linkedRecordId: number | null
 }
 
 export interface Encounter {
@@ -48,6 +61,7 @@ export interface Encounter {
   fogData: Record<string, 'hidden' | 'revealed' | 'partial'>
   viewport: { x: number; y: number; scale: number }
   tokens: EncounterToken[]
+  combatLog: CombatLogEntry[]
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
@@ -91,6 +105,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         ...data,
         fogData: typeof data.fog_data === 'string' ? JSON.parse(data.fog_data) : {},
         viewport: typeof data.viewport === 'string' ? JSON.parse(data.viewport) : { x: 0, y: 0, scale: 1 },
+        combatLog: typeof data.combat_log === 'string' ? JSON.parse(data.combat_log || '[]') : [],
         gridSize: data.grid_size,
         gridOffsetX: data.grid_offset_x,
         gridOffsetY: data.grid_offset_y,
@@ -196,6 +211,25 @@ export const useEncounterStore = defineStore('encounter', () => {
     if (!current.value) return
     const token = current.value.tokens.find(t => t.id === instanceId)
     if (!token) return
+
+    // ── Detect log-worthy changes before mutating ──────────────────────────
+    const tokenName = token.label || token.name
+    if ('hpCurrent' in updates && updates.hpCurrent !== null && token.hpCurrent !== null && token.hpCurrent !== undefined) {
+      const diff = (updates.hpCurrent as number) - token.hpCurrent
+      if (diff < 0) appendLogEntry({ tokenId: instanceId, tokenName, type: 'damage', value: Math.abs(diff) })
+      else if (diff > 0) appendLogEntry({ tokenId: instanceId, tokenName, type: 'healing', value: diff })
+    }
+    if ('isDead' in updates) {
+      if (updates.isDead && !token.isDead) appendLogEntry({ tokenId: instanceId, tokenName, type: 'death' })
+      else if (!updates.isDead && token.isDead) appendLogEntry({ tokenId: instanceId, tokenName, type: 'revival' })
+    }
+    if ('conditions' in updates && updates.conditions) {
+      const oldNames = new Set(token.conditions.map(c => c.name))
+      const newNames = new Set(updates.conditions.map(c => c.name))
+      for (const n of newNames) if (!oldNames.has(n)) appendLogEntry({ tokenId: instanceId, tokenName, type: 'condition-added', conditionName: n })
+      for (const n of oldNames) if (!newNames.has(n)) appendLogEntry({ tokenId: instanceId, tokenName, type: 'condition-removed', conditionName: n })
+    }
+
     Object.assign(token, updates)
     const dbUpdates: Record<string, any> = { id: instanceId }
     if ('isVisible' in updates) dbUpdates.isVisible = updates.isVisible ? 1 : 0
@@ -207,8 +241,41 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('label' in updates) dbUpdates.label = updates.label
     if ('notes' in updates) dbUpdates.notes = updates.notes
     if ('conditions' in updates) dbUpdates.conditions = JSON.stringify(updates.conditions)
+    if ('linkedRecordId' in updates) dbUpdates.linkedRecordId = updates.linkedRecordId
     await dbApi.encounterTokens.update(dbUpdates)
     syncToPlayer()
+  }
+
+  // ── Actions — Combat Log ──────────────────────────────────────────────────
+  function appendLogEntry(partial: Omit<CombatLogEntry, 'id' | 'round' | 'timestamp'>) {
+    if (!current.value) return
+    const log = current.value.combatLog
+    const entry: CombatLogEntry = {
+      id: log.length > 0 ? log[log.length - 1].id + 1 : 1,
+      round: roundNumber.value,
+      timestamp: Date.now(),
+      ...partial,
+    }
+    log.push(entry)
+    persistCombatLog()
+  }
+
+  async function addLogNote(tokenId: number, note: string) {
+    if (!current.value) return
+    const token = current.value.tokens.find(t => t.id === tokenId)
+    if (!token) return
+    appendLogEntry({ tokenId, tokenName: token.label || token.name, type: 'note', note })
+  }
+
+  async function clearCombatLog() {
+    if (!current.value) return
+    current.value.combatLog = []
+    await persistCombatLog()
+  }
+
+  async function persistCombatLog() {
+    if (!current.value) return
+    await dbApi.encounters.update({ id: current.value.id, combat_log: JSON.stringify(current.value.combatLog) })
   }
 
   async function removeToken(instanceId: number) {
@@ -328,6 +395,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       hpMax: raw.hp_max,
       initiative: raw.initiative,
       notes: raw.notes,
+      linkedRecordId: raw.linked_record_id ?? null,
     }
   }
 
@@ -341,5 +409,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
     openPlayerWindow, closePlayerWindow, syncToPlayer, setShapeOverlays,
     nextTurn, prevTurn,
+    addLogNote, clearCombatLog,
   }
 })

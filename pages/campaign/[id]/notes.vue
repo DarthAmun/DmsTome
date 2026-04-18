@@ -27,6 +27,18 @@
             <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
           </button>
         </template>
+        <!-- Event-specific: 3-way view toggle -->
+        <template v-else-if="activeType === 'event'">
+          <button class="ribbon-tool" :class="{ active: viewMode === 'list' }" @click="setView('list')" title="List view">
+            <OhVueIcon name="md-menubook" scale="0.85" />
+          </button>
+          <button class="ribbon-tool" :class="{ active: viewMode === 'timeline' }" @click="setView('timeline')" title="Timeline">
+            <OhVueIcon name="md-history" scale="0.85" />
+          </button>
+          <button class="ribbon-tool" :class="{ active: viewMode === 'graph' }" @click="setView('graph')" title="Graph view">
+            <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
+          </button>
+        </template>
         <template v-else>
           <button class="ribbon-tool" :class="{ active: viewMode === 'graph' }" @click="toggleGraph" title="Graph view">
             <OhVueIcon name="gi-all-seeing-eye" scale="0.85" />
@@ -87,6 +99,36 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- TIMELINE (full width, events only) -->
+    <div v-else-if="viewMode === 'timeline' && activeType === 'event'"
+      class="tl-outer" ref="timelineRef">
+      <div v-if="!timelineEvents.length" class="tl-empty">
+        <OhVueIcon name="gi-sands-of-time" scale="3" style="opacity:0.08;margin-bottom:12px" />
+        <em>{{ search ? 'No events match your search' : 'No events recorded yet' }}</em>
+      </div>
+      <template v-else>
+        <div class="tl-track">
+          <div v-for="(ev, i) in timelineEvents" :key="ev.id"
+            class="tl-event"
+            :class="i % 2 === 0 ? 'tl-event--above' : 'tl-event--below'"
+            @click="selectEntity(ev.id)">
+            <div class="tl-stem" />
+            <div class="tl-node" :style="{ background: sigNodeColor(ev.attributes?.significance) }" />
+            <div class="tl-card">
+              <div class="tl-card-date">{{ ev.attributes?.date || '— undated —' }}</div>
+              <div class="tl-card-name">{{ ev.name }}</div>
+              <div v-if="ev.attributes?.location" class="tl-card-loc">{{ ev.attributes.location }}</div>
+              <span v-if="ev.attributes?.significance" class="tl-card-sig"
+                :style="{ color: sigNodeColor(ev.attributes.significance), borderColor: sigNodeColor(ev.attributes.significance) + '66' }">
+                {{ ev.attributes.significance }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div v-if="timelineOverflows" class="tl-scroll-hint">← scroll →</div>
+      </template>
     </div>
 
     <!-- OPEN BOOK — always visible (editor opens on right page) -->
@@ -291,6 +333,15 @@
 
     </div>
   </div>
+
+  <!-- Condition Reference Panel -->
+  <ConditionPanel
+    :condition-name="conditionPanelName"
+    :system-id="campaignSystemId"
+    :value="conditionPanelValue"
+    :open="conditionPanelOpen"
+    @close="conditionPanelOpen = false"
+  />
 </template>
 
 
@@ -299,6 +350,7 @@ import MarkdownIt from 'markdown-it'
 import { useNotesStore } from '~/stores/notes'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
+import { getDb } from '~/composables/useDb'
 
 const route = useRoute()
 const router = useRouter()
@@ -308,10 +360,18 @@ const campaignId = Number(route.params.id)
 const search = ref('')
 const sortBy = ref('updated')
 
-const viewMode = computed<'list' | 'log' | 'graph'>(() => {
+// URL-driven state — declared first so downstream computeds can reference them safely
+const activeType = computed(() => (route.query.type as EntityType) || 'session')
+const selectedId = computed(() => route.query.id ? Number(route.query.id) : null)
+const activeTypeConfig = computed(() => ENTITY_TYPE_CONFIG[activeType.value])
+
+const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
+
+const viewMode = computed<'list' | 'log' | 'graph' | 'timeline'>(() => {
   const v = route.query.view as string | undefined
   if (v === 'graph') return 'graph'
   if (v === 'log' && activeType.value === 'session') return 'log'
+  if (v === 'timeline' && activeType.value === 'event') return 'timeline'
   return 'list'
 })
 const showGraph = computed(() => viewMode.value === 'graph')
@@ -334,8 +394,6 @@ const logSessions = computed((): Array<{ id: number; name: string; attributes: a
   const list = (store.byType['session'] ?? [])
     .filter(e => !search.value || e.name.toLowerCase().includes(search.value.toLowerCase()))
   return [...list].sort((a, b) => {
-    // Use explicit integer sessionNumber when both entries have one; fall back to
-    // creation-order id (auto-increment) so the sort is always stable and predictable.
     const na = parseInt((a.attributes as any)?.sessionNumber ?? '', 10)
     const nb = parseInt((b.attributes as any)?.sessionNumber ?? '', 10)
     if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb
@@ -356,12 +414,33 @@ function formatSessionDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', opts)
 }
 
-const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
+// ── Timeline (events) ─────────────────────────────────────────────
+const timelineRef = ref<HTMLElement | null>(null)
+const timelineOverflows = ref(false)
 
-// All state is driven from the URL query string — this makes the browser back button work
-const activeType = computed(() => (route.query.type as EntityType) || 'session')
-const selectedId = computed(() => route.query.id ? Number(route.query.id) : null)
-const activeTypeConfig = computed(() => ENTITY_TYPE_CONFIG[activeType.value])
+const timelineEvents = computed((): Array<{ id: number; name: string; attributes: any }> => {
+  const list = (store.byType['event'] ?? [])
+    .filter(e => !search.value || e.name.toLowerCase().includes(search.value.toLowerCase()))
+  return [...list].sort((a, b) => {
+    const da: string = (a.attributes as any)?.date ?? ''
+    const db: string = (b.attributes as any)?.date ?? ''
+    if (!da && !db) return a.id - b.id
+    if (!da) return 1
+    if (!db) return -1
+    return da.localeCompare(db)
+  })
+})
+
+function sigNodeColor(sig: string | undefined): string {
+  return ({ critical: 'var(--blood)', major: 'var(--gold)', minor: 'var(--ink-ghost)' } as any)[sig ?? ''] ?? 'var(--ink-ghost)'
+}
+
+watch([viewMode, () => timelineEvents.value.length], () => {
+  nextTick(() => {
+    if (!timelineRef.value) return
+    timelineOverflows.value = timelineRef.value.scrollWidth > timelineRef.value.clientWidth + 2
+  })
+})
 
 const sortedEntities = computed(() => {
   const list = (store.byType[activeType.value] ?? [])
@@ -395,8 +474,22 @@ function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
 // Reset page when type or search changes
 watch([activeType, search], () => { spreadPage.value = 0 })
 
+// ── Condition reference panel ──────────────────────────────────────────────
+const conditionPanelOpen = ref(false)
+const conditionPanelName = ref('')
+const conditionPanelValue = ref<number | null>(null)
+const campaignSystemId = ref<number | null>(null)
+
+function openConditionPanel(name: string, value: number | null = null) {
+  conditionPanelName.value = name
+  conditionPanelValue.value = value
+  conditionPanelOpen.value = true
+}
+
 onMounted(async () => {
   await store.loadAll(campaignId)
+  const camp = await getDb().campaigns.get(campaignId)
+  campaignSystemId.value = camp?.system_id ?? null
 })
 
 // Navigation — all push to router so back button works
@@ -408,7 +501,7 @@ function selectEntity(id: number) {
   router.push({ query: { type: activeType.value, id: String(id) } })
 }
 
-function setView(mode: 'list' | 'log' | 'graph') {
+function setView(mode: 'list' | 'log' | 'graph' | 'timeline') {
   if (mode === 'list') router.push({ query: { type: activeType.value } })
   else router.push({ query: { type: activeType.value, view: mode } })
 }
@@ -1150,5 +1243,178 @@ async function confirmDelete(entity: any) {
   transition: color 0.15s;
 }
 .slog-readmore-btn:hover { color: var(--blood); }
+
+/* ─── Timeline view ─────────────────────────────────────────────── */
+.tl-outer {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.tl-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-ghost);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* ── Track ── */
+.tl-track {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 360px;
+  min-width: max-content;
+  padding: 0 80px;
+  flex-shrink: 0;
+}
+
+/* Spine line */
+.tl-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--ink-faded);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ── Individual event column ── */
+.tl-event {
+  position: relative;
+  width: 180px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Node (dot on spine) */
+.tl-node {
+  position: absolute;
+  left: calc(50% - 5px);
+  top:  calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--parch);
+  z-index: 1;
+  transition: transform 0.15s;
+}
+.tl-event:hover .tl-node { transform: scale(1.5); }
+
+/* Stem (dashed vertical connector) */
+.tl-stem {
+  position: absolute;
+  left: calc(50% - 0.5px);
+  width: 0;
+  border-left: 1px dashed var(--parch-line);
+  opacity: 0.8;
+}
+.tl-event--above .tl-stem {
+  bottom: calc(50% + 5px);
+  height: 28px;
+}
+.tl-event--below .tl-stem {
+  top: calc(50% + 5px);
+  height: 28px;
+}
+
+/* Card */
+.tl-card {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 152px;
+  padding: 8px 10px 7px;
+  background: color-mix(in srgb, var(--parch-dark) 85%, transparent);
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tl-event:hover .tl-card {
+  border-color: var(--ink-ghost);
+  box-shadow: 0 2px 12px rgba(28, 20, 16, 0.12);
+}
+
+/* Card sits above spine for even-index, below for odd */
+.tl-event--above .tl-card {
+  bottom: calc(50% + 34px);   /* node-half(5) + stem(28) + gap(1) */
+}
+.tl-event--below .tl-card {
+  top: calc(50% + 34px);
+}
+
+.tl-card-date {
+  font-family: 'Cinzel', var(--font-deco);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-card-name {
+  font-family: 'IM Fell English', var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.tl-card-loc {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-ghost);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-card-sig {
+  display: inline-block;
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 1px 6px;
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+/* Scroll hint */
+.tl-scroll-hint {
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-ghost);
+  opacity: 0.5;
+  padding: 4px 0 10px;
+  flex-shrink: 0;
+  user-select: none;
+}
 
 </style>

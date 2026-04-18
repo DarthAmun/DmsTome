@@ -112,7 +112,7 @@ const CAT_ICONS: Record<string, string[]> = {
   ]),
   creature: avail([
     'gi-dragon','gi-dragon-head','gi-dragon-spiral','gi-wolf-head','gi-bear-head',
-    'gi-shark','gi-tentacle','gi-hydra','gi-sea-monster','gi-crab-claw',
+    'gi-shark','gi-brain-tentacle','gi-hydra','gi-kraken-tentacle','gi-crab-claw',
     'gi-snake','gi-bat','gi-spider','gi-spider-web','gi-scorpion',
     'gi-skull','gi-burning-skull','gi-candle-skull','gi-demon-skull','gi-bone',
     'gi-ghost','gi-ghost-ally','gi-wraith','gi-undead-slayer',
@@ -133,14 +133,14 @@ const CAT_ICONS: Record<string, string[]> = {
   item: avail([
     'gi-scroll-unfurled','gi-open-treasure-chest','gi-chest','gi-key','gi-lock',
     'gi-pouch','gi-backpack','gi-sack','gi-barrel',
-    'gi-gem','gi-ring','gi-necklace','gi-earring',
+    'gi-gem','gi-ring','gi-necklace','gi-earrings',
     'gi-coins','gi-gold-bar','gi-diamond','gi-ruby',
     'gi-book','gi-notebook','gi-death-note','gi-tied-scroll',
     'gi-anvil-impact','gi-blacksmith','gi-hammer','gi-pickaxe',
     'gi-health-potion','gi-potion','gi-flask','gi-bottle',
     'gi-holy-grail','gi-chalice','gi-lantern','gi-torch',
     'gi-telescope','gi-compass','gi-hourglass','gi-sands-of-time',
-    'gi-rope','gi-chain','gi-fishing-hook',
+    'gi-rope','gi-wavy-chains','gi-fishing-hook',
   ]),
   people: avail([
     'gi-person','gi-hood','gi-ninja-heroic-stance','gi-cloak-and-dagger',
