@@ -511,6 +511,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
       let dragOffY = 0
 
       container.on('pointerdown', (e) => {
+        if (e.button === 2) return
         if (options.getActiveTool() !== 'select') return
         e.stopPropagation()
         dragging = true
@@ -675,6 +676,23 @@ export function useEncounterCanvas(options: CanvasOptions) {
     applyViewport()
   }
 
+  function getTokenScreenBounds(tokenId: number): { x: number; y: number; w: number; h: number } | null {
+    const enc = store.current
+    if (!enc) return null
+    const token = enc.tokens.find((t: any) => t.id === tokenId)
+    if (!token) return null
+    const { gridSize, gridOffsetX, gridOffsetY } = enc
+    const pixelX = gridOffsetX + token.gridX * gridSize
+    const pixelY = gridOffsetY + token.gridY * gridSize
+    const pixelSize = gridSize * token.size
+    return {
+      x: pixelX * viewport.scale + viewport.x,
+      y: pixelY * viewport.scale + viewport.y,
+      w: pixelSize * viewport.scale,
+      h: pixelSize * viewport.scale,
+    }
+  }
+
   function getGridPosFromScreen(screenX: number, screenY: number) {
     const enc = store.current
     if (!enc || !worldContainer) return { gridX: 0, gridY: 0 }
@@ -685,6 +703,13 @@ export function useEncounterCanvas(options: CanvasOptions) {
       gridX: Math.round((worldX - gridOffsetX) / gridSize),
       gridY: Math.round((worldY - gridOffsetY) / gridSize),
     }
+  }
+
+  function forceResize() {
+    if (!app) return
+    app.resize()
+    drawGrid()
+    redrawFog()
   }
 
   function destroy() {
@@ -698,8 +723,10 @@ export function useEncounterCanvas(options: CanvasOptions) {
     drawGrid,
     redrawFog,
     renderTokens,
+    forceResize,
     applyExternalViewport,
     getGridPosFromScreen,
+    getTokenScreenBounds,
     addShapeOverlay,
     removeShapeOverlay,
     clearShapeOverlays,

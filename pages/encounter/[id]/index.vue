@@ -8,101 +8,79 @@
     >
       <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
       <header class="encounter-toolbar">
-        <div class="toolbar-left">
-          <NuxtLink
-            :to="
-              encounter?.campaignId
-                ? `/campaign/${encounter.campaignId}/encounters`
-                : '/'
-            "
-            class="back-btn"
-          >
-            <OhVueIcon name="md-arrowback" scale="0.75" /> Back
-          </NuxtLink>
-          <div class="encounter-title">
-            <input
-              class="encounter-name-input"
-              :value="encounter?.name"
-              @blur="
-                store.updateName(($event.target as HTMLInputElement).value)
-              "
-              @keyup.enter="($event.target as HTMLInputElement).blur()"
-            />
-          </div>
+        <!-- Back -->
+        <NuxtLink
+          :to="encounter?.campaignId ? `/campaign/${encounter.campaignId}/encounters` : '/'"
+          class="back-btn"
+        >
+          <OhVueIcon name="md-arrowback" scale="0.75" /> Back
+        </NuxtLink>
+
+        <!-- Editable encounter name -->
+        <div class="encounter-title">
+          <span
+            v-if="!nameEditing"
+            class="encounter-name-display"
+            @click="startNameEdit"
+          >{{ encounter?.name }}</span>
+          <input
+            v-else
+            ref="nameInputEl"
+            class="encounter-name-input"
+            :value="encounter?.name"
+            @blur="commitNameEdit"
+            @keyup.enter="($event.target as HTMLInputElement).blur()"
+          />
         </div>
 
-        <div class="toolbar-right">
-          <!-- Player window toggle -->
-          <button
-            class="back-btn"
-            :class="{ 'back-btn--active': playerWindowOpen }"
-            @click="togglePlayerWindow"
-          >
-            <OhVueIcon name="md-desktopmac" scale="0.85" />
-            {{ playerWindowOpen ? "Close Player View" : "Open Player View" }}
+        <!-- Mode toggle -->
+        <div class="enc-mode-toggle">
+          <button :class="{ active: mode === 'prepare' }" @click="setMode('prepare')">
+            <OhVueIcon name="md-editnote" scale="0.85" /> Prepare
+          </button>
+          <button :class="{ active: mode === 'run' }" @click="setMode('run')">
+            <OhVueIcon name="gi-broadsword" scale="0.85" /> Run
           </button>
         </div>
+
+        <!-- Player window toggle -->
+        <button
+          class="back-btn"
+          :class="{ 'back-btn--active': playerWindowOpen }"
+          @click="togglePlayerWindow"
+        >
+          <OhVueIcon name="md-desktopmac" scale="0.85" />
+          {{ playerWindowOpen ? "Close Player View" : "Open Player View" }}
+        </button>
       </header>
 
       <!-- ── Main layout ─────────────────────────────────────────────────────── -->
       <div class="encounter-layout">
-        <!-- Left sidebar: Token library -->
-        <aside class="encounter-sidebar left-sidebar">
+        <!-- Left sidebar: Prepare mode only — map & grid -->
+        <aside v-if="mode === 'prepare'" class="encounter-sidebar left-sidebar">
+          <!-- Battle Map -->
           <div class="sidebar-section">
             <div class="sidebar-header">
-              <span class="f-label">Token Library</span>
-              <Button
-                severity="secondary"
-                size="small"
-                @click="showAddToken = true"
-              >
-                <template #icon>
-                  <OhVueIcon name="md-add" scale="0.8" /> </template
-                >Add
-              </Button>
+              <span class="f-label">Battle Map</span>
             </div>
-
-            <div class="token-search">
-              <InputText v-model="tokenSearch" placeholder="Search tokens…" />
+            <div v-if="encounter?.mapSource" class="map-thumb-wrap">
+              <img :src="encounter.mapSource" class="map-thumb-img" alt="Map thumbnail" />
             </div>
-
-            <!-- Draggable token list -->
-            <div class="token-list">
-              <div
-                v-for="token in filteredLibrary"
-                :key="token.id"
-                class="token-chip"
-                draggable="true"
-                @dragstart="onTokenDragStart($event, token)"
-              >
-                <div class="token-thumb">
-                  <img
-                    v-if="token.imageSource"
-                    :src="getImageUrl(token)"
-                    class="enc-token-img"
-                  />
-                  <span v-else class="enc-token-initial">{{
-                    token.name.charAt(0)
-                  }}</span>
-                </div>
-                <span class="token-lib-name">{{ token.name }}</span>
-                <button
-                  class="icon-btn-sq icon-btn-sq--danger"
-                  @click.stop="removeFromLibrary(token.id)"
-                >
-                  <OhVueIcon name="md-close" scale="0.75" />
-                </button>
-              </div>
-              <p
-                v-if="filteredLibrary.length === 0"
-                class="enc-hint"
-              >
-                No tokens yet
-              </p>
+            <div v-else class="map-drop-hint">
+              <OhVueIcon name="md-map" scale="2.5" style="opacity:0.12;margin-bottom:8px" />
+              <p class="enc-hint">Drop a map image on the canvas, or load one below.</p>
             </div>
+            <Button
+              severity="secondary"
+              style="width:100%;justify-content:center;margin-top:6px"
+              @click="onSetMap"
+            >
+              <OhVueIcon name="md-map" scale="0.85" />
+              {{ encounter?.mapSource ? 'Change Map' : 'Load Map' }}
+            </Button>
           </div>
 
-          <!-- Grid settings -->
+          <!-- Grid Settings -->
           <div class="sidebar-section">
             <div class="sidebar-header">
               <span class="f-label">Grid Settings</span>
@@ -120,12 +98,9 @@
               />
               <div class="enc-grid-range-labels">
                 <span>1px</span>
-                <span style="color: var(--ink)"
-                  >{{ encounter?.gridSize ?? 70 }}px</span
-                >
+                <span style="color: var(--ink)">{{ encounter?.gridSize ?? 70 }}px</span>
                 <span>200px</span>
               </div>
-
               <label class="f-label mt-2">Offset X</label>
               <InputNumber
                 :model-value="encounter?.gridOffsetX ?? 0"
@@ -136,15 +111,6 @@
                 :model-value="encounter?.gridOffsetY ?? 0"
                 @update:model-value="(val) => onOffsetChange('y', val)"
               />
-
-              <Button
-                severity="secondary"
-                style="width: 100%; justify-content: center; margin-top: 6px"
-                @click="onSetMap"
-              >
-                <OhVueIcon name="md-map" scale="0.85" />
-                Load Map
-              </Button>
             </div>
           </div>
         </aside>
@@ -154,6 +120,7 @@
           class="encounter-canvas-wrapper"
           @dragover.prevent
           @drop="onCanvasDrop"
+          @contextmenu.prevent="onCanvasRightClick"
         >
           <div
             id="pixi-canvas"
@@ -198,386 +165,160 @@
           </div>
         </main>
 
-        <!-- Right sidebar: Selected token / encounter tokens -->
+        <!-- Right sidebar: mode-conditional -->
         <aside class="encounter-sidebar right-sidebar">
-          <!-- Tab switcher -->
-          <div class="rsb-tabs">
-            <button class="rsb-tab" :class="{ 'rsb-tab--active': rightTab === 'tokens' }" @click="rightTab = 'tokens'">Tokens</button>
-            <button class="rsb-tab" :class="{ 'rsb-tab--active': rightTab === 'log' }" @click="rightTab = 'log'">Log</button>
-          </div>
 
-          <!-- ── Tokens tab ──────────────────────────────────────────────── -->
-          <template v-if="rightTab === 'tokens'">
-          <!-- Active encounter tokens + initiative tracker -->
-          <div class="sidebar-section flex-1 overflow-y-auto">
-            <div class="sidebar-header">
-              <span class="f-label">On Map ({{ encounterTokens.length }})</span>
-            </div>
-            <!-- Round counter + prev/next turn -->
-            <div class="initiative-bar">
-              <button class="init-nav-btn" @click="store.prevTurn()">
-                <OhVueIcon name="md-chevronleft" scale="0.8" />
-              </button>
-              <span class="init-round-label">Round {{ store.roundNumber }}</span>
-              <button class="init-nav-btn" @click="store.nextTurn()">
-                <OhVueIcon name="md-chevronright" scale="0.8" />
-              </button>
-            </div>
-            <div class="enc-token-cards">
-              <div
-                v-for="token in sortedEncounterTokens"
-                :key="token.id"
-                class="token-card"
-                :class="{
-                  'token-card--selected': selectedToken?.id === token.id,
-                  'token-card--active': token.id === currentTurnTokenId,
-                  'token-card--dead': token.isDead,
-                  'token-card--hidden': !token.isVisible,
-                }"
-                @click="selectToken(token)"
-              >
-                <!-- Row 1: avatar + name + initiative -->
-                <div class="token-card-top">
-                  <div class="token-thumb-sm">
-                    <img
-                      v-if="token.imageSource"
-                      :src="getImageUrl(token)"
-                      class="enc-token-img"
-                    />
-                    <span v-else class="enc-token-initial">{{
-                      token.name.charAt(0)
-                    }}</span>
+          <!-- ══ PREPARE: Token Library ══ -->
+          <template v-if="mode === 'prepare'">
+            <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
+              <div class="sidebar-header">
+                <span class="f-label">Token Library</span>
+              </div>
+              <div class="token-search">
+                <InputText v-model="tokenSearch" placeholder="Search tokens…" />
+              </div>
+              <div class="token-list" style="flex:1;overflow-y:auto">
+                <div
+                  v-for="token in filteredLibrary"
+                  :key="token.id"
+                  class="token-chip"
+                  draggable="true"
+                  @dragstart="onTokenDragStart($event, token)"
+                >
+                  <div class="token-thumb">
+                    <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
+                    <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
                   </div>
-                  <span class="token-card-name">{{ token.label || token.name }}</span>
-                  <span class="token-card-init" :class="{ 'token-card-init--set': token.initiative !== null }">
-                    {{ token.initiative !== null ? `⚡${token.initiative}` : '—' }}
-                  </span>
+                  <span class="token-lib-name">{{ token.name }}</span>
+                  <button class="icon-btn-sq icon-btn-sq--danger" @click.stop="removeFromLibrary(token.id)">
+                    <OhVueIcon name="md-close" scale="0.75" />
+                  </button>
                 </div>
-                <!-- Row 2: HP + action buttons -->
-                <div class="token-card-bottom">
-                  <span v-if="token.hpMax" class="enc-token-hp">
-                    HP {{ token.hpCurrent }}/{{ token.hpMax }}
-                  </span>
-                  <span v-else class="enc-token-hp" style="opacity:0.3">no HP</span>
-                  <div class="token-card-btns">
-                    <button
-                      class="icon-btn-sq"
-                      :title="token.isVisible ? 'Hide from players' : 'Show to players'"
-                      @click.stop="store.updateToken(token.id, { isVisible: !token.isVisible })"
-                    >
-                      <OhVueIcon :name="token.isVisible ? 'md-visibility' : 'md-visibilityoff'" scale="0.8" />
-                    </button>
-                    <button
-                      class="icon-btn-sq"
-                      :title="token.isDead ? 'Mark alive' : 'Mark dead'"
-                      :class="token.isDead ? 'icon-btn-sq--danger' : ''"
-                      @click.stop="store.updateToken(token.id, { isDead: !token.isDead })"
-                    >
-                      <OhVueIcon name="fa-skull-crossbones" scale="0.8" />
-                    </button>
-                    <button
-                      class="icon-btn-sq icon-btn-sq--danger"
-                      @click.stop="store.removeToken(token.id)"
-                    >
-                      <OhVueIcon name="md-delete" scale="0.8" />
-                    </button>
-                  </div>
-                </div>
+                <p v-if="filteredLibrary.length === 0" class="enc-hint" style="padding:12px 0">No tokens yet</p>
               </div>
             </div>
-          </div>
-
-          <!-- Selected token detail panel -->
-          <div v-if="selectedToken" class="sidebar-section">
-            <div class="sidebar-header">
-              <span class="f-label">Selected Token</span>
-              <Button
-                severity="secondary"
-                size="small"
-                @click="selectedToken = null"
-                >✕</Button
-              >
+            <div class="sidebar-section" style="flex-shrink:0">
+              <Button severity="secondary" style="width:100%;justify-content:center" @click="showAddToken = true">
+                <OhVueIcon name="md-add" scale="0.8" /> Add Token
+              </Button>
             </div>
-            <div class="enc-token-detail">
-              <!-- Linked record badge -->
-              <div v-if="selectedToken.linkedRecordId && selectedTokenLinkedName" class="enc-linked-record">
-                <button class="enc-linked-btn" @click="openRecordPanel(selectedToken.linkedRecordId)">
-                  📖 {{ selectedTokenLinkedName }}
-                </button>
-                <button class="enc-linked-unlink" title="Unlink record"
-                  @click="store.updateToken(selectedToken.id, { linkedRecordId: null })">✕</button>
-              </div>
-              <div>
-                <label class="f-label">Label</label>
-                <InputText
-                  :value="selectedToken.label || selectedToken.name"
-                  @change="
-                    store.updateToken(selectedToken!.id, {
-                      label: ($event.target as HTMLInputElement).value,
-                    })
-                  "
-                />
-              </div>
-              <div class="enc-grid-2">
-                <div>
-                  <label class="f-label">HP Current</label>
-                  <InputNumber
-                    :model-value="selectedToken.hpCurrent"
-                    @update:model-value="
-                      (val) =>
-                        store.updateToken(selectedToken!.id, { hpCurrent: val })
-                    "
-                  />
-                </div>
-                <div>
-                  <label class="f-label">HP Max</label>
-                  <InputNumber
-                    :model-value="selectedToken.hpMax"
-                    @update:model-value="
-                      (val) =>
-                        store.updateToken(selectedToken!.id, { hpMax: val })
-                    "
-                  />
-                </div>
-              </div>
-              <div class="enc-grid-2">
-                <div>
-                  <label class="f-label">Initiative</label>
-                  <InputNumber
-                    :model-value="selectedToken.initiative"
-                    @update:model-value="
-                      (val) =>
-                        store.updateToken(selectedToken!.id, {
-                          initiative: val,
-                        })
-                    "
-                  />
-                </div>
-                <div>
-                  <label class="f-label">Size (tiles)</label>
-                  <Select
-                    :model-value="selectedToken.size"
-                    :options="tokenSizeOptions"
-                    option-label="label"
-                    option-value="value"
-                    @update:model-value="
-                      store.updateToken(selectedToken!.id, { size: $event })
-                    "
-                  />
-                </div>
-              </div>
+          </template>
 
-              <!-- Conditions -->
-              <div>
-                <label class="f-label block mb-1.5">Conditions</label>
+          <!-- ══ RUN: ORDER | LOG tabs ══ -->
+          <template v-else>
+            <div class="rsb-tabs">
+              <button class="rsb-tab" :class="{ 'rsb-tab--active': activeTab === 'order' }" @click="activeTab = 'order'">Order</button>
+              <button class="rsb-tab" :class="{ 'rsb-tab--active': activeTab === 'log' }" @click="activeTab = 'log'">Log</button>
+            </div>
 
-                <!-- Active conditions -->
-                <div class="enc-conditions-list">
+            <!-- ── ORDER tab ──────────────────────────────────────────── -->
+            <template v-if="activeTab === 'order'">
+              <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
+                <div class="initiative-bar">
+                  <button class="init-nav-btn" @click="store.prevTurn()">
+                    <OhVueIcon name="md-chevronleft" scale="0.8" />
+                  </button>
+                  <span class="init-round-label">Round {{ store.roundNumber }}</span>
+                  <button class="init-nav-btn" @click="store.nextTurn()">
+                    <OhVueIcon name="md-chevronright" scale="0.8" />
+                  </button>
+                </div>
+                <div class="order-token-list">
                   <div
-                    v-for="(cond, idx) in selectedToken.conditions"
-                    :key="idx"
-                    class="condition-tag"
+                    v-for="token in sortedEncounterTokens"
+                    :key="token.id"
+                    class="order-token-row"
+                    :class="{
+                      'order-token-row--active': token.id === currentTurnTokenId,
+                      'order-token-row--selected': editingToken?.id === token.id,
+                      'order-token-row--dead': token.isDead,
+                    }"
+                    @click="selectToken(token)"
+                    @contextmenu.prevent="onTokenRowRightClick($event, token)"
                   >
-                    <span class="condition-tag-name" @click="openConditionPanel(cond.name, cond.value)">{{ cond.name }}</span>
-                    <div
-                      v-if="cond.value !== null"
-                      class="condition-value-controls"
-                    >
+                    <!-- Row 1: thumb | name | initiative | gear (hover-only) -->
+                    <div class="order-row-1">
+                      <div class="token-thumb-sm">
+                        <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
+                        <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
+                      </div>
+                      <div class="order-token-name">{{ token.label || token.name }}</div>
+                      <span class="order-init" :class="{ 'order-init--set': token.initiative !== null }">
+                        {{ token.initiative !== null ? token.initiative : '—' }}
+                      </span>
+                      <div class="order-token-actions">
+                        <button
+                          class="icon-btn-sq"
+                          title="Edit token"
+                          @click.stop="selectToken(token)"
+                        >
+                          <OhVueIcon name="md-settings" scale="0.75" />
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Row 2: HP bar + HP text | visibility toggle (always shown) -->
+                    <div class="order-row-2">
+                      <template v-if="token.hpMax">
+                        <div class="order-hp-track">
+                          <div
+                            class="order-hp-fill"
+                            :style="{
+                              width: Math.max(0, Math.min(100, ((token.hpCurrent ?? 0) / token.hpMax) * 100)) + '%',
+                              background: hpBarColor(token),
+                            }"
+                          />
+                        </div>
+                        <span class="order-hp-text">{{ token.hpCurrent ?? 0 }}/{{ token.hpMax }}</span>
+                      </template>
                       <button
-                        class="cond-ctrl-btn"
-                        @click="adjustConditionValue(idx, -1)"
+                        class="order-vis-btn"
+                        :class="{ 'order-vis-btn--hidden': !token.isVisible }"
+                        :title="token.isVisible ? 'Hide token' : 'Show token'"
+                        @click.stop="store.updateToken(token.id, { isVisible: !token.isVisible })"
                       >
-                        −
-                      </button>
-                      <span>{{ cond.value }}</span>
-                      <button
-                        class="cond-ctrl-btn"
-                        @click="adjustConditionValue(idx, 1)"
-                      >
-                        +
+                        <OhVueIcon :name="token.isVisible ? 'md-visibility' : 'md-visibilityoff'" scale="0.85" />
                       </button>
                     </div>
-                    <button
-                      class="condition-remove"
-                      @click="removeCondition(idx)"
-                    >
-                      ✕
-                    </button>
                   </div>
-                  <span
-                    v-if="selectedToken.conditions.length === 0"
-                    class="enc-no-conditions"
-                    >None</span
-                  >
+                  <p v-if="!encounterTokens.length" class="enc-hint" style="padding:12px 0;text-align:center">No tokens on map</p>
                 </div>
+              </div>
 
-                <!-- Add condition -->
-                <div class="enc-add-condition">
-                  <AutoComplete
-                    v-model="newConditionName"
-                    :suggestions="filteredConditions"
-                    placeholder="Condition name…"
-                    @complete="searchConditions"
-                    @keyup.enter="addCondition"
-                  />
-                  <InputNumber v-model="newConditionValue" :min="1" />
-                  <Button
-                    severity="secondary"
-                    size="small"
-                    @click="addCondition"
-                    >+</Button
-                  >
+            </template>
+
+            <!-- ── LOG tab ────────────────────────────────────────────── -->
+            <template v-else-if="activeTab === 'log'">
+              <div class="log-note-bar">
+                <select v-model="logNoteTokenId" class="log-note-select">
+                  <option :value="null" disabled>Token…</option>
+                  <option v-for="t in encounterTokens" :key="t.id" :value="t.id">{{ t.label || t.name }}</option>
+                </select>
+                <input v-model="logNoteText" class="log-note-input" placeholder="Note…" @keyup.enter="submitLogNote" />
+                <button class="log-note-add" :disabled="!logNoteTokenId || !logNoteText.trim()" @click="submitLogNote">+</button>
+              </div>
+              <div class="log-entries">
+                <div v-if="!store.current?.combatLog.length" class="log-empty">No events yet this session.</div>
+                <div v-for="entry in reversedLog" :key="entry.id" class="log-row">
+                  <span class="log-round-badge">R{{ entry.round }}</span>
+                  <span class="log-token-name">{{ entry.tokenName }}</span>
+                  <span class="log-event" :class="`log-event--${entry.type}`">
+                    <template v-if="entry.type === 'damage'">took {{ entry.value }} damage</template>
+                    <template v-else-if="entry.type === 'healing'">healed {{ entry.value }} HP</template>
+                    <template v-else-if="entry.type === 'condition-added'">gained {{ entry.conditionName }}</template>
+                    <template v-else-if="entry.type === 'condition-removed'">lost {{ entry.conditionName }}</template>
+                    <template v-else-if="entry.type === 'death'">fell unconscious ☠</template>
+                    <template v-else-if="entry.type === 'revival'">revived</template>
+                    <template v-else-if="entry.type === 'note'">{{ entry.note }}</template>
+                  </span>
                 </div>
-                <p class="enc-token-hp">
-                  Leave value empty for conditions without a degree.
-                </p>
               </div>
-
-              <!-- Notes -->
-              <div>
-                <label class="f-label">Notes</label>
-                <Textarea
-                  :value="selectedToken.notes || ''"
-                  placeholder="Anything to remember…"
-                  :rows="3"
-                  @change="
-                    store.updateToken(selectedToken!.id, {
-                      notes: ($event.target as HTMLTextAreaElement).value,
-                    })
-                  "
-                />
+              <div class="log-footer">
+                <button class="log-clear-btn" @click="confirmClearLog">Clear Log</button>
               </div>
-            </div>
-          </div>
+            </template>
 
-          <!-- Fog controls — only when fog tool active -->
-          <div v-if="activeTool === 'fog'" class="sidebar-section">
-            <div class="sidebar-header">
-              <span class="f-label">Fog of War</span>
-            </div>
-            <!-- Mode toggle -->
-            <div class="enc-grid-2" style="margin-bottom:8px">
-              <button
-                class="tool-option-btn"
-                :class="{ active: fogMode === 'add' }"
-                @click="fogMode = 'add'"
-              >
-                <OhVueIcon name="md-cloud" scale="0.8" /> Add
-              </button>
-              <button
-                class="tool-option-btn"
-                :class="{ active: fogMode === 'remove' }"
-                @click="fogMode = 'remove'"
-              >
-                <OhVueIcon name="md-sunny" scale="0.8" /> Remove
-              </button>
-            </div>
-            <!-- Brush size -->
-            <label class="f-label">Brush Size: {{ fogBrushSize }}×{{ fogBrushSize }}</label>
-            <input
-              v-model.number="fogBrushSize"
-              type="range" min="1" max="7" step="2"
-              class="enc-range"
-              style="margin-top:4px; margin-bottom:8px"
-            />
-            <div class="enc-grid-2">
-              <button
-                class="tool-option-btn"
-                style="justify-content:center"
-                @click="store.hideAllFog()"
-              >Hide All</button>
-              <button
-                class="tool-option-btn"
-                style="justify-content:center"
-                @click="store.revealAllFog()"
-              >Reveal All</button>
-            </div>
-            <p class="enc-hint">Click or drag to paint fog.</p>
-          </div>
-
-          <!-- Ruler hint — only when measure tool active -->
-          <div v-if="activeTool === 'measure'" class="sidebar-section">
-            <div class="sidebar-header">
-              <span class="f-label">Ruler</span>
-            </div>
-            <p class="enc-hint">Click on the map to set the start point. Move to preview distance. Click again to clear.</p>
-          </div>
-
-          <!-- Shape overlays — only when shapes tool active -->
-          <div v-if="activeTool === 'shapes'" class="sidebar-section">
-            <div class="sidebar-header">
-              <span class="f-label">Shape Overlays</span>
-            </div>
-            <!-- Shape type -->
-            <label class="f-label" style="margin-bottom:4px">Type</label>
-            <div class="enc-shape-types">
-              <button class="tool-option-btn" :class="{ active: shapeType === 'circle' }" @click="shapeType = 'circle'">⬤ Circle</button>
-              <button class="tool-option-btn" :class="{ active: shapeType === 'square' }" @click="shapeType = 'square'">■ Square</button>
-              <button class="tool-option-btn" :class="{ active: shapeType === 'cone' }" @click="shapeType = 'cone'">▲ Cone</button>
-            </div>
-            <!-- Color -->
-            <label class="f-label" style="margin-bottom:4px">Color</label>
-            <input v-model="shapeColor" type="color" class="enc-color-input" />
-            <p class="enc-hint" style="margin-top:6px">1st click: anchor (center/tip). 2nd click: edge/end. Right-click to cancel.</p>
-            <!-- Placed shapes list -->
-            <div v-if="shapes.length" style="margin-top:8px">
-              <label class="f-label" style="margin-bottom:4px">Placed Shapes</label>
-              <div
-                v-for="s in shapes"
-                :key="s.id"
-                class="enc-shape-row"
-              >
-                <span class="enc-shape-dot" :style="{ background: shapeColor }" />
-                <span class="enc-shape-label">{{ s.type }}</span>
-                <button class="icon-btn-sq icon-btn-sq--danger" @click="removeShape(s.id)">
-                  <OhVueIcon name="md-delete" scale="0.75" />
-                </button>
-              </div>
-            </div>
-          </div>
           </template>
 
-          <!-- ── Log tab ────────────────────────────────────────────────── -->
-          <template v-else-if="rightTab === 'log'">
-            <!-- Add note row -->
-            <div class="log-note-bar">
-              <select v-model="logNoteTokenId" class="log-note-select">
-                <option :value="null" disabled>Token…</option>
-                <option v-for="t in encounterTokens" :key="t.id" :value="t.id">
-                  {{ t.label || t.name }}
-                </option>
-              </select>
-              <input v-model="logNoteText" class="log-note-input" placeholder="Note…" @keyup.enter="submitLogNote" />
-              <button class="log-note-add" :disabled="!logNoteTokenId || !logNoteText.trim()" @click="submitLogNote">+</button>
-            </div>
-
-            <!-- Log entries — newest first -->
-            <div class="log-entries">
-              <div v-if="!store.current?.combatLog.length" class="log-empty">No events yet this session.</div>
-              <div
-                v-for="entry in reversedLog"
-                :key="entry.id"
-                class="log-row"
-              >
-                <span class="log-round-badge">R{{ entry.round }}</span>
-                <span class="log-token-name">{{ entry.tokenName }}</span>
-                <span class="log-event" :class="`log-event--${entry.type}`">
-                  <template v-if="entry.type === 'damage'">took {{ entry.value }} damage</template>
-                  <template v-else-if="entry.type === 'healing'">healed {{ entry.value }} HP</template>
-                  <template v-else-if="entry.type === 'condition-added'">gained {{ entry.conditionName }}</template>
-                  <template v-else-if="entry.type === 'condition-removed'">lost {{ entry.conditionName }}</template>
-                  <template v-else-if="entry.type === 'death'">fell unconscious ☠</template>
-                  <template v-else-if="entry.type === 'revival'">revived</template>
-                  <template v-else-if="entry.type === 'note'">{{ entry.note }}</template>
-                </span>
-              </div>
-            </div>
-
-            <!-- Clear log -->
-            <div class="log-footer">
-              <button class="log-clear-btn" @click="confirmClearLog">Clear Log</button>
-            </div>
-          </template>
         </aside>
       </div>
 
@@ -654,6 +395,63 @@
         </Transition>
       </Teleport>
 
+      <!-- ── Condition Modal ───────────────────────────────────────────────────── -->
+      <ConditionModal
+        :token="conditionToken"
+        :system-id="linkCampaignSystemId"
+        :open="!!conditionToken"
+        @close="conditionToken = null"
+        @update="onConditionUpdate"
+      />
+
+      <!-- ── Token Edit Modal ──────────────────────────────────────────────────── -->
+      <TokenEditModal
+        :token="editingToken"
+        :system-id="linkCampaignSystemId"
+        :open="!!editingToken"
+        @close="editingToken = null; selectedToken = null"
+        @update="onTokenEdit"
+        @open-conditions="conditionToken = editingToken"
+      />
+
+      <!-- ── Canvas Context Menu ───────────────────────────────────────────────── -->
+      <EncounterContextMenu
+        :open="ctxMenu.open"
+        :x="ctxMenu.x"
+        :y="ctxMenu.y"
+        :grid-x="ctxMenu.gridX"
+        :grid-y="ctxMenu.gridY"
+        :target-token="ctxMenu.targetToken"
+        @close="ctxMenu.open = false"
+        @add-token-here="onCtxAddTokenHere"
+        @edit-token="onCtxEditToken"
+        @add-condition="onCtxAddCondition"
+        @set-initiative="onCtxSetInitiative"
+        @toggle-visibility="onCtxToggleVisibility"
+        @toggle-dead="onCtxToggleDead"
+        @remove-token="onCtxRemoveToken"
+      />
+
+      <!-- ── Floating initiative input ──────────────────────────────────────────── -->
+      <Teleport to="body">
+        <div
+          v-if="initFloatOpen"
+          class="init-float-wrap"
+          :style="{ left: initFloatX + 'px', top: initFloatY + 'px' }"
+        >
+          <input
+            ref="initFloatEl"
+            v-model.number="initFloatValue"
+            type="number"
+            class="init-float-input"
+            placeholder="Init…"
+            @keyup.enter="commitInitFloat"
+            @keyup.esc="initFloatOpen = false"
+            @blur="commitInitFloat"
+          />
+        </div>
+      </Teleport>
+
       <!-- ── Condition Reference Panel ─────────────────────────────────────────── -->
       <ConditionPanel
         :condition-name="conditionPanelName"
@@ -712,6 +510,7 @@
 
 <script setup lang="ts">
 import { useEncounterStore } from "~/stores/encounter";
+import type { EncounterToken } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
 import { dbApi, getDb } from "~/composables/useDb";
 import { useSystemsStore } from "~/stores/systems";
@@ -722,6 +521,41 @@ const systemsStore = useSystemsStore();
 const canvasContainer = ref<HTMLElement | null>(null);
 
 const activeTool = ref<"select" | "fog" | "measure" | "shapes">("select");
+
+// ── Mode ───────────────────────────────────────────────────────────────────
+const mode = ref<'prepare' | 'run'>('prepare');
+const MODE_KEY = computed(() => `dmstome.enc.mode.${route.params.id}`);
+
+function setMode(next: 'prepare' | 'run') {
+  if (next === 'prepare' && mode.value === 'run' && store.roundNumber > 0) {
+    const ok = window.confirm(
+      `Return to Prepare mode? The current round (Round ${store.roundNumber}) will still be saved when you return.`
+    );
+    if (!ok) return;
+  }
+  mode.value = next;
+}
+
+watch(mode, async v => {
+  localStorage.setItem(MODE_KEY.value, v)
+  await nextTick()
+  canvas?.forceResize()
+});
+
+// ── Editable encounter name ─────────────────────────────────────────────────
+const nameEditing = ref(false);
+const nameInputEl = ref<HTMLInputElement | null>(null);
+
+function startNameEdit() {
+  nameEditing.value = true;
+  nextTick(() => nameInputEl.value?.select());
+}
+
+function commitNameEdit() {
+  const val = nameInputEl.value?.value?.trim();
+  if (val) store.updateName(val);
+  nameEditing.value = false;
+}
 
 // Fog tool state
 const fogMode = ref<"add" | "remove">("add");
@@ -736,13 +570,8 @@ function hexToPixi(hex: string): number {
   return parseInt(hex.replace("#", ""), 16);
 }
 
-const tokenSizeOptions = [
-  { label: "1×1 (medium)", value: 1 },
-  { label: "2×2 (large)", value: 2 },
-  { label: "3×3 (huge)", value: 3 },
-  { label: "4×4 (gargantuan)", value: 4 },
-];
 const selectedToken = ref<any>(null);
+const editingToken = ref<EncounterToken | null>(null);
 
 // ── Stat-block link modal ──────────────────────────────────────────────────
 const linkModalOpen = ref(false);
@@ -758,20 +587,6 @@ const filteredLinkRecords = computed(() =>
   )
 );
 
-// Resolve a record name from id — used in the token detail badge
-const linkedRecordCache = ref<Map<number, string>>(new Map());
-async function resolveRecordName(id: number): Promise<string> {
-  if (linkedRecordCache.value.has(id)) return linkedRecordCache.value.get(id)!;
-  const db = getDb();
-  const rec = await db.records.get(id);
-  const name = rec?.name ?? '(unknown)';
-  linkedRecordCache.value.set(id, name);
-  return name;
-}
-const selectedTokenLinkedName = ref<string | null>(null);
-watch(() => selectedToken.value?.linkedRecordId, async (id) => {
-  selectedTokenLinkedName.value = id ? await resolveRecordName(id) : null;
-}, { immediate: true });
 
 async function openLinkModal(tokenId: number) {
   if (!store.current) return;
@@ -943,6 +758,13 @@ async function openRecordPanel(recordId: number) {
   };
 }
 
+// ── Condition modal ────────────────────────────────────────────────────────
+const conditionToken = ref<EncounterToken | null>(null);
+
+function onConditionUpdate(tokenId: number, conditions: any[]) {
+  store.updateToken(tokenId, { conditions });
+}
+
 // ── Condition reference panel ──────────────────────────────────────────────
 const conditionPanelOpen = ref(false);
 const conditionPanelName = ref('');
@@ -954,8 +776,122 @@ function openConditionPanel(name: string, value: number | null = null) {
   conditionPanelOpen.value = true;
 }
 
+// ── Context menu ──────────────────────────────────────────────────────────
+const ctxMenu = reactive({
+  open: false,
+  x: 0,
+  y: 0,
+  gridX: 0,
+  gridY: 0,
+  targetToken: null as EncounterToken | null,
+})
+
+function onCanvasRightClick(e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation()
+  if (!canvas || activeTool.value !== 'select') return
+  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY)
+  const hit = store.allTokens.find((t: EncounterToken) => {
+    const b = canvas!.getTokenScreenBounds(t.id)
+    if (!b) return false
+    return e.offsetX >= b.x && e.offsetX <= b.x + b.w
+        && e.offsetY >= b.y && e.offsetY <= b.y + b.h
+  }) ?? null
+  ctxMenu.x = e.clientX
+  ctxMenu.y = e.clientY
+  ctxMenu.gridX = gridX
+  ctxMenu.gridY = gridY
+  ctxMenu.targetToken = hit
+  ctxMenu.open = true
+}
+
+function onTokenRowRightClick(e: MouseEvent, token: EncounterToken) {
+  e.preventDefault()
+  e.stopPropagation()
+  ctxMenu.x = e.clientX
+  ctxMenu.y = e.clientY
+  ctxMenu.gridX = token.gridX
+  ctxMenu.gridY = token.gridY
+  ctxMenu.targetToken = token
+  ctxMenu.open = true
+}
+
+// Pending drop position for "Add Token Here"
+const pendingDropPos = ref<{ gridX: number; gridY: number } | null>(null)
+
+function onCtxAddTokenHere(gridX: number, gridY: number) {
+  pendingDropPos.value = { gridX, gridY }
+  showAddToken.value = true
+}
+
+function onCtxEditToken(tokenId: number) {
+  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  if (token) { selectedToken.value = token; editingToken.value = token }
+}
+
+function onCtxAddCondition(tokenId: number) {
+  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  if (token) { conditionToken.value = token }
+}
+
+// Floating initiative input
+const initFloatOpen = ref(false)
+const initFloatX = ref(0)
+const initFloatY = ref(0)
+const initFloatValue = ref<number | null>(null)
+const initFloatTokenId = ref<number | null>(null)
+const initFloatEl = ref<HTMLInputElement | null>(null)
+
+function onCtxSetInitiative(tokenId: number, x: number, y: number) {
+  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  initFloatTokenId.value = tokenId
+  initFloatValue.value = token?.initiative ?? null
+  initFloatX.value = Math.min(x, window.innerWidth - 120)
+  initFloatY.value = Math.min(y, window.innerHeight - 60)
+  initFloatOpen.value = true
+  nextTick(() => initFloatEl.value?.select())
+}
+
+async function commitInitFloat() {
+  if (initFloatTokenId.value !== null && initFloatValue.value !== null) {
+    await store.updateToken(initFloatTokenId.value, { initiative: initFloatValue.value })
+  }
+  initFloatOpen.value = false
+  initFloatTokenId.value = null
+  initFloatValue.value = null
+}
+
+function onCtxToggleVisibility(tokenId: number) {
+  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  if (token) store.updateToken(tokenId, { isVisible: !token.isVisible })
+}
+
+function onCtxToggleDead(tokenId: number) {
+  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  if (token) store.updateToken(tokenId, { isDead: !token.isDead })
+}
+
+function onCtxRemoveToken(tokenId: number) {
+  store.removeToken(tokenId)
+}
+
+async function onTokenEdit(tokenId: number, changes: Partial<EncounterToken>) {
+  await store.updateToken(tokenId, changes)
+  editingToken.value = null
+  selectedToken.value = null
+}
+
 // ── Right sidebar tab ─────────────────────────────────────────────────────
 const rightTab = ref<'tokens' | 'log'>('tokens');
+const activeTab = ref<'order' | 'log'>('order');
+
+function hpBarColor(token: any): string {
+  if (!token.hpMax) return '#4a8f5a';
+  const pct = (token.hpCurrent ?? 0) / token.hpMax;
+  if (pct >= 0.5) return '#4a8f5a';
+  if (pct >= 0.25) return '#b8860b';
+  return '#8b1a1a';
+}
 
 // ── Combat log UI ─────────────────────────────────────────────────────────
 const logNoteTokenId = ref<number | null>(null);
@@ -1011,141 +947,9 @@ const filteredLibrary = computed(() =>
 
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 
-const newConditionName = ref("");
-const newConditionValue = ref<number | null>(null);
-const filteredConditions = ref<string[]>([]);
-const dbConditionNames = ref<string[]>([]);
-
-async function loadConditionNames(systemId: number) {
-  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll();
-  const sys = systemsStore.getSystem(systemId);
-  if (!sys) return;
-  // Find all entity types whose id or name contains "condition"
-  const condTypeIds: string[] = (sys.entityTypes ?? [])
-    .filter((et: any) => /condition/i.test(et.id ?? '') || /condition/i.test(et.name ?? ''))
-    .map((et: any) => et.id);
-  if (!condTypeIds.length) return;
-  const db = getDb();
-  const names: string[] = [];
-  for (const typeId of condTypeIds) {
-    const recs = await db.records
-      .where('systemId').equals(systemId)
-      .filter((r: any) => r.entityTypeId === typeId)
-      .toArray();
-    names.push(...recs.map((r: any) => r.name));
-  }
-  dbConditionNames.value = names.sort((a, b) => a.localeCompare(b));
-}
-
-// ── Initiative tracker ─────────────────────────────────────────────────────
-const rollingInitiativeFor = ref<number | null>(null);
-const initInputValue = ref("");
-
 const currentTurnTokenId = computed(
   () => store.initiativeOrder[store.currentTurnIndex]?.id ?? null
 );
-
-function startRollInitiative(e: Event, token: any) {
-  e.stopPropagation();
-  rollingInitiativeFor.value = token.id;
-  initInputValue.value = token.initiative !== null ? String(token.initiative) : "";
-  nextTick(() => {
-    (document.querySelector(".init-input-inline") as HTMLInputElement | null)?.focus();
-  });
-}
-
-async function confirmInitiative(e: Event, tokenId: number) {
-  e.stopPropagation();
-  const val = parseInt(initInputValue.value);
-  if (!isNaN(val)) await store.updateToken(tokenId, { initiative: val });
-  rollingInitiativeFor.value = null;
-  initInputValue.value = "";
-}
-
-function cancelInitiative(e: Event) {
-  e.stopPropagation();
-  rollingInitiativeFor.value = null;
-  initInputValue.value = "";
-}
-
-function searchConditions(event: { query: string }) {
-  const q = event.query.toLowerCase();
-  // Merge DB conditions (from linked system) with hardcoded fallback list
-  const merged = [...new Set([...dbConditionNames.value, ...conditionSuggestions])];
-  filteredConditions.value = q
-    ? merged.filter((c) => c.toLowerCase().includes(q))
-    : merged;
-}
-
-const conditionSuggestions = [
-  "Blinded",
-  "Broken",
-  "Clumsy",
-  "Confused",
-  "Controlled",
-  "Dazzled",
-  "Deafened",
-  "Doomed",
-  "Drained",
-  "Dying",
-  "Encumbered",
-  "Enfeebled",
-  "Fascinated",
-  "Fatigued",
-  "Flat-Footed",
-  "Fleeing",
-  "Frightened",
-  "Grabbed",
-  "Hidden",
-  "Immobilized",
-  "Invisible",
-  "Observed",
-  "Paralyzed",
-  "Petrified",
-  "Poisoned",
-  "Prone",
-  "Quickened",
-  "Restrained",
-  "Sickened",
-  "Slowed",
-  "Stunned",
-  "Stupefied",
-  "Unconscious",
-  "Undetected",
-  "Unnoticed",
-  "Wounded",
-];
-
-function addCondition() {
-  if (!selectedToken.value || !newConditionName.value.trim()) return;
-  const current = [...selectedToken.value.conditions];
-  current.push({
-    name: newConditionName.value.trim(),
-    value: newConditionValue.value ?? null,
-  });
-  store.updateToken(selectedToken.value.id, { conditions: current });
-  newConditionName.value = "";
-  newConditionValue.value = null;
-}
-
-function removeCondition(idx: number) {
-  if (!selectedToken.value) return;
-  const current = [...selectedToken.value.conditions];
-  current.splice(idx, 1);
-  store.updateToken(selectedToken.value.id, { conditions: current });
-}
-
-function adjustConditionValue(idx: number, delta: number) {
-  if (!selectedToken.value) return;
-  const current = [...selectedToken.value.conditions].map((c) => ({ ...c }));
-  const cond = current[idx];
-  if (cond.value === null) return;
-  cond.value = cond.value + delta;
-  if (cond.value <= 0) {
-    current.splice(idx, 1);
-  }
-  store.updateToken(selectedToken.value.id, { conditions: current });
-}
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -1153,11 +957,12 @@ onMounted(async () => {
   await store.loadEncounter(id);
   await store.loadTokenLibrary();
 
-  // Load condition names from the campaign's linked system
+  mode.value = (localStorage.getItem(MODE_KEY.value) as any) ?? 'prepare';
+
+  // Load campaign's linked system id for the token edit modal
   const camp = await getDb().campaigns.get(store.current!.campaignId);
   if ((camp as any)?.system_id) {
     linkCampaignSystemId.value = (camp as any).system_id;
-    loadConditionNames((camp as any).system_id);
   }
 
   if (!canvasContainer.value) return;
@@ -1277,6 +1082,7 @@ async function togglePlayerWindow() {
 
 function selectToken(token: any) {
   selectedToken.value = token;
+  editingToken.value = token;
 }
 
 async function browseTokenImage() {
@@ -1289,12 +1095,19 @@ async function browseTokenImage() {
 
 async function confirmAddToken() {
   if (!newToken.value.name.trim()) return;
-  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file"; // data: URLs are stored as 'file' type
+  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file";
   await store.addToLibrary(
     newToken.value.name,
     newToken.value.imageSource || null,
     type,
   );
+  const libraryToken = store.tokenLibrary[store.tokenLibrary.length - 1];
+  if (libraryToken && pendingDropPos.value) {
+    await store.addTokenToEncounter(libraryToken.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY);
+    const placed = store.current?.tokens[store.current.tokens.length - 1];
+    if (placed) await openLinkModal(placed.id);
+  }
+  pendingDropPos.value = null;
   newToken.value = { name: "", imageSource: "", imageType: "file" };
   showAddToken.value = false;
 }
@@ -1396,80 +1209,47 @@ function getImageUrl(token: any): string {
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
 }
 
-/* ── Toolbar — parchment page header ── */
+/* ── Toolbar ── */
 .encounter-toolbar {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 24px;
+  gap: 10px;
+  padding: 0 16px;
+  height: 52px;
   flex-shrink: 0;
   background: var(--parch-dark);
   border-bottom: 1px solid var(--parch-line);
-  position: relative;
-  height: auto;
-  padding-top: 12px;
-  padding-bottom: 0;
-  flex-direction: column;
-  align-items: stretch;
 }
 
-/* Title row */
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 0;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-tools {
-  display: flex;
-  gap: 3px;
-}
-
-/* Make toolbar a compact single row */
-.encounter-toolbar {
-  flex-direction: row;
-  align-items: center;
-  padding: 0 24px;
-  height: 52px;
-}
-
-.page-rule-wrapper {
-  position: absolute;
-  bottom: 0;
-  left: 24px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  height: 12px;
-}
-
-.page-rule-wrapper::before {
-  content: "✦";
-  font-size: 10px;
-  color: var(--gold);
-  flex-shrink: 0;
-  margin-right: 6px;
-  line-height: 1;
-}
-
-.page-rule-wrapper::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, var(--ink-faded), transparent);
-}
 
 .encounter-title {
-  padding: 2px 14px;
+  flex: 1;
+  padding: 0 12px;
   border-left: 1px solid var(--parch-line);
+  border-right: 1px solid var(--parch-line);
+  min-width: 0;
+}
+
+.encounter-name-display {
+  display: inline-block;
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.encounter-name-display:hover {
+  border-bottom-color: var(--parch-line);
 }
 
 .encounter-name-input {
@@ -1479,22 +1259,49 @@ function getImageUrl(token: any): string {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--parch-dark);
+  border: 1px solid var(--ink-ghost);
   border-radius: 2px;
   padding: 2px 6px;
   outline: none;
-  min-width: 120px;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  width: 100%;
 }
-.encounter-name-input:hover {
-  border-color: var(--parch-line);
-}
-.encounter-name-input:focus {
-  border-color: var(--ink-ghost);
+
+/* ── Mode toggle ── */
+.enc-mode-toggle {
+  display: flex;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  overflow: hidden;
   background: var(--parch-dark);
+  flex-shrink: 0;
+}
+.enc-mode-toggle button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.enc-mode-toggle button + button {
+  border-left: 1px solid var(--parch-line);
+}
+.enc-mode-toggle button:hover { color: var(--ink); }
+.enc-mode-toggle button.active {
+  background: rgba(139, 0, 0, 0.12);
+  color: var(--blood);
+  border-color: var(--blood);
 }
 
 /* ── Main layout ── */
@@ -2500,4 +2307,183 @@ function getImageUrl(token: any): string {
   cursor: pointer;
 }
 .log-clear-btn:hover { border-color: var(--blood); color: var(--blood); }
+
+/* ── Map thumbnail (prepare sidebar) ── */
+.map-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--parch-line);
+  margin-bottom: 8px;
+}
+.map-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.map-drop-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 12px;
+  color: var(--ink-ghost);
+}
+
+/* ── ORDER tab token list ── */
+.order-token-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.order-token-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 5px 10px 6px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.order-token-row:hover { background: rgba(28,20,16,0.05); }
+.order-token-row--active {
+  border-left-color: var(--gold) !important;
+  background: rgba(184,134,11,0.08) !important;
+}
+.order-token-row--selected {
+  border-left-color: var(--blood) !important;
+  background: rgba(139,26,26,0.06) !important;
+}
+.order-token-row--dead { opacity: 0.4; }
+
+/* Row 1: thumb + name + initiative + gear */
+.order-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+}
+
+/* Row 2: HP bar + HP text + visibility toggle */
+.order-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 33px; /* 26px thumb + 7px gap */
+  width: 100%;
+  margin-top: 4px;
+}
+
+.order-token-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* HP bar */
+.order-hp-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(28,20,16,0.1);
+  overflow: hidden;
+  min-width: 0;
+}
+.order-hp-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.order-hp-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-ghost);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.order-init {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+}
+.order-init--set { color: var(--gold); font-weight: 600; }
+
+.order-token-actions {
+  display: flex;
+  gap: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.order-token-row:hover .order-token-actions { opacity: 1; }
+.order-token-actions .icon-btn-sq {
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+.order-token-actions .icon-btn-sq:hover { color: var(--ink); background: rgba(28,20,16,0.07); }
+.order-token-actions .icon-btn-sq--danger:hover { color: var(--blood); }
+
+/* Visibility toggle — always shown in row 2 */
+.order-vis-btn {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.order-vis-btn--hidden { color: var(--blood); }
+.order-vis-btn:hover { color: var(--ink); }
+.order-vis-btn--hidden:hover { opacity: 0.7; }
+
+/* ── Floating initiative input ── */
+.init-float-wrap {
+  position: fixed;
+  z-index: 601;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+.init-float-input {
+  width: 80px;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--gold);
+  text-align: center;
+}
+.init-float-input::-webkit-inner-spin-button,
+.init-float-input::-webkit-outer-spin-button { opacity: 0.4; }
 </style>

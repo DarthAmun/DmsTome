@@ -44,6 +44,7 @@ export interface EncounterToken {
   conditions: TokenCondition[]
   hpCurrent: number | null
   hpMax: number | null
+  ac: number | null
   initiative: number | null
   notes: string | null
   linkedRecordId: number | null
@@ -237,6 +238,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('size' in updates) dbUpdates.size = updates.size
     if ('hpCurrent' in updates) dbUpdates.hpCurrent = updates.hpCurrent
     if ('hpMax' in updates) dbUpdates.hpMax = updates.hpMax
+    if ('ac' in updates) dbUpdates.ac = updates.ac
     if ('initiative' in updates) dbUpdates.initiative = updates.initiative
     if ('label' in updates) dbUpdates.label = updates.label
     if ('notes' in updates) dbUpdates.notes = updates.notes
@@ -393,6 +395,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         : [],
       hpCurrent: raw.hp_current,
       hpMax: raw.hp_max,
+      ac: raw.ac ?? null,
       initiative: raw.initiative,
       notes: raw.notes,
       linkedRecordId: raw.linked_record_id ?? null,

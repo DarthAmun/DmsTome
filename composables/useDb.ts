@@ -72,6 +72,7 @@ export interface DbEncounterToken {
   conditions: string          // JSON
   hp_current: number | null
   hp_max: number | null
+  ac: number | null
   initiative: number | null
   notes: string | null
   linked_record_id: number | null
