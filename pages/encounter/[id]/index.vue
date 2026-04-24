@@ -395,15 +395,6 @@
         </Transition>
       </Teleport>
 
-      <!-- ── Condition Modal ───────────────────────────────────────────────────── -->
-      <ConditionModal
-        :token="conditionToken"
-        :system-id="linkCampaignSystemId"
-        :open="!!conditionToken"
-        @close="conditionToken = null"
-        @update="onConditionUpdate"
-      />
-
       <!-- ── Token Edit Modal ──────────────────────────────────────────────────── -->
       <TokenEditModal
         :token="editingToken"
@@ -412,6 +403,16 @@
         @close="editingToken = null; selectedToken = null"
         @update="onTokenEdit"
         @open-conditions="conditionToken = editingToken"
+      />
+
+      <!-- ── Condition Modal (declared after TokenEditModal so it stacks on top) ── -->
+      <ConditionModal
+        :token="conditionToken"
+        :system-id="linkCampaignSystemId"
+        :open="!!conditionToken"
+        @close="conditionToken = null"
+        @update="onConditionUpdate"
+        @show-condition-panel="(name, value) => openConditionPanel(name, value)"
       />
 
       <!-- ── Canvas Context Menu ───────────────────────────────────────────────── -->
@@ -502,6 +503,49 @@
           </div>
         </div>
       </Teleport>
+
+      <!-- ── Token Picker Modal (right-click → place from library) ─────────── -->
+      <Teleport to="body">
+        <div
+          v-if="showTokenPicker"
+          class="modal-overlay"
+          @click.self="showTokenPicker = false"
+        >
+          <div class="modal-box token-picker-box">
+            <div class="modal-title">Place Token</div>
+            <InputText
+              v-model="tokenPickerSearch"
+              placeholder="Search library…"
+              autofocus
+              style="width:100%;margin-bottom:10px"
+            />
+            <div class="token-picker-list">
+              <div
+                v-for="token in filteredPickerTokens"
+                :key="token.id"
+                class="token-picker-row"
+                @click="pickTokenForPlacement(token)"
+              >
+                <div class="token-thumb token-thumb--sm">
+                  <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
+                  <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
+                </div>
+                <span class="token-picker-name">{{ token.name }}</span>
+                <OhVueIcon name="md-add" scale="0.85" class="token-picker-add-icon" />
+              </div>
+              <p v-if="filteredPickerTokens.length === 0" class="enc-hint" style="padding:12px 0;text-align:center">
+                No tokens in library
+              </p>
+            </div>
+            <div class="token-picker-footer">
+              <button class="link-btn link-btn--link" @click="openCreateTokenFromPicker">
+                + Create new token
+              </button>
+              <Button severity="secondary" @click="showTokenPicker = false">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
     <!-- end encounter-page -->
   </div>
@@ -534,6 +578,9 @@ function setMode(next: 'prepare' | 'run') {
     if (!ok) return;
   }
   mode.value = next;
+  if (store.current?.id) {
+    dbApi.encounters.update({ id: store.current.id, status: next === 'run' ? 'active' : 'prepared' });
+  }
 }
 
 watch(mode, async v => {
@@ -821,6 +868,21 @@ const pendingDropPos = ref<{ gridX: number; gridY: number } | null>(null)
 
 function onCtxAddTokenHere(gridX: number, gridY: number) {
   pendingDropPos.value = { gridX, gridY }
+  tokenPickerSearch.value = ''
+  showTokenPicker.value = true
+}
+
+async function pickTokenForPlacement(token: any) {
+  if (!pendingDropPos.value) return
+  await store.addTokenToEncounter(token.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
+  const placed = store.current?.tokens[store.current.tokens.length - 1]
+  if (placed) await openLinkModal(placed.id)
+  pendingDropPos.value = null
+  showTokenPicker.value = false
+}
+
+function openCreateTokenFromPicker() {
+  showTokenPicker.value = false
   showAddToken.value = true
 }
 
@@ -916,6 +978,13 @@ async function doClearLog() {
 }
 
 const showAddToken = ref(false);
+const showTokenPicker = ref(false);
+const tokenPickerSearch = ref("");
+const filteredPickerTokens = computed(() =>
+  store.tokenLibrary.filter((t: any) =>
+    t.name.toLowerCase().includes(tokenPickerSearch.value.toLowerCase())
+  )
+);
 const tokenSearch = ref("");
 const newToken = ref({
   name: "",
@@ -1777,6 +1846,71 @@ function getImageUrl(token: any): string {
   margin-bottom: 20px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--parch-line);
+}
+
+.token-picker-box {
+  width: 380px;
+  padding: 20px;
+}
+
+.token-picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.token-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.token-picker-row:hover {
+  background: var(--parch-dark);
+}
+
+.token-thumb--sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--parch-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.token-picker-name {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.token-picker-add-icon {
+  color: var(--ink-faded);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.token-picker-row:hover .token-picker-add-icon {
+  opacity: 1;
+}
+
+.token-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--parch-line);
 }
 
 /* Fog / measure / shapes cursor */

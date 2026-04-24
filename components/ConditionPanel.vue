@@ -11,7 +11,7 @@
           <OhVueIcon name="md-autorenew" scale="1.2" class="spin" />
         </div>
 
-        <template v-else-if="record && entityType">
+        <div v-else-if="record && entityType" class="cond-panel-entity">
           <EntityLayout
             :entity-type="entityType"
             :data="record.data"
@@ -19,7 +19,7 @@
             :system-id="systemId ?? undefined"
             :accent-color="entityType.color"
           />
-        </template>
+        </div>
 
         <div v-else class="cond-panel-notfound">
           <OhVueIcon name="gi-poison" scale="2.5" class="cond-panel-notfound-icon" />
@@ -163,6 +163,10 @@ watch(
   gap: 12px;
   padding: 32px 24px;
   text-align: center;
+}
+
+.cond-panel-entity {
+  padding: 10px;
 }
 
 .cond-panel-notfound-icon { opacity: 0.25; color: var(--blood); }

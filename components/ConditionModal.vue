@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open && token" class="pv-dialog-mask" @click.self="$emit('close')">
+    <div v-if="open && token" class="pv-dialog-mask" style="z-index:1100" @click.self="$emit('close')">
       <div class="pv-dialog cm-dialog" @keydown.esc="$emit('close')">
 
         <!-- Header -->
@@ -31,19 +31,21 @@
               <span class="cm-section-label cm-section-label--active">Active</span>
               <span class="cm-section-count">{{ localConditions.length }}</span>
             </div>
-            <div class="cm-chips">
-              <div
-                v-for="(cond, idx) in localConditions"
-                :key="cond.name + idx"
-                class="condition-tag"
-              >
-                <span class="condition-tag-name">{{ cond.name }}</span>
-                <div v-if="cond.value !== null" class="condition-value-controls">
-                  <button class="cond-ctrl-btn" @click="adjustValue(idx, -1)">−</button>
-                  <span>{{ cond.value }}</span>
-                  <button class="cond-ctrl-btn" @click="adjustValue(idx, 1)">+</button>
+            <div class="cm-active-list">
+              <div v-for="(cond, idx) in localConditions" :key="cond.name + idx" class="cm-active-item">
+                <div class="cm-active-row">
+                  <span
+                    class="cm-active-name"
+                    title="Open full condition details"
+                    @click="emit('show-condition-panel', cond.name, cond.value)"
+                  >{{ cond.name }}</span>
+                  <div class="cm-active-stepper">
+                    <button class="cond-ctrl-btn" @click="adjustValue(idx, -1)">−</button>
+                    <span class="cm-val-display">{{ cond.value !== null ? cond.value : '—' }}</span>
+                    <button class="cond-ctrl-btn" @click="adjustValue(idx, 1)">+</button>
+                  </div>
+                  <button class="condition-remove" @click="removeCondition(idx)">✕</button>
                 </div>
-                <button class="condition-remove" @click="removeCondition(idx)">✕</button>
               </div>
             </div>
           </div>
@@ -62,24 +64,29 @@
               No conditions match "{{ search }}"
             </div>
             <div v-else class="cm-list">
-              <button
+              <div
                 v-for="cond in filteredAvailable"
                 :key="cond.name"
                 class="cm-row"
                 :class="{ 'cm-row--active': isActive(cond.name) }"
-                @click="toggleCondition(cond)"
               >
                 <div class="cm-row-body">
-                  <span class="cm-cond-name">{{ cond.name }}</span>
+                  <div class="cm-row-top">
+                    <span class="cm-cond-name">{{ cond.name }}</span>
+                    <OhVueIcon
+                      v-if="isActive(cond.name)"
+                      name="md-check"
+                      scale="0.85"
+                      class="cm-active-check"
+                    />
+                    <button class="cm-toggle-btn" @click="toggleCondition(cond)">
+                      {{ isActive(cond.name) ? 'Remove' : 'Add' }}
+                    </button>
+                  </div>
                   <span v-if="cond.summary" class="cm-cond-summary">{{ cond.summary }}</span>
+                  <span v-if="cond.description" class="cm-cond-desc">{{ cond.description }}</span>
                 </div>
-                <OhVueIcon
-                  v-if="isActive(cond.name)"
-                  name="md-check"
-                  scale="0.85"
-                  class="cm-active-check"
-                />
-              </button>
+              </div>
             </div>
           </div>
 
@@ -108,6 +115,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   update: [tokenId: number, conditions: TokenCondition[]]
+  'show-condition-panel': [name: string, value: number | null]
 }>()
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -120,6 +128,7 @@ interface AvailCondition {
   name: string
   summary: string
   hasValue: boolean
+  description?: string
 }
 
 const availableConditions = ref<AvailCondition[]>([])
@@ -183,14 +192,24 @@ async function loadConditions() {
         .toArray()
 
       if (recs.length) {
+        const TEXT_KEY = /\b(description|desc|summary|effect|text|body|rules|detail)\b/i
         availableConditions.value = recs.map((r: any) => {
-          const attrs = typeof r.attributes === 'string'
-            ? JSON.parse(r.attributes || '{}')
-            : (r.attributes ?? {})
+          const data: Record<string, any> = typeof r.data === 'string'
+            ? JSON.parse(r.data || '{}')
+            : (r.data ?? {})
+          const summary: string = data.summary ?? data.effect ?? data.description ?? ''
+          let description: string | undefined
+          for (const [k, v] of Object.entries(data)) {
+            if (TEXT_KEY.test(k) && typeof v === 'string' && v !== summary && v.length > summary.length) {
+              description = v
+              break
+            }
+          }
           return {
             name: r.name,
-            summary: attrs.summary ?? '',
-            hasValue: attrs.hasValue === true || VALUED_CONDITIONS.has(r.name),
+            summary,
+            description,
+            hasValue: data.hasValue === true || VALUED_CONDITIONS.has(r.name),
           }
         }).sort((a: AvailCondition, b: AvailCondition) => a.name.localeCompare(b.name))
         return
@@ -239,20 +258,27 @@ function removeCondition(idx: number) {
 }
 
 function adjustValue(idx: number, delta: number) {
-  const c = { ...localConditions.value[idx] }
-  const next = (c.value ?? 1) + delta
-  if (next <= 0) {
-    localConditions.value.splice(idx, 1)
-  } else {
-    localConditions.value[idx] = { ...c, value: next }
+  const c = localConditions.value[idx]
+  if (c.value === null) {
+    // Null means "no stage" — + assigns stage 1, − does nothing
+    if (delta > 0) {
+      localConditions.value[idx] = { ...c, value: 1 }
+      emit_update()
+    }
+    return
   }
+  const next = c.value + delta
+  // Clamp at 1 minimum — use the ✕ button to fully remove the condition
+  localConditions.value[idx] = { ...c, value: Math.max(1, next) }
   emit_update()
 }
 
+
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 watch(() => props.open, async (open) => {
-  if (!open) return
+  if (!open) { detailCond.value = null; return }
   search.value = ''
+  detailCond.value = null
   localConditions.value = props.token ? props.token.conditions.map(c => ({ ...c })) : []
   await loadConditions()
   nextTick(() => searchEl.value?.focus())
@@ -373,18 +399,66 @@ watch(() => props.token, (tok) => {
   opacity: 0.6;
 }
 
-/* Active chips */
-.cm-chips {
+/* Active conditions list */
+.cm-active-list { display: flex; flex-direction: column; gap: 2px; }
+.cm-active-item { display: flex; flex-direction: column; }
+.cm-active-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 3px;
+  transition: background 0.1s;
 }
+.cm-active-row:hover { background: rgba(159,122,191,0.06); }
+.cm-active-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-head);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--arcane-l, #9f7abf);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.cm-active-name:hover { color: var(--ink); }
+.cm-active-name--open { color: var(--ink); }
+.cm-active-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.cm-val-display {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  min-width: 18px;
+  text-align: center;
+}
+.cm-active-detail {
+  margin: 2px 4px 6px 12px;
+  padding: 6px 10px;
+  background: rgba(159,122,191,0.05);
+  border-left: 2px solid rgba(159,122,191,0.3);
+  border-radius: 0 2px 2px 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-faded);
+  line-height: 1.5;
+}
+.cm-detail-empty { font-style: italic; }
 
 /* Available list */
 .cm-list { display: flex; flex-direction: column; gap: 1px; }
 .cm-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
@@ -392,19 +466,24 @@ watch(() => props.token, (tok) => {
   border: none;
   border-radius: 2px;
   text-align: left;
-  cursor: pointer;
   transition: background 0.1s;
 }
 .cm-row:hover { background: rgba(28,20,16,0.05); }
 .cm-row--active { background: rgba(159,122,191,0.07); }
 .cm-row--active:hover { background: rgba(159,122,191,0.13); }
 
-.cm-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cm-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cm-row-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 .cm-cond-name {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
+  flex: 1;
 }
 .cm-row--active .cm-cond-name { color: var(--arcane-l, #9f7abf); }
 .cm-cond-summary {
@@ -412,11 +491,40 @@ watch(() => props.token, (tok) => {
   font-size: 12px;
   color: var(--ink-ghost);
   font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.cm-cond-desc {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-faded);
+  line-height: 1.45;
+  margin-top: 1px;
 }
 .cm-active-check { color: var(--arcane-l, #9f7abf); flex-shrink: 0; }
+.cm-toggle-btn {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--parch-line);
+  background: none;
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cm-toggle-btn:hover { border-color: var(--arcane, #7a5abf); color: var(--arcane-l, #9f7abf); }
+.cm-row--active .cm-toggle-btn {
+  border-color: rgba(159,122,191,0.4);
+  color: var(--arcane-l, #9f7abf);
+}
+.cm-row--active .cm-toggle-btn:hover {
+  border-color: var(--blood);
+  color: var(--blood);
+}
 
 /* Loading / empty */
 .cm-loading {

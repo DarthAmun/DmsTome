@@ -46,6 +46,7 @@ export interface DbEncounter {
   fog_data: string            // JSON
   viewport: string            // JSON
   combat_log: string          // JSON: CombatLogEntry[]
+  status?: string             // 'prepared' | 'active'
   created_at: string
   updated_at: string
 }

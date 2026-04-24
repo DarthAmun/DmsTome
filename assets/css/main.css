@@ -1136,6 +1136,85 @@ html, body, #__nuxt {
 }
 .pv-dialog-close:hover { color: var(--blood); border-color: var(--blood); }
 
+/* ── Shared modal action buttons (used across encounter modals) ── */
+.link-btn {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.link-btn--skip {
+  background: none;
+  color: var(--ink-ghost);
+  border-color: var(--parch-line);
+}
+.link-btn--skip:hover { color: var(--ink); border-color: var(--ink-ghost); }
+.link-btn--link {
+  background: rgba(184,134,11,0.12);
+  color: var(--gold);
+  border-color: rgba(184,134,11,0.4);
+}
+.link-btn--link:hover:not(:disabled) { background: rgba(184,134,11,0.22); border-color: var(--gold); }
+.link-btn--link:disabled { opacity: 0.35; cursor: not-allowed; }
+.link-btn--danger {
+  background: rgba(139,0,0,0.12);
+  color: var(--blood);
+  border-color: rgba(139,0,0,0.4);
+}
+.link-btn--danger:hover { background: rgba(139,0,0,0.22); border-color: var(--blood); }
+
+/* ── Shared condition chips (used across encounter modals) ── */
+.condition-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid var(--arcane, #7a5abf);
+  color: var(--arcane-l, #b89ae0);
+  background: rgba(122,90,191,0.08);
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.condition-tag-name {
+  cursor: default;
+}
+.condition-value-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.cond-ctrl-btn {
+  background: none;
+  border: none;
+  color: var(--arcane-l, #b89ae0);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.cond-ctrl-btn:hover { color: var(--ink); }
+.condition-remove {
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.condition-remove:hover { color: var(--blood); }
+
 /* ═══════════════════════════════════════════════════════════════════════
    ENCOUNTER / MISC CHROME
 ═══════════════════════════════════════════════════════════════════════ */

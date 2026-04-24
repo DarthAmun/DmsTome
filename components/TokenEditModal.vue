@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open && token" class="pv-dialog-mask" @click.self="$emit('close')">
+    <div v-if="open && token" class="pv-dialog-mask" style="z-index:1050" @click.self="$emit('close')">
       <div class="pv-dialog tem-dialog" @keydown.esc="$emit('close')">
 
         <!-- Header -->
