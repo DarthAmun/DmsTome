@@ -21,6 +21,7 @@ export interface CanvasOptions {
   getFogBrushSize?: () => number
   getShapeType?: () => ShapeType
   getShapeColor?: () => number
+  getActiveTurnTokenId?: () => number | null
   onTokenMoved?: (instanceId: number, gridX: number, gridY: number) => void
   onFogToggle?: (cellKey: string, newState: 'revealed' | 'hidden') => void
   onShapeCommit?: (anchorCol: number, anchorRow: number, endCol: number, endRow: number) => void
@@ -49,6 +50,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
   let rulerStart: { col: number; row: number } | null = null
   let shapeAnchor: { col: number; row: number } | null = null
   const shapeGraphicsMap = new Map<string, PIXI.Graphics>()
+  const shapeDataMap = new Map<string, ShapeOverlay>()
 
   // Snaps to nearest half-cell: 0.0=corner, 0.5=tile-center, 1.0=next corner, etc.
   function screenToHalfGrid(screenX: number, screenY: number, enc: { gridSize: number; gridOffsetX: number; gridOffsetY: number }) {
@@ -218,6 +220,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     const g = new PIXI.Graphics()
     drawShapeGraphics(g, shape)
     shapeGraphicsMap.set(shape.id, g)
+    shapeDataMap.set(shape.id, shape)
     shapesContainer.addChild(g)
   }
 
@@ -226,12 +229,69 @@ export function useEncounterCanvas(options: CanvasOptions) {
     if (g) {
       shapesContainer?.removeChild(g)
       shapeGraphicsMap.delete(id)
+      shapeDataMap.delete(id)
     }
   }
 
   function clearShapeOverlays() {
     shapesContainer?.removeChildren()
     shapeGraphicsMap.clear()
+    shapeDataMap.clear()
+  }
+
+  // ── Shape hit-testing ──────────────────────────────────────────────────────
+  function triSign(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+    return (px - bx) * (ay - by) - (ax - bx) * (py - by)
+  }
+
+  function pointInTriangle(px: number, py: number, ax: number, ay: number, bx: number, by: number, cx: number, cy: number) {
+    const d1 = triSign(px, py, ax, ay, bx, by)
+    const d2 = triSign(px, py, bx, by, cx, cy)
+    const d3 = triSign(px, py, cx, cy, ax, ay)
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))
+  }
+
+  function hitTestShape(shape: ShapeOverlay, worldX: number, worldY: number): boolean {
+    const enc = store.current
+    if (!enc) return false
+    const { gridSize, gridOffsetX, gridOffsetY } = enc
+    const ax = gridOffsetX + shape.anchorCol * gridSize
+    const ay = gridOffsetY + shape.anchorRow * gridSize
+    const ex = gridOffsetX + shape.endCol * gridSize
+    const ey = gridOffsetY + shape.endRow * gridSize
+    const dx = ex - ax; const dy = ey - ay
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < 1) return false
+
+    if (shape.type === 'circle') {
+      const px = worldX - ax; const py = worldY - ay
+      return Math.sqrt(px * px + py * py) <= dist
+    } else if (shape.type === 'square') {
+      return worldX >= ax - dist && worldX <= ax + dist && worldY >= ay - dist && worldY <= ay + dist
+    } else {
+      const angle = Math.atan2(dy, dx)
+      const perp = angle + Math.PI / 2
+      const hw = dist * 0.5
+      const farX = ax + Math.cos(angle) * dist
+      const farY = ay + Math.sin(angle) * dist
+      return pointInTriangle(
+        worldX, worldY,
+        ax, ay,
+        farX + Math.cos(perp) * hw, farY + Math.sin(perp) * hw,
+        farX - Math.cos(perp) * hw, farY - Math.sin(perp) * hw,
+      )
+    }
+  }
+
+  function getShapeAtScreen(screenX: number, screenY: number): ShapeOverlay | null {
+    const worldX = (screenX - viewport.x) / viewport.scale
+    const worldY = (screenY - viewport.y) / viewport.scale
+    // Iterate in reverse insertion order so the topmost shape wins
+    const entries = [...shapeDataMap.entries()].reverse()
+    for (const [, shape] of entries) {
+      if (hitTestShape(shape, worldX, worldY)) return shape
+    }
+    return null
   }
 
   function clearShapeAnchor() {
@@ -542,6 +602,15 @@ export function useEncounterCanvas(options: CanvasOptions) {
       })
     }
 
+    if (options.getActiveTurnTokenId?.() === token.id) {
+      const activeRing = new PIXI.Graphics()
+      activeRing.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 + 5)
+      activeRing.stroke({ color: 0xffd700, width: 3, alpha: 0.95 })
+      activeRing.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 + 10)
+      activeRing.stroke({ color: 0xffd700, width: 1.5, alpha: 0.3 })
+      container.addChild(activeRing)
+    }
+
     tokenContainer.addChild(container)
   }
 
@@ -732,6 +801,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     clearShapeOverlays,
     clearShapeAnchor,
     clearRuler,
+    getShapeAtScreen,
     destroy,
   }
 }

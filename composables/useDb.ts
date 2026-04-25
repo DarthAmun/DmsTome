@@ -47,6 +47,8 @@ export interface DbEncounter {
   viewport: string            // JSON
   combat_log: string          // JSON: CombatLogEntry[]
   status?: string             // 'prepared' | 'active'
+  current_turn_index?: number
+  round_number?: number
   created_at: string
   updated_at: string
 }

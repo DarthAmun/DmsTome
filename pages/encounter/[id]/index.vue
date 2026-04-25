@@ -136,6 +136,31 @@
             </p>
           </div>
 
+          <!-- Shape tool submenu — pops up above the shapes button -->
+          <div v-if="activeTool === 'shapes'" class="shape-submenu">
+            <button
+              class="map-tool-btn"
+              :class="{ active: shapeType === 'circle' }"
+              title="Circle"
+              @click="shapeType = 'circle'"
+            ><span class="shape-icon shape-icon--circle" /></button>
+            <button
+              class="map-tool-btn"
+              :class="{ active: shapeType === 'square' }"
+              title="Square"
+              @click="shapeType = 'square'"
+            ><span class="shape-icon shape-icon--square" /></button>
+            <button
+              class="map-tool-btn"
+              :class="{ active: shapeType === 'cone' }"
+              title="Cone"
+              @click="shapeType = 'cone'"
+            ><span class="shape-icon shape-icon--cone" /></button>
+            <label class="shape-color-swatch" :style="{ background: shapeColor }" title="Pick color">
+              <input v-model="shapeColor" type="color" class="shape-color-input" />
+            </label>
+          </div>
+
           <!-- Floating tool buttons -->
           <div class="map-tool-dock">
             <button
@@ -414,6 +439,19 @@
         @update="onConditionUpdate"
         @show-condition-panel="(name, value) => openConditionPanel(name, value)"
       />
+
+      <!-- ── Shape Context Menu ────────────────────────────────────────────────── -->
+      <Teleport to="body">
+        <template v-if="shapeCtxMenu.open">
+          <div class="ctx-back" @click="shapeCtxMenu.open = false" @contextmenu.prevent="shapeCtxMenu.open = false" />
+          <div class="sh-ctx-menu" :style="{ left: shapeCtxMenu.x + 'px', top: shapeCtxMenu.y + 'px' }">
+            <button class="sh-ctx-item sh-ctx-item--danger" @click="onCtxRemoveShape">
+              <OhVueIcon name="md-delete" scale="0.85" style="opacity:0.7;flex-shrink:0" />
+              Remove Shape
+            </button>
+          </div>
+        </template>
+      </Teleport>
 
       <!-- ── Canvas Context Menu ───────────────────────────────────────────────── -->
       <EncounterContextMenu
@@ -735,10 +773,18 @@ const ctxMenu = reactive({
   targetToken: null as EncounterToken | null,
 })
 
+const shapeCtxMenu = reactive({
+  open: false,
+  x: 0,
+  y: 0,
+  shapeId: null as string | null,
+})
+
 function onCanvasRightClick(e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
   if (!canvas || activeTool.value !== 'select') return
+
   const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY)
   const hit = store.allTokens.find((t: EncounterToken) => {
     const b = canvas!.getTokenScreenBounds(t.id)
@@ -746,6 +792,19 @@ function onCanvasRightClick(e: MouseEvent) {
     return e.offsetX >= b.x && e.offsetX <= b.x + b.w
         && e.offsetY >= b.y && e.offsetY <= b.y + b.h
   }) ?? null
+
+  // If no token was hit, check for a shape overlay at the click position
+  if (!hit) {
+    const hitShape = canvas.getShapeAtScreen(e.offsetX, e.offsetY)
+    if (hitShape) {
+      shapeCtxMenu.x = e.clientX
+      shapeCtxMenu.y = e.clientY
+      shapeCtxMenu.shapeId = hitShape.id
+      shapeCtxMenu.open = true
+      return
+    }
+  }
+
   ctxMenu.x = e.clientX
   ctxMenu.y = e.clientY
   ctxMenu.gridX = gridX
@@ -837,6 +896,11 @@ function onCtxToggleDead(tokenId: number) {
 
 function onCtxRemoveToken(tokenId: number) {
   store.removeToken(tokenId)
+}
+
+function onCtxRemoveShape() {
+  if (shapeCtxMenu.shapeId) removeShape(shapeCtxMenu.shapeId)
+  shapeCtxMenu.open = false
 }
 
 async function onTokenEdit(tokenId: number, changes: Partial<EncounterToken>) {
@@ -947,6 +1011,7 @@ onMounted(async () => {
     container: canvasContainer.value,
     isDmMode: true,
     getActiveTool: () => activeTool.value,
+    getActiveTurnTokenId: () => currentTurnTokenId.value,
     getFogMode: () => fogMode.value,
     getFogBrushSize: () => fogBrushSize.value,
     getShapeType: () => shapeType.value,
@@ -992,6 +1057,10 @@ watch(
   },
   { deep: true },
 );
+
+watch(currentTurnTokenId, async () => {
+  await canvas?.renderTokens();
+});
 
 watch(
   () => store.current?.fogData,
@@ -2419,4 +2488,118 @@ function getImageUrl(token: any): string {
 }
 .init-float-input::-webkit-inner-spin-button,
 .init-float-input::-webkit-outer-spin-button { opacity: 0.4; }
+
+/* ── Shape context menu (right-click on a placed shape) ── */
+.ctx-back {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.sh-ctx-menu {
+  position: fixed;
+  z-index: var(--z-modal-top);
+  min-width: 160px;
+  background-color: var(--parch);
+  background-image: var(--paper);
+  background-blend-mode: multiply;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.sh-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.sh-ctx-item--danger { color: var(--blood); }
+.sh-ctx-item--danger:hover { background: rgba(139,0,0,0.07); }
+
+/* ── Shape tool submenu ── */
+.shape-submenu {
+  position: absolute;
+  bottom: 76px; /* sits above .map-tool-dock (bottom:20 + 48px height + 8px gap) */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(12, 8, 4, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 220, 197, 0.12);
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  pointer-events: all;
+  z-index: var(--z-overlay);
+  animation: submenu-pop 0.12s ease;
+}
+
+@keyframes submenu-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* CSS-drawn shape icons inside the submenu buttons */
+.shape-icon {
+  display: block;
+  flex-shrink: 0;
+}
+.shape-icon--circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+}
+.shape-icon--square {
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid currentColor;
+}
+.shape-icon--cone {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 15px solid currentColor;
+}
+
+/* Color picker swatch button */
+.shape-color-swatch {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 220, 197, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.shape-color-swatch:hover { border-color: rgba(232, 220, 197, 0.7); }
+.shape-color-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+}
 </style>

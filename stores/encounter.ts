@@ -111,6 +111,8 @@ export const useEncounterStore = defineStore('encounter', () => {
         campaignId: data.campaign_id,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
+      currentTurnIndex.value = data.current_turn_index ?? 0
+      roundNumber.value = data.round_number ?? 1
     } catch (err) {
       console.error('[EncounterStore] loadEncounter:', err)
     } finally {
@@ -332,6 +334,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       roundNumber.value++
     }
     syncToPlayer()
+    persistTurnState()
   }
 
   function prevTurn() {
@@ -345,6 +348,20 @@ export const useEncounterStore = defineStore('encounter', () => {
       currentTurnIndex.value--
     }
     syncToPlayer()
+    persistTurnState()
+  }
+
+  async function persistTurnState() {
+    if (!current.value) return
+    try {
+      await dbApi.encounters.update({
+        id: current.value.id,
+        current_turn_index: currentTurnIndex.value,
+        round_number: roundNumber.value,
+      })
+    } catch (err) {
+      console.error('[EncounterStore] persistTurnState:', err)
+    }
   }
 
   function syncToPlayer() {

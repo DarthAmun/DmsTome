@@ -109,7 +109,7 @@ function onKey(e: KeyboardEvent) {
 
 .ctx-menu {
   position: fixed;
-  z-index: var(--z-modal);
+  z-index: var(--z-modal-top); /* must exceed backdrop's --z-modal so clicks reach buttons */
   min-width: 180px;
   background-color: var(--parch);
   background-image: var(--paper);

@@ -39,6 +39,9 @@ let canvas: ReturnType<typeof useEncounterCanvas> | null = null
 const playerTurnIndex = ref(0)
 const playerRoundNumber = ref(1)
 const playerInitiativeOrder = ref<any[]>([])
+const playerActiveTurnTokenId = computed(() =>
+  playerInitiativeOrder.value[playerTurnIndex.value]?.id ?? null
+)
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -50,6 +53,7 @@ onMounted(async () => {
     container: canvasContainer.value,
     isDmMode: false,
     getActiveTool: () => 'select',
+    getActiveTurnTokenId: () => playerActiveTurnTokenId.value,
     onTokenMoved: undefined,
     onFogToggle: undefined,
   })
@@ -142,61 +146,63 @@ onUnmounted(() => {
 /* ── Initiative tracker overlay ── */
 .init-tracker {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(4, 3, 8, 0.6); /* translucent void */
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(184, 134, 11, 0.22); /* = var(--gold) at 22% opacity */
-  border-radius: 3px;
-  padding: 8px 12px;
-  min-width: 152px;
+  top: 24px;
+  right: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  min-width: 200px;
   pointer-events: none;
 }
 
 .init-tracker-round {
   font-family: 'Cinzel', serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: rgba(184, 134, 11, 0.75); /* = var(--gold) at 75% opacity */
-  text-align: center;
-  padding-bottom: 5px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid rgba(184, 134, 11, 0.15); /* = var(--gold) at 15% opacity */
+  color: rgba(184, 134, 11, 0.9);
+  text-align: right;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(184, 134, 11, 0.25);
 }
 .init-tracker-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
-  opacity: 0.45;
+  gap: 8px;
+  padding: 4px 0;
+  opacity: 0.35;
 }
 .init-tracker-row--active { opacity: 1; }
 .init-tracker-arrow {
-  font-size: 7px;
-  color: rgba(184, 134, 11, 0.9); /* = var(--gold) at 90% opacity */
-  width: 8px;
+  font-size: 11px;
+  color: rgba(184, 134, 11, 0.95);
+  width: 12px;
   flex-shrink: 0;
 }
 .init-tracker-init {
   font-family: monospace;
-  font-size: 9px;
-  color: rgba(184, 134, 11, 0.8); /* = var(--gold) at 80% opacity */
-  width: 18px;
+  font-size: 13px;
+  color: rgba(184, 134, 11, 0.85);
+  width: 24px;
   text-align: right;
   flex-shrink: 0;
 }
 .init-tracker-name {
-  font-size: 11px;
-  color: rgba(232, 220, 197, 0.75); /* parchment-on-dark, translucent */
+  font-size: 15px;
+  color: rgba(232, 220, 197, 0.7);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 .init-tracker-row--active .init-tracker-name {
-  color: rgba(232, 220, 197, 1); /* parchment-on-dark, opaque */
-  font-weight: 500;
+  color: rgba(232, 220, 197, 1);
+  font-weight: 600;
+  font-size: 16px;
+  text-shadow: 0 0 12px rgba(184,134,11,0.4), 0 1px 4px rgba(0,0,0,0.9);
 }
 </style>

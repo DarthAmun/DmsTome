@@ -1,6 +1,6 @@
 {
   "name": "dmstome",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "DM's Tome — offline-first campaign manager for GMs",
   "private": true,
   "type": "module",
