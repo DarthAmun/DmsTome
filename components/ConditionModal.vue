@@ -60,34 +60,42 @@
             <div v-if="loading" class="cm-loading">
               <OhVueIcon name="md-autorenew" scale="1.2" class="cm-spin" />
             </div>
-            <div v-else-if="!filteredAvailable.length" class="cm-empty">
-              No conditions match "{{ search }}"
-            </div>
-            <div v-else class="cm-list">
-              <div
-                v-for="cond in filteredAvailable"
-                :key="cond.name"
-                class="cm-row"
-                :class="{ 'cm-row--active': isActive(cond.name) }"
-              >
-                <div class="cm-row-body">
-                  <div class="cm-row-top">
-                    <span class="cm-cond-name">{{ cond.name }}</span>
-                    <OhVueIcon
-                      v-if="isActive(cond.name)"
-                      name="md-check"
-                      scale="0.85"
-                      class="cm-active-check"
-                    />
-                    <button class="cm-toggle-btn" @click="toggleCondition(cond)">
-                      {{ isActive(cond.name) ? 'Remove' : 'Add' }}
-                    </button>
+            <template v-else>
+              <!-- Free-text "add custom" entry — shown when search doesn't match any known condition -->
+              <button v-if="customConditionEntry" class="cm-add-custom" @click="addCustomCondition">
+                <OhVueIcon name="md-add" scale="0.85" style="flex-shrink:0" />
+                Add "<strong>{{ customConditionEntry }}</strong>" as condition
+              </button>
+
+              <div v-if="!filteredAvailable.length && !customConditionEntry" class="cm-empty">
+                {{ search ? `No matches for "${search}"` : 'No conditions in linked system' }}
+              </div>
+              <div v-else class="cm-list">
+                <div
+                  v-for="cond in filteredAvailable"
+                  :key="cond.name"
+                  class="cm-row"
+                  :class="{ 'cm-row--active': isActive(cond.name) }"
+                >
+                  <div class="cm-row-body">
+                    <div class="cm-row-top">
+                      <span class="cm-cond-name">{{ cond.name }}</span>
+                      <OhVueIcon
+                        v-if="isActive(cond.name)"
+                        name="md-check"
+                        scale="0.85"
+                        class="cm-active-check"
+                      />
+                      <button class="cm-toggle-btn" @click="toggleCondition(cond)">
+                        {{ isActive(cond.name) ? 'Remove' : 'Add' }}
+                      </button>
+                    </div>
+                    <span v-if="cond.summary" class="cm-cond-summary">{{ cond.summary }}</span>
+                    <span v-if="cond.description" class="cm-cond-desc">{{ cond.description }}</span>
                   </div>
-                  <span v-if="cond.summary" class="cm-cond-summary">{{ cond.summary }}</span>
-                  <span v-if="cond.description" class="cm-cond-desc">{{ cond.description }}</span>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
 
         </div><!-- /cm-body -->
@@ -183,12 +191,25 @@ const FALLBACK_CONDITIONS: AvailCondition[] = [
 // ── Load conditions from DB or fall back ──────────────────────────────────
 async function loadConditions() {
   loading.value = true
+  availableConditions.value = []
   try {
     if (props.systemId) {
       const db = getDb()
+
+      // Discover entity type IDs that look like conditions in this system
+      const sys = await db.systems.get(props.systemId)
+      const entityTypes: any[] = sys
+        ? (typeof sys.entityTypes === 'string' ? JSON.parse(sys.entityTypes || '[]') : (sys.entityTypes ?? []))
+        : []
+      const condTypeIds = entityTypes
+        .filter((et: any) => /condition/i.test(et.id ?? '') || /condition/i.test(et.name ?? ''))
+        .map((et: any) => et.id as string)
+      // Always include the bare 'condition' id as fallback
+      if (!condTypeIds.includes('condition')) condTypeIds.push('condition')
+
       const recs = await db.records
         .where('systemId').equals(props.systemId)
-        .filter((r: any) => r.entityTypeId === 'condition')
+        .filter((r: any) => condTypeIds.includes(r.entityTypeId))
         .toArray()
 
       if (recs.length) {
@@ -215,6 +236,7 @@ async function loadConditions() {
         return
       }
     }
+    // No system linked or system has no condition records — use built-in list
     availableConditions.value = FALLBACK_CONDITIONS
   } finally {
     loading.value = false
@@ -229,6 +251,14 @@ const filteredAvailable = computed(() => {
     : availableConditions.value
 })
 
+// Shows an "Add 'X'" prompt when the search text doesn't exactly match any known condition
+const customConditionEntry = computed<string | null>(() => {
+  const q = search.value.trim()
+  if (!q) return null
+  if (availableConditions.value.some(c => c.name.toLowerCase() === q.toLowerCase())) return null
+  return q
+})
+
 function isActive(name: string) {
   return localConditions.value.some(c => c.name === name)
 }
@@ -237,6 +267,14 @@ function isActive(name: string) {
 function emit_update() {
   if (!props.token) return
   emit('update', props.token.id, [...localConditions.value])
+}
+
+function addCustomCondition() {
+  const name = customConditionEntry.value
+  if (!name || isActive(name)) return
+  localConditions.value.push({ name, value: null })
+  emit_update()
+  search.value = ''
 }
 
 function toggleCondition(cond: AvailCondition) {
@@ -276,9 +314,8 @@ function adjustValue(idx: number, delta: number) {
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 watch(() => props.open, async (open) => {
-  if (!open) { detailCond.value = null; return }
+  if (!open) return
   search.value = ''
-  detailCond.value = null
   localConditions.value = props.token ? props.token.conditions.map(c => ({ ...c })) : []
   await loadConditions()
   nextTick(() => searchEl.value?.focus())
@@ -543,6 +580,30 @@ watch(() => props.token, (tok) => {
   font-style: italic;
   text-align: center;
 }
+
+/* Free-text add-custom button */
+.cm-add-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  border: 1px dashed rgba(159, 122, 191, 0.4);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--arcane-l, #9f7abf);
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+.cm-add-custom:hover {
+  background: rgba(159, 122, 191, 0.08);
+  border-color: rgba(159, 122, 191, 0.7);
+}
+.cm-add-custom strong { font-weight: 700; }
 
 /* Footer */
 .cm-footer {
