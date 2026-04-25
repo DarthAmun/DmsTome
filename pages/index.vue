@@ -66,7 +66,7 @@
                   <span class="leaf-count">{{ systems.length }} defined</span>
                 </div>
                 <div v-for="(sys, i) in leftEntries" :key="sys.id!" class="entry"
-                  style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}`)">
+                  style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}/library`)">
                   <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
                   <div class="entry-icon"><div class="entry-badge">
                     <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
@@ -199,7 +199,7 @@
                     <span class="leaf-count">continued</span>
                   </div>
                   <div v-for="(sys, i) in rightEntries" :key="sys.id!" class="entry"
-                    style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}`)">
+                    style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}/library`)">
                     <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
                     <div class="entry-icon"><div class="entry-badge">
                       <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
@@ -260,22 +260,7 @@
       </div>
     </div>
 
-    <!-- SPINE TABS -->
-    <nav class="spine-tabs">
-      <SpineSeal />
-      <button class="spine-tab" title="Campaigns" :class="{ active: section === 'campaigns' }" @click="section = 'campaigns'">
-        <OhVueIcon name="gi-broadsword" scale="0.85" />
-      </button>
-      <button class="spine-tab" title="Systems" :class="{ active: section === 'systems' }" @click="section = 'systems'">
-        <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
-      </button>
-      <button class="spine-tab" title="Library" :class="{ active: section === 'library' }" @click="section = 'library'">
-        <OhVueIcon name="gi-open-treasure-chest" scale="0.85" />
-      </button>
-      <NuxtLink to="/settings" class="spine-tab" title="Settings">
-        <OhVueIcon name="md-settings" scale="0.85" />
-      </NuxtLink>
-    </nav>
+    <SpineNav />
 
     <!-- DIALOGS -->
     <Teleport to="body">
@@ -417,9 +402,17 @@ import { useFormatters } from '~/composables/useFormatters'
 const { formatDate } = useFormatters()
 
 const router = useRouter()
+const route = useRoute()
 const store = useSystemsStore()
 
-const section = ref<'campaigns' | 'systems' | 'library'>('campaigns')
+const section = ref<'campaigns' | 'systems' | 'library'>(
+  (route.query.section as any) ?? 'campaigns'
+)
+
+watch(() => route.query.section, (val) => {
+  if (val === 'campaigns' || val === 'systems' || val === 'library')
+    section.value = val
+})
 const campaigns = ref<any[]>([])
 const showNew = ref(false)
 

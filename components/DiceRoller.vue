@@ -113,6 +113,11 @@ const fabSide = ref<'left' | 'right'>('right')
 const fabY = ref(EDGE_M)
 const panelOpen = ref(false)
 
+onMounted(() => {
+  // Position above the gs-pill (bottom: 20px, ~32px tall) with 20px gap
+  fabY.value = window.innerHeight - FAB_SIZE - 72
+})
+
 const isDragging = ref(false)
 const dragMoved = ref(false)
 const dragX = ref(0)

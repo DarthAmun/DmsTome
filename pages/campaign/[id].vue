@@ -4,35 +4,13 @@
       <NuxtPage />
     </div>
 
-    <!-- Campaign spine tabs -->
-    <nav v-if="!spineHidden && !isPlayerRoute" class="spine-tabs">
-      <SpineSeal />
-      <NuxtLink to="/" class="spine-tab" title="Home">
-        <OhVueIcon name="md-arrowback" scale="0.85" />
-      </NuxtLink>
-      <NuxtLink :to="`/campaign/${id}/notes`" class="spine-tab" title="Notes"
-        :class="{ active: route.path.includes('/notes') }">
-        <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
-      </NuxtLink>
-      <NuxtLink :to="`/campaign/${id}/encounters`" class="spine-tab" title="Encounters"
-        :class="{ active: route.path.includes('/encounter') }">
-        <OhVueIcon name="gi-broadsword" scale="0.85" />
-      </NuxtLink>
-      <NuxtLink :to="`/campaign/${id}/map`" class="spine-tab" title="Atlas"
-        :class="{ active: route.path.includes('/map') }">
-        <OhVueIcon name="gi-treasure-map" scale="0.85" />
-      </NuxtLink>
-      <NuxtLink to="/settings" class="spine-tab" title="Settings">
-        <OhVueIcon name="md-settings" scale="0.85" />
-      </NuxtLink>
-    </nav>
+    <SpineNav />
   </div>
 </template>
 
 <script setup lang="ts">
 import { usePageChrome } from '~/composables/usePageChrome'
 const route = useRoute()
-const id = computed(() => route.params.id)
 const { spineHidden } = usePageChrome()
 const isPlayerRoute = computed(() =>
   route.path.endsWith('/player') || route.path.endsWith('/map-player')

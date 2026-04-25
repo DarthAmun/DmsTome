@@ -258,16 +258,7 @@
       </div>
     </div>
 
-    <!-- Spine -->
-    <nav class="spine-tabs">
-      <SpineSeal />
-      <NuxtLink to="/" class="spine-tab" title="Home">
-        <OhVueIcon name="md-arrowback" scale="0.85" />
-      </NuxtLink>
-      <NuxtLink to="/settings" class="spine-tab active" title="Settings">
-        <OhVueIcon name="md-settings" scale="0.85" />
-      </NuxtLink>
-    </nav>
+    <SpineNav />
   </div>
 
   <!-- Import modal -->

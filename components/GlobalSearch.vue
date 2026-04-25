@@ -1,10 +1,5 @@
 <template>
   <Teleport to="body">
-    <!-- ⌘K pill trigger -->
-    <div v-if="!open" class="gs-pill" @click="open = true">
-      <span class="gs-pill-key">{{ isMac ? '⌘' : 'Ctrl' }}K</span>
-    </div>
-
     <!-- Modal -->
     <Transition name="gs-fade">
       <div v-if="open" class="pv-dialog-mask" @click.self="close">
@@ -112,7 +107,7 @@ const route = useRoute()
 const notesStore = useNotesStore()
 const systemsStore = useSystemsStore()
 
-const open = ref(false)
+const { open } = useGlobalSearch()
 const query = ref('')
 const loading = ref(false)
 const cursor = ref(0)
@@ -313,34 +308,6 @@ if (import.meta.client) {
 </script>
 
 <style scoped>
-/* ⌘K pill */
-.gs-pill {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  z-index: var(--z-sidebar);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  background: var(--leather);
-  border: 1px solid rgba(184, 134, 11, 0.3);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.gs-pill:hover {
-  border-color: var(--gold);
-  background: #1a1208;
-}
-.gs-pill-key {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: rgba(184, 134, 11, 0.7);
-  letter-spacing: 0.05em;
-}
-.gs-pill:hover .gs-pill-key { color: var(--gold); }
-
 /* Dialog sizing override */
 .gs-dialog {
   width: 560px;

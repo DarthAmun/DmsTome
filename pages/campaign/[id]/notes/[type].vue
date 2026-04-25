@@ -378,10 +378,10 @@ const campaignId = Number(route.params.id)
 const search = ref('')
 const sortBy = ref('updated')
 
-// URL-driven state — declared first so downstream computeds can reference them safely
-const activeType = computed(() => (route.query.type as EntityType) || 'session')
+// Type comes from the URL path segment; id and view remain query params
+const activeType = computed(() => route.params.type as string)
 const selectedId = computed(() => route.query.id ? Number(route.query.id) : null)
-const activeTypeConfig = computed(() => ENTITY_TYPE_CONFIG[activeType.value])
+const activeTypeConfig = computed(() => ENTITY_TYPE_CONFIG[activeType.value as EntityType])
 
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type: type as EntityType, ...cfg }))
 
@@ -392,7 +392,11 @@ const viewMode = computed<'list' | 'log' | 'graph' | 'timeline'>(() => {
   if (v === 'timeline' && activeType.value === 'event') return 'timeline'
   return 'list'
 })
-const showGraph = computed(() => viewMode.value === 'graph')
+
+// Persist last-used type to localStorage so the redirect can restore it
+watch(activeType, (type) => {
+  localStorage.setItem(`notes-last-type-${campaignId}`, type)
+}, { immediate: true })
 
 // Session log state — expanded ids (default: all collapsed)
 const expandedIds = ref<Set<number>>(new Set())
@@ -461,7 +465,7 @@ watch([viewMode, () => timelineEvents.value.length], () => {
 })
 
 const sortedEntities = computed(() => {
-  const list = (store.byType[activeType.value] ?? [])
+  const list = (store.byType[activeType.value as EntityType] ?? [])
     .filter(e => !search.value || e.name.toLowerCase().includes(search.value.toLowerCase()))
   return [...list].sort((a, b) => {
     if (sortBy.value === 'name') return a.name.localeCompare(b.name)
@@ -507,18 +511,21 @@ onMounted(async () => {
   campaignSystemId.value = camp?.system_id ?? null
 })
 
-// Navigation — all push to router so back button works
+// Navigation — type is in the path; id and view remain query params
 function selectType(type: EntityType) {
-  router.push({ query: { type } })
+  router.push(`/campaign/${campaignId}/notes/${type}`)
 }
 
 function selectEntity(id: number) {
-  router.push({ query: { type: activeType.value, id: String(id) } })
+  router.push({ path: `/campaign/${campaignId}/notes/${activeType.value}`, query: { id: String(id) } })
 }
 
 function setView(mode: 'list' | 'log' | 'graph' | 'timeline') {
-  if (mode === 'list') router.push({ query: { type: activeType.value } })
-  else router.push({ query: { type: activeType.value, view: mode } })
+  if (mode === 'list') {
+    router.push(`/campaign/${campaignId}/notes/${activeType.value}`)
+  } else {
+    router.push({ path: `/campaign/${campaignId}/notes/${activeType.value}`, query: { view: mode } })
+  }
 }
 
 function toggleGraph() {
@@ -527,7 +534,7 @@ function toggleGraph() {
 
 function goBack() {
   if (selectedId.value) {
-    router.push({ query: { type: activeType.value } })
+    router.push(`/campaign/${campaignId}/notes/${activeType.value}`)
   } else {
     router.back()
   }
@@ -536,17 +543,16 @@ function goBack() {
 function navigateByTypeAndName(type: string, name: string) {
   const e = store.findByTypeAndName(type, name)
   if (e) {
-    router.push({ query: { type: e.type, id: String(e.id) } })
-    showGraph.value = false
+    router.push({ path: `/campaign/${campaignId}/notes/${e.type}`, query: { id: String(e.id) } })
   } else if (confirm(`"${name}" doesn't exist yet. Create it?`)) {
     store.createEntity(campaignId, type as EntityType, name).then(en => {
-      router.push({ query: { type: en.type, id: String(en.id) } })
+      router.push({ path: `/campaign/${campaignId}/notes/${en.type}`, query: { id: String(en.id) } })
     })
   }
 }
 
 async function createNew() {
-  const e = await store.createEntity(campaignId, activeType.value, `New ${activeTypeConfig.value?.label}`)
+  const e = await store.createEntity(campaignId, activeType.value as EntityType, `New ${activeTypeConfig.value?.label}`)
   selectEntity(e.id)
 }
 
@@ -558,8 +564,6 @@ type AttrItem =
 
 type EntrySummary = { primary: AttrItem[]; secondary: AttrItem[] }
 
-// primary = classification chips (bottom row, left)
-// secondary = context items (bottom row, right — separated by dotted leader)
 function entitySummary(e: any): EntrySummary {
   const a = (e.attributes ?? {}) as any
   const primary: AttrItem[] = []
@@ -660,6 +664,7 @@ function entityImage(e: any): string | null {
   if (!a) return null
   return a.portraitSource || a.logoSource || a.imageSource || null
 }
+
 function formatEntryDate(dt: string) {
   if (!dt) return ''
   const diff = Date.now() - new Date(dt).getTime()
@@ -669,10 +674,11 @@ function formatEntryDate(dt: string) {
   if (days < 7) return days + 'd ago'
   return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+
 async function confirmDelete(entity: any) {
   if (confirm(`Delete "${entity.name}"?`)) {
     await store.deleteEntity(entity.id)
-    router.push({ query: { type: activeType.value } })
+    router.push(`/campaign/${campaignId}/notes/${activeType.value}`)
   }
 }
 </script>
@@ -818,7 +824,6 @@ async function confirmDelete(entity: any) {
 }
 
 /* ── OPEN BOOK spread ── */
-/* overrides main.css — intentional: .leaf-inner and .leaf-footer tuned for notes layout */
 .leaf-inner {
   flex: 1;
   overflow-y: auto;
@@ -837,7 +842,6 @@ async function confirmDelete(entity: any) {
   justify-content: flex-end;
 }
 
-/* leaf-new inside the new flex footer needs to flex-grow */
 .leaf-footer .leaf-new { flex: 1; width: auto; }
 
 .leaf-nav-btn {
@@ -918,7 +922,6 @@ async function confirmDelete(entity: any) {
 }
 
 /* ── Entry list ── */
-/* overrides main.css — intentional: .entry, .entry-icon, .entry-name tuned for notes list */
 .entry {
   align-items: flex-start;
   border-left: 2px solid transparent;
@@ -929,7 +932,6 @@ async function confirmDelete(entity: any) {
   background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent);
 }
 
-/* Entry number */
 .entry-num {
   font-family: var(--font-mono); font-size: 9px;
   color: var(--ink-ghost); opacity: 0.4;
@@ -937,7 +939,6 @@ async function confirmDelete(entity: any) {
   text-align: right; padding-top: 2px; line-height: 1;
 }
 
-/* Icon badge */
 .entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .entry-badge {
   width: 24px; height: 24px; border-radius: 50%;
@@ -948,7 +949,6 @@ async function confirmDelete(entity: any) {
 }
 .entry-thumb { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 
-/* Two-row entry body */
 .entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .entry-top { display: flex; align-items: center; gap: 6px; }
 .entry-name {
@@ -959,7 +959,6 @@ async function confirmDelete(entity: any) {
 .entry-name--deceased { text-decoration: line-through; color: var(--ink-ghost) !important; }
 .entry--active { border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 60%, transparent) !important; background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 7%, transparent) !important; }
 
-/* Dotted leader */
 .entry-leader {
   flex: 1; min-width: 8px;
   border-bottom: 1px dotted var(--ink-ghost);
@@ -968,7 +967,6 @@ async function confirmDelete(entity: any) {
 
 .entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
 
-/* Attribute: pill (enum / select values) — with optional icon */
 .ea-pill {
   display: inline-flex; align-items: center; gap: 3px;
   font-family: var(--font-head);
@@ -982,7 +980,6 @@ async function confirmDelete(entity: any) {
   white-space: nowrap;
 }
 
-/* Attribute: text with optional icon + label */
 .ea-text {
   display: inline-flex; align-items: center; gap: 3px;
   font-family: var(--font-ui);
@@ -998,7 +995,6 @@ async function confirmDelete(entity: any) {
   color: var(--ink-ghost);
 }
 
-/* Attribute: bool chip (magic, cursed, secret) */
 .ea-bool {
   display: inline-flex; align-items: center; gap: 3px;
   font-family: var(--font-head);
@@ -1013,7 +1009,6 @@ async function confirmDelete(entity: any) {
 .ea-bool--danger { color: var(--blood); background: rgba(139,26,26,0.08); border-color: rgba(139,26,26,0.3); }
 .ea-bool--muted  { color: var(--ink-ghost); background: rgba(28,20,16,0.05); border-color: rgba(28,20,16,0.15); }
 
-/* Free tags (notes) */
 .ea-tag {
   font-family: var(--font-ui); font-size: 10px;
   color: var(--ink-faded);
@@ -1023,7 +1018,6 @@ async function confirmDelete(entity: any) {
   flex-shrink: 0;
 }
 
-/* Dotted leader between primary and secondary */
 .ea-spacer {
   flex: 1;
   min-width: 12px;
@@ -1033,7 +1027,6 @@ async function confirmDelete(entity: any) {
   position: relative; top: 1px;
 }
 
-/* Secondary context items (right side) */
 .ea-secondary-item {
   display: inline-flex; align-items: center; gap: 3px;
   font-family: var(--font-ui); font-size: 11px;
@@ -1053,7 +1046,6 @@ async function confirmDelete(entity: any) {
 .entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
 
 /* ─── Session Log view ──────────────────────────────────────────── */
-/* ── Full-width spread (no two-page binding) — sheets peek on both sides ── */
 .book-stack--full {
   position: relative;
   flex: 1;
@@ -1062,11 +1054,10 @@ async function confirmDelete(entity: any) {
   display: flex;
   overflow: visible;
 }
-/* Aged-parchment sheet tints — match main.css book-stack--left/right */
 .book-stack--full .book-sheet-3 {
   position: absolute;
   top: 5px; bottom: 5px; left: -14px; right: -14px;
-  background-color: #b8ac96; /* aged-parchment sheet tint — no variable */
+  background-color: #b8ac96;
   border-radius: 2px;
   box-shadow: inset 0 0 6px rgba(0,0,0,0.18), 0 0 8px rgba(0,0,0,0.18);
   pointer-events: none;
@@ -1074,7 +1065,7 @@ async function confirmDelete(entity: any) {
 .book-stack--full .book-sheet-2 {
   position: absolute;
   top: 3px; bottom: 3px; left: -9px; right: -9px;
-  background-color: #cdc09e; /* aged-parchment sheet tint — no variable */
+  background-color: #cdc09e;
   border-radius: 2px;
   box-shadow: inset 0 0 5px rgba(0,0,0,0.12);
   pointer-events: none;
@@ -1082,7 +1073,7 @@ async function confirmDelete(entity: any) {
 .book-stack--full .book-sheet-1 {
   position: absolute;
   top: 1px; bottom: 1px; left: -5px; right: -5px;
-  background-color: #ddd0b5; /* aged-parchment sheet tint — no variable */
+  background-color: #ddd0b5;
   border-radius: 2px;
   box-shadow: inset 0 0 4px rgba(0,0,0,0.08);
   pointer-events: none;
@@ -1109,7 +1100,6 @@ async function confirmDelete(entity: any) {
   font-style: italic;
 }
 
-/* Chapter block */
 .slog-chapter {
   max-width: 720px;
   margin: 0 auto 12px;
@@ -1121,7 +1111,6 @@ async function confirmDelete(entity: any) {
   padding-top: 0;
 }
 
-/* Header row */
 .slog-header {
   display: flex;
   align-items: baseline;
@@ -1180,14 +1169,12 @@ async function confirmDelete(entity: any) {
   flex-shrink: 0;
 }
 
-/* Rule below header */
 .slog-rule {
   height: 1px;
   background: var(--parch-line);
   margin-bottom: 14px;
 }
 
-/* Body — collapsed by default; --expanded removes the cap */
 .slog-body {
   position: relative;
   max-height: 120px;
@@ -1208,14 +1195,12 @@ async function confirmDelete(entity: any) {
   pointer-events: none;
 }
 
-/* Prose content */
 .slog-content {
   font-family: var(--font-body);
   font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink-faded);
 }
-/* Basic markdown-it output styles scoped to log */
 .slog-content :deep(p) { margin: 0 0 0.6em; }
 .slog-content :deep(h1),
 .slog-content :deep(h2),
@@ -1257,7 +1242,6 @@ async function confirmDelete(entity: any) {
   padding: 4px 0;
 }
 
-/* Footer */
 .slog-footer {
   display: flex;
   align-items: center;
@@ -1319,7 +1303,6 @@ async function confirmDelete(entity: any) {
   font-style: italic;
 }
 
-/* ── Track ── */
 .tl-track {
   position: relative;
   display: flex;
@@ -1330,7 +1313,6 @@ async function confirmDelete(entity: any) {
   flex-shrink: 0;
 }
 
-/* Spine line */
 .tl-track::before {
   content: '';
   position: absolute;
@@ -1343,7 +1325,6 @@ async function confirmDelete(entity: any) {
   pointer-events: none;
 }
 
-/* ── Individual event column ── */
 .tl-event {
   position: relative;
   width: 180px;
@@ -1351,7 +1332,6 @@ async function confirmDelete(entity: any) {
   cursor: pointer;
 }
 
-/* Node (dot on spine) */
 .tl-node {
   position: absolute;
   left: calc(50% - 5px);
@@ -1365,7 +1345,6 @@ async function confirmDelete(entity: any) {
 }
 .tl-event:hover .tl-node { transform: scale(1.5); }
 
-/* Stem (dashed vertical connector) */
 .tl-stem {
   position: absolute;
   left: calc(50% - 0.5px);
@@ -1382,7 +1361,6 @@ async function confirmDelete(entity: any) {
   height: 28px;
 }
 
-/* Card */
 .tl-card {
   position: absolute;
   left: 50%;
@@ -1402,9 +1380,8 @@ async function confirmDelete(entity: any) {
   box-shadow: 0 2px 12px rgba(28, 20, 16, 0.12);
 }
 
-/* Card sits above spine for even-index, below for odd */
 .tl-event--above .tl-card {
-  bottom: calc(50% + 34px);   /* node-half(5) + stem(28) + gap(1) */
+  bottom: calc(50% + 34px);
 }
 .tl-event--below .tl-card {
   top: calc(50% + 34px);
@@ -1454,7 +1431,6 @@ async function confirmDelete(entity: any) {
   align-self: flex-start;
 }
 
-/* Scroll hint */
 .tl-scroll-hint {
   text-align: center;
   font-family: var(--font-body);
@@ -1466,5 +1442,4 @@ async function confirmDelete(entity: any) {
   flex-shrink: 0;
   user-select: none;
 }
-
 </style>
