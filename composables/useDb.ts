@@ -206,6 +206,9 @@ export const dbApi = {
       const db = getDb()
       return db.campaigns.orderBy('updated_at').reverse().toArray()
     },
+    async get(id: number) {
+      return getDb().campaigns.get(id)
+    },
     async create(data: { name: string; description?: string }) {
       const db = getDb()
       const ts = now()
@@ -508,6 +511,10 @@ export const dbApi = {
       let q = db.records.where('systemId').equals(systemId)
       const all = await q.toArray()
       return entityTypeId ? all.filter(r => r.entityTypeId === entityTypeId) : all
+    },
+    async search(query: string, limit = 5) {
+      const lq = query.toLowerCase()
+      return getDb().records.filter(r => r.name.toLowerCase().includes(lq)).limit(limit).toArray()
     },
     async get(id: number) {
       return getDb().records.get(id)

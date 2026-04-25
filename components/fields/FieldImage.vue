@@ -14,6 +14,7 @@ import type { FieldSchema } from '~/types/entities'
 defineProps<{ field: FieldSchema; value: any; mode: 'view' | 'edit' }>()
 const emit = defineEmits<{ update: [any] }>()
 async function browse() {
+  // window.dmstome used for file dialog / IPC only
   const dataUrl = await window.dmstome.system.openFileDialog()
   if (dataUrl) emit('update', dataUrl)
 }

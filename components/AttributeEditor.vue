@@ -223,6 +223,7 @@ function addTag() {
 }
 function removeTag(i: number) { set('tags', currentTags.value.filter((_, idx) => idx !== i)) }
 async function browseImage(sourceKey: string, typeKey: string) {
+  // window.dmstome used for file dialog / IPC only
   const dataUrl = await window.dmstome.system.openFileDialog()
   if (dataUrl) emit('update:modelValue', { ...props.modelValue, [sourceKey]: dataUrl, [typeKey]: 'file' })
 }

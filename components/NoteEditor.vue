@@ -388,16 +388,17 @@
 </template>
 
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import * as GiIcons from 'oh-vue-icons/icons/gi'
 import { useNotesStore } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
-import { renderEntityRefs, extractLinks } from '~/composables/useEntityParser'
+import { extractLinks } from '~/composables/useEntityParser'
+import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
 import { useDiceRoll } from '~/composables/useDiceRoll'
 import { getDb } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityAttributes } from '~/types/entities'
+
+const { renderMarkdown } = useEntityMarkdown()
 
 // ── Icon helpers ─────────────────────────────────────────────────────────────
 function giNameToExport(name: string): string {
@@ -463,52 +464,6 @@ watch(() => props.campaignId, async (id) => {
   systemRecordCache.value = cache
 }, { immediate: true })
 
-const md = new MarkdownIt({ html: false, linkify: true, typographer: true, breaks: true })
-
-// ── Inline: ~~strikethrough~~
-md.inline.ruler.after('backticks', 'strikethrough', (state: any, silent: boolean) => {
-  const src = state.src
-  const start = state.pos
-  if (src.charCodeAt(start) !== 0x7E || src.charCodeAt(start + 1) !== 0x7E) return false
-  const end = src.indexOf('~~', start + 2)
-  if (end < 0 || end === start + 2) return false
-  if (!silent) {
-    const max = state.posMax
-    state.push('s_open', 's', 1)
-    state.pos = start + 2
-    state.posMax = end
-    state.md.inline.tokenize(state)
-    state.push('s_close', 's', -1)
-    state.pos = end + 2
-    state.posMax = max
-  } else {
-    state.pos = end + 2
-  }
-  return true
-})
-
-// ── Inline: ==highlight==
-md.inline.ruler.after('backticks', 'highlight_mark', (state: any, silent: boolean) => {
-  const src = state.src
-  const start = state.pos
-  if (src.charCodeAt(start) !== 0x3D || src.charCodeAt(start + 1) !== 0x3D) return false
-  const end = src.indexOf('==', start + 2)
-  if (end < 0 || end === start + 2) return false
-  if (!silent) {
-    const max = state.posMax
-    state.push('mark_open', 'mark', 1)
-    state.pos = start + 2
-    state.posMax = end
-    state.md.inline.tokenize(state)
-    state.push('mark_close', 'mark', -1)
-    state.pos = end + 2
-    state.posMax = max
-  } else {
-    state.pos = end + 2
-  }
-  return true
-})
-
 // ── Post-processing: task lists + callouts
 const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
   note:      { color: '#5b8ee6', icon: 'ℹ️' },
@@ -545,7 +500,6 @@ ${body ? `<div class="callout-body">${body}</div>` : ''}
 }
 
 const entity = computed(() => store.entities.find(e => e.id === props.entityId) ?? store.currentEntity)
-const isPreview = computed(() => viewMode.value === 'preview')
 const viewMode = ref<'edit' | 'preview' | 'split'>('preview')
 const isEditingName = ref(false)
 const activePanel = ref<'content' | 'attributes'>('content')
@@ -569,14 +523,6 @@ const typeColorMap: Record<string, string> = {
 const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--ink-faded)')
 const typeLabel = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.label ?? '')
 
-const entityImage = computed(() => {
-  const attrs = entity.value?.attributes as any
-  if (!attrs) return null
-  const src = attrs.portraitSource || attrs.imageSource
-  if (!src) return null
-  return src
-})
-
 const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0, isScript: false })
 
 const sessionModes = [
@@ -594,8 +540,14 @@ const renderedScript = computed(() => {
     ? ((entity.value?.attributes as any)?.scriptContent ?? '')
     : draftScript.value
   if (!script) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
-  const html = postProcessHtml(md.render(script))
-  return DOMPurify.sanitize(renderEntityRefs(html, entityLookup, systemEntityTypes.value.map(t => t.id)), { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
+  return renderMarkdown(script, {
+    rich: true,
+    postProcess: postProcessHtml,
+    entityLookup,
+    extraTypes: systemEntityTypes.value.map(t => t.id),
+    allowTaskLists: true,
+    allowLocalFileUris: true,
+  })
 })
 
 function onScriptInput() {
@@ -662,9 +614,14 @@ function entityLookup(type: string, name: string): { imageUrl?: string; iconHtml
 const renderedContent = computed(() => {
   const content = props.side === 'preview' ? (entity.value?.content ?? '') : draftContent.value
   if (!content) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
-  const html = postProcessHtml(md.render(content))
-  const withRefs = renderEntityRefs(html, entityLookup, systemEntityTypes.value.map(t => t.id))
-  return DOMPurify.sanitize(withRefs, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class', 'type', 'checked', 'disabled'], ADD_URI_SAFE_ATTR: ['src'], ALLOWED_URI_REGEXP: /^(?:(?:https?|local-file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i })
+  return renderMarkdown(content, {
+    rich: true,
+    postProcess: postProcessHtml,
+    entityLookup,
+    extraTypes: systemEntityTypes.value.map(t => t.id),
+    allowTaskLists: true,
+    allowLocalFileUris: true,
+  })
 })
 
 function linkAvatar(type: string, name: string): { imageUrl: string | null; iconName: string; color: string } {
@@ -1030,7 +987,7 @@ async function confirmDelete() {
   position: absolute;
   bottom: 8px;
   left: 24px;
-  z-index: 100;
+  z-index: var(--z-sidebar);
   background: var(--parch-dark);
   border: 1px solid var(--ink-ghost);
   border-radius: 8px;

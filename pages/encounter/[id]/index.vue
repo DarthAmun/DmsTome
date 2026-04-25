@@ -101,7 +101,7 @@
                 <span style="color: var(--ink)">{{ encounter?.gridSize ?? 70 }}px</span>
                 <span>200px</span>
               </div>
-              <label class="f-label mt-2">Offset X</label>
+              <label class="f-label enc-offset-label">Offset X</label>
               <InputNumber
                 :model-value="encounter?.gridOffsetX ?? 0"
                 @update:model-value="(val) => onOffsetChange('x', val)"
@@ -263,7 +263,7 @@
                           <div
                             class="order-hp-fill"
                             :style="{
-                              width: Math.max(0, Math.min(100, ((token.hpCurrent ?? 0) / token.hpMax) * 100)) + '%',
+                              width: hpPercent(token) + '%',
                               background: hpBarColor(token),
                             }"
                           />
@@ -556,8 +556,12 @@
 import { useEncounterStore } from "~/stores/encounter";
 import type { EncounterToken } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
-import { dbApi, getDb } from "~/composables/useDb";
+import { dbApi } from "~/composables/useDb";
 import { useSystemsStore } from "~/stores/systems";
+import { useConditionPanel } from "~/composables/useConditionPanel";
+import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
+
+const { extractStatsFromData, getCombatantTypes } = useStatBlockLinker();
 
 const route = useRoute();
 const store = useEncounterStore();
@@ -637,52 +641,17 @@ const filteredLinkRecords = computed(() =>
 
 async function openLinkModal(tokenId: number) {
   if (!store.current) return;
-  // Load campaign to find system_id
-  const campaign = await getDb().campaigns.get(store.current.campaignId);
+  const campaign = await dbApi.campaigns.get(store.current.campaignId);
   const systemId: number | null | undefined = (campaign as any)?.system_id;
-  if (!systemId) return; // no linked system — skip modal
+  if (!systemId) return;
 
   linkCampaignSystemId.value = systemId;
-  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll();
-  const sys = systemsStore.getSystem(systemId);
-  if (!sys) return;
-
-  // Find entity types that look like combatants — check key AND label for HP/AC hints.
-  // Fall back to ALL entity types if none match, so custom key names still work.
-  const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i;
-  const AC_RE = /\b(ac|armou?r.?class|armor)\b/i;
-  const NON_COMBAT = /\b(condition|spell|item|feat|trait|skill|background|ancestry)\b/i;
-  const allTypes: any[] = sys.entityTypes ?? [];
-  let creatureTypeIds: string[] = allTypes
-    .filter((et: any) => {
-      const fields: any[] = et.fields ?? [];
-      return fields.some((f: any) =>
-        HP_RE.test(f.key) || HP_RE.test(f.label ?? '') ||
-        AC_RE.test(f.key) || AC_RE.test(f.label ?? '')
-      );
-    })
-    .map((et: any) => et.id);
-
-  // Fallback: show all non-utility types so custom field keys still work
-  if (!creatureTypeIds.length) {
-    creatureTypeIds = allTypes
-      .filter((et: any) => !NON_COMBAT.test(et.name ?? '') && !NON_COMBAT.test(et.id ?? ''))
-      .map((et: any) => et.id);
-  }
-  // Last resort: show everything
-  if (!creatureTypeIds.length) {
-    creatureTypeIds = allTypes.map((et: any) => et.id);
-  }
+  const creatureTypeIds = await getCombatantTypes(systemId);
   if (!creatureTypeIds.length) return;
 
-  // Load all records of creature types for this system
-  const db = getDb();
   const rows: any[] = [];
   for (const typeId of creatureTypeIds) {
-    const recs = await db.records
-      .where('systemId').equals(systemId)
-      .filter((r: any) => r.entityTypeId === typeId)
-      .toArray();
+    const recs = await dbApi.records.list(systemId, typeId);
     rows.push(...recs);
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -696,86 +665,23 @@ async function openLinkModal(tokenId: number) {
 
 async function confirmLink() {
   if (!linkSelectedId.value || !linkPendingTokenId.value) return;
-  const db = getDb();
-  const rec = await db.records.get(linkSelectedId.value);
+  const rec = await dbApi.records.get(linkSelectedId.value);
   if (!rec) return;
 
   const data: Record<string, any> =
     typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : (rec.data ?? {});
 
-  // Extract HP — try known keys first, then scan all fields by label
-  let hpCurrent: number | null = null;
-  let hpMax: number | null = null;
-  const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i;
-  const AC_RE = /\b(ac|armou?r.?class|armor)\b/i;
-
-  // Get entity type field metadata for label-based fallback
   if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll();
   const recSys = systemsStore.getSystem(rec.systemId);
   const recEt: any = recSys?.entityTypes?.find((et: any) => et.id === rec.entityTypeId);
-  const recFields: any[] = recEt?.fields ?? [];
-
-  function extractStatValue(data: Record<string, any>, keyRe: RegExp): number | null {
-    // 1. Try well-known keys by regex on key name
-    for (const k of Object.keys(data)) {
-      if (keyRe.test(k)) {
-        const raw = data[k];
-        if (raw && typeof raw === 'object' && 'max' in raw) return Number(raw.max) || null;
-        const n = Number(raw);
-        return !isNaN(n) && n > 0 ? n : null;
-      }
-    }
-    // 2. Try by field label from entity type schema
-    for (const f of recFields) {
-      if (keyRe.test(f.label ?? '')) {
-        const raw = data[f.key];
-        if (raw === undefined || raw === null) continue;
-        if (raw && typeof raw === 'object' && 'max' in raw) return Number(raw.max) || null;
-        const n = Number(raw);
-        return !isNaN(n) && n > 0 ? n : null;
-      }
-    }
-    return null;
-  }
-
-  function extractHp(data: Record<string, any>): { current: number | null; max: number | null } {
-    for (const k of Object.keys(data)) {
-      if (HP_RE.test(k)) {
-        const raw = data[k];
-        if (raw && typeof raw === 'object' && 'max' in raw) {
-          return { max: Number(raw.max) || null, current: Number(raw.current ?? raw.max) || null };
-        }
-        const n = Number(raw);
-        if (!isNaN(n) && n > 0) return { max: n, current: n };
-      }
-    }
-    for (const f of recFields) {
-      if (HP_RE.test(f.label ?? '')) {
-        const raw = data[f.key];
-        if (raw === undefined || raw === null) continue;
-        if (raw && typeof raw === 'object' && 'max' in raw) {
-          return { max: Number(raw.max) || null, current: Number(raw.current ?? raw.max) || null };
-        }
-        const n = Number(raw);
-        if (!isNaN(n) && n > 0) return { max: n, current: n };
-      }
-    }
-    return { max: null, current: null };
-  }
-
-  const hpResult = extractHp(data);
-  hpMax = hpResult.max;
-  hpCurrent = hpResult.current;
-
-  // Extract AC
-  let ac: number | null = extractStatValue(data, AC_RE);
+  const stats = extractStatsFromData(data, recEt?.fields ?? []);
 
   const token = store.current?.tokens.find(t => t.id === linkPendingTokenId.value);
   const updates: Record<string, any> = { linkedRecordId: rec.id };
-  if (hpMax !== null) { updates.hpMax = hpMax; updates.hpCurrent = hpCurrent; }
+  if (stats.hpMax !== null) { updates.hpMax = stats.hpMax; updates.hpCurrent = stats.hpCurrent; }
+  // Note: ac is intentionally not synced here — matches prior behavior.
   if (!token?.label) updates.label = rec.name;
 
-  // Extract conditions if present
   if (Array.isArray(data.conditions) && data.conditions.length) {
     updates.conditions = data.conditions.map((c: any) =>
       typeof c === 'string' ? { name: c, value: null } : c
@@ -791,8 +697,7 @@ async function confirmLink() {
 const recordPanel = ref<{ open: boolean; record: any; entityType: any; systemId: number } | null>(null);
 
 async function openRecordPanel(recordId: number) {
-  const db = getDb();
-  const rec = await db.records.get(recordId);
+  const rec = await dbApi.records.get(recordId);
   if (!rec) return;
   if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll();
   const sys = systemsStore.getSystem(rec.systemId);
@@ -813,15 +718,12 @@ function onConditionUpdate(tokenId: number, conditions: any[]) {
 }
 
 // ── Condition reference panel ──────────────────────────────────────────────
-const conditionPanelOpen = ref(false);
-const conditionPanelName = ref('');
-const conditionPanelValue = ref<number | null>(null);
-
-function openConditionPanel(name: string, value: number | null = null) {
-  conditionPanelName.value = name;
-  conditionPanelValue.value = value;
-  conditionPanelOpen.value = true;
-}
+const {
+  conditionPanelOpen,
+  conditionPanelName,
+  conditionPanelValue,
+  openCondition: openConditionPanel,
+} = useConditionPanel();
 
 // ── Context menu ──────────────────────────────────────────────────────────
 const ctxMenu = reactive({
@@ -947,12 +849,17 @@ async function onTokenEdit(tokenId: number, changes: Partial<EncounterToken>) {
 const rightTab = ref<'tokens' | 'log'>('tokens');
 const activeTab = ref<'order' | 'log'>('order');
 
+function hpPercent(token: any): number {
+  return token.hpMax
+    ? Math.max(0, Math.min(100, Math.round((token.hpCurrent ?? 0) / token.hpMax * 100)))
+    : 0;
+}
+
 function hpBarColor(token: any): string {
-  if (!token.hpMax) return '#4a8f5a';
-  const pct = (token.hpCurrent ?? 0) / token.hpMax;
-  if (pct >= 0.5) return '#4a8f5a';
-  if (pct >= 0.25) return '#b8860b';
-  return '#8b1a1a';
+  const pct = hpPercent(token);
+  if (!token.hpMax || pct >= 50) return 'var(--grass)';
+  if (pct >= 25) return 'var(--gold)';
+  return 'var(--blood)';
 }
 
 // ── Combat log UI ─────────────────────────────────────────────────────────
@@ -1029,7 +936,7 @@ onMounted(async () => {
   mode.value = (localStorage.getItem(MODE_KEY.value) as any) ?? 'prepare';
 
   // Load campaign's linked system id for the token edit modal
-  const camp = await getDb().campaigns.get(store.current!.campaignId);
+  const camp = await dbApi.campaigns.get(store.current!.campaignId);
   if ((camp as any)?.system_id) {
     linkCampaignSystemId.value = (camp as any).system_id;
   }
@@ -1401,7 +1308,7 @@ function getImageUrl(token: any): string {
   border-left: 1px solid var(--parch-line);
 }
 
-/* Section headers — like chapter subheadings */
+/* overrides main.css — intentional: dark-chrome defaults swapped for parchment theme */
 .sidebar-section {
   padding: 12px 14px;
   border-bottom: 1px dashed var(--parch-line);
@@ -1414,7 +1321,6 @@ function getImageUrl(token: any): string {
   margin-bottom: 10px;
 }
 
-/* Labels — matches all other parchment pages */
 .f-label {
   display: block;
   font-family: var(--font-head);
@@ -1549,7 +1455,7 @@ function getImageUrl(token: any): string {
 .token-card-btns .icon-btn-sq.init-roll-btn { color: var(--gold); opacity: 0.5; }
 .token-card-btns .icon-btn-sq.init-roll-btn:hover { opacity: 1; }
 
-/* Single shared token-row style */
+/* overrides main.css — intentional: parchment theme (main.css has dark-chrome variant) */
 .token-chip,
 .encounter-token-row {
   display: flex;
@@ -1694,36 +1600,8 @@ function getImageUrl(token: any): string {
   gap: 8px;
 }
 
-.space-y-1 {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.space-y-2 {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mt-2 {
+.enc-offset-label {
   margin-top: 6px;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-.min-w-0 {
-  min-width: 0;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.justify-center {
-  justify-content: center;
 }
 
 /* ── Conditions ── */
@@ -1759,59 +1637,6 @@ function getImageUrl(token: any): string {
 .enc-range { width: 100%; accent-color: var(--gold); }
 .enc-token-detail { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink); }
 
-.condition-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 2px;
-  border: 1px solid var(--arcane);
-  color: var(--arcane-l);
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.condition-tag-name {
-  cursor: pointer;
-  border-radius: 2px;
-  padding: 0 1px;
-}
-.condition-tag-name:hover { text-decoration: underline; opacity: 0.8; }
-
-.condition-value-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.cond-ctrl-btn {
-  background: none;
-  border: none;
-  color: var(--arcane-l);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0 2px;
-  line-height: 1;
-}
-
-.condition-remove {
-  background: none;
-  border: none;
-  color: var(--ink-ghost);
-  cursor: pointer;
-  font-size: 10px;
-  padding: 0;
-  line-height: 1;
-  transition: color 0.15s;
-}
-
-.condition-remove:hover {
-  color: var(--blood);
-}
-
 /* ── Add Token modal ── */
 .modal-overlay {
   position: fixed;
@@ -1821,7 +1646,7 @@ function getImageUrl(token: any): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
 }
 
 .modal-box {
@@ -1931,7 +1756,7 @@ function getImageUrl(token: any): string {
   border-radius: 40px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   pointer-events: all;
-  z-index: 20;
+  z-index: var(--z-overlay);
 }
 
 .map-tool-btn {
@@ -2215,32 +2040,6 @@ function getImageUrl(token: any): string {
   padding: 10px 16px 14px;
   border-top: 1px solid var(--parch-line);
 }
-.link-btn {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 6px 16px;
-  border-radius: 999px;
-  border: 1px solid;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.link-btn--skip {
-  background: none;
-  color: var(--ink-ghost);
-  border-color: var(--parch-line);
-}
-.link-btn--skip:hover { color: var(--ink); border-color: var(--ink-ghost); }
-.link-btn--link {
-  background: rgba(184,134,11,0.12);
-  color: var(--gold);
-  border-color: rgba(184,134,11,0.4);
-}
-.link-btn--link:hover:not(:disabled) { background: rgba(184,134,11,0.22); border-color: var(--gold); }
-.link-btn--link:disabled { opacity: 0.35; cursor: not-allowed; }
-
 /* ── Record slide-in panel ── */
 .record-panel {
   position: fixed;
@@ -2248,7 +2047,7 @@ function getImageUrl(token: any): string {
   right: 0;
   bottom: 0;
   width: 360px;
-  z-index: 500;
+  z-index: var(--z-modal);
   background-color: var(--parch);
   background-image: var(--paper);
   background-blend-mode: multiply;
@@ -2414,11 +2213,11 @@ function getImageUrl(token: any): string {
 }
 .log-event { flex: 1; }
 .log-event--damage        { color: var(--blood); }
-.log-event--healing       { color: #4a8f5a; }
+.log-event--healing       { color: var(--grass); }
 .log-event--condition-added  { color: var(--arcane-l, #9f7abf); }
 .log-event--condition-removed { color: var(--ink-ghost); }
 .log-event--death         { color: var(--blood); font-weight: 700; }
-.log-event--revival       { color: #4a8f5a; }
+.log-event--revival       { color: var(--grass); }
 .log-event--note          { color: var(--ink-faded); font-style: italic; }
 
 .log-footer {
@@ -2598,7 +2397,7 @@ function getImageUrl(token: any): string {
 /* ── Floating initiative input ── */
 .init-float-wrap {
   position: fixed;
-  z-index: 601;
+  z-index: var(--z-modal);
   background-color: var(--parch);
   background-image: var(--paper);
   background-blend-mode: multiply;

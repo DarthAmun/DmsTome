@@ -1,5 +1,6 @@
-export type EntityType = 'note' | 'npc' | 'item' | 'location' | 'faction' | 'quest' | 'event' | 'session'
+export type EntityType = 'session' | 'note' | 'npc' | 'item' | 'location' | 'faction' | 'quest' | 'event' 
 
+// Shape reference — used via EntityAttributes union
 export interface NpcAttributes {
   portraitSource?: string
   portraitType?: 'file' | 'url'
@@ -18,6 +19,7 @@ export interface MapPin {
   hidden?: boolean  // DM-only: hide this pin from the player view
 }
 
+// Shape reference — used via EntityAttributes union
 export interface LocationAttributes {
   imageSource?: string       // map image
   imageType?: 'file' | 'url'
@@ -28,6 +30,7 @@ export interface LocationAttributes {
   mapPins?: MapPin[]
 }
 
+// Shape reference — used via EntityAttributes union
 export interface ItemAttributes {
   imageSource?: string
   imageType?: 'file' | 'url'
@@ -38,6 +41,7 @@ export interface ItemAttributes {
   value?: string
 }
 
+// Shape reference — used via EntityAttributes union
 export interface FactionAttributes {
   imageSource?: string
   imageType?: 'file' | 'url'
@@ -47,18 +51,21 @@ export interface FactionAttributes {
   headquartersName?: string
 }
 
+// Shape reference — used via EntityAttributes union
 export interface QuestAttributes {
   status?: 'active' | 'completed' | 'failed' | 'dormant'
   questGiver?: string
   reward?: string
 }
 
+// Shape reference — used via EntityAttributes union
 export interface EventAttributes {
   date?: string
   location?: string
   significance?: 'minor' | 'major' | 'critical'
 }
 
+// Shape reference — used via EntityAttributes union
 export interface SessionAttributes {
   mode?: 'planning' | 'running' | 'finished'
   sessionNumber?: string
@@ -67,11 +74,13 @@ export interface SessionAttributes {
   notesContent?: string    // live notes taken during session
 }
 
+// Shape reference — used via EntityAttributes union
 export interface NoteAttributes {
   icon?: string
   tags?: string[]
 }
 
+// Shape reference — used via EntityAttributes union
 export interface PinnedLocation {
   locationEntityId: number
   locationName: string
@@ -87,6 +96,7 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   color: string
   defaultIcon: string
 }> = {
+  session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
   note:     { label: 'Note',     plural: 'Notes',     color: '#6b9fe8', defaultIcon: 'gi-scroll-unfurled' },
   npc:      { label: 'NPC',      plural: 'NPCs',      color: '#7cc44e', defaultIcon: 'gi-person' },
   item:     { label: 'Item',     plural: 'Items',     color: '#ebbd34', defaultIcon: 'gi-open-treasure-chest' },
@@ -94,8 +104,7 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   faction:  { label: 'Faction',  plural: 'Factions',  color: '#e05555', defaultIcon: 'gi-american-shield' },
   quest:    { label: 'Quest',    plural: 'Quests',    color: '#e8924a', defaultIcon: 'gi-holy-grail' },
   event:    { label: 'Event',    plural: 'Events',    color: '#4ab8e8', defaultIcon: 'gi-sands-of-time' },
-  session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
-}
+ }
 
 // Note icon picker — all verified to exist
 export const NOTE_ICONS = [

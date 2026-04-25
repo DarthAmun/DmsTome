@@ -104,7 +104,7 @@ watch(
   box-shadow: -4px 0 24px rgba(0,0,0,.35);
   display: flex;
   flex-direction: column;
-  z-index: 1100;
+  z-index: var(--z-modal-top);
   overflow-y: auto;
 }
 

@@ -104,12 +104,12 @@ function onKey(e: KeyboardEvent) {
 .ctx-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 599;
+  z-index: var(--z-modal);
 }
 
 .ctx-menu {
   position: fixed;
-  z-index: 600;
+  z-index: var(--z-modal);
   min-width: 180px;
   background-color: var(--parch);
   background-image: var(--paper);

@@ -80,9 +80,9 @@
 
 
 <script setup lang="ts">
-import { dbApi, getDb } from '~/composables/useDb'
+import { dbApi } from '~/composables/useDb'
 const route = useRoute()
-const id = route.params.id
+const id = Number(route.params.id)
 const name = ref('')
 const desc = ref('')
 const linkedSystemId = ref<number | null>(null)
@@ -90,20 +90,20 @@ const availableSystems = ref<Array<{ id: number; name: string }>>([])
 
 onMounted(async () => {
   const camps = await dbApi.campaigns.list()
-  const c = camps.find((x: any) => x.id === Number(id))
+  const c = camps.find((x: any) => x.id === id)
   name.value = c?.name ?? ''
   desc.value = c?.description ?? ''
   linkedSystemId.value = (c as any)?.system_id ?? null
 
-  const sys = await getDb().systems.toArray()
-  availableSystems.value = sys.map(s => ({ id: s.id!, name: s.name }))
+  const sys = await dbApi.systems.list()
+  availableSystems.value = sys.map((s: any) => ({ id: s.id!, name: s.name }))
 })
 
 async function setLinkedSystem(e: Event) {
   const val = (e.target as HTMLSelectElement).value
   const sysId = val ? Number(val) : null
   linkedSystemId.value = sysId
-  await dbApi.campaigns.update(Number(id), { system_id: sysId })
+  await dbApi.campaigns.update(id, { system_id: sysId })
 }
 </script>
 
@@ -186,7 +186,7 @@ async function setLinkedSystem(e: Event) {
   gap: 3px;
   margin-top: 6px;
   font-size: 11px;
-  color: #4a8f5a;
+  color: var(--grass);
   font-family: var(--font-ui);
 }
 </style>

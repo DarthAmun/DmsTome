@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { dbApi, getDb } from '~/composables/useDb'
+import { dbApi } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import { useNotesStore } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
@@ -193,7 +193,6 @@ watch(query, (val) => {
 
 async function runSearch(q: string) {
   const lq = q.toLowerCase()
-  const db = getDb()
 
   // Campaigns
   const allCampaigns = await dbApi.campaigns.list()
@@ -202,29 +201,28 @@ async function runSearch(q: string) {
     .slice(0, 5)
     .map((c: any) => ({ kind: 'campaign', id: c.id, name: c.name }))
 
-  // Entities — use loaded store if available, else fall back to DB
-  let entityRows: any[] = []
+  // Entities — use loaded store if available, else fall back to DB (normalized to camelCase)
+  let entityRows: Array<{ id: number; name: string; type: string; campaignId: number }> = []
   const activeCampaignId = extractCampaignId()
   if (activeCampaignId && notesStore.entities.length) {
-    entityRows = notesStore.entities
+    entityRows = notesStore.entities.map(e => ({ id: e.id, name: e.name, type: e.type, campaignId: e.campaignId }))
   } else if (activeCampaignId) {
-    entityRows = await dbApi.entities.list(activeCampaignId)
+    const rows = await dbApi.entities.list(activeCampaignId)
+    entityRows = rows.map((r: any) => ({ id: r.id, name: r.name, type: r.type, campaignId: r.campaign_id }))
   }
   const entities: SearchResult[] = entityRows
-    .filter((e: any) => e.name.toLowerCase().includes(lq) || e.type.toLowerCase().includes(lq))
+    .filter(e => e.name.toLowerCase().includes(lq) || e.type.toLowerCase().includes(lq))
     .slice(0, 5)
-    .map((e: any) => ({
+    .map(e => ({
       kind: 'entity',
       id: e.id,
       name: e.name,
       type: e.type,
-      campaignId: e.campaignId ?? e.campaign_id,
+      campaignId: e.campaignId,
     }))
 
   // Records — search across all systems
-  const allRecords = await db.records.filter((r) =>
-    r.name.toLowerCase().includes(lq)
-  ).limit(5).toArray()
+  const allRecords = await dbApi.records.search(lq, 5)
   const records: SearchResult[] = await Promise.all(
     allRecords.map(async (r) => {
       const sys = systemsStore.getSystem(r.systemId)
@@ -320,7 +318,7 @@ if (import.meta.client) {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  z-index: 200;
+  z-index: var(--z-sidebar);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -348,7 +346,6 @@ if (import.meta.client) {
   width: 560px;
   max-width: 94vw;
   padding: 0;
-  overflow: hidden;
 }
 
 /* Input row */

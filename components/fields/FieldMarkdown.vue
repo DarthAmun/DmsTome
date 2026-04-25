@@ -11,12 +11,10 @@
 </template>
 
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
 import { useRouter } from 'vue-router'
-import { renderEntityRefs } from '~/composables/useEntityParser'
 import { useSystemsStore } from '~/stores/systems'
 import { getDb } from '~/composables/useDb'
+import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
 import type { FieldSchema } from '~/types/entities'
 
 const props = defineProps<{
@@ -29,7 +27,7 @@ defineEmits<{ update: [any] }>()
 
 const router = useRouter()
 const systemsStore = useSystemsStore()
-const md = new MarkdownIt({ html: false, linkify: true })
+const { renderMarkdown } = useEntityMarkdown()
 
 const system = computed(() => props.systemId ? systemsStore.getSystem(props.systemId) : null)
 const entityTypeIds = computed(() => system.value?.entityTypes.map(t => t.id) ?? [])
@@ -55,15 +53,12 @@ function sysLookup(type: string, name: string) {
   return { color }
 }
 
-const rendered = computed(() => {
-  const raw = md.render(props.value || '')
-  const withRefs = entityTypeIds.value.length
-    ? renderEntityRefs(raw, sysLookup, entityTypeIds.value)
-    : raw
-  return DOMPurify.sanitize(withRefs, {
-    ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class'],
+const rendered = computed(() =>
+  renderMarkdown(props.value || '', {
+    entityLookup: entityTypeIds.value.length ? sysLookup : undefined,
+    extraTypes: entityTypeIds.value.length ? entityTypeIds.value : undefined,
   })
-})
+)
 
 function onLinkClick(e: MouseEvent) {
   const target = e.target as HTMLElement

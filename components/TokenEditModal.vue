@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open && token" class="pv-dialog-mask" style="z-index:1050" @click.self="$emit('close')">
+    <div v-if="open && token" class="pv-dialog-mask" style="z-index:var(--z-modal-top)" @click.self="$emit('close')">
       <div class="pv-dialog tem-dialog" @keydown.esc="$emit('close')">
 
         <!-- Header -->
@@ -147,6 +147,9 @@
 import type { EncounterToken, TokenCondition } from '~/stores/encounter'
 import { getDb } from '~/composables/useDb'
 import { useSystemsStore } from '~/stores/systems'
+import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
+
+const { extractStatsFromData } = useStatBlockLinker()
 
 const props = defineProps<{
   token: EncounterToken | null
@@ -269,32 +272,6 @@ const tokenSizeOptions = [
   { label: '4×4 (gargantuan)', value: 4 },
 ]
 
-// Pull HP/AC from a linked record's data if syncHpAc is checked
-function extractFromRecord(data: Record<string, any>): { hpCurrent: number | null; hpMax: number | null; ac: number | null } {
-  const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i
-  const AC_RE = /\b(ac|armou?r.?class|armor)\b/i
-  let hpMax: number | null = null
-  let hpCurrent: number | null = null
-  let ac: number | null = null
-
-  for (const [k, v] of Object.entries(data)) {
-    if (HP_RE.test(k)) {
-      if (v && typeof v === 'object' && 'max' in v) {
-        hpMax = Number(v.max) || null
-        hpCurrent = Number((v as any).current ?? v.max) || null
-      } else {
-        const n = Number(v)
-        if (!isNaN(n) && n > 0) { hpMax = n; hpCurrent = n }
-      }
-    }
-    if (AC_RE.test(k)) {
-      const n = Number(v)
-      if (!isNaN(n) && n > 0) ac = n
-    }
-  }
-  return { hpMax, hpCurrent, ac }
-}
-
 function save() {
   if (!props.token) return
   const changes: Partial<EncounterToken> = {}
@@ -313,7 +290,7 @@ function save() {
     const data: Record<string, any> = typeof pendingLink.value.data === 'string'
       ? JSON.parse(pendingLink.value.data || '{}')
       : (pendingLink.value.data ?? {})
-    const extracted = extractFromRecord(data)
+    const extracted = extractStatsFromData(data)
     if (extracted.hpMax !== null) {
       changes.hpMax = extracted.hpMax
       changes.hpCurrent = extracted.hpCurrent

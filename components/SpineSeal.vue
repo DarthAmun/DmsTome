@@ -17,7 +17,7 @@ const { public: { version } } = useRuntimeConfig()
   gap: 8px;
   padding: 12px 7px 14px;
   width: 46px;
-  border-bottom: 1px solid rgba(184,134,11,0.25);
+  border-bottom: 1px solid rgba(184,134,11,0.25); /* = var(--gold) at 25% opacity */
   margin-bottom: -1px; /* collapse with first tab's top border */
 }
 
@@ -37,6 +37,6 @@ const { public: { version } } = useRuntimeConfig()
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(232,220,197,0.7);
+  color: rgba(232,220,197,0.7); /* parchment-on-dark, translucent */
 }
 </style>

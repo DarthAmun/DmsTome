@@ -38,7 +38,7 @@ const emit = defineEmits<{ update: [any] }>()
 const current = computed(() => props.value?.current ?? 0)
 const maximum = computed(() => props.value?.max ?? (props.field.config.defaultMax ?? 10))
 const pct = computed(() => maximum.value > 0 ? Math.max(0, Math.min(100, (current.value / maximum.value) * 100)) : 0)
-const barColor = computed(() => pct.value > 50 ? '#4a7a38' : pct.value > 25 ? '#b8860b' : '#8b1a1a')
+const barColor = computed(() => pct.value > 50 ? 'var(--grass)' : pct.value > 25 ? 'var(--gold)' : 'var(--blood)')
 
 const editingCurrent = ref(false)
 const editingMax = ref(false)
@@ -63,7 +63,7 @@ function setMax(v: number) {
 <style scoped>
 .f-tracker { display:flex;align-items:center;gap:10px; }
 .f-track-btn { width:28px;height:28px;border-radius:50%;background:var(--parch-dark);border:1px solid var(--parch-line);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s; }
-.f-track-btn:hover:not(:disabled) { background:rgba(28,20,16,0.08); }
+.f-track-btn:hover:not(:disabled) { background:rgba(28,20,16,0.08); /* = var(--ink) at 8% opacity */ }
 .f-track-btn:disabled { opacity:0.3;cursor:not-allowed; }
 .f-track-display { display:flex;align-items:baseline;gap:4px; }
 .f-track-cur { font-family: var(--font-display);font-size:22px;font-weight:800;color:var(--ink);cursor:pointer;min-width:28px;text-align:center; }

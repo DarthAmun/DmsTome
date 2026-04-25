@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+// window.dmstome used for file dialog / IPC only
 import { useEncounterCanvas, type ShapeOverlay } from '../../../composables/useEncounterCanvas'
 import { useEncounterStore } from '~/stores/encounter'
 
@@ -128,7 +129,7 @@ onUnmounted(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #08080f;
+  background: var(--void);
 }
 
 .player-overlay {
@@ -143,9 +144,9 @@ onUnmounted(() => {
   position: absolute;
   top: 16px;
   right: 16px;
-  background: rgba(4, 3, 8, 0.6);
+  background: rgba(4, 3, 8, 0.6); /* translucent void */
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(184, 134, 11, 0.22);
+  border: 1px solid rgba(184, 134, 11, 0.22); /* = var(--gold) at 22% opacity */
   border-radius: 3px;
   padding: 8px 12px;
   min-width: 152px;
@@ -158,11 +159,11 @@ onUnmounted(() => {
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(184, 134, 11, 0.75);
+  color: rgba(184, 134, 11, 0.75); /* = var(--gold) at 75% opacity */
   text-align: center;
   padding-bottom: 5px;
   margin-bottom: 4px;
-  border-bottom: 1px solid rgba(184, 134, 11, 0.15);
+  border-bottom: 1px solid rgba(184, 134, 11, 0.15); /* = var(--gold) at 15% opacity */
 }
 .init-tracker-row {
   display: flex;
@@ -174,28 +175,28 @@ onUnmounted(() => {
 .init-tracker-row--active { opacity: 1; }
 .init-tracker-arrow {
   font-size: 7px;
-  color: rgba(184, 134, 11, 0.9);
+  color: rgba(184, 134, 11, 0.9); /* = var(--gold) at 90% opacity */
   width: 8px;
   flex-shrink: 0;
 }
 .init-tracker-init {
   font-family: monospace;
   font-size: 9px;
-  color: rgba(184, 134, 11, 0.8);
+  color: rgba(184, 134, 11, 0.8); /* = var(--gold) at 80% opacity */
   width: 18px;
   text-align: right;
   flex-shrink: 0;
 }
 .init-tracker-name {
   font-size: 11px;
-  color: rgba(232, 220, 197, 0.75);
+  color: rgba(232, 220, 197, 0.75); /* parchment-on-dark, translucent */
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .init-tracker-row--active .init-tracker-name {
-  color: rgba(232, 220, 197, 1);
+  color: rgba(232, 220, 197, 1); /* parchment-on-dark, opaque */
   font-weight: 500;
 }
 </style>

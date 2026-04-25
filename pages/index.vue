@@ -33,6 +33,7 @@
                     <div class="entry-top">
                       <span class="entry-name">{{ c.name }}</span>
                       <span class="entry-leader" />
+                      <!-- c.updated_at: raw DB snake_case field (dbApi.campaigns.list does not normalize) -->
                       <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                       <div class="entry-actions" @click.stop>
                         <button class="entry-act" @click.stop="startEditCampaign(c)">
@@ -169,6 +170,7 @@
                       <div class="entry-top">
                         <span class="entry-name">{{ c.name }}</span>
                         <span class="entry-leader" />
+                        <!-- c.updated_at: raw DB snake_case field (dbApi.campaigns.list does not normalize) -->
                         <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
                         <div class="entry-actions" @click.stop>
                           <button class="entry-act" @click.stop="startEditCampaign(c)">
@@ -409,7 +411,10 @@
 
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
-import { dbApi, getDb } from '~/composables/useDb'
+import { dbApi } from '~/composables/useDb'
+import { useFormatters } from '~/composables/useFormatters'
+
+const { formatDate } = useFormatters()
 
 const router = useRouter()
 const store = useSystemsStore()
@@ -452,7 +457,7 @@ function openCampaign(c: any) { router.push(`/campaign/${c.id}`) }
 async function createCampaign() {
   if (!newCamp.value.name.trim()) return
   const c = await dbApi.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
-  if (newCamp.value.systemId) { await getDb().campaigns.update(c.id, { system_id: newCamp.value.systemId }); c.system_id = newCamp.value.systemId }
+  if (newCamp.value.systemId) { await dbApi.campaigns.update(c.id, { system_id: newCamp.value.systemId }); c.system_id = newCamp.value.systemId }
   campaigns.value.unshift(c)
   newCamp.value = { name: '', description: '', systemId: null }
   showNew.value = false
@@ -511,13 +516,12 @@ async function deleteSystem(id: number) {
 }
 
 
-function formatDate(dt: string) {
-  if (!dt) return ''
-  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 </script>
 
 <style scoped>
+/* Note: some classes below (.book-shell, .tome-page, .page-content, .entry,
+   .entry-icon, .entry-name, .entry-date, .leaf-footer, .leaf-new) override
+   main.css defaults — intentional, tuned for the home spread layout. */
 .book-shell {
   display: flex;
   height: 100vh;
@@ -619,42 +623,6 @@ function formatDate(dt: string) {
   cursor: pointer;
   padding: 4px 0;
   margin-bottom: 8px;
-}
-
-.leaf-new-line-l {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--ink-ghost));
-}
-
-.leaf-new-line-r {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to left, transparent, var(--ink-ghost));
-}
-
-.leaf-new-label {
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: color 0.2s;
-}
-
-.leaf-new:hover .leaf-new-label {
-  color: var(--blood);
-}
-
-.leaf-new:hover .leaf-new-line-l {
-  background: linear-gradient(to right, transparent, var(--blood));
-}
-
-.leaf-new:hover .leaf-new-line-r {
-  background: linear-gradient(to left, transparent, var(--blood));
 }
 
 .leaf-footer {

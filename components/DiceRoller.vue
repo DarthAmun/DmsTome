@@ -315,7 +315,7 @@ onUnmounted(() => {
 /* ── Floating button ─────────────────────────────────────────── */
 .dice-fab {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-fab);
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -353,7 +353,7 @@ onUnmounted(() => {
 /* ── Panel ───────────────────────────────────────────────────── */
 .dice-panel {
   position: fixed;
-  z-index: 999;
+  z-index: calc(var(--z-fab) - 1);
   width: 300px;
   background: var(--parch-dark, #1c140e);
   border: 1px solid rgba(184,134,11,0.3);

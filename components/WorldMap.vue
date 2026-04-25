@@ -194,6 +194,7 @@
 </template>
 
 <script setup lang="ts">
+// window.dmstome used for file dialog / IPC only
 import { useNotesStore } from '~/stores/notes'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import { extractLinks } from '~/composables/useEntityParser'
@@ -445,10 +446,6 @@ async function openLoadMap() {
 }
 
 // Helpers
-const allEntities = computed(() =>
-  store.entities.filter(e => e.campaignId === props.campaignId)
-)
-
 function pinEntity(id: number) {
   return store.entities.find(e => e.id === id) ?? null
 }
@@ -577,11 +574,11 @@ onUnmounted(() => {
   position: absolute;
   transform-origin: 50% 100%;
   display: flex; flex-direction: column; align-items: center;
-  cursor: pointer; z-index: 10;
+  cursor: pointer; z-index: var(--z-overlay);
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
   transition: filter 0.15s;
 }
-.map-pin:hover { filter: drop-shadow(0 3px 10px rgba(0,0,0,0.7)) brightness(1.1); z-index: 20; }
+.map-pin:hover { filter: drop-shadow(0 3px 10px rgba(0,0,0,0.7)) brightness(1.1); z-index: calc(var(--z-overlay) + 10); }
 .pin-avatar {
   width: 36px; height: 36px; border-radius: 50%;
   border: 2px solid; overflow: hidden;
@@ -624,7 +621,7 @@ onUnmounted(() => {
 
 /* Preview popup */
 .pin-preview-overlay {
-  position: absolute; inset: 0; z-index: 100;
+  position: absolute; inset: 0; z-index: var(--z-sidebar);
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
 }

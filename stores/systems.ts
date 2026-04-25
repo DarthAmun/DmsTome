@@ -14,80 +14,102 @@ export const useSystemsStore = defineStore('systems', () => {
     try {
       const rows = await getDb().systems.orderBy('updatedAt').reverse().toArray()
       systems.value = rows.map(normalizeSystem)
+    } catch (err) {
+      console.error('[SystemsStore] loadAll:', err)
     } finally {
       isLoading.value = false
     }
   }
 
   async function createSystem(data: { name: string; shortId: string; description?: string }) {
-    const schema: SystemSchema = {
-      name: data.name,
-      shortId: data.shortId,
-      description: data.description ?? '',
-      version: '1.0',
-      entityTypes: [],
+    try {
+      const schema: SystemSchema = {
+        name: data.name,
+        shortId: data.shortId,
+        description: data.description ?? '',
+        version: '1.0',
+        entityTypes: [],
+      }
+      const ts = new Date().toISOString()
+      const id = await getDb().systems.add({
+        name: schema.name,
+        shortId: schema.shortId,
+        description: schema.description,
+        version: schema.version,
+        entityTypes: JSON.stringify([]),
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      const created = await getDb().systems.get(id)
+      const sys = normalizeSystem(created!)
+      systems.value.unshift(sys)
+      return sys
+    } catch (err) {
+      console.error('[SystemsStore] createSystem:', err)
+      throw err
     }
-    const ts = new Date().toISOString()
-    const id = await getDb().systems.add({
-      name: schema.name,
-      shortId: schema.shortId,
-      description: schema.description,
-      version: schema.version,
-      entityTypes: JSON.stringify([]),
-      createdAt: ts,
-      updatedAt: ts,
-    })
-    const created = await getDb().systems.get(id)
-    const sys = normalizeSystem(created!)
-    systems.value.unshift(sys)
-    return sys
   }
 
   async function updateSystem(id: number, updates: Partial<SystemSchema>) {
-    const ts = new Date().toISOString()
-    const payload: any = { updatedAt: ts }
-    if (updates.name !== undefined) payload.name = updates.name
-    if (updates.shortId !== undefined) payload.shortId = updates.shortId
-    if (updates.description !== undefined) payload.description = updates.description
-    if (updates.version !== undefined) payload.version = updates.version
-    if (updates.entityTypes !== undefined) payload.entityTypes = JSON.stringify(updates.entityTypes)
+    try {
+      const ts = new Date().toISOString()
+      const payload: any = { updatedAt: ts }
+      if (updates.name !== undefined) payload.name = updates.name
+      if (updates.shortId !== undefined) payload.shortId = updates.shortId
+      if (updates.description !== undefined) payload.description = updates.description
+      if (updates.version !== undefined) payload.version = updates.version
+      if (updates.entityTypes !== undefined) payload.entityTypes = JSON.stringify(updates.entityTypes)
 
-    // Update in-memory immediately so computed values derived from the store
-    // (e.g. cardFields in [typeId].vue) reflect the change without waiting for the DB round-trip
-    const idx = systems.value.findIndex(s => s.id === id)
-    if (idx >= 0) {
-      systems.value[idx] = normalizeSystem({ ...toRaw(systems.value[idx]), ...payload })
+      // Update in-memory immediately so computed values derived from the store
+      // (e.g. cardFields in [typeId].vue) reflect the change without waiting for the DB round-trip
+      const idx = systems.value.findIndex(s => s.id === id)
+      if (idx >= 0) {
+        systems.value[idx] = normalizeSystem({ ...toRaw(systems.value[idx]), ...payload })
+      }
+
+      await getDb().systems.update(id, payload)
+      // Reconcile with DB-confirmed data (handles any normalisation differences)
+      const confirmed = normalizeSystem((await getDb().systems.get(id))!)
+      if (idx >= 0) systems.value[idx] = confirmed
+      return confirmed
+    } catch (err) {
+      console.error('[SystemsStore] updateSystem:', err)
+      throw err
     }
-
-    await getDb().systems.update(id, payload)
-    // Reconcile with DB-confirmed data (handles any normalisation differences)
-    const confirmed = normalizeSystem((await getDb().systems.get(id))!)
-    if (idx >= 0) systems.value[idx] = confirmed
-    return confirmed
   }
 
   async function deleteSystem(id: number) {
-    await getDb().systems.delete(id)
-    await getDb().records.where('systemId').equals(id).delete()
-    systems.value = systems.value.filter(s => s.id !== id)
+    try {
+      await getDb().systems.delete(id)
+      await getDb().records.where('systemId').equals(id).delete()
+      systems.value = systems.value.filter(s => s.id !== id)
+    } catch (err) {
+      console.error('[SystemsStore] deleteSystem:', err)
+      throw err
+    }
   }
 
   // Import a system from JSON (schema only, no records)
   async function importSystem(json: string) {
-    const schema = JSON.parse(json) as SystemSchema
-    const ts = new Date().toISOString()
-    const id = await getDb().systems.add({
-      name: schema.name,
-      shortId: schema.shortId,
-      description: schema.description,
-      version: schema.version,
-      entityTypes: JSON.stringify(schema.entityTypes ?? []),
-      createdAt: ts,
-      updatedAt: ts,
-    })
-    const created = normalizeSystem((await getDb().systems.get(id))!)
-    systems.value.unshift(created)
-    return created
+    try {
+      const schema = JSON.parse(json) as SystemSchema
+      const ts = new Date().toISOString()
+      const id = await getDb().systems.add({
+        name: schema.name,
+        shortId: schema.shortId,
+        description: schema.description,
+        version: schema.version,
+        entityTypes: JSON.stringify(schema.entityTypes ?? []),
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      const created = normalizeSystem((await getDb().systems.get(id))!)
+      systems.value.unshift(created)
+      return created
+    } catch (err) {
+      console.error('[SystemsStore] importSystem:', err)
+      throw err
+    }
   }
 
   function exportSystem(id: number): string {

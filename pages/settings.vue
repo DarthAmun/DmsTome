@@ -288,6 +288,7 @@
 </template>
 
 <script setup lang="ts">
+// Uses getDb() directly for bulk import operations not covered by dbApi
 import JSZip from 'jszip'
 import { getDb, dbApi } from '~/composables/useDb'
 import type { ImportSection, EntityTypeRow, LogLine } from '../components/ImportModal.vue'
@@ -476,6 +477,7 @@ const progressDone     = ref(0)
 const progressTotal    = ref(0)
 
 async function openImport(e: Event, _expectedType: string) {
+  // payload is untyped — validated below in buildImportSections
   const payload = await readJson(e)
   if (!payload) return
   // markRaw prevents Vue from wrapping the payload in a Proxy,

@@ -32,7 +32,7 @@
                 <div class="entry-top">
                   <span class="entry-name">{{ enc.name }}</span>
                   <span class="entry-leader" />
-                  <span class="entry-date">{{ formatDate(enc.updated_at) }}</span>
+                  <span class="entry-date">{{ formatDate(enc.updatedAt) }}</span>
                   <div class="entry-actions" @click.stop>
                     <button class="entry-act" title="Clone encounter" @click.stop="cloneEncounter(enc.id)">
                       <OhVueIcon name="md-contentcopy" scale="0.75" />
@@ -93,6 +93,9 @@
 
 <script setup lang="ts">
 import { dbApi } from '~/composables/useDb'
+import { useFormatters } from '~/composables/useFormatters'
+
+const { formatDateShort: formatDate } = useFormatters()
 
 const route = useRoute()
 const router = useRouter()
@@ -119,7 +122,15 @@ onMounted(async () => {
 })
 
 async function loadEncounters() {
-  encounters.value = await dbApi.encounters.list(campaignId)
+  const rows = await dbApi.encounters.list(campaignId)
+  // Normalize raw DB snake_case to camelCase for template reads
+  encounters.value = rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    updatedAt: r.updated_at,
+    createdAt: r.created_at,
+  }))
 }
 
 function openEncounter(enc: any) {
@@ -166,10 +177,6 @@ async function deleteEncounter(id: number) {
   await loadEncounters()
 }
 
-function formatDate(dt: string) {
-  if (!dt) return ''
-  return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
 </script>
 
 <style scoped>
@@ -208,9 +215,10 @@ function formatDate(dt: string) {
 .entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
 .entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
 .entry:hover .entry-actions { opacity: 1; }
-.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); /* = var(--ink) at 6% */ border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
 
+/* .ea-bool* rgba values: = var(--gold)/var(--blood)/var(--ink) at 5–30% opacity */
 .ea-bool { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px 2px 5px; border-radius: 2px; color: var(--gold); background: rgba(184,134,11,0.08); border: 1px solid rgba(184,134,11,0.3); flex-shrink: 0; }
 .ea-bool--danger { color: var(--blood); background: rgba(139,26,26,0.08); border-color: rgba(139,26,26,0.3); }
 .ea-bool--muted  { color: var(--ink-ghost); background: rgba(28,20,16,0.05); border-color: rgba(28,20,16,0.15); }

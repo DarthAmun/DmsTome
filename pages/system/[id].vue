@@ -38,12 +38,6 @@ const systemId = Number(route.params.id)
 
 const system = computed(() => systemsStore.getSystem(systemId))
 const entityTypes = computed(() => system.value?.entityTypes ?? [])
-const sectionLabel = computed(() => {
-  if (route.path.includes('/builder')) return '/ Builder'
-  const typeId = route.params.typeId as string
-  if (typeId) return '/ ' + (entityTypes.value.find(t => t.id === typeId)?.plural ?? typeId)
-  return ''
-})
 
 function isActiveType(id: string) {
   return route.params.typeId === id

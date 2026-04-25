@@ -140,7 +140,7 @@ function onMagicClick(e: MouseEvent) {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 99999;
+  z-index: var(--z-top);
   overflow: hidden;
 }
 
@@ -150,7 +150,7 @@ function onMagicClick(e: MouseEvent) {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 200;
+  z-index: var(--z-sidebar);
   display: flex;
   align-items: center;
   gap: 8px;

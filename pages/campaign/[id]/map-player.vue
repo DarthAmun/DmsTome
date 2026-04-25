@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+// window.dmstome used for file dialog / IPC only
 import { useNotesStore } from '~/stores/notes'
 
 const route = useRoute()
@@ -50,7 +51,7 @@ onUnmounted(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #0a0a0f;
+  background: var(--void);
 }
 
 .map-waiting {
@@ -59,7 +60,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.3); /* translucent white on void — no variable */
 }
 
 .map-waiting-text {

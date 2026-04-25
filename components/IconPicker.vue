@@ -204,7 +204,7 @@ function select(name: string) {
   font-size: 13px; font-family: var(--font-ui);
   width: 100%; transition: all 0.15s;
 }
-.icon-trigger:hover { background: rgba(28,20,16,0.08); }
+.icon-trigger:hover { background: rgba(28,20,16,0.08); /* = var(--ink) at 8% opacity */ }
 .icon-trigger-name { font-size: 12px; color: var(--ink-ghost); flex: 1; text-align: left; }
 
 /* ── Dropdown ── */
@@ -215,9 +215,9 @@ function select(name: string) {
   border-radius: 3px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2),
               inset 0 1px 0 rgba(255,255,255,0.06);
-  z-index: 200; display: flex; flex-direction: column; overflow: hidden;
+  z-index: var(--z-sidebar); display: flex; flex-direction: column; overflow: hidden;
 }
-.icon-backdrop { position: fixed; inset: 0; z-index: 199; }
+.icon-backdrop { position: fixed; inset: 0; z-index: calc(var(--z-sidebar) - 1); }
 
 /* ── Search ── */
 .icon-search-wrap {
@@ -251,7 +251,7 @@ function select(name: string) {
   transition: all 0.15s; position: relative;
 }
 .icon-cat:last-child { border-right: none; }
-.icon-cat:hover { color: var(--ink); background: rgba(28,20,16,0.04); }
+.icon-cat:hover { color: var(--ink); background: rgba(28,20,16,0.04); /* = var(--ink) at 4% opacity */ }
 .icon-cat.active {
   color: var(--blood); background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
   border-bottom: 2px solid var(--blood);

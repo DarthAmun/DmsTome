@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { dbApi } from '~/composables/useDb'
+import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 
 export interface CombatLogEntry {
   id: number
@@ -71,16 +72,11 @@ export const useEncounterStore = defineStore('encounter', () => {
   const tokenLibrary = ref<Token[]>([])
   const isLoading = ref(false)
   const playerWindowOpen = ref(false)
-  const isDmMode = ref(true)
-  const shapeOverlays = ref<any[]>([])
+  const shapeOverlays = ref<ShapeOverlay[]>([])
   const currentTurnIndex = ref(0)
   const roundNumber = ref(1)
 
   // ── Computed ───────────────────────────────────────────────────────────────
-  const visibleTokens = computed(() =>
-    current.value?.tokens.filter(t => t.isVisible) ?? []
-  )
-
   const allTokens = computed(() => current.value?.tokens ?? [])
 
   // Tokens that participate in turn order: visible and alive, sorted by initiative descending
@@ -115,19 +111,25 @@ export const useEncounterStore = defineStore('encounter', () => {
         campaignId: data.campaign_id,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
+    } catch (err) {
+      console.error('[EncounterStore] loadEncounter:', err)
     } finally {
       isLoading.value = false
     }
   }
 
   async function loadTokenLibrary() {
-    const items = await dbApi.tokens.list()
-    tokenLibrary.value = items.map(t => ({
-      id: t.id!,
-      name: t.name,
-      imageSource: t.image_source,
-      imageType: t.image_type,
-    }))
+    try {
+      const items = await dbApi.tokens.list()
+      tokenLibrary.value = items.map(t => ({
+        id: t.id!,
+        name: t.name,
+        imageSource: t.image_source,
+        imageType: t.image_type,
+      }))
+    } catch (err) {
+      console.error('[EncounterStore] loadTokenLibrary:', err)
+    }
   }
 
   // ── Actions — Map ──────────────────────────────────────────────────────────
@@ -163,39 +165,32 @@ export const useEncounterStore = defineStore('encounter', () => {
     syncToPlayer()
   }
 
-  async function revealAllFog() {
-    if (!current.value) return
-    current.value.fogData = {}  // no _allHidden = nothing drawn = all visible
-    await persistFog()
-    syncToPlayer()
-  }
-
-  async function hideAllFog() {
-    if (!current.value) return
-    // We'll compute all cells from grid dimensions — store as a sparse "all hidden" marker
-    current.value.fogData = { _allHidden: 'hidden' } as any
-    await persistFog()
-    syncToPlayer()
-  }
-
   async function persistFog() {
     if (!current.value) return
-    await dbApi.encounters.update({ id: current.value.id, fog_data: JSON.stringify(current.value.fogData) })
+    try {
+      await dbApi.encounters.update({ id: current.value.id, fog_data: JSON.stringify(current.value.fogData) })
+    } catch (err) {
+      console.error('[EncounterStore] persistFog:', err)
+    }
   }
 
   // ── Actions — Tokens ──────────────────────────────────────────────────────
   async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number) {
     if (!current.value) return
-    const result = await dbApi.encounterTokens.add({
-      encounterId: current.value.id,
-      tokenId,
-      gridX,
-      gridY,
-      size: 1,
-      isVisible: 1,
-    })
-    current.value.tokens.push(normalizeToken(result))
-    syncToPlayer()
+    try {
+      const result = await dbApi.encounterTokens.add({
+        encounterId: current.value.id,
+        tokenId,
+        gridX,
+        gridY,
+        size: 1,
+        isVisible: 1,
+      })
+      current.value.tokens.push(normalizeToken(result))
+      syncToPlayer()
+    } catch (err) {
+      console.error('[EncounterStore] addTokenToEncounter:', err)
+    }
   }
 
   async function moveToken(instanceId: number, gridX: number, gridY: number) {
@@ -277,25 +272,38 @@ export const useEncounterStore = defineStore('encounter', () => {
 
   async function persistCombatLog() {
     if (!current.value) return
-    await dbApi.encounters.update({ id: current.value.id, combat_log: JSON.stringify(current.value.combatLog) })
+    try {
+      await dbApi.encounters.update({ id: current.value.id, combat_log: JSON.stringify(current.value.combatLog) })
+    } catch (err) {
+      console.error('[EncounterStore] persistCombatLog:', err)
+    }
   }
 
   async function removeToken(instanceId: number) {
     if (!current.value) return
-    current.value.tokens = current.value.tokens.filter(t => t.id !== instanceId)
-    await dbApi.encounterTokens.remove(instanceId)
-    syncToPlayer()
+    try {
+      current.value.tokens = current.value.tokens.filter(t => t.id !== instanceId)
+      await dbApi.encounterTokens.remove(instanceId)
+      syncToPlayer()
+    } catch (err) {
+      console.error('[EncounterStore] removeToken:', err)
+    }
   }
 
   async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url') {
-    const token = await dbApi.tokens.create({ name, imageSource, imageType })
-    tokenLibrary.value.push({
-      id: token!.id!,
-      name: token!.name,
-      imageSource: token!.image_source,
-      imageType: token!.image_type,
-    })
-    return token
+    try {
+      const token = await dbApi.tokens.create({ name, imageSource, imageType })
+      tokenLibrary.value.push({
+        id: token!.id!,
+        name: token!.name,
+        imageSource: token!.image_source,
+        imageType: token!.image_type,
+      })
+      return token
+    } catch (err) {
+      console.error('[EncounterStore] addToLibrary:', err)
+      return null
+    }
   }
 
   // ── Actions — Windows ─────────────────────────────────────────────────────
@@ -311,7 +319,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     playerWindowOpen.value = false
   }
 
-  function setShapeOverlays(shapes: any[]) {
+  function setShapeOverlays(shapes: ShapeOverlay[]) {
     shapeOverlays.value = shapes
     syncToPlayer()
   }
@@ -360,14 +368,18 @@ export const useEncounterStore = defineStore('encounter', () => {
   // ── Helpers ────────────────────────────────────────────────────────────────
   async function persistEncounter() {
     if (!current.value) return
-    await dbApi.encounters.update({
-      id: current.value.id,
-      map_source: current.value.mapSource,
-      map_type: current.value.mapType,
-      grid_size: current.value.gridSize,
-      grid_offset_x: current.value.gridOffsetX,
-      grid_offset_y: current.value.gridOffsetY,
-    })
+    try {
+      await dbApi.encounters.update({
+        id: current.value.id,
+        map_source: current.value.mapSource,
+        map_type: current.value.mapType,
+        grid_size: current.value.gridSize,
+        grid_offset_x: current.value.gridOffsetX,
+        grid_offset_y: current.value.gridOffsetY,
+      })
+    } catch (err) {
+      console.error('[EncounterStore] persistEncounter:', err)
+    }
   }
 
   async function updateName(name: string) {
@@ -403,14 +415,14 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   return {
-    current, tokenLibrary, isLoading, playerWindowOpen, isDmMode,
+    current, tokenLibrary, isLoading, playerWindowOpen,
     currentTurnIndex, roundNumber, initiativeOrder,
-    visibleTokens, allTokens,
+    allTokens,
     loadEncounter, loadTokenLibrary,
     setMap, updateGrid, updateViewport, updateName,
-    setFogCell, revealAllFog, hideAllFog,
+    setFogCell,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
-    openPlayerWindow, closePlayerWindow, syncToPlayer, setShapeOverlays,
+    openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
     addLogNote, clearCombatLog,
   }

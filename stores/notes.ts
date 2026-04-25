@@ -48,60 +48,67 @@ export const useNotesStore = defineStore('notes', () => {
       ])
       entities.value = ents.map(normalize)
       links.value = lnks.map(normalizeLink)
+    } catch (err) {
+      console.error('[NotesStore] loadAll:', err)
     } finally {
       isLoading.value = false
     }
   }
 
   async function loadEntity(id: number) {
-    const raw = await dbApi.entities.get(id)
-    if (!raw) return null
-    currentEntity.value = normalize(raw)
-    return currentEntity.value
+    try {
+      const raw = await dbApi.entities.get(id)
+      if (!raw) return null
+      currentEntity.value = normalize(raw)
+      return currentEntity.value
+    } catch (err) {
+      console.error('[NotesStore] loadEntity:', err)
+      return null
+    }
   }
 
   async function createEntity(campaignId: number, type: EntityType, name: string) {
-    const raw = await dbApi.entities.create({ campaignId, type, name, content: '', attributes: '{}' })
-    const entity = normalize(raw)
-    entities.value.unshift(entity)
-    return entity
-  }
-
-  async function duplicateEntity(id: number) {
-    const source = entities.value.find(e => e.id === id)
-    if (!source) return
-    const raw = await dbApi.entities.create({
-      campaignId: source.campaignId,
-      type: source.type,
-      name: source.name + ' (Copy)',
-      content: source.content,
-      attributes: JSON.stringify(source.attributes),
-    })
-    const entity = normalize(raw)
-    entities.value.unshift(entity)
-    return entity
+    try {
+      const raw = await dbApi.entities.create({ campaignId, type, name, content: '', attributes: '{}' })
+      const entity = normalize(raw)
+      entities.value.unshift(entity)
+      return entity
+    } catch (err) {
+      console.error('[NotesStore] createEntity:', err)
+      throw err
+    }
   }
 
   async function updateEntity(id: number, updates: { name?: string; content?: string; attributes?: EntityAttributes }) {
-    const entity = entities.value.find(e => e.id === id)
-    if (entity) Object.assign(entity, updates)
-    if (currentEntity.value?.id === id) Object.assign(currentEntity.value, updates)
+    try {
+      const entity = entities.value.find(e => e.id === id)
+      if (entity) Object.assign(entity, updates)
+      if (currentEntity.value?.id === id) Object.assign(currentEntity.value, updates)
 
-    const payload: any = { id }
-    if (updates.name !== undefined) payload.name = updates.name
-    if (updates.content !== undefined) payload.content = updates.content
-    if (updates.attributes !== undefined) payload.attributes = JSON.stringify(updates.attributes)
+      const payload: any = { id }
+      if (updates.name !== undefined) payload.name = updates.name
+      if (updates.content !== undefined) payload.content = updates.content
+      if (updates.attributes !== undefined) payload.attributes = JSON.stringify(updates.attributes)
 
-    await dbApi.entities.update(payload)
+      await dbApi.entities.update(payload)
 
-    if (updates.content !== undefined) await syncLinks(id, updates.content)
+      if (updates.content !== undefined) await syncLinks(id, updates.content)
+    } catch (err) {
+      console.error('[NotesStore] updateEntity:', err)
+      throw err
+    }
   }
 
   async function deleteEntity(id: number) {
-    await dbApi.entities.delete(id)
-    entities.value = entities.value.filter(e => e.id !== id)
-    links.value = links.value.filter(l => l.sourceId !== id)
-    if (currentEntity.value?.id === id) currentEntity.value = null
+    try {
+      await dbApi.entities.delete(id)
+      entities.value = entities.value.filter(e => e.id !== id)
+      links.value = links.value.filter(l => l.sourceId !== id)
+      if (currentEntity.value?.id === id) currentEntity.value = null
+    } catch (err) {
+      console.error('[NotesStore] deleteEntity:', err)
+      throw err
+    }
   }
 
   async function syncLinks(entityId: number, content: string) {
@@ -192,7 +199,7 @@ export const useNotesStore = defineStore('notes', () => {
 
   return {
     entities, currentEntity, links, isLoading, byType,
-    loadAll, loadEntity, createEntity, duplicateEntity, updateEntity, deleteEntity,
+    loadAll, loadEntity, createEntity, updateEntity, deleteEntity,
     findByTypeAndName, linksFrom, backlinksTo, getGraphData, pinnedLocationsFor,
   }
 })

@@ -322,6 +322,7 @@ onUnmounted(() => { cy?.destroy() })
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
 
+/* Tooltip sits on Cytoscape's dark canvas — no parchment variables apply */
 .graph-tooltip {
   position: absolute;
   pointer-events: none;
@@ -329,7 +330,7 @@ onUnmounted(() => { cy?.destroy() })
   border: 1px solid #484848;
   border-radius: 8px;
   padding: 8px 12px;
-  z-index: 100;
+  z-index: var(--z-sidebar);
   max-width: 200px;
 }
 
@@ -341,7 +342,7 @@ onUnmounted(() => { cy?.destroy() })
 
 .tooltip-type {
   font-size: 11px;
-  color: #606060;
+  color: #606060; /* neutral gray for dark tooltip */
   font-family: 'DM Sans', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.06em;

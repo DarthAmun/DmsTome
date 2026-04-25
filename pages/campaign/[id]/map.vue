@@ -241,6 +241,9 @@
 import { useNotesStore } from "~/stores/notes";
 import { usePageChrome } from "~/composables/usePageChrome";
 import { dbApi } from "~/composables/useDb";
+import { useFormatters } from "~/composables/useFormatters";
+
+const { formatDateShort: formatDate } = useFormatters();
 
 const route = useRoute();
 const router = useRouter();
@@ -389,18 +392,6 @@ function locMap(loc: any): string | null {
 function pinCount(loc: any): number {
   return (locAttrs(loc).mapPins ?? []).length;
 }
-function formatDate(dt: string) {
-  if (!dt) return "";
-  const diff = Date.now() - new Date(dt).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(dt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
 </script>
 
 <style scoped>
@@ -432,7 +423,7 @@ function formatDate(dt: string) {
 
 .map-sheet-3 {
   inset: 10px 12px 8px 12px;
-  background-color: #b8ac96;
+  background-color: #b8ac96; /* aged-parchment sheet tint — no variable */
   background-image: var(--paper);
   background-blend-mode: multiply;
   transform: rotate(1.5deg) translateX(10px);
@@ -442,7 +433,7 @@ function formatDate(dt: string) {
 
 .map-sheet-2 {
   inset: 10px 12px 8px 12px;
-  background-color: #cdc09e;
+  background-color: #cdc09e; /* aged-parchment sheet tint — no variable */
   background-image: var(--paper);
   background-blend-mode: multiply;
   transform: rotate(-1.0deg) translateX(-8px);
@@ -473,7 +464,7 @@ function formatDate(dt: string) {
   background-blend-mode: multiply;
   border-bottom: 1px dashed var(--parch-line);
   flex-shrink: 0;
-  box-shadow: 0 1px 0 rgba(184, 134, 11, 0.18);
+  box-shadow: 0 1px 0 rgba(184, 134, 11, 0.18); /* = var(--gold) at 18% opacity */
 }
 
 .map-view-name {
@@ -492,6 +483,7 @@ function formatDate(dt: string) {
 }
 
 /* Open book spread */
+/* overrides main.css — intentional: .leaf-inner, .leaf-footer, .entry, .entry-icon, .entry-name, .entry-date tuned for map list */
 .leaf-inner {
   flex: 1;
   overflow-y: auto;
@@ -690,14 +682,14 @@ function formatDate(dt: string) {
   padding: 2px 7px 2px 5px;
   border-radius: 2px;
   color: var(--gold);
-  background: rgba(184, 134, 11, 0.08);
-  border: 1px solid rgba(184, 134, 11, 0.3);
+  background: rgba(184, 134, 11, 0.08); /* = var(--gold) at 8% opacity */
+  border: 1px solid rgba(184, 134, 11, 0.3); /* = var(--gold) at 30% opacity */
   flex-shrink: 0;
 }
 .ea-pins {
   color: var(--ink-faded);
-  background: rgba(28, 20, 16, 0.06);
-  border-color: rgba(28, 20, 16, 0.15);
+  background: rgba(28, 20, 16, 0.06); /* = var(--ink) at 6% opacity */
+  border-color: rgba(28, 20, 16, 0.15); /* = var(--ink) at 15% opacity */
 }
 
 /* Pagination footer */

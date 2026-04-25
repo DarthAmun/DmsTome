@@ -56,7 +56,13 @@
     </div>
 
     <!-- SESSION LOG (full width, sessions only) -->
-    <div v-else-if="viewMode === 'log' && activeType === 'session'" class="session-log">
+    <div v-else-if="viewMode === 'log' && activeType === 'session'" class="open-book">
+      <div class="book-stack book-stack--full">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--full">
+        <div class="session-log">
       <div v-if="!logSessions.length" class="slog-empty-state">
         <OhVueIcon name="gi-book-aura" scale="3" style="opacity:0.08;margin-bottom:12px" />
         <em>{{ search ? 'No sessions match your search' : 'No sessions recorded yet' }}</em>
@@ -99,11 +105,19 @@
           </button>
         </div>
       </div>
+        </div>
+        </div>
+      </div>
     </div>
 
     <!-- TIMELINE (full width, events only) -->
-    <div v-else-if="viewMode === 'timeline' && activeType === 'event'"
-      class="tl-outer" ref="timelineRef">
+    <div v-else-if="viewMode === 'timeline' && activeType === 'event'" class="open-book">
+      <div class="book-stack book-stack--full">
+        <div class="book-sheet-3"></div>
+        <div class="book-sheet-2"></div>
+        <div class="book-sheet-1"></div>
+        <div class="book-leaf book-leaf--full">
+        <div class="tl-outer" ref="timelineRef">
       <div v-if="!timelineEvents.length" class="tl-empty">
         <OhVueIcon name="gi-sands-of-time" scale="3" style="opacity:0.08;margin-bottom:12px" />
         <em>{{ search ? 'No events match your search' : 'No events recorded yet' }}</em>
@@ -129,6 +143,9 @@
         </div>
         <div v-if="timelineOverflows" class="tl-scroll-hint">← scroll →</div>
       </template>
+        </div>
+        </div>
+      </div>
     </div>
 
     <!-- OPEN BOOK — always visible (editor opens on right page) -->
@@ -351,6 +368,7 @@ import { useNotesStore } from '~/stores/notes'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
 import { getDb } from '~/composables/useDb'
+import { useConditionPanel } from '~/composables/useConditionPanel'
 
 const route = useRoute()
 const router = useRouter()
@@ -475,16 +493,13 @@ function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
 watch([activeType, search], () => { spreadPage.value = 0 })
 
 // ── Condition reference panel ──────────────────────────────────────────────
-const conditionPanelOpen = ref(false)
-const conditionPanelName = ref('')
-const conditionPanelValue = ref<number | null>(null)
+const {
+  conditionPanelOpen,
+  conditionPanelName,
+  conditionPanelValue,
+  openCondition: openConditionPanel,
+} = useConditionPanel()
 const campaignSystemId = ref<number | null>(null)
-
-function openConditionPanel(name: string, value: number | null = null) {
-  conditionPanelName.value = name
-  conditionPanelValue.value = value
-  conditionPanelOpen.value = true
-}
 
 onMounted(async () => {
   await store.loadAll(campaignId)
@@ -803,6 +818,7 @@ async function confirmDelete(entity: any) {
 }
 
 /* ── OPEN BOOK spread ── */
+/* overrides main.css — intentional: .leaf-inner and .leaf-footer tuned for notes layout */
 .leaf-inner {
   flex: 1;
   overflow-y: auto;
@@ -902,6 +918,7 @@ async function confirmDelete(entity: any) {
 }
 
 /* ── Entry list ── */
+/* overrides main.css — intentional: .entry, .entry-icon, .entry-name tuned for notes list */
 .entry {
   align-items: flex-start;
   border-left: 2px solid transparent;
@@ -1036,13 +1053,49 @@ async function confirmDelete(entity: any) {
 .entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
 
 /* ─── Session Log view ──────────────────────────────────────────── */
+/* ── Full-width spread (no two-page binding) — sheets peek on both sides ── */
+.book-stack--full {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: visible;
+}
+/* Aged-parchment sheet tints — match main.css book-stack--left/right */
+.book-stack--full .book-sheet-3 {
+  position: absolute;
+  top: 5px; bottom: 5px; left: -14px; right: -14px;
+  background-color: #b8ac96; /* aged-parchment sheet tint — no variable */
+  border-radius: 2px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.18), 0 0 8px rgba(0,0,0,0.18);
+  pointer-events: none;
+}
+.book-stack--full .book-sheet-2 {
+  position: absolute;
+  top: 3px; bottom: 3px; left: -9px; right: -9px;
+  background-color: #cdc09e; /* aged-parchment sheet tint — no variable */
+  border-radius: 2px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.12);
+  pointer-events: none;
+}
+.book-stack--full .book-sheet-1 {
+  position: absolute;
+  top: 1px; bottom: 1px; left: -5px; right: -5px;
+  background-color: #ddd0b5; /* aged-parchment sheet tint — no variable */
+  border-radius: 2px;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.08);
+  pointer-events: none;
+}
+.book-leaf--full {
+  border-radius: 2px;
+  box-shadow: inset 0 0 24px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.1);
+}
+
 .session-log {
   flex: 1;
   overflow-y: auto;
   padding: 24px 40px 40px;
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
 }
 
 .slog-empty-state {
@@ -1249,9 +1302,6 @@ async function confirmDelete(entity: any) {
   flex: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
   position: relative;
   display: flex;
   flex-direction: column;
