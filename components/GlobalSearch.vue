@@ -248,10 +248,13 @@ function navigate(item: SearchResult) {
   if (item.kind === 'campaign') {
     router.push(`/campaign/${item.id}`)
   } else if (item.kind === 'entity') {
-    router.push({
-      path: `/campaign/${item.campaignId}/notes`,
-      query: { type: item.type, id: String(item.id) },
-    })
+    const TYPE_PLURAL_ROUTE: Record<string, string> = {
+      npc: 'npcs', location: 'locations', item: 'items',
+      faction: 'factions', quest: 'quests', event: 'events',
+      session: 'sessions', note: 'notes',
+    }
+    const segment = TYPE_PLURAL_ROUTE[item.type ?? ''] ?? (item.type + 's')
+    router.push(`/campaign/${item.campaignId}/${segment}/${item.id}`)
   } else if (item.kind === 'record') {
     router.push(`/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`)
   }

@@ -16,7 +16,7 @@
           <div class="leaf-inner">
             <p v-if="desc" class="folio-intro"><em>{{ desc }}</em></p>
 
-            <NuxtLink :to="`/campaign/${id}/notes`" class="folio-chapter">
+            <NuxtLink :to="`/campaign/${id}/chronicle`" class="folio-chapter">
               <div class="folio-chapter-num">I</div>
               <div class="folio-chapter-body">
                 <div class="folio-chapter-name">The Chronicle</div>

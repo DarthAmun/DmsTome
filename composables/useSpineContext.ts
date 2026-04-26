@@ -42,17 +42,24 @@ export function useSpineContext() {
   )
 
   // ── Level 3 — current entity type ───────────────────────────
-  // Campaign context: /campaign/:id/notes/:type
+  // Campaign context: /campaign/:id/npcs, /campaign/:id/npcs/:entryId, etc.
   const campaignActiveType = computed(() => {
-    if (!route.path.includes('/notes/')) return null
-    const type = route.params.type as string
-    if (!type) return null
-    return type
+    const path = route.path
+    const TYPE_ROUTE_MAP: Record<string, string> = {
+      npcs: 'npc', locations: 'location', items: 'item',
+      factions: 'faction', quests: 'quest', events: 'event',
+      sessions: 'session', notes: 'note',
+    }
+    for (const [segment, type] of Object.entries(TYPE_ROUTE_MAP)) {
+      if (path.includes(`/${segment}`)) return type
+    }
+    return null
   })
 
   const campaignActiveTypeConfig = computed(() => {
     if (!campaignActiveType.value) return null
-    return ENTITY_TYPE_CONFIG[campaignActiveType.value as keyof typeof ENTITY_TYPE_CONFIG] ?? null
+    const config = ENTITY_TYPE_CONFIG[campaignActiveType.value as keyof typeof ENTITY_TYPE_CONFIG]
+    return config ?? null
   })
 
   // System context: /system/:id/:typeId (but not /builder or /library)
@@ -73,10 +80,11 @@ export function useSpineContext() {
   // ── Combined Level 3 ─────────────────────────────────────────
   const levelThree = computed(() => {
     if (campaignActiveTypeConfig.value) {
+      const config = campaignActiveTypeConfig.value
       return {
-        icon: campaignActiveTypeConfig.value.defaultIcon,
-        label: campaignActiveTypeConfig.value.plural,
-        color: campaignActiveTypeConfig.value.color,
+        icon: config.defaultIcon,
+        label: config.plural,
+        color: config.color,
         route: route.path,
       }
     }

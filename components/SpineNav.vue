@@ -16,15 +16,15 @@
     <!-- ── Level 2: Campaign sub-tabs ── -->
     <template v-if="ctx.showCampaignTabs.value">
       <NuxtLink
-        :to="`/campaign/${ctx.campaignId.value}/notes`"
+        :to="`/campaign/${ctx.campaignId.value}/chronicle`"
         class="spine-tab spine-tab--l2"
-        :class="{ active: route.path.includes('/notes') }"
+        :class="{ active: route.path.includes('/chronicle') || route.path.includes('/npcs') || route.path.includes('/locations') || route.path.includes('/items') || route.path.includes('/factions') || route.path.includes('/quests') || route.path.includes('/events') || route.path.includes('/sessions') || (route.path.includes('/notes') && !route.path.includes('/encounter')) }"
         title="Chronicle">
         <OhVueIcon name="gi-scroll-unfurled" scale="0.8" />
         <span class="spine-label">Chronicle</span>
       </NuxtLink>
 
-      <!-- Level 3: current note type (only on /notes/:type) -->
+      <!-- Level 3: current entity type -->
       <div v-if="ctx.levelThree.value"
         class="spine-tab spine-tab--l3 spine-tab--active-type"
         :style="{ '--tab-icon-color': ctx.levelThree.value.color }">
@@ -32,6 +32,14 @@
         <span class="spine-label">{{ ctx.levelThree.value.label }}</span>
       </div>
 
+      <NuxtLink
+        :to="`/campaign/${ctx.campaignId.value}/graph`"
+        class="spine-tab spine-tab--l2"
+        :class="{ active: route.path.includes('/graph') }"
+        title="Graph">
+        <OhVueIcon name="gi-all-seeing-eye" scale="0.8" />
+        <span class="spine-label">Graph</span>
+      </NuxtLink>
       <NuxtLink
         :to="`/campaign/${ctx.campaignId.value}/encounters`"
         class="spine-tab spine-tab--l2"

@@ -363,19 +363,24 @@ function onNavigateCrumb(index: number) {
   });
 }
 
+const TYPE_PLURAL_ROUTE: Record<string, string> = {
+  npc: 'npcs', location: 'locations', item: 'items',
+  faction: 'factions', quest: 'quests', event: 'events',
+  session: 'sessions', note: 'notes',
+}
+
 function openNotes(loc: any) {
-  router.push(`/campaign/${campaignId}/notes?id=${loc.id}&type=location`);
+  router.push(`/campaign/${campaignId}/locations/${loc.id}`);
 }
 
 async function createLocation() {
   const e = await store.createEntity(campaignId, "location", "New Location");
-  router.push(`/campaign/${campaignId}/notes?id=${e.id}&type=location`);
+  router.push(`/campaign/${campaignId}/locations/${e.id}`);
 }
 
 function navigateToEntity(entity: any) {
-  router.push(
-    `/campaign/${campaignId}/notes?id=${entity.id}&type=${entity.type}`,
-  );
+  const segment = TYPE_PLURAL_ROUTE[entity.type] ?? (entity.type + 's')
+  router.push(`/campaign/${campaignId}/${segment}/${entity.id}`)
 }
 
 function locAttrs(loc: any) {

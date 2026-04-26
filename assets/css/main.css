@@ -335,6 +335,32 @@ html, body, #__nuxt {
   box-shadow: inset 10px 0 24px rgba(0,0,0,0.07), -2px 0 6px rgba(0,0,0,0.08);
 }
 
+/* ── Full-width book stack (entry pages, timeline, log) ── */
+.book-stack--full {
+  position: relative;
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; overflow: visible;
+}
+.book-stack--full .book-sheet-3 {
+  position: absolute; top: 5px; bottom: 5px; left: -14px; right: -14px;
+  background-color: #b8ac96; border-radius: 2px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.18), 0 0 8px rgba(0,0,0,0.18);
+  pointer-events: none;
+}
+.book-stack--full .book-sheet-2 {
+  position: absolute; top: 3px; bottom: 3px; left: -9px; right: -9px;
+  background-color: #cdc09e; border-radius: 2px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.12); pointer-events: none;
+}
+.book-stack--full .book-sheet-1 {
+  position: absolute; top: 1px; bottom: 1px; left: -5px; right: -5px;
+  background-color: #ddd0b5; border-radius: 2px;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.08); pointer-events: none;
+}
+.book-leaf--full {
+  border-radius: 2px;
+  box-shadow: inset 0 0 24px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.1);
+}
 
 /* ── Binding — slim gold stitch ── */
 .book-binding {
@@ -410,6 +436,46 @@ html, body, #__nuxt {
   border-top: 1px dashed var(--parch-line);
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
 }
+
+/* ── Leaf header + metadata (entity list pages) ──────────────────── */
+.leaf-header {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 16px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--parch-line);
+}
+.leaf-header--right { justify-content: flex-end; }
+.leaf-type {
+  font-family: var(--font-head); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+}
+.leaf-count {
+  font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost);
+}
+.leaf-folio {
+  font-family: var(--font-head); font-size: 9px;
+  color: var(--ink-ghost); font-style: italic;
+}
+.leaf-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 0; color: var(--ink-ghost);
+  font-family: var(--font-body); font-size: 14px;
+  text-align: center; line-height: 1.7;
+}
+
+/* ── Entry action buttons (delete, etc.) ─────────────────────────── */
+.entry-actions {
+  display: flex; gap: 3px; opacity: 0;
+  transition: opacity 0.15s; flex-shrink: 0;
+}
+.entry:hover .entry-actions { opacity: 1; }
+.entry-act {
+  width: 20px; height: 20px; border-radius: 2px;
+  background: rgba(28,20,16,0.06); border: 1px solid transparent;
+  color: var(--ink-ghost); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); }
 
 /* Also apply texture to the main tome-page */
 .tome-page {
