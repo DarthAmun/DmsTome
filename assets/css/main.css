@@ -65,7 +65,12 @@
   --z-toast:     800;
   --z-fab:       1000;
   --z-top:       99999;
+
+  /* Bookmark ribbon height — toggled by JS via .bm-ribbon-active on body */
+  --bm-ribbon-height: 0px;
 }
+
+body.bm-ribbon-active { --bm-ribbon-height: 32px; }
 
 /* ── Selection ─────────────────────────────────────────────────── */
 ::selection { background: rgba(184,134,11,0.3); color: var(--ink); }
@@ -98,6 +103,7 @@ html, body, #__nuxt {
 .book-shell {
   display: flex;
   height: 100vh;
+  padding-top: var(--bm-ribbon-height);
   background: var(--leather);
   position: relative;
   overflow: hidden;

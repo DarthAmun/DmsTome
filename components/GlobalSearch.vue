@@ -30,7 +30,7 @@
               <!-- Campaigns -->
               <div v-if="results.campaigns.length" class="gs-group">
                 <div class="gs-group-label">Campaigns</div>
-                <button
+                <div
                   v-for="(item, i) in results.campaigns"
                   :key="`c-${item.id}`"
                   class="gs-result"
@@ -43,7 +43,15 @@
                   </span>
                   <span class="gs-result-name">{{ item.name }}</span>
                   <span class="gs-result-sub">Campaign</span>
-                </button>
+                  <div class="gs-result-actions" @click.stop>
+                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                    </button>
+                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                      <OhVueIcon name="md-openinnew" scale="0.75" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Entities -->
@@ -70,13 +78,21 @@
                     <span class="gs-result-name">{{ item.name }}</span>
                     <span class="gs-result-sub">{{ entityLabel(item.type) }}</span>
                   </template>
+                  <div class="gs-result-actions" @click.stop>
+                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                    </button>
+                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                      <OhVueIcon name="md-openinnew" scale="0.75" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <!-- Records -->
               <div v-if="results.records.length" class="gs-group">
                 <div class="gs-group-label">Records</div>
-                <button
+                <div
                   v-for="(item, i) in results.records"
                   :key="`r-${item.id}`"
                   class="gs-result"
@@ -89,7 +105,15 @@
                   </span>
                   <span class="gs-result-name">{{ item.name }}</span>
                   <span class="gs-result-sub">{{ item._subtitle }}</span>
-                </button>
+                  <div class="gs-result-actions" @click.stop>
+                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                    </button>
+                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                      <OhVueIcon name="md-openinnew" scale="0.75" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -111,6 +135,7 @@ import type { EntityType } from '~/types/entities'
 import { useNotesStore } from '~/stores/notes'
 import type { Entity } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
+import { useBookmarks } from '~/composables/useBookmarks'
 import NpcEntry      from '~/components/notes/NpcEntry.vue'
 import LocationEntry from '~/components/notes/LocationEntry.vue'
 import ItemEntry     from '~/components/notes/ItemEntry.vue'
@@ -128,6 +153,7 @@ const ENTRY_COMPONENTS: Record<EntityType, any> = {
 const router = useRouter()
 const notesStore = useNotesStore()
 const systemsStore = useSystemsStore()
+const { isBookmarked, bookmarkEntity, bookmarkRecord, bookmarkPage, removeBookmark, bookmarks } = useBookmarks()
 
 const { open } = useGlobalSearch()
 const query = ref('')
@@ -262,21 +288,45 @@ async function runSearch(q: string) {
 }
 
 
-function navigate(item: SearchResult) {
-  if (item.kind === 'campaign') {
-    router.push(`/campaign/${item.id}`)
-  } else if (item.kind === 'entity') {
-    const TYPE_PLURAL_ROUTE: Record<string, string> = {
-      npc: 'npcs', location: 'locations', item: 'items',
-      faction: 'factions', quest: 'quests', event: 'events',
-      session: 'sessions', note: 'notes',
-    }
+const TYPE_PLURAL_ROUTE: Record<string, string> = {
+  npc: 'npcs', location: 'locations', item: 'items',
+  faction: 'factions', quest: 'quests', event: 'events',
+  session: 'sessions', note: 'notes',
+}
+
+function getRoute(item: SearchResult): string {
+  if (item.kind === 'campaign') return `/campaign/${item.id}`
+  if (item.kind === 'entity') {
     const segment = TYPE_PLURAL_ROUTE[item.type ?? ''] ?? (item.type + 's')
-    router.push(`/campaign/${item.campaignId}/${segment}/${item.id}`)
-  } else if (item.kind === 'record') {
-    router.push(`/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`)
+    return `/campaign/${item.campaignId}/${segment}/${item.id}`
   }
+  if (item.kind === 'record') return `/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`
+  return '/'
+}
+
+function navigate(item: SearchResult) {
+  router.push(getRoute(item))
   close()
+}
+
+function popout(item: SearchResult) {
+  const r = getRoute(item)
+  const base = location.origin + location.pathname.replace(/\/+$/, '')
+  window.open(`${base}/#${r}`, '_blank', 'width=1024,height=768,menubar=no,toolbar=no,location=no')
+}
+
+function toggleResultBookmark(item: SearchResult) {
+  const r = getRoute(item)
+  if (isBookmarked(r)) {
+    const bm = bookmarks.value.find(b => b.route === r)
+    if (bm) removeBookmark(bm.id)
+  } else if (item.kind === 'entity' && item.entity) {
+    bookmarkEntity({ id: item.id, name: item.name, type: item.type ?? 'note', campaignId: item.campaignId ?? 0 })
+  } else if (item.kind === 'record') {
+    bookmarkRecord({ id: item.id, name: item.name, systemId: item.systemId ?? 0, entityTypeId: item.entityTypeId ?? '', icon: recordIcon(item), color: recordColor(item) })
+  } else if (item.kind === 'campaign') {
+    bookmarkPage(`/campaign/${item.id}`, item.name, 'gi-broadsword', 'var(--blood)')
+  }
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -402,6 +452,7 @@ if (import.meta.client) {
   cursor: pointer;
   text-align: left;
   transition: background 0.1s;
+  position: relative;
 }
 .gs-result:hover,
 .gs-result--active {
@@ -437,6 +488,47 @@ if (import.meta.client) {
   text-transform: uppercase;
   flex-shrink: 0;
 }
+
+/* Result action buttons (bookmark + popout) */
+.gs-result-actions {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.gs-result:hover .gs-result-actions { display: flex; }
+
+.gs-bm-btn,
+.gs-popout {
+  background: none;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  padding: 3px 5px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.gs-bm-btn:hover,
+.gs-popout:hover { color: var(--gold); border-color: var(--gold); }
+
+.gs-bm-btn--active {
+  color: var(--gold);
+  display: flex !important;
+}
+
+/* Keep bookmarked button visible even without hover */
+.gs-result .gs-bm-btn--active { display: flex; }
+.gs-result:not(:hover) .gs-result-actions:has(.gs-bm-btn--active) { display: flex; }
+.gs-result:not(:hover) .gs-result-actions:has(.gs-bm-btn--active) .gs-popout { display: none; }
+
+/* Shift subtitle left on hover to avoid overlap */
+.gs-result:hover .gs-result-sub { margin-right: 72px; }
 
 /* Entity results — strip the global .entry padding/border/hover arrow */
 .gs-entity-result :deep(.entry) {

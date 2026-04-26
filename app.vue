@@ -1,6 +1,7 @@
 <template>
   <div id="app-root" @click="onMagicClick">
     <NuxtPage />
+    <BookmarkRibbon v-if="!isPlayerRoute" />
     <GlobalSearch v-if="!isPlayerRoute" />
     <DiceRoller v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
@@ -15,7 +16,9 @@
 
 <script setup lang="ts">
 import { useSettings } from '~/composables/useSettings'
+import { useBookmarks } from '~/composables/useBookmarks'
 const { settings } = useSettings()
+useBookmarks() // initialise bookmarks from localStorage on app load
 
 const route = useRoute()
 const isPlayerRoute = computed(() =>

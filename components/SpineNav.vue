@@ -124,3 +124,4 @@ const isPlayerRoute = computed(() =>
   route.path.endsWith('/player') || route.path.endsWith('/map-player')
 )
 </script>
+

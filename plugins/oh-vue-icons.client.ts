@@ -15,6 +15,7 @@ import {
   MdFiledownload, MdFileupload, MdWarningamber,
   MdBrightness4, MdAnimation, MdStorage,
   MdContentcopy, MdCheck, MdAutorenew,
+  MdBookmark, MdBookmarkborder, MdBookmarkadded, MdOpeninnew, MdPushpin,
 } from 'oh-vue-icons/icons/md'
 
 import {
@@ -43,6 +44,7 @@ addIcons(
   MdChevronleft, MdChevronright,
   MdFiledownload, MdFileupload, MdWarningamber,
   MdBrightness4, MdAnimation, MdStorage, MdContentcopy, MdCheck, MdAutorenew,
+  MdBookmark, MdBookmarkborder, MdBookmarkadded, MdOpeninnew, MdPushpin,
   FaEye, FaEyeSlash,
   FaSkull, FaSkullCrossbones,
   FaDesktop, FaSearch, FaFolderOpen,
