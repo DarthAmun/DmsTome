@@ -334,6 +334,10 @@ export const dbApi = {
       return db.entities.where('campaign_id').equals(campaignId).toArray()
         .then(rows => rows.sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name)))
     },
+    async search(query: string, limit = 5) {
+      const lq = query.toLowerCase()
+      return getDb().entities.filter(e => e.name.toLowerCase().includes(lq) || e.type.toLowerCase().includes(lq)).limit(limit).toArray()
+    },
     async get(id: number) {
       const db = getDb()
       return db.entities.get(id)

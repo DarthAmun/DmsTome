@@ -123,20 +123,13 @@
               <span class="leaf-type" :style="{ color: typeConfig?.color }">{{ typeConfig?.plural }}</span>
               <span class="leaf-count">{{ entries.length }} entries</span>
             </div>
-            <div v-for="entry in pageLeftEntries" :key="entry.id" class="entry" @click="openEntry(entry)">
-              <div class="entry-icon">
-                <OhVueIcon :name="typeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.85"
-                  :style="{ color: typeConfig?.color }" />
-              </div>
-              <span class="entry-name">{{ entry.name }}</span>
-              <span class="entry-dots" />
-              <span class="entry-date">{{ formatDateShort(entry.updatedAt) }}</span>
-              <div class="entry-actions" @click.stop>
-                <button class="entry-act entry-act--del" @click.stop="deleteEntry(entry.id)">
-                  <OhVueIcon name="md-delete" scale="0.75" />
-                </button>
-              </div>
-            </div>
+            <component
+              :is="ENTRY_COMPONENTS[type]"
+              v-for="entry in pageLeftEntries" :key="entry.id"
+              :entry="entry" :deletable="true"
+              @open="openEntry(entry)"
+              @delete="deleteEntry($event)"
+            />
             <div v-if="!entries.length" class="leaf-empty">
               <OhVueIcon :name="typeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="2.5"
                 style="opacity:0.07;margin-bottom:10px" />
@@ -169,20 +162,13 @@
             <div class="leaf-header leaf-header--right">
               <span class="leaf-folio">continued</span>
             </div>
-            <div v-for="entry in pageRightEntries" :key="entry.id" class="entry" @click="openEntry(entry)">
-              <div class="entry-icon">
-                <OhVueIcon :name="typeConfig?.defaultIcon ?? 'gi-scroll-unfurled'" scale="0.85"
-                  :style="{ color: typeConfig?.color }" />
-              </div>
-              <span class="entry-name">{{ entry.name }}</span>
-              <span class="entry-dots" />
-              <span class="entry-date">{{ formatDateShort(entry.updatedAt) }}</span>
-              <div class="entry-actions" @click.stop>
-                <button class="entry-act entry-act--del" @click.stop="deleteEntry(entry.id)">
-                  <OhVueIcon name="md-delete" scale="0.75" />
-                </button>
-              </div>
-            </div>
+            <component
+              :is="ENTRY_COMPONENTS[type]"
+              v-for="entry in pageRightEntries" :key="entry.id"
+              :entry="entry" :deletable="true"
+              @open="openEntry(entry)"
+              @delete="deleteEntry($event)"
+            />
             <div v-if="pageRightEntries.length === 0 && entries.length > 0" class="leaf-empty">
               <em style="opacity:0.35">— end of entries —</em>
             </div>
@@ -206,6 +192,19 @@ import MarkdownIt from 'markdown-it'
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
 import type { EntityType } from '~/types/entities'
 import { dbApi } from '~/composables/useDb'
+import NpcEntry      from '~/components/notes/NpcEntry.vue'
+import LocationEntry from '~/components/notes/LocationEntry.vue'
+import ItemEntry     from '~/components/notes/ItemEntry.vue'
+import FactionEntry  from '~/components/notes/FactionEntry.vue'
+import QuestEntry    from '~/components/notes/QuestEntry.vue'
+import EventEntry    from '~/components/notes/EventEntry.vue'
+import SessionEntry  from '~/components/notes/SessionEntry.vue'
+import NoteEntry     from '~/components/notes/NoteEntry.vue'
+
+const ENTRY_COMPONENTS: Record<EntityType, Component> = {
+  npc: NpcEntry, location: LocationEntry, item: ItemEntry, faction: FactionEntry,
+  quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
+}
 
 const props = defineProps<{ type: EntityType }>()
 
@@ -213,7 +212,7 @@ const {
   campaignId, typeConfig,
   entries,
   openEntry, createEntry, deleteEntry,
-  ensureLoaded, formatDateShort,
+  ensureLoaded,
 } = useCampaignEntity(props.type)
 
 // ── Pagination ───────────────────────────────────────────────────────

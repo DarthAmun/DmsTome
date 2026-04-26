@@ -26,7 +26,7 @@ export function useCampaignEntity(type: EntityType) {
   // ── List ────────────────────────────────────────────────────
   const entries = computed(() =>
     (store.byType[type] ?? []).slice().sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt)
+      type === 'session' ? b.id - a.id : b.updatedAt.localeCompare(a.updatedAt)
     )
   )
 

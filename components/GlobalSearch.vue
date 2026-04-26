@@ -49,20 +49,28 @@
               <!-- Entities -->
               <div v-if="results.entities.length" class="gs-group">
                 <div class="gs-group-label">Entities</div>
-                <button
+                <div
                   v-for="(item, i) in results.entities"
                   :key="`e-${item.id}`"
-                  class="gs-result"
+                  class="gs-result gs-entity-result"
                   :class="{ 'gs-result--active': flatIndex(1, i) === cursor }"
-                  @click="navigate(item)"
                   @mouseenter="cursor = flatIndex(1, i)"
                 >
-                  <span class="gs-result-icon" :style="{ color: entityColor(item.type) }">
-                    <OhVueIcon :name="entityIcon(item.type)" scale="0.8" />
-                  </span>
-                  <span class="gs-result-name">{{ item.name }}</span>
-                  <span class="gs-result-sub">{{ entityLabel(item.type) }}</span>
-                </button>
+                  <component
+                    v-if="item.entity && ENTRY_COMPONENTS[item.type as EntityType]"
+                    :is="ENTRY_COMPONENTS[item.type as EntityType]"
+                    :entry="item.entity"
+                    :deletable="false"
+                    @open="navigate(item)"
+                  />
+                  <template v-else>
+                    <span class="gs-result-icon" :style="{ color: entityColor(item.type) }">
+                      <OhVueIcon :name="entityIcon(item.type)" scale="0.8" />
+                    </span>
+                    <span class="gs-result-name">{{ item.name }}</span>
+                    <span class="gs-result-sub">{{ entityLabel(item.type) }}</span>
+                  </template>
+                </div>
               </div>
 
               <!-- Records -->
@@ -99,11 +107,25 @@
 <script setup lang="ts">
 import { dbApi } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
 import { useNotesStore } from '~/stores/notes'
+import type { Entity } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
+import NpcEntry      from '~/components/notes/NpcEntry.vue'
+import LocationEntry from '~/components/notes/LocationEntry.vue'
+import ItemEntry     from '~/components/notes/ItemEntry.vue'
+import FactionEntry  from '~/components/notes/FactionEntry.vue'
+import QuestEntry    from '~/components/notes/QuestEntry.vue'
+import EventEntry    from '~/components/notes/EventEntry.vue'
+import SessionEntry  from '~/components/notes/SessionEntry.vue'
+import NoteEntry     from '~/components/notes/NoteEntry.vue'
+
+const ENTRY_COMPONENTS: Record<EntityType, any> = {
+  npc: NpcEntry, location: LocationEntry, item: ItemEntry, faction: FactionEntry,
+  quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
+}
 
 const router = useRouter()
-const route = useRoute()
 const notesStore = useNotesStore()
 const systemsStore = useSystemsStore()
 
@@ -125,6 +147,7 @@ interface SearchResult {
   systemId?: number
   entityTypeId?: string
   _subtitle?: string
+  entity?: Entity
 }
 
 const results = ref<{ campaigns: SearchResult[]; entities: SearchResult[]; records: SearchResult[] }>({
@@ -196,25 +219,25 @@ async function runSearch(q: string) {
     .slice(0, 5)
     .map((c: any) => ({ kind: 'campaign', id: c.id, name: c.name }))
 
-  // Entities — use loaded store if available, else fall back to DB (normalized to camelCase)
-  let entityRows: Array<{ id: number; name: string; type: string; campaignId: number }> = []
-  const activeCampaignId = extractCampaignId()
-  if (activeCampaignId && notesStore.entities.length) {
-    entityRows = notesStore.entities.map(e => ({ id: e.id, name: e.name, type: e.type, campaignId: e.campaignId }))
-  } else if (activeCampaignId) {
-    const rows = await dbApi.entities.list(activeCampaignId)
-    entityRows = rows.map((r: any) => ({ id: r.id, name: r.name, type: r.type, campaignId: r.campaign_id }))
-  }
-  const entities: SearchResult[] = entityRows
-    .filter(e => e.name.toLowerCase().includes(lq) || e.type.toLowerCase().includes(lq))
-    .slice(0, 5)
-    .map(e => ({
-      kind: 'entity',
-      id: e.id,
-      name: e.name,
-      type: e.type,
-      campaignId: e.campaignId,
-    }))
+  // Entities — always search the DB so results are available from any route
+  const entityDbRows = await dbApi.entities.search(lq, 5)
+  const entities: SearchResult[] = entityDbRows.map((r: any) => ({
+    kind: 'entity',
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    campaignId: r.campaign_id,
+    entity: notesStore.entities.find(en => en.id === r.id) ?? {
+      id: r.id,
+      campaignId: r.campaign_id,
+      type: r.type,
+      name: r.name,
+      content: r.content,
+      attributes: JSON.parse(r.attributes ?? '{}'),
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    },
+  }))
 
   // Records — search across all systems
   const allRecords = await dbApi.records.search(lq, 5)
@@ -238,11 +261,6 @@ async function runSearch(q: string) {
   loading.value = false
 }
 
-function extractCampaignId(): number | null {
-  const match = route.path.match(/\/campaign\/(\d+)/)
-  if (match) return Number(match[1])
-  return null
-}
 
 function navigate(item: SearchResult) {
   if (item.kind === 'campaign') {
@@ -419,6 +437,14 @@ if (import.meta.client) {
   text-transform: uppercase;
   flex-shrink: 0;
 }
+
+/* Entity results — strip the global .entry padding/border/hover arrow */
+.gs-entity-result :deep(.entry) {
+  padding: 0;
+  border-bottom: none;
+}
+.gs-entity-result :deep(.entry:hover) { padding-left: 0; }
+.gs-entity-result :deep(.entry:hover::before) { display: none; }
 
 /* Hint / empty states */
 .gs-hint,
