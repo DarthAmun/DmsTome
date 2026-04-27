@@ -163,8 +163,22 @@ export const useEncounterStore = defineStore('encounter', () => {
   async function setFogCell(key: string, state: 'hidden' | 'revealed' | 'partial') {
     if (!current.value) return
     current.value.fogData[key] = state
-    await persistFog()
     syncToPlayer()
+    await persistFog()
+  }
+
+  async function hideAllFog() {
+    if (!current.value) return
+    current.value.fogData = { _allHidden: 'hidden' } as any
+    syncToPlayer()
+    await persistFog()
+  }
+
+  async function clearAllFog() {
+    if (!current.value) return
+    current.value.fogData = {}
+    syncToPlayer()
+    await persistFog()
   }
 
   async function persistFog() {
@@ -437,7 +451,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     allTokens,
     loadEncounter, loadTokenLibrary,
     setMap, updateGrid, updateViewport, updateName,
-    setFogCell,
+    setFogCell, hideAllFog, clearAllFog,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,

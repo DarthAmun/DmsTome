@@ -136,6 +136,49 @@
             </p>
           </div>
 
+          <!-- Fog tool submenu -->
+          <div v-if="activeTool === 'fog'" class="fog-submenu">
+            <button
+              class="map-tool-btn"
+              :class="{ active: fogMode === 'add' }"
+              title="Add fog (paint hidden)"
+              @click="fogMode = 'add'"
+            ><OhVueIcon name="gi-fog" scale="0.9" /></button>
+            <button
+              class="map-tool-btn"
+              :class="{ active: fogMode === 'remove' }"
+              title="Reveal (erase fog)"
+              @click="fogMode = 'remove'"
+            ><OhVueIcon name="md-visibility" scale="0.9" /></button>
+
+            <div class="fog-sep" />
+
+            <button
+              class="map-tool-btn fog-size-btn"
+              title="Decrease brush size"
+              @click="fogBrushSize = Math.max(1, fogBrushSize - 1)"
+            >−</button>
+            <span class="fog-brush-label">{{ fogBrushSize }}</span>
+            <button
+              class="map-tool-btn fog-size-btn"
+              title="Increase brush size"
+              @click="fogBrushSize = Math.min(10, fogBrushSize + 1)"
+            >+</button>
+
+            <div class="fog-sep" />
+
+            <button
+              class="map-tool-btn fog-text-btn"
+              title="Cover entire map with fog"
+              @click="store.hideAllFog()"
+            ><OhVueIcon name="md-visibilityoff" scale="0.9" /></button>
+            <button
+              class="map-tool-btn fog-text-btn"
+              title="Remove all fog"
+              @click="store.clearAllFog()"
+            ><OhVueIcon name="md-autorenew" scale="0.9" /></button>
+          </div>
+
           <!-- Shape tool submenu — pops up above the shapes button -->
           <div v-if="activeTool === 'shapes'" class="shape-submenu">
             <button
@@ -2529,6 +2572,49 @@ function getImageUrl(token: any): string {
 .sh-ctx-item--danger:hover { background: rgba(139,0,0,0.07); }
 
 /* ── Shape tool submenu ── */
+.fog-submenu {
+  position: absolute;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(12, 8, 4, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 220, 197, 0.12);
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  pointer-events: all;
+  z-index: var(--z-overlay);
+  animation: submenu-pop 0.12s ease;
+}
+
+.fog-sep {
+  width: 1px;
+  height: 22px;
+  background: rgba(232, 220, 197, 0.15);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.fog-brush-label {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(232, 220, 197, 0.85);
+  min-width: 18px;
+  text-align: center;
+}
+
+.fog-size-btn,
+.fog-text-btn {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .shape-submenu {
   position: absolute;
   bottom: 76px; /* sits above .map-tool-dock (bottom:20 + 48px height + 8px gap) */
