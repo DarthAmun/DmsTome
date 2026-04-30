@@ -104,6 +104,28 @@
             </div>
           </div>
 
+          <!-- ── VISION ─────────────────────────────────────────────────────── -->
+          <div class="tem-section">
+            <div class="tem-section-label">Vision</div>
+            <label class="tem-sync-row" style="margin-bottom:12px">
+              <input type="checkbox" v-model="localIsPlayerToken" class="tem-checkbox" />
+              <span>Player Character Token</span>
+            </label>
+            <div class="tem-field">
+              <label class="tem-label">
+                Vision Range
+                <span class="tem-hint-inline">tiles · blank = unlimited</span>
+              </label>
+              <input
+                v-model.number="localVisionRange"
+                type="number"
+                min="1"
+                class="tem-num-input"
+                placeholder="∞"
+              />
+            </div>
+          </div>
+
           <!-- ── CONDITIONS ───────────────────────────────────────────────── -->
           <div class="tem-section">
             <div class="tem-section-label">Conditions</div>
@@ -173,6 +195,8 @@ const localSize       = ref(1)
 const localNotes      = ref('')
 const localConditions = ref<TokenCondition[]>([])
 const localLinkedRecordId = ref<number | null>(null)
+const localIsPlayerToken = ref(false)
+const localVisionRange = ref<number | null>(null)
 
 // Reset local state whenever the token changes
 watch(() => props.token, (tok) => {
@@ -185,6 +209,8 @@ watch(() => props.token, (tok) => {
   localSize.value       = tok.size
   localNotes.value      = tok.notes ?? ''
   localLinkedRecordId.value = tok.linkedRecordId
+  localIsPlayerToken.value = tok.isPlayerToken ?? false
+  localVisionRange.value = tok.visionRange ?? null
   linkedRecordName.value = null
   changingLink.value = false
   linkSearch.value = ''
@@ -284,6 +310,8 @@ function save() {
   if (localSize.value !== props.token.size) changes.size = localSize.value
   if (localNotes.value !== (props.token.notes ?? '')) changes.notes = localNotes.value || null
   if (localLinkedRecordId.value !== props.token.linkedRecordId) changes.linkedRecordId = localLinkedRecordId.value
+  if (localIsPlayerToken.value !== (props.token.isPlayerToken ?? false)) changes.isPlayerToken = localIsPlayerToken.value
+  if (localVisionRange.value !== props.token.visionRange) changes.visionRange = localVisionRange.value || null
 
   // Optionally sync HP/AC from newly linked record
   if (pendingLink.value && syncHpAc.value) {
@@ -374,6 +402,7 @@ function save() {
 /* Field */
 .tem-field { margin-bottom: 10px; }
 .tem-field:last-child { margin-bottom: 0; }
+.f-field { margin-bottom: 14px; }
 .tem-label {
   display: flex;
   align-items: center;

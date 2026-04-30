@@ -43,6 +43,19 @@
           </button>
         </div>
 
+        <!-- FOV mode toggle (run mode + fovEnabled only) -->
+        <div v-if="mode === 'run' && encounter?.fovEnabled" class="enc-fov-mode-toggle">
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'gm' }" title="DM sees all" @click="setFovMode('gm')">
+            GM
+          </button>
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'active' }" title="Active turn token's vision" @click="setFovMode('active')">
+            Active
+          </button>
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'group' }" title="All player tokens' vision" @click="setFovMode('group')">
+            Group
+          </button>
+        </div>
+
         <!-- Player window toggle -->
         <button
           class="back-btn"
@@ -113,6 +126,22 @@
               />
             </div>
           </div>
+          <!-- FOV Settings -->
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Field of View</span>
+            </div>
+            <label class="fov-enable-row">
+              <input
+                type="checkbox"
+                class="fov-enable-check"
+                :checked="encounter?.fovEnabled"
+                @change="toggleFovEnabled"
+              />
+              <span>Enable FOV &amp; Walls</span>
+            </label>
+            <p class="enc-hint">Draw walls to block line of sight for players.</p>
+          </div>
         </aside>
 
         <!-- Centre: PixiJS Canvas -->
@@ -134,6 +163,30 @@
             <p class="enc-empty-text">
               Drop a map image here or use the sidebar to load one
             </p>
+          </div>
+
+          <!-- Wall tool submenu -->
+          <div v-if="activeTool === 'wall'" class="wall-submenu">
+            <button
+              v-for="ct in COVER_TYPES"
+              :key="ct.value"
+              class="map-tool-btn wall-type-btn"
+              :class="{ active: activeCoverType === ct.value }"
+              :style="{ '--wt-color': ct.color }"
+              :title="ct.label"
+              @click="activeCoverType = ct.value; canvas?.setActiveCoverType(ct.value)"
+            >
+              <span class="wall-type-swatch" />
+              {{ ct.label }}
+            </button>
+            <div class="fog-sep" />
+            <button
+              class="map-tool-btn"
+              title="Undo last wall point (Backspace) or last wall (Ctrl+Z)"
+              @click="store.undoLastWall().then(() => canvas?.redrawWalls())"
+            >
+              <OhVueIcon name="md-autorenew" scale="0.9" />
+            </button>
           </div>
 
           <!-- Fog tool submenu -->
@@ -229,6 +282,15 @@
               @click="toggleTool('shapes')"
             >
               <OhVueIcon name="fa-shapes" scale="1.0" />
+            </button>
+            <button
+              v-if="encounter?.fovEnabled"
+              class="map-tool-btn"
+              :class="{ active: activeTool === 'wall' }"
+              title="Draw Walls"
+              @click="toggleTool('wall')"
+            >
+              <OhVueIcon name="gi-brick-wall" scale="0.9" />
             </button>
           </div>
         </main>
@@ -496,6 +558,22 @@
         </template>
       </Teleport>
 
+      <!-- ── Wall Context Menu ────────────────────────────────────────────────────── -->
+      <Teleport to="body">
+        <template v-if="wallCtxMenu.open">
+          <div class="ctx-back" @click="wallCtxMenu.open = false" @contextmenu.prevent="wallCtxMenu.open = false" />
+          <div class="sh-ctx-menu" :style="{ left: wallCtxMenu.x + 'px', top: wallCtxMenu.y + 'px' }">
+            <button v-if="wallCtxMenu.isDoor" class="sh-ctx-item" @click="onWallCtxToggleDoor">
+              {{ wallCtxMenu.isOpen ? 'Close Door' : 'Open Door' }}
+            </button>
+            <button class="sh-ctx-item sh-ctx-item--danger" @click="onWallCtxDelete">
+              <OhVueIcon name="md-delete" scale="0.85" style="opacity:0.7;flex-shrink:0" />
+              Delete Wall
+            </button>
+          </div>
+        </template>
+      </Teleport>
+
       <!-- ── Canvas Context Menu ───────────────────────────────────────────────── -->
       <EncounterContextMenu
         :open="ctxMenu.open"
@@ -649,7 +727,16 @@ const store = useEncounterStore();
 const systemsStore = useSystemsStore();
 const canvasContainer = ref<HTMLElement | null>(null);
 
-const activeTool = ref<"select" | "fog" | "measure" | "shapes">("select");
+const activeTool = ref<"select" | "fog" | "measure" | "shapes" | "wall">("select");
+
+const COVER_TYPES = [
+  { value: 'full',           label: 'Full',  color: 'rgba(255,255,255,0.9)' },
+  { value: 'three-quarter',  label: '¾',     color: 'rgba(184,134,11,0.85)' },
+  { value: 'half',           label: '½',     color: 'rgba(200,100,20,0.85)' },
+  { value: 'quarter',        label: '¼',     color: 'rgba(200,50,20,0.75)'  },
+  { value: 'door',           label: 'Door',  color: 'rgba(100,200,220,0.9)' },
+] as const
+const activeCoverType = ref<'full' | 'three-quarter' | 'half' | 'quarter' | 'door'>('full')
 
 // ── Mode ───────────────────────────────────────────────────────────────────
 const mode = ref<'prepare' | 'run'>('prepare');
@@ -823,6 +910,16 @@ const shapeCtxMenu = reactive({
   shapeId: null as string | null,
 })
 
+const wallCtxMenu = reactive({
+  open: false,
+  x: 0,
+  y: 0,
+  wallId: null as number | null,
+  segmentIndex: 0,
+  isDoor: false,
+  isOpen: false,
+})
+
 function onCanvasRightClick(e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
@@ -844,6 +941,19 @@ function onCanvasRightClick(e: MouseEvent) {
       shapeCtxMenu.y = e.clientY
       shapeCtxMenu.shapeId = hitShape.id
       shapeCtxMenu.open = true
+      return
+    }
+
+    // Check for a wall segment at the click position
+    const wallHit = canvas.getWallAtPoint(e.offsetX, e.offsetY)
+    if (wallHit) {
+      wallCtxMenu.x = e.clientX
+      wallCtxMenu.y = e.clientY
+      wallCtxMenu.wallId = wallHit.wall.id ?? null
+      wallCtxMenu.segmentIndex = wallHit.segmentIndex
+      wallCtxMenu.isDoor = wallHit.wall.coverType === 'door'
+      wallCtxMenu.isOpen = wallHit.wall.isOpen
+      wallCtxMenu.open = true
       return
     }
   }
@@ -946,6 +1056,33 @@ function onCtxRemoveShape() {
   shapeCtxMenu.open = false
 }
 
+function setFovMode(mode: 'gm' | 'active' | 'group') {
+  store.fovMode = mode
+  canvas?.recomputeFov()
+}
+
+async function toggleFovEnabled() {
+  await store.setFovEnabled(!encounter.value?.fovEnabled)
+}
+
+async function onWallCtxToggleDoor() {
+  if (wallCtxMenu.wallId !== null) {
+    await store.toggleDoor(wallCtxMenu.wallId)
+    canvas?.redrawWalls()
+    canvas?.recomputeFov()
+  }
+  wallCtxMenu.open = false
+}
+
+async function onWallCtxDelete() {
+  if (wallCtxMenu.wallId !== null) {
+    await store.deleteWall(wallCtxMenu.wallId)
+    canvas?.redrawWalls()
+    canvas?.recomputeFov()
+  }
+  wallCtxMenu.open = false
+}
+
 async function onTokenEdit(tokenId: number, changes: Partial<EncounterToken>) {
   await store.updateToken(tokenId, changes)
   editingToken.value = null
@@ -1006,7 +1143,7 @@ const newToken = ref({
   imageType: "file" as "file" | "url",
 });
 
-function toggleTool(tool: "fog" | "measure" | "shapes") {
+function toggleTool(tool: "fog" | "measure" | "shapes" | "wall") {
   activeTool.value = activeTool.value === tool ? "select" : tool;
 }
 
@@ -1069,6 +1206,10 @@ onMounted(async () => {
     onShapeCommit: (anchorCol, anchorRow, endCol, endRow) => {
       addShape(anchorCol, anchorRow, endCol, endRow);
     },
+    onWallComplete: async ({ points, coverType }) => {
+      await store.addWall(points, coverType);
+      canvas?.redrawWalls();
+    },
   });
 
   await canvas.init();
@@ -1077,6 +1218,7 @@ onMounted(async () => {
     await canvas.loadMap(store.current.mapSource, store.current.mapType);
   }
   await canvas.renderTokens();
+  canvas.redrawWalls();
 
   // Listen for player window close
   dbApi.window.onPlayerClosed(() => {
@@ -1097,12 +1239,14 @@ watch(
   () => store.current?.tokens,
   async () => {
     await canvas?.renderTokens();
+    canvas?.recomputeFov();
   },
   { deep: true },
 );
 
 watch(currentTurnTokenId, async () => {
   await canvas?.renderTokens();
+  canvas?.recomputeFov();
 });
 
 watch(
@@ -1125,7 +1269,10 @@ watch(
   },
 );
 
-onUnmounted(() => canvas?.destroy());
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleWallUndo);
+  canvas?.destroy();
+});
 
 // ── Handlers ───────────────────────────────────────────────────────────────
 async function onSetMap() {
@@ -1225,6 +1372,22 @@ watch(activeTool, (tool: string) => {
   if (tool !== "measure") canvas?.clearRuler();
   if (tool !== "shapes") canvas?.clearShapeAnchor();
 });
+
+// Redraw walls reactively when the store's wall list changes
+watch(() => store.walls, () => { canvas?.redrawWalls(); canvas?.recomputeFov() }, { deep: true });
+
+// Recompute FOV when isPlayerToken changes on any token
+watch(() => store.fovRecomputeTrigger, () => { canvas?.recomputeFov() });
+
+// Ctrl+Z — undo last wall when wall tool is active
+const handleWallUndo = async (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && activeTool.value === 'wall') {
+    e.preventDefault();
+    await store.undoLastWall();
+    canvas?.redrawWalls();
+  }
+};
+document.addEventListener('keydown', handleWallUndo);
 
 watch(shapes, () => {
   store.setShapeOverlays(shapes.value);
@@ -2568,10 +2731,68 @@ function getImageUrl(token: any): string {
   white-space: nowrap;
   transition: background 0.1s;
 }
+.sh-ctx-item:hover { background: rgba(28,20,16,0.06); color: var(--ink); }
 .sh-ctx-item--danger { color: var(--blood); }
 .sh-ctx-item--danger:hover { background: rgba(139,0,0,0.07); }
 
+/* ── FOV enable toggle (prepare sidebar) ── */
+.fov-enable-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+.fov-enable-check { accent-color: var(--gold); cursor: pointer; }
+
 /* ── Shape tool submenu ── */
+.wall-submenu {
+  position: absolute;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(12, 8, 4, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 220, 197, 0.12);
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  pointer-events: all;
+  z-index: var(--z-overlay);
+  animation: submenu-pop 0.12s ease;
+}
+
+.wall-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(232, 220, 197, 0.7);
+  border-top: 2px solid var(--wt-color, rgba(255,255,255,0.3)) !important;
+}
+.wall-type-btn.active {
+  color: rgba(232, 220, 197, 1);
+  background: rgba(255,255,255,0.1);
+}
+
+.wall-type-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--wt-color, rgba(255,255,255,0.5));
+  flex-shrink: 0;
+}
+
 .fog-submenu {
   position: absolute;
   bottom: 76px;
@@ -2687,5 +2908,51 @@ function getImageUrl(token: any): string {
   height: 100%;
   border: none;
   padding: 0;
+}
+
+/* ── FOV mode toggle (toolbar) ── */
+.enc-fov-mode-toggle {
+  display: flex;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--parch-dark);
+  flex-shrink: 0;
+}
+
+.fov-mode-btn {
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--parch-line);
+  color: var(--ink-ghost);
+  cursor: pointer;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+.fov-mode-btn:last-child { border-right: none; }
+.fov-mode-btn:hover { background: rgba(184,134,11,0.1); color: var(--ink); }
+.fov-mode-btn.active {
+  background: rgba(184,134,11,0.15);
+  color: var(--gold);
+}
+
+/* ── Wall type sub-toolbar (sidebar / non-floating use) ── */
+.wall-type-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--parch-dark);
+  border-top: 1px solid var(--parch-line);
+  flex-shrink: 0;
 }
 </style>

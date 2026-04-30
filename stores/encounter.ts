@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { dbApi } from '~/composables/useDb'
+import type { DbEncounterWall } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 
 export interface CombatLogEntry {
@@ -49,6 +50,8 @@ export interface EncounterToken {
   initiative: number | null
   notes: string | null
   linkedRecordId: number | null
+  visionRange: number | null  // tiles, null = infinite
+  isPlayerToken: boolean      // default false
 }
 
 export interface Encounter {
@@ -64,6 +67,7 @@ export interface Encounter {
   viewport: { x: number; y: number; scale: number }
   tokens: EncounterToken[]
   combatLog: CombatLogEntry[]
+  fovEnabled: boolean
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
@@ -75,6 +79,10 @@ export const useEncounterStore = defineStore('encounter', () => {
   const shapeOverlays = ref<ShapeOverlay[]>([])
   const currentTurnIndex = ref(0)
   const roundNumber = ref(1)
+  const walls = ref<DbEncounterWall[]>([])
+  const fovMode = ref<'gm' | 'active' | 'group'>('gm')
+  const wallUndoStack = ref<number[]>([])
+  const fovRecomputeTrigger = ref(0)
 
   // ── Computed ───────────────────────────────────────────────────────────────
   const allTokens = computed(() => current.value?.tokens ?? [])
@@ -109,10 +117,13 @@ export const useEncounterStore = defineStore('encounter', () => {
         mapSource: data.map_source,
         mapType: data.map_type,
         campaignId: data.campaign_id,
+        fovEnabled: data.fov_enabled ?? false,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
       currentTurnIndex.value = data.current_turn_index ?? 0
       roundNumber.value = data.round_number ?? 1
+      walls.value = await dbApi.walls.list(id)
+      wallUndoStack.value = []
     } catch (err) {
       console.error('[EncounterStore] loadEncounter:', err)
     } finally {
@@ -255,7 +266,12 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('notes' in updates) dbUpdates.notes = updates.notes
     if ('conditions' in updates) dbUpdates.conditions = JSON.stringify(updates.conditions)
     if ('linkedRecordId' in updates) dbUpdates.linkedRecordId = updates.linkedRecordId
+    if ('visionRange' in updates) dbUpdates.visionRange = updates.visionRange
+    if ('isPlayerToken' in updates) dbUpdates.isPlayerToken = updates.isPlayerToken ? 1 : 0
     await dbApi.encounterTokens.update(dbUpdates)
+    if ('isPlayerToken' in updates && fovMode.value === 'group') {
+      fovRecomputeTrigger.value++
+    }
     syncToPlayer()
   }
 
@@ -413,6 +429,57 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
+  // ── Actions — Walls ────────────────────────────────────────────────────────
+  async function addWall(
+    points: Array<{ x: number; y: number }>,
+    coverType: DbEncounterWall['coverType']
+  ): Promise<void> {
+    if (!current.value) return
+    const wallData = {
+      encounter_id: current.value.id,
+      points: JSON.stringify(points),
+      coverType,
+      isOpen: false,
+    }
+    const id = await dbApi.walls.add(wallData)
+    walls.value.push({ id, ...wallData })
+    wallUndoStack.value.push(id)
+  }
+
+  async function undoLastWall(): Promise<void> {
+    const id = wallUndoStack.value.pop()
+    if (id === undefined) return
+    await dbApi.walls.delete(id)
+    walls.value = walls.value.filter(w => w.id !== id)
+  }
+
+  async function updateWall(
+    id: number,
+    changes: Partial<Pick<DbEncounterWall, 'coverType' | 'isOpen' | 'points'>>
+  ): Promise<void> {
+    await dbApi.walls.update(id, changes)
+    const idx = walls.value.findIndex(w => w.id === id)
+    if (idx !== -1) Object.assign(walls.value[idx], changes)
+  }
+
+  async function deleteWall(id: number): Promise<void> {
+    await dbApi.walls.delete(id)
+    walls.value = walls.value.filter(w => w.id !== id)
+    wallUndoStack.value = wallUndoStack.value.filter(uid => uid !== id)
+  }
+
+  async function toggleDoor(id: number): Promise<void> {
+    const wall = walls.value.find(w => w.id === id)
+    if (!wall || wall.coverType !== 'door') return
+    await updateWall(id, { isOpen: !wall.isOpen })
+  }
+
+  async function setFovEnabled(enabled: boolean): Promise<void> {
+    if (!current.value) return
+    current.value.fovEnabled = enabled
+    await dbApi.encounters.update({ id: current.value.id, fov_enabled: enabled })
+  }
+
   async function updateName(name: string) {
     if (!current.value) return
     current.value.name = name
@@ -442,6 +509,8 @@ export const useEncounterStore = defineStore('encounter', () => {
       initiative: raw.initiative,
       notes: raw.notes,
       linkedRecordId: raw.linked_record_id ?? null,
+      visionRange: raw.vision_range ?? null,
+      isPlayerToken: Boolean(raw.is_player_token),
     }
   }
 
@@ -449,9 +518,12 @@ export const useEncounterStore = defineStore('encounter', () => {
     current, tokenLibrary, isLoading, playerWindowOpen,
     currentTurnIndex, roundNumber, initiativeOrder,
     allTokens,
+    walls, fovMode, wallUndoStack, fovRecomputeTrigger,
     loadEncounter, loadTokenLibrary,
     setMap, updateGrid, updateViewport, updateName,
     setFogCell, hideAllFog, clearAllFog,
+    addWall, undoLastWall, updateWall, deleteWall, toggleDoor,
+    setFovEnabled,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,

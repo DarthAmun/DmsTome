@@ -34,6 +34,7 @@ const route = useRoute()
 const store = useEncounterStore()
 const canvasContainer = ref<HTMLElement | null>(null)
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null
+let fovChannel: BroadcastChannel | null = null
 
 // Initiative tracker state (updated via BroadcastChannel sync)
 const playerTurnIndex = ref(0)
@@ -113,6 +114,12 @@ onMounted(async () => {
     renderedShapeIds = incomingIds
   })
 
+  // Listen for FOV updates from DM window
+  fovChannel = new BroadcastChannel('dmforge-player')
+  fovChannel.onmessage = (e: MessageEvent) => {
+    if (e.data.type === 'fov-update') canvas?.renderFovOverlay(e.data.polygons, false)
+  }
+
   // Notify DM window when this tab closes
   window.addEventListener('beforeunload', () => {
     const ch = new BroadcastChannel('dmforge-player')
@@ -123,6 +130,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.dmstome.window.offEncounterSync()
+  fovChannel?.close()
+  fovChannel = null
   canvas?.destroy()
 })
 </script>

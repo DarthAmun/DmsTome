@@ -49,6 +49,7 @@ export interface DbEncounter {
   status?: string             // 'prepared' | 'active'
   current_turn_index?: number
   round_number?: number
+  fov_enabled?: boolean
   created_at: string
   updated_at: string
 }
@@ -79,6 +80,16 @@ export interface DbEncounterToken {
   initiative: number | null
   notes: string | null
   linked_record_id: number | null
+  vision_range: number | null // tiles, null = infinite
+  is_player_token: number     // 0 | 1
+}
+
+export interface DbEncounterWall {
+  id?: number
+  encounter_id: number
+  points: string              // JSON: Array<{x: number, y: number}>
+  coverType: 'full' | 'three-quarter' | 'half' | 'quarter' | 'door'
+  isOpen: boolean
 }
 
 export interface DbEntity {
@@ -123,14 +134,15 @@ export interface DbRecord {
 
 // ── Database class ─────────────────────────────────────────────────────────
 class DmForgeDb extends Dexie {
-  campaigns!:      Table<DbCampaign>
-  encounters!:     Table<DbEncounter>
-  tokens!:         Table<DbToken>
-  encounterTokens!:Table<DbEncounterToken>
-  entities!:       Table<DbEntity>
-  entityLinks!:    Table<DbEntityLink>
-  systems!:        Table<DbSystem>
-  records!:        Table<DbRecord>
+  campaigns!:       Table<DbCampaign>
+  encounters!:      Table<DbEncounter>
+  tokens!:          Table<DbToken>
+  encounterTokens!: Table<DbEncounterToken>
+  entities!:        Table<DbEntity>
+  entityLinks!:     Table<DbEntityLink>
+  systems!:         Table<DbSystem>
+  records!:         Table<DbRecord>
+  encounterWalls!:  Table<DbEncounterWall>
 
   constructor() {
     super('dmforge')
@@ -174,6 +186,18 @@ class DmForgeDb extends Dexie {
       entityLinks:    '++id, source_id, target_type, target_name',
       systems:        '++id, shortId, updatedAt',
       records:        '++id, systemId, entityTypeId, name, updatedAt',
+    })
+    // v5: add encounterWalls table; fov_enabled/vision_range/is_player_token are non-indexed columns
+    this.version(5).stores({
+      campaigns:      '++id, updated_at, system_id',
+      encounters:     '++id, campaign_id, created_at',
+      tokens:         '++id, is_template, name',
+      encounterTokens:'++id, encounter_id, token_id, linked_record_id',
+      entities:       '++id, campaign_id, type, name',
+      entityLinks:    '++id, source_id, target_type, target_name',
+      systems:        '++id, shortId, updatedAt',
+      records:        '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls: '++id, encounter_id',
     })
   }
 }
@@ -324,6 +348,27 @@ export const dbApi = {
     async remove(id: number) {
       const db = getDb()
       await db.encounterTokens.delete(id)
+    },
+  },
+
+  // ── Walls ─────────────────────────────────────────────────────────────
+  walls: {
+    async list(encounterId: number): Promise<DbEncounterWall[]> {
+      return getDb().encounterWalls
+        .where('encounter_id').equals(encounterId).toArray()
+    },
+    async add(wall: Omit<DbEncounterWall, 'id'>): Promise<number> {
+      return getDb().encounterWalls.add(wall as DbEncounterWall)
+    },
+    async update(id: number, changes: Partial<DbEncounterWall>): Promise<void> {
+      await getDb().encounterWalls.update(id, changes)
+    },
+    async delete(id: number): Promise<void> {
+      await getDb().encounterWalls.delete(id)
+    },
+    async deleteByEncounter(encounterId: number): Promise<void> {
+      await getDb().encounterWalls
+        .where('encounter_id').equals(encounterId).delete()
     },
   },
 
