@@ -26,7 +26,6 @@
 </template>
 
 <script setup lang="ts">
-// window.dmstome used for file dialog / IPC only
 import { useEncounterCanvas, type ShapeOverlay } from '../../../composables/useEncounterCanvas'
 import { useEncounterStore } from '~/stores/encounter'
 
@@ -34,9 +33,8 @@ const route = useRoute()
 const store = useEncounterStore()
 const canvasContainer = ref<HTMLElement | null>(null)
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null
-let fovChannel: BroadcastChannel | null = null
 
-// Initiative tracker state (updated via BroadcastChannel sync)
+// Initiative tracker state (updated via encounter sync)
 const playerTurnIndex = ref(0)
 const playerRoundNumber = ref(1)
 const playerInitiativeOrder = ref<any[]>([])
@@ -47,6 +45,9 @@ const playerActiveTurnTokenId = computed(() =>
 onMounted(async () => {
   const id = Number(route.params.id)
   await store.loadEncounter(id)
+
+  // Player window always stays in group mode regardless of DM's current mode
+  store.fovMode = 'group'
 
   if (!canvasContainer.value) return
 
@@ -66,28 +67,35 @@ onMounted(async () => {
   }
   await canvas.renderTokens()
   canvas.redrawFog()
+  canvas.recomputeFov()
 
-  // Track rendered shape ids so we can diff on each sync
   let renderedShapeIds = new Set<string>()
 
-  // Live sync from DM window via BroadcastChannel
   window.dmstome.window.onEncounterSync(async (data: any) => {
     if (!store.current) return
+
     store.current.tokens = data.tokens
     store.current.fogData = data.fogData
     store.current.gridSize = data.gridSize
     store.current.gridOffsetX = data.gridOffsetX
     store.current.gridOffsetY = data.gridOffsetY
+
     if (data.mapSource && data.mapSource !== store.current.mapSource) {
       store.current.mapSource = data.mapSource
       store.current.mapType = data.mapType
       await canvas?.loadMap(data.mapSource, data.mapType)
     }
-    canvas?.drawGrid()
-    canvas?.redrawFog()
-    await canvas?.renderTokens()
 
-    // Update initiative tracker
+    // Apply door-open states so FOV computation sees current wall config
+    if (data.wallDoorStates) {
+      for (const state of data.wallDoorStates) {
+        const wall = store.walls.find(w => w.id === state.id)
+        if (wall) wall.isOpen = state.isOpen
+      }
+    }
+
+    // Update initiative state before rendering so the active-turn ring lands on
+    // the correct token when renderTokens reads getActiveTurnTokenId()
     playerTurnIndex.value = data.currentTurnIndex ?? 0
     playerRoundNumber.value = data.roundNumber ?? 1
     playerInitiativeOrder.value = (data.tokens ?? [])
@@ -100,25 +108,24 @@ onMounted(async () => {
         return b.initiative - a.initiative
       })
 
+    canvas?.drawGrid()
+    canvas?.redrawFog()
+    await canvas?.renderTokens()
+
     // Sync shape overlays
     const incoming: ShapeOverlay[] = data.shapes ?? []
     const incomingIds = new Set(incoming.map((s: ShapeOverlay) => s.id))
-    // Remove shapes no longer present
     for (const id of renderedShapeIds) {
       if (!incomingIds.has(id)) canvas?.removeShapeOverlay(id)
     }
-    // Add new shapes
     for (const shape of incoming) {
       if (!renderedShapeIds.has(shape.id)) canvas?.addShapeOverlay(shape)
     }
     renderedShapeIds = incomingIds
-  })
 
-  // Listen for FOV updates from DM window
-  fovChannel = new BroadcastChannel('dmforge-player')
-  fovChannel.onmessage = (e: MessageEvent) => {
-    if (e.data.type === 'fov-update') canvas?.renderFovOverlay(e.data.polygons, false)
-  }
+    // Recompute FOV with the fully updated state
+    canvas?.recomputeFov()
+  })
 
   // Notify DM window when this tab closes
   window.addEventListener('beforeunload', () => {
@@ -130,8 +137,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.dmstome.window.offEncounterSync()
-  fovChannel?.close()
-  fovChannel = null
   canvas?.destroy()
 })
 </script>

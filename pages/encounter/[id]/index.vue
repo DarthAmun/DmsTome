@@ -1219,11 +1219,14 @@ onMounted(async () => {
   }
   await canvas.renderTokens();
   canvas.redrawWalls();
+  canvas.recomputeFov();
 
   // Listen for player window close
   dbApi.window.onPlayerClosed(() => {
     store.playerWindowOpen = false;
   });
+
+
 });
 
 watch(

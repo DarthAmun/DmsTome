@@ -69,7 +69,11 @@ export function useEncounterCanvas(options: CanvasOptions) {
   let fovContainer: PIXI.Container | null = null;
   let fovDarkGraphics: PIXI.Graphics | null = null;
   let fovEraseGraphics: PIXI.Graphics | null = null;
+  let fovOutlineGraphics: PIXI.Graphics | null = null;
   let lastFovPolygons: Point[][] = [];
+  let lastFovOutlinePolygons: Point[][] = [];
+
+  const FOV_OUTLINE_COLORS = [0x4ecdc4, 0xff9f43, 0xff6b6b, 0xa29bfe, 0x55efc4, 0xfd79a8];
 
   // ── Wall layers + state ───────────────────────────────────────────────────
   let wallsGraphics: PIXI.Graphics | null = null;
@@ -672,10 +676,28 @@ export function useEncounterCanvas(options: CanvasOptions) {
     }
   }
 
-  function broadcastFov(polygons: Point[][]) {
+  function renderFovOutlines(polygons: Point[][]) {
+    lastFovOutlinePolygons = polygons;
+    if (!fovOutlineGraphics) return;
+    fovOutlineGraphics.clear();
+    if (!polygons.length) return;
+    for (let i = 0; i < polygons.length; i++) {
+      const poly = polygons[i];
+      if (poly.length < 3) continue;
+      const color = FOV_OUTLINE_COLORS[i % FOV_OUTLINE_COLORS.length];
+      const flat = poly.flatMap((p) => {
+        const s = gridToScreen(p);
+        return [s.x, s.y];
+      });
+      fovOutlineGraphics.poly(flat);
+      fovOutlineGraphics.stroke({ color, width: 1.5, alpha: 0.75 });
+    }
+  }
+
+  function broadcastFov(polygons: Point[][], outlinePolygons: Point[][] = []) {
     try {
       const ch = new BroadcastChannel("dmforge-player");
-      ch.postMessage({ type: "fov-update", polygons });
+      ch.postMessage({ type: "fov-update", polygons, outlinePolygons });
       ch.close();
     } catch {
       /* BroadcastChannel unavailable */
@@ -697,6 +719,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
 
     if (!enc.fovEnabled) {
       renderFovOverlay([], options.isDmMode);
+      renderFovOutlines([]);
       if (options.isDmMode) broadcastFov([]);
       return;
     }
@@ -705,21 +728,36 @@ export function useEncounterCanvas(options: CanvasOptions) {
     const segments = wallsToSegments(store.walls);
     const mapSize = getMapSize();
 
-    // GM mode: DM canvas shows no overlay, but player window always shows group FOV
+    const activeId = options.getActiveTurnTokenId?.();
+    const activeToken = enc.tokens.find((t: EncounterToken) => t.id === activeId);
+
+    const toFovInput = (t: EncounterToken) => ({
+      position: { x: t.gridX + t.size / 2, y: t.gridY + t.size / 2 },
+      visionRange: t.visionRange,
+    });
+
+    // Helper: compute a single-token outline polygon for the active token
+    const activeOutline = (): Point[][] => {
+      if (!activeToken) return [];
+      return computeGroupFov([toFovInput(activeToken)], segments, mapSize);
+    };
+
+    // GM mode: DM sees no overlay, just the active token's outline; player gets group FOV
+    // with outline for the active token if it is a player token
     if (store.fovMode === "gm") {
       renderFovOverlay([], options.isDmMode);
       if (options.isDmMode) {
+        renderFovOutlines(activeOutline());
         const playerTokens = enc.tokens
           .filter((t: EncounterToken) => t.isPlayerToken)
-          .map((t: EncounterToken) => ({
-            position: { x: t.gridX + t.size / 2, y: t.gridY + t.size / 2 },
-            visionRange: t.visionRange,
-          }));
-        broadcastFov(
-          playerTokens.length
-            ? computeGroupFov(playerTokens, segments, mapSize)
-            : [],
-        );
+          .map(toFovInput);
+        const groupPolygons = playerTokens.length
+          ? computeGroupFov(playerTokens, segments, mapSize)
+          : [];
+        const playerOutline = activeToken?.isPlayerToken ? activeOutline() : [];
+        broadcastFov(groupPolygons, playerOutline);
+      } else {
+        renderFovOutlines([]);
       }
       return;
     }
@@ -727,38 +765,30 @@ export function useEncounterCanvas(options: CanvasOptions) {
     let tokensForFov: Array<{ position: Point; visionRange: number | null }>;
 
     if (store.fovMode === "active") {
-      const activeId = options.getActiveTurnTokenId?.();
-      const activeToken = enc.tokens.find(
-        (t: EncounterToken) => t.id === activeId,
-      );
       if (!activeToken) return;
-      tokensForFov = [
-        {
-          position: {
-            x: activeToken.gridX + activeToken.size / 2,
-            y: activeToken.gridY + activeToken.size / 2,
-          },
-          visionRange: activeToken.visionRange,
-        },
-      ];
+      tokensForFov = [toFovInput(activeToken)];
     } else {
       tokensForFov = enc.tokens
         .filter((t: EncounterToken) => t.isPlayerToken)
-        .map((t: EncounterToken) => ({
-          position: { x: t.gridX + t.size / 2, y: t.gridY + t.size / 2 },
-          visionRange: t.visionRange,
-        }));
+        .map(toFovInput);
     }
 
     if (!tokensForFov.length) {
       renderFovOverlay([], options.isDmMode);
+      renderFovOutlines([]);
       if (options.isDmMode) broadcastFov([]);
       return;
     }
 
     const polygons = computeGroupFov(tokensForFov, segments, mapSize);
     renderFovOverlay(polygons, options.isDmMode);
-    if (options.isDmMode) broadcastFov(polygons);
+    // Group mode: outline the active token only if it's a player token
+    const groupOutline =
+      store.fovMode === "group" && activeToken?.isPlayerToken
+        ? activeOutline()
+        : [];
+    renderFovOutlines(groupOutline);
+    if (options.isDmMode) broadcastFov(polygons, groupOutline);
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -810,6 +840,11 @@ export function useEncounterCanvas(options: CanvasOptions) {
     app.stage.sortableChildren = true;
     (fovContainer as any).zIndex = 900;
     app.stage.addChild(fovContainer);
+
+    // Token FOV outlines — drawn above the dark overlay
+    fovOutlineGraphics = new PIXI.Graphics();
+    (fovOutlineGraphics as any).zIndex = 901;
+    app.stage.addChild(fovOutlineGraphics);
 
     setupInteraction();
     return app;
@@ -1311,6 +1346,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     worldContainer.scale.set(viewport.scale);
     if (lastFovPolygons.length)
       renderFovOverlay(lastFovPolygons, options.isDmMode);
+    renderFovOutlines(lastFovOutlinePolygons);
   }
 
   function applyExternalViewport(vp: { x: number; y: number; scale: number }) {
@@ -1356,6 +1392,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     redrawFog();
     if (lastFovPolygons.length)
       renderFovOverlay(lastFovPolygons, options.isDmMode);
+    renderFovOutlines(lastFovOutlinePolygons);
   }
 
   function destroy() {
@@ -1385,6 +1422,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     getWallAtPoint,
     setActiveCoverType,
     renderFovOverlay,
+    renderFovOutlines,
     recomputeFov,
     destroy,
   };

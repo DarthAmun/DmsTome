@@ -409,6 +409,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       shapes: shapeOverlays.value.map(s => ({ ...toRaw(s) })),
       currentTurnIndex: currentTurnIndex.value,
       roundNumber: roundNumber.value,
+      wallDoorStates: walls.value.map(w => ({ id: w.id, isOpen: w.isOpen })),
     })
   }
 
