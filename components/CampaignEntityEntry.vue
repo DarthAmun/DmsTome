@@ -1,25 +1,11 @@
 <template>
   <template v-if="currentEntry">
-    <div class="entry-pane">
-      <div class="entry-pane-editor">
-        <NoteEditor
-          :entity-id="currentEntry.id"
-          :campaign-id="campaignId"
-          side="editor"
-          @navigate="onNavigate"
-          @deleted="goToList()"
-        />
-      </div>
-      <div class="entry-pane-preview">
-        <NoteEditor
-          :entity-id="currentEntry.id"
-          :campaign-id="campaignId"
-          side="preview"
-          @navigate="onNavigate"
-          @deleted="goToList()"
-        />
-      </div>
-    </div>
+    <NoteEditor
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
   </template>
   <template v-else>
     <div class="edetail-empty">

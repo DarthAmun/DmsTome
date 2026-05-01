@@ -1,389 +1,377 @@
 <template>
   <div class="note-editor">
-    <!-- Header -->
-    <div v-if="props.side !== 'preview'" class="editor-header">
-      <div class="flex items-center gap-3 flex-1 min-w-0">
-        <span class="entity-type-badge"
-          :style="{ background: typeColor + '22', borderColor: typeColor + '55', color: typeColor }">
-          {{ typeLabel }}
-        </span>
-        <input v-if="isEditingName" ref="nameInput" v-model="draftName" class="pv-input" style="font-size:15px"
-          @blur="saveName" @keyup.enter="saveName" @keyup.escape="isEditingName = false" />
-        <h2 v-else class="font-display text-forge-gold-l text-lg truncate flex-1 cursor-pointer" @click="startEditName">
-          {{ entity?.name }}
-        </h2>
-      </div>
-      <div class="flex items-center gap-2">
-        <!-- Session mode switcher -->
+
+    <!-- ── Header ── -->
+    <div class="editor-header">
+      <span
+        class="entity-type-badge"
+        :style="{ background: typeColor + '1a', borderColor: typeColor + '55', color: typeColor }"
+      >{{ typeLabel }}</span>
+
+      <input
+        v-if="isEditingName"
+        ref="nameInput"
+        v-model="draftName"
+        class="editor-name-input"
+        @blur="saveName"
+        @keyup.enter="saveName"
+        @keyup.escape="isEditingName = false"
+      />
+      <h2 v-else class="editor-name" @click="startEditName">{{ entity?.name }}</h2>
+
+      <div class="header-actions">
         <template v-if="entity?.type === 'session'">
-          <button v-for="m in sessionModes" :key="m.value"
-            class="mode-btn" :class="{ active: sessionMode === m.value }"
-            @click="setSessionMode(m.value)">
-            {{ m.label }}
-          </button>
+          <button
+            v-for="m in sessionModes"
+            :key="m.value"
+            class="mode-btn"
+            :class="{ active: sessionMode === m.value }"
+            @click="setSessionMode(m.value)"
+          >{{ m.label }}</button>
         </template>
-        <Button :severity="activePanel === 'attributes' ? undefined : 'secondary'" size="small"
-          @click="activePanel = activePanel === 'attributes' ? 'content' : 'attributes'">
-          <template #icon>
-            <OhVueIcon name="md-editnote" scale="0.85" />
-          </template>
-          Attributes
-        </Button>
-        <Button severity="danger" size="small" @click="confirmDelete">
-          <template #icon>
-            <OhVueIcon name="md-delete" scale="0.85" />
-          </template>
-        </Button>
+
+        <button
+          class="hdr-btn"
+          :class="{ active: activePanel === 'attributes' }"
+          @click="activePanel = activePanel === 'attributes' ? 'content' : 'attributes'"
+        >
+          <OhVueIcon name="md-editnote" scale="0.8" />
+          <span>Attributes</span>
+        </button>
+
+        <button class="hdr-btn hdr-btn--danger" @click="confirmDelete">
+          <OhVueIcon name="md-delete" scale="0.8" />
+        </button>
       </div>
     </div>
 
-    <!-- Body -->
+    <!-- ── Tab bar (non-session entities only) ── -->
+    <div v-if="activePanel === 'content' && entity?.type !== 'session'" class="editor-tabbar">
+      <div class="etab-spacer" />
+      <div class="etab-group">
+        <button class="etab" :class="{ active: viewMode === 'edit' }" @click="setViewMode('edit')">Edit</button>
+        <button class="etab" :class="{ active: viewMode === 'mixed' }" @click="setViewMode('mixed')">Mixed</button>
+        <button class="etab" :class="{ active: viewMode === 'preview' }" @click="setViewMode('preview')">Preview</button>
+      </div>
+    </div>
+
+    <!-- ── Body ── -->
     <div class="editor-body">
 
-      <!-- Attributes panel (slides in from right) -->
-      <div v-if="activePanel === 'attributes' && props.side !== 'preview'" class="attributes-pane">
-        <h3 class="f-label mb-3">{{ typeLabel }} Details</h3>
-        <AttributeEditor :type="entity!.type" :model-value="draftAttributes" @update:model-value="onAttributesChange" />
+      <!-- Attributes panel -->
+      <div v-if="activePanel === 'attributes'" class="attributes-pane">
+        <AttributeEditor
+          :type="entity!.type"
+          :model-value="draftAttributes"
+          @update:model-value="onAttributesChange"
+        />
       </div>
 
-      <!-- Session dual-pane -->
+      <!-- ── Session: split layout ── -->
       <template v-else-if="entity?.type === 'session'">
+        <div class="session-split">
 
-        <!-- ── LEFT PAGE (side="editor"): Script / Prep ── -->
-        <!-- Planning: editor + links bar   Running/Finished: preview + links bar -->
-        <div v-if="props.side === 'editor'" class="edit-pane">
-          <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
-            <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />
-            Script / Prep
-            <span v-if="sessionMode !== 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">read-only</span>
-          </div>
-          <!-- Planning: editable -->
-          <template v-if="sessionMode === 'planning'">
-            <div class="editor-toolbar">
-              <button class="tb-btn" title="Bold" @click="insertMarkdownScript('**', '**')"><strong>B</strong></button>
-              <button class="tb-btn italic" title="Italic" @click="insertMarkdownScript('*', '*')"><em>I</em></button>
-              <button class="tb-btn" title="Heading" @click="insertMarkdownScript('## ', '')">H</button>
-              <button class="tb-btn" title="List" @click="insertMarkdownScript('\n- ', '')">—</button>
-              <div class="tb-divider" />
-              <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-                :title="`Link ${t.label}`" @click="insertEntityRefScript(t.type)">
-                {{ t.label.charAt(0) }}
-              </button>
-              <div class="tb-divider" />
-              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
+          <!-- Left: Script / Prep -->
+          <div class="session-pane">
+            <div class="session-pane-label" style="--pane-accent: #b87de8">
+              <span class="session-pane-label-text">Script / Prep</span>
+              <span v-if="sessionMode !== 'planning'" class="session-pane-label-badge">read-only</span>
             </div>
-            <div class="editor-area-wrap" style="position:relative">
-              <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true"
-                @input="onScriptInput" placeholder="Write your session script and prep notes here…" />
-              <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
-                <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                  @mousedown.prevent="applyAutocomplete(item)">
-                  <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                  <span class="text-sm">{{ item.name }}</span>
-                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
-                </button>
-                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
-              </div>
-            </div>
-          </template>
-          <!-- Running / Finished: read-only preview -->
-          <div v-else class="preview-pane">
-            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
-          </div>
-          <!-- Script links bar — always visible at bottom of left page -->
-          <div v-if="scriptOutgoingLinks.length > 0" class="links-panel">
-            <div class="links-section">
-              <span class="f-label">Script Links</span>
-              <div class="links-list">
-                <button v-for="link in scriptOutgoingLinks" :key="`${link.type}:${link.name}`" class="link-chip"
-                  :style="{ borderColor: (typeColorMap[link.type] ?? 'var(--ink-faded)') + '55' }"
-                  @click="$emit('navigate', link.type, link.name)">
-                  <template v-if="linkAvatar(link.type, link.name).imageUrl">
-                    <img :src="linkAvatar(link.type, link.name).imageUrl!" class="link-avatar" />
-                  </template>
-                  <OhVueIcon v-else :name="linkAvatar(link.type, link.name).iconName" scale="0.75"
-                    :style="{ color: linkAvatar(link.type, link.name).color, flexShrink: 0 }" />
-                  <span class="text-sm">{{ link.name }}</span>
-                  <span class="text-xs text-ink-ghost">{{ link.type }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- ── RIGHT PAGE (side="preview"): Notes / Preview ── -->
-        <!-- Planning: script preview (no links bar)   Running/Finished: notes editor/preview + links bar -->
-        <div v-else-if="props.side === 'preview'" class="edit-pane">
-          <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
-            <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />
-            <span v-if="sessionMode === 'planning'">Script Preview</span>
-            <span v-else>Session Notes</span>
-            <span v-if="sessionMode === 'planning'" style="font-size:10px;color:var(--ink-ghost);margin-left:auto">live preview</span>
-          </div>
-          <!-- Planning: script preview only -->
-          <div v-if="sessionMode === 'planning'" class="preview-pane">
-            <div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" />
-          </div>
-          <!-- Running: notes editor -->
-          <template v-else-if="sessionMode === 'running'">
-            <div class="editor-toolbar">
-              <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
-              <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
-              <button class="tb-btn" title="Heading" @click="insertMarkdown('## ', '')">H</button>
-              <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
-              <div class="tb-divider" />
-              <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-                :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">
-                {{ t.label.charAt(0) }}
-              </button>
-              <div class="tb-divider" />
-              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
-            </div>
-            <div class="editor-area-wrap" style="position:relative">
-              <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
-                @input="onInput" placeholder="Take notes here while running the session…" />
-              <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
-                <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                  @mousedown.prevent="applyAutocomplete(item)">
-                  <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                  <span class="text-sm">{{ item.name }}</span>
-                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
-                </button>
-                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches — will link on save</p>
-              </div>
-            </div>
-          </template>
-          <!-- Finished: notes preview -->
-          <div v-else class="preview-pane">
-            <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-            <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No session notes yet…</p>
-          </div>
-          <!-- Notes links bar — shown in running and finished modes -->
-          <div v-if="outgoingLinks.length > 0 && sessionMode !== 'planning'" class="links-panel">
-            <div class="links-section">
-              <span class="f-label">Notes Links</span>
-              <div class="links-list">
-                <button v-for="link in outgoingLinks" :key="link.id" class="link-chip"
-                  :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--ink-faded)') + '55' }"
-                  @click="$emit('navigate', link.targetType, link.targetName)">
-                  <template v-if="linkAvatar(link.targetType, link.targetName).imageUrl">
-                    <img :src="linkAvatar(link.targetType, link.targetName).imageUrl!" class="link-avatar" />
-                  </template>
-                  <OhVueIcon v-else :name="linkAvatar(link.targetType, link.targetName).iconName" scale="0.75"
-                    :style="{ color: linkAvatar(link.targetType, link.targetName).color, flexShrink: 0 }" />
-                  <span class="text-sm">{{ link.targetName }}</span>
-                  <span class="text-xs text-ink-ghost">{{ link.targetType }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Full split (no side prop — not used by notes.vue but kept for completeness) -->
-        <div v-else class="split-pane">
-          <div class="edit-pane">
-            <div class="session-pane-label" style="background:rgba(184,125,232,0.1)">
-              <OhVueIcon name="gi-book-aura" scale="0.8" style="color:#b87de8" />Script / Prep
-            </div>
+            <!-- Planning: editable -->
             <template v-if="sessionMode === 'planning'">
               <div class="editor-toolbar">
-                <button class="tb-btn" title="Bold" @click="insertMarkdownScript('**', '**')"><strong>B</strong></button>
-                <button class="tb-btn italic" title="Italic" @click="insertMarkdownScript('*', '*')"><em>I</em></button>
-                <button class="tb-btn" title="Heading" @click="insertMarkdownScript('## ', '')">H</button>
-                <button class="tb-btn" title="List" @click="insertMarkdownScript('\n- ', '')">—</button>
+                <button class="tb-btn" title="Bold" @click="insertScript('**', '**')"><strong>B</strong></button>
+                <button class="tb-btn italic" title="Italic" @click="insertScript('*', '*')"><em>I</em></button>
+                <button class="tb-btn" title="Heading" @click="insertScript('## ', '')">H₂</button>
+                <button class="tb-btn" title="List" @click="insertScript('\n- ', '')">—</button>
+                <button class="tb-btn" title="Task" @click="insertScript('\n- [ ] ', '')">☐</button>
                 <div class="tb-divider" />
-                <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-                  :title="`Link ${t.label}`" @click="insertEntityRefScript(t.type)">{{ t.label.charAt(0) }}</button>
+                <button
+                  v-for="t in entityTypes" :key="t.type"
+                  class="tb-btn tb-entity" :style="{ color: t.color }"
+                  :title="`Link ${t.label}`"
+                  @click="insertScript(`{{${t.type}: `, '}}')"
+                >{{ t.label.charAt(0) }}</button>
               </div>
-              <div class="editor-area-wrap" style="position:relative">
-                <textarea ref="scriptRef" v-model="draftScript" class="editor-textarea" spellcheck="true" @input="onScriptInput" placeholder="Write your session script…" />
+              <div class="editor-area-wrap">
+                <textarea
+                  ref="scriptRef"
+                  v-model="draftScript"
+                  class="editor-textarea"
+                  spellcheck="true"
+                  placeholder="Write your session script and prep notes here…"
+                  @input="onScriptInput"
+                />
+                <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
+                  <button
+                    v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
+                    class="autocomplete-item"
+                    @mousedown.prevent="applyAutocomplete(item, true)"
+                  >
+                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                    <span class="autocomplete-name">{{ item.name }}</span>
+                    <span class="autocomplete-type">{{ item.type }}</span>
+                  </button>
+                  <p v-if="!autocomplete.items.length" class="autocomplete-empty">No matches — will link on save</p>
+                </div>
               </div>
             </template>
-            <div v-else class="preview-pane"><div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" /></div>
-          </div>
-          <div class="split-divider" />
-          <div class="edit-pane">
-            <div class="session-pane-label" style="background:rgba(235,189,52,0.08)">
-              <OhVueIcon name="md-editnote" scale="0.8" style="color:var(--gold)" />Session Notes
-            </div>
-            <template v-if="sessionMode === 'running'">
-              <div class="editor-toolbar">
-                <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
-                <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
-                <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
-                <div class="tb-divider" />
-                <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-                  :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">{{ t.label.charAt(0) }}</button>
-              </div>
-              <div class="editor-area-wrap" style="position:relative">
-                <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true" @input="onInput" placeholder="Take notes here…" />
-              </div>
-            </template>
-            <div v-else-if="sessionMode === 'planning'" class="preview-pane"><div class="markdown-body" v-html="renderedScript" @click="onPreviewClick" /></div>
+
+            <!-- Running / Finished: read-only preview -->
             <div v-else class="preview-pane">
-              <div v-if="draftContent" class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-              <p v-else class="text-ink-ghost italic font-body" style="padding:24px">No notes yet…</p>
+              <div class="markdown-body preview-body" v-html="renderedScript" @click="onPreviewClick" />
+            </div>
+          </div>
+
+          <div class="session-split-divider" />
+
+          <!-- Right: Session Notes -->
+          <div class="session-pane">
+            <div class="session-pane-label" style="--pane-accent: var(--accent)">
+              <span class="session-pane-label-text">Session Notes</span>
+              <span v-if="sessionMode === 'finished'" class="session-pane-label-badge">read-only</span>
+            </div>
+
+            <!-- Planning: not yet started -->
+            <div v-if="sessionMode === 'planning'" class="editor-empty">
+              Session notes are available when the session is Running.
+            </div>
+
+            <!-- Running: editable -->
+            <template v-else-if="sessionMode === 'running'">
+              <div class="editor-toolbar">
+                <button class="tb-btn" title="Bold" @click="insertNotes('**', '**')"><strong>B</strong></button>
+                <button class="tb-btn italic" title="Italic" @click="insertNotes('*', '*')"><em>I</em></button>
+                <button class="tb-btn" title="Heading" @click="insertNotes('## ', '')">H₂</button>
+                <button class="tb-btn" title="List" @click="insertNotes('\n- ', '')">—</button>
+                <button class="tb-btn" title="Task" @click="insertNotes('\n- [ ] ', '')">☐</button>
+                <div class="tb-divider" />
+                <button
+                  v-for="t in entityTypes" :key="t.type"
+                  class="tb-btn tb-entity" :style="{ color: t.color }"
+                  :title="`Link ${t.label}`"
+                  @click="insertNotes(`{{${t.type}: `, '}}')"
+                >{{ t.label.charAt(0) }}</button>
+              </div>
+              <div class="editor-area-wrap">
+                <textarea
+                  ref="editorRef"
+                  v-model="draftContent"
+                  class="editor-textarea"
+                  spellcheck="true"
+                  placeholder="Take notes here while running the session…"
+                  @input="onNotesInput"
+                />
+                <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
+                  <button
+                    v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
+                    class="autocomplete-item"
+                    @mousedown.prevent="applyAutocomplete(item, false)"
+                  >
+                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                    <span class="autocomplete-name">{{ item.name }}</span>
+                    <span class="autocomplete-type">{{ item.type }}</span>
+                  </button>
+                  <p v-if="!autocomplete.items.length" class="autocomplete-empty">No matches — will link on save</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Finished: preview -->
+            <div v-else class="preview-pane">
+              <div v-if="draftContent" class="markdown-body preview-body" v-html="renderedContent" @click="onPreviewClick" />
+              <div v-else class="editor-empty">No session notes recorded.</div>
             </div>
           </div>
         </div>
       </template>
 
-      <!-- Regular content panel -->
-      <template v-else>
-        <!-- Editor side only -->
-        <div v-if="props.side === 'editor'" class="edit-pane">
-          <div class="editor-toolbar">
-            <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
-            <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
-            <button class="tb-btn" title="Heading" @click="insertMarkdown('## ', '')">H</button>
-            <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
-            <div class="tb-divider" />
-            <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-              :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">
-              {{ t.label.charAt(0) }}
+      <!-- ── Single-pane: Edit ── -->
+      <div v-else-if="viewMode === 'edit'" class="edit-pane">
+        <div class="editor-toolbar">
+          <button class="tb-btn" title="Bold" @click="insertNotes('**', '**')"><strong>B</strong></button>
+          <button class="tb-btn italic" title="Italic" @click="insertNotes('*', '*')"><em>I</em></button>
+          <button class="tb-btn" title="Heading" @click="insertNotes('## ', '')">H₂</button>
+          <button class="tb-btn" title="List" @click="insertNotes('\n- ', '')">—</button>
+          <button class="tb-btn" title="Task" @click="insertNotes('\n- [ ] ', '')">☐</button>
+          <button class="tb-btn" title="Quote" @click="insertNotes('\n> ', '')">❝</button>
+          <div class="tb-divider" />
+          <button
+            v-for="t in entityTypes" :key="t.type"
+            class="tb-btn tb-entity" :style="{ color: t.color }"
+            :title="`Link ${t.label}`"
+            @click="insertNotes(`{{${t.type}: `, '}}')"
+          >{{ t.label.charAt(0) }}</button>
+        </div>
+        <div class="editor-area-wrap">
+          <textarea
+            ref="editorRef"
+            v-model="draftContent"
+            class="editor-textarea"
+            spellcheck="true"
+            :placeholder="`Write your ${entity?.type ?? 'note'} here…`"
+            @input="onNotesInput"
+          />
+          <div v-if="autocomplete.show" class="autocomplete-dropdown">
+            <button
+              v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
+              class="autocomplete-item"
+              @mousedown.prevent="applyAutocomplete(item, false)"
+            >
+              <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+              <span class="autocomplete-name">{{ item.name }}</span>
+              <span class="autocomplete-type">{{ item.type }}</span>
             </button>
-            <div class="tb-divider" />
-            <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
-          </div>
-          <div class="editor-area-wrap" style="position:relative">
-            <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
-              @input="onInput" />
-            <div v-if="autocomplete.show" class="autocomplete-dropdown">
-              <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                @mousedown.prevent="applyAutocomplete(item)">
-                <span class="autocomplete-dot"
-                  :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                <span class="text-sm">{{ item.name }}</span>
-                <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
-              </button>
-              <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches
-                — will link on save</p>
-            </div>
+            <p v-if="!autocomplete.items.length" class="autocomplete-empty">No matches — will link on save</p>
           </div>
         </div>
-        <!-- Preview side only -->
-        <div v-else-if="props.side === 'preview'" class="preview-pane">
-          <div v-if="entityImageUrl" class="preview-banner">
-            <img :src="entityImageUrl" class="preview-banner-img" />
-          </div>
-          <div class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-          <div v-if="entityMapUrl" class="preview-map-section">
-            <div class="preview-map-label">
-              <OhVueIcon name="md-map" scale="0.8" /> Map
-            </div>
-            <div class="preview-map-img-wrap">
-              <img :src="entityMapUrl" class="preview-map-img" />
-            </div>
-          </div>
+      </div>
+
+      <!-- ── Single-pane: Preview ── -->
+      <div v-else-if="viewMode === 'preview'" class="preview-pane">
+        <div
+          v-if="entityImageUrl"
+          class="preview-banner"
+          :class="{ 'preview-banner--portrait': entity?.type === 'npc' }"
+        >
+          <img
+            :src="entityImageUrl"
+            class="preview-banner-img"
+            :class="{ 'preview-banner-img--portrait': entity?.type === 'npc' }"
+          />
         </div>
-        <!-- Full split (default) -->
-        <div v-else class="split-pane">
-          <!-- Left: Editor -->
-          <div class="edit-pane">
-            <div class="editor-toolbar">
-              <button class="tb-btn" title="Bold" @click="insertMarkdown('**', '**')"><strong>B</strong></button>
-              <button class="tb-btn italic" title="Italic" @click="insertMarkdown('*', '*')"><em>I</em></button>
-              <button class="tb-btn" title="Heading" @click="insertMarkdown('## ', '')">H</button>
-              <button class="tb-btn" title="List" @click="insertMarkdown('\n- ', '')">—</button>
-              <div class="tb-divider" />
-              <button v-for="t in entityTypes" :key="t.type" class="tb-btn entity-insert" :style="{ color: t.color }"
-                :title="`Link ${t.label}`" @click="insertEntityRef(t.type)">
-                {{ t.label.charAt(0) }}
-              </button>
-              <div class="tb-divider" />
-              <span class="text-xs text-ink-ghost font-ui ml-1 font-mono">&#123;&#123;type: Name&#125;&#125;</span>
-            </div>
-            <div class="editor-area-wrap" style="position:relative">
-              <textarea ref="editorRef" v-model="draftContent" class="editor-textarea" spellcheck="true"
-                @input="onInput" />
-              <div v-if="autocomplete.show" class="autocomplete-dropdown">
-                <button v-for="item in autocomplete.items" :key="item.id" class="autocomplete-item"
-                  @mousedown.prevent="applyAutocomplete(item)">
-                  <span class="autocomplete-dot"
-                    :style="{ background: typeColorMap[item.type] ?? 'var(--ink-faded)' }" />
-                  <span class="text-sm">{{ item.name }}</span>
-                  <span class="text-xs text-ink-ghost ml-auto">{{ item.type }}</span>
-                </button>
-                <p v-if="autocomplete.items.length === 0" class="text-xs text-ink-ghost p-2 italic font-ui">No matches
-                  — will link on save</p>
-              </div>
-            </div>
-          </div>
-          <!-- Divider -->
-          <div class="split-divider" />
-          <!-- Right: Preview -->
-          <div class="preview-pane">
-            <div v-if="entityImageUrl" class="preview-banner">
-              <img :src="entityImageUrl" class="preview-banner-img" />
-            </div>
-            <div class="markdown-body" v-html="renderedContent" @click="onPreviewClick" />
-            <div v-if="entityMapUrl" class="preview-map-section">
-              <div class="preview-map-label">
-                <OhVueIcon name="md-map" scale="0.8" /> Map
-              </div>
-              <div class="preview-map-img-wrap">
-                <img :src="entityMapUrl" class="preview-map-img" />
-              </div>
-            </div>
-          </div>
+        <div class="markdown-body preview-body" v-html="renderedContent" @click="onPreviewClick" />
+        <div v-if="entityMapUrl" class="preview-map-section">
+          <div class="preview-map-label"><OhVueIcon name="md-map" scale="0.8" /> Map</div>
+          <div class="preview-map-img-wrap"><img :src="entityMapUrl" class="preview-map-img" /></div>
         </div>
-      </template>
+      </div>
+
+      <!-- ── Single-pane: Mixed ── -->
+      <div v-else class="mixed-pane">
+        <div
+          v-for="(block, i) in editableBlocks"
+          :key="i"
+          class="mixed-block"
+          :class="{ 'mixed-block--active': activeBlock === i }"
+        >
+          <textarea
+            v-if="activeBlock === i"
+            v-model="editableBlocks[i]"
+            class="mixed-textarea"
+            :ref="(el: any) => { if (el) mixedRefs[i] = el }"
+            @input="onBlockInput(i)"
+            @blur="onBlockBlur"
+            @keydown.esc.prevent="onBlockBlur"
+          />
+          <div
+            v-else
+            class="mixed-preview markdown-body"
+            v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
+            @click="activateBlock(i)"
+          />
+        </div>
+        <button class="mixed-add-btn" @click="addBlock">+ paragraph</button>
+      </div>
+
     </div>
 
-    <!-- Links panel -->
-    <!-- Global links panel — shown for non-session entities only (sessions render their own per-pane links) -->
-    <div v-if="(outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0) && props.side !== 'editor' && entity?.type !== 'session'" class="links-panel">
+    <!-- ── Links panel (non-session) ── -->
+    <div
+      v-if="entity?.type !== 'session' && (outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0)"
+      class="links-panel"
+    >
       <div v-if="pinnedOn.length > 0" class="links-section">
-        <span class="f-label">Found in</span>
+        <span class="links-label">Found in</span>
         <div class="links-list">
-          <NuxtLink v-for="p in pinnedOn" :key="p.location.id"
-            :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`" class="link-chip pinned-chip">
+          <NuxtLink
+            v-for="p in pinnedOn" :key="p.location.id"
+            :to="`/campaign/${campaignId}/map?locationId=${p.location.id}`"
+            class="link-chip"
+          >
             <template v-if="linkAvatar('location', p.location.name).imageUrl">
               <img :src="linkAvatar('location', p.location.name).imageUrl!" class="link-avatar" />
             </template>
-            <OhVueIcon v-else name="gi-castle" scale="0.75" style="color:var(--gold);flex-shrink:0" />
-            <span class="text-sm">{{ p.location.name }}</span>
-            <span class="text-xs text-ink-ghost">map</span>
+            <OhVueIcon v-else name="gi-castle" scale="0.75" style="color:var(--accent);flex-shrink:0" />
+            <span>{{ p.location.name }}</span>
+            <span class="link-sub">map</span>
           </NuxtLink>
         </div>
       </div>
+
       <div v-if="outgoingLinks.length > 0" class="links-section">
-        <span class="f-label">Links</span>
+        <span class="links-label">Links</span>
         <div class="links-list">
-          <button v-for="link in outgoingLinks" :key="link.id" class="link-chip"
-            :style="{ borderColor: (typeColorMap[link.targetType] ?? 'var(--ink-faded)') + '55' }"
-            @click="$emit('navigate', link.targetType, link.targetName)">
+          <button
+            v-for="link in outgoingLinks" :key="link.id"
+            class="link-chip"
+            :style="{ borderColor: (typeColorMap[link.targetType] ?? '#888') + '44' }"
+            @click="$emit('navigate', link.targetType, link.targetName)"
+          >
             <template v-if="linkAvatar(link.targetType, link.targetName).imageUrl">
               <img :src="linkAvatar(link.targetType, link.targetName).imageUrl!" class="link-avatar" />
             </template>
-            <OhVueIcon v-else
-              :name="linkAvatar(link.targetType, link.targetName).iconName"
-              scale="0.75"
+            <OhVueIcon v-else :name="linkAvatar(link.targetType, link.targetName).iconName" scale="0.75"
               :style="{ color: linkAvatar(link.targetType, link.targetName).color, flexShrink: 0 }" />
-            <span class="text-sm">{{ link.targetName }}</span>
-            <span class="text-xs text-ink-ghost">{{ link.targetType }}</span>
-            <span v-if="Object.keys(link.metadata).length > 0" class="link-meta">{{
-              Object.entries(link.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')}}</span>
+            <span>{{ link.targetName }}</span>
+            <span class="link-sub">{{ link.targetType }}</span>
           </button>
         </div>
       </div>
+
       <div v-if="backlinks.length > 0" class="links-section">
-        <span class="f-label">Referenced by</span>
+        <span class="links-label">Referenced by</span>
         <div class="links-list">
-          <button v-for="bl in backlinks" :key="bl.sourceId" class="link-chip" @click="navigateToSource(bl.sourceId)">
-            <template v-if="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').imageUrl">
-              <img :src="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').imageUrl!" class="link-avatar" />
-            </template>
-            <OhVueIcon v-else
+          <button
+            v-for="bl in backlinks" :key="bl.sourceId"
+            class="link-chip"
+            @click="navigateToSource(bl.sourceId)"
+          >
+            <OhVueIcon
               :name="linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').iconName"
               scale="0.75"
-              :style="{ color: linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').color, flexShrink: 0 }" />
-            <span class="text-sm">{{ sourceEntity(bl.sourceId)?.name }}</span>
-            <span class="text-xs text-ink-ghost">{{ sourceEntity(bl.sourceId)?.type }}</span>
+              :style="{ color: linkAvatar(sourceEntity(bl.sourceId)?.type ?? '', sourceEntity(bl.sourceId)?.name ?? '').color, flexShrink: 0 }"
+            />
+            <span>{{ sourceEntity(bl.sourceId)?.name }}</span>
+            <span class="link-sub">{{ sourceEntity(bl.sourceId)?.type }}</span>
           </button>
         </div>
       </div>
     </div>
+
+    <!-- ── Links panel (session) ── -->
+    <div v-else-if="entity?.type === 'session' && (scriptLinks.length > 0 || outgoingLinks.length > 0)" class="links-panel">
+      <div v-if="scriptLinks.length > 0" class="links-section">
+        <span class="links-label">Script Links</span>
+        <div class="links-list">
+          <button
+            v-for="link in scriptLinks" :key="`${link.type}:${link.name}`"
+            class="link-chip"
+            :style="{ borderColor: (typeColorMap[link.type] ?? '#888') + '44' }"
+            @click="$emit('navigate', link.type, link.name)"
+          >
+            <span>{{ link.name }}</span>
+            <span class="link-sub">{{ link.type }}</span>
+          </button>
+        </div>
+      </div>
+      <div v-if="outgoingLinks.length > 0" class="links-section">
+        <span class="links-label">Notes Links</span>
+        <div class="links-list">
+          <button
+            v-for="link in outgoingLinks" :key="link.id"
+            class="link-chip"
+            :style="{ borderColor: (typeColorMap[link.targetType] ?? '#888') + '44' }"
+            @click="$emit('navigate', link.targetType, link.targetName)"
+          >
+            <span>{{ link.targetName }}</span>
+            <span class="link-sub">{{ link.targetType }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -400,50 +388,44 @@ import type { EntityAttributes } from '~/types/entities'
 
 const { renderMarkdown } = useEntityMarkdown()
 
-// ── Icon helpers ─────────────────────────────────────────────────────────────
+// ── Icon helpers ──────────────────────────────────────────────────────────────
 function giNameToExport(name: string): string {
-  // 'gi-scroll-unfurled' → 'GiScrollUnfurled'
   const body = name.replace(/^gi-/, '')
-  const pascal = body.charAt(0).toUpperCase() + body.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase())
-  return 'Gi' + pascal
+  return 'Gi' + body.charAt(0).toUpperCase() + body.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase())
 }
 function iconToSvg(icon: any, color: string): string {
   const vb = `${icon.minX ?? 0} ${icon.minY ?? 0} ${icon.width} ${icon.height}`
   return `<svg viewBox="${vb}" fill="${color}" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:3px;margin-top:-2px;flex-shrink:0">${icon.raw}</svg>`
 }
 function typeIconHtml(type: string, color: string): string {
-  const TYPE_ICON_NAMES: Record<string, string> = {
+  const ICONS: Record<string, string> = {
     note: 'gi-scroll-unfurled', npc: 'gi-person', item: 'gi-open-treasure-chest',
     location: 'gi-castle', faction: 'gi-american-shield', quest: 'gi-holy-grail',
     event: 'gi-sands-of-time', session: 'gi-book-aura', encounter: 'gi-broadsword',
   }
-  const iconName = TYPE_ICON_NAMES[type]
-  if (!iconName) return ''
-  const icon = (GiIcons as any)[giNameToExport(iconName)]
+  const icon = (GiIcons as any)[giNameToExport(ICONS[type] ?? '')]
   return icon ? iconToSvg(icon, color) : ''
 }
 function giIconByName(name: string): any | null {
   return (GiIcons as any)[giNameToExport(name)] ?? null
 }
 
-const props = defineProps<{ entityId: number; campaignId: number; side?: 'editor' | 'preview' }>()
+// ── Props / emits ─────────────────────────────────────────────────────────────
+const props = defineProps<{ entityId: number; campaignId: number }>()
 const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }>()
 
 const store = useNotesStore()
 const systemsStore = useSystemsStore()
 const router = useRouter()
 
-// Encounters for this campaign (for {{encounter: Name}} refs)
+// ── Campaign-level data ───────────────────────────────────────────────────────
 const campaignEncounters = ref<{ id: number; name: string; mapSource?: string }[]>([])
-
-// System linked to this campaign
 const campaignSystemId = ref<number | null>(null)
 const systemEntityTypes = ref<{ id: string; name: string; color: string; icon: string }[]>([])
 const systemRecordCache = ref<Map<string, { color: string }>>(new Map())
 
 watch(() => props.campaignId, async (id) => {
   if (!id) return
-  // Load encounters for {{encounter: Name}} refs
   campaignEncounters.value = await getDb().encounters
     .where('campaign_id').equals(id).toArray()
     .then(rows => rows.map(r => ({ id: r.id!, name: r.name, mapSource: r.map_source ?? undefined })))
@@ -454,7 +436,6 @@ watch(() => props.campaignId, async (id) => {
   const sys = systemsStore.getSystem(sysId)
   if (!sys) { systemEntityTypes.value = []; return }
   systemEntityTypes.value = sys.entityTypes.map(t => ({ id: t.id, name: t.name, color: t.color, icon: t.icon }))
-  // Pre-cache records from system for entity lookup
   const records = await getDb().records.where('systemId').equals(sysId).toArray()
   const cache = new Map<string, { color: string }>()
   for (const rec of records) {
@@ -464,25 +445,18 @@ watch(() => props.campaignId, async (id) => {
   systemRecordCache.value = cache
 }, { immediate: true })
 
-// ── Post-processing: task lists + callouts
+// ── Post-processing ───────────────────────────────────────────────────────────
 const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
-  note:      { color: '#5b8ee6', icon: 'ℹ️' },
-  info:      { color: '#5b8ee6', icon: 'ℹ️' },
-  tip:       { color: '#5aad6e', icon: '💡' },
-  warning:   { color: '#e6a93b', icon: '⚠️' },
-  caution:   { color: '#e05a5a', icon: '⚠️' },
-  danger:    { color: '#e05a5a', icon: '🔥' },
+  note: { color: '#5b8ee6', icon: 'ℹ️' }, info: { color: '#5b8ee6', icon: 'ℹ️' },
+  tip: { color: '#5aad6e', icon: '💡' }, warning: { color: '#e6a93b', icon: '⚠️' },
+  caution: { color: '#e05a5a', icon: '⚠️' }, danger: { color: '#e05a5a', icon: '🔥' },
   important: { color: '#9b59d4', icon: '❗' },
 }
 
 function postProcessHtml(html: string): string {
-  // Task list checkboxes
   let out = html
     .replace(/<li>\s*\[ \]\s*/g, '<li class="task-item"><input type="checkbox" disabled> ')
     .replace(/<li>\s*\[x\]\s*/gi, '<li class="task-item task-item--done"><input type="checkbox" checked disabled> ')
-
-  // Obsidian-style callouts: > [!TYPE] optional title
-  // With breaks:true, markdown-it renders as: <blockquote><p>[!TYPE] title<br>\nbody</p></blockquote>
   out = out.replace(
     /<blockquote>\s*<p>\[!([\w]+)\]([^<]*)(?:<br\s*\/?>)?\s*([\s\S]*?)<\/p>\s*<\/blockquote>/gi,
     (_full, type, titleRaw, bodyRaw) => {
@@ -499,18 +473,50 @@ ${body ? `<div class="callout-body">${body}</div>` : ''}
   return out
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
 const entity = computed(() => store.entities.find(e => e.id === props.entityId) ?? store.currentEntity)
-const viewMode = ref<'edit' | 'preview' | 'split'>('preview')
 const isEditingName = ref(false)
 const activePanel = ref<'content' | 'attributes'>('content')
 const draftName = ref('')
 const draftContent = ref('')
+const draftScript = ref('')
 const draftAttributes = ref<EntityAttributes>({})
 const nameInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<HTMLTextAreaElement | null>(null)
+const scriptRef = ref<HTMLTextAreaElement | null>(null)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let scriptSaveTimer: ReturnType<typeof setTimeout> | null = null
 let attrSaveTimer: ReturnType<typeof setTimeout> | null = null
 
+// ── View mode (non-session) ───────────────────────────────────────────────────
+type ViewMode = 'edit' | 'mixed' | 'preview'
+const VM_KEY = 'dmstome.editor.viewmode'
+const viewMode = ref<ViewMode>('mixed')
+if (import.meta.client) {
+  const s = localStorage.getItem(VM_KEY)
+  if (s === 'edit' || s === 'mixed' || s === 'preview') viewMode.value = s
+}
+function setViewMode(m: ViewMode) {
+  viewMode.value = m
+  if (import.meta.client) localStorage.setItem(VM_KEY, m)
+  if (m === 'mixed') syncBlocks()
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
+const sessionModes = [
+  { value: 'planning', label: 'Planning' },
+  { value: 'running',  label: 'Running'  },
+  { value: 'finished', label: 'Finished' },
+]
+const sessionMode = computed(() => (entity.value?.attributes as any)?.mode ?? 'planning')
+
+async function setSessionMode(mode: string) {
+  const attrs = { ...(entity.value?.attributes as any ?? {}), mode }
+  draftAttributes.value = attrs
+  await store.updateEntity(props.entityId, { attributes: attrs })
+}
+
+// ── Entity types ──────────────────────────────────────────────────────────────
 const ENCOUNTER_COLOR = '#e8a87a'
 const entityTypes = [
   ...Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, label: cfg.plural, color: cfg.color })),
@@ -520,36 +526,115 @@ const typeColorMap: Record<string, string> = {
   ...Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color])),
   encounter: ENCOUNTER_COLOR,
 }
-const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--ink-faded)')
+const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--accent)')
 const typeLabel = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.label ?? '')
 
-const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0, isScript: false })
+// ── Entity lookup ─────────────────────────────────────────────────────────────
+function entityLookup(type: string, name: string) {
+  const typeKey = type.toLowerCase()
+  if (typeKey === 'encounter') {
+    const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+    return { imageUrl: enc?.mapSource, iconHtml: enc?.mapSource ? undefined : typeIconHtml('encounter', ENCOUNTER_COLOR), color: ENCOUNTER_COLOR }
+  }
+  const ent = store.findByTypeAndName(typeKey, name)
+  if (ent) {
+    const attrs = ent.attributes as any
+    const imageUrl = attrs.portraitSource || attrs.logoSource || attrs.imageSource || undefined
+    const color = typeColorMap[ent.type] ?? '#888'
+    return { imageUrl, iconHtml: imageUrl ? undefined : typeIconHtml(ent.type, color), color }
+  }
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === typeKey)
+  if (sysType) {
+    const cached = systemRecordCache.value.get(`${sysType.id}:${name.toLowerCase()}`)
+    const icon = giIconByName(sysType.icon)
+    return { iconHtml: icon ? iconToSvg(icon, cached?.color ?? sysType.color) : undefined, color: cached?.color ?? sysType.color }
+  }
+  return null
+}
 
-const sessionModes = [
-  { value: 'planning', label: 'Planning' },
-  { value: 'running',  label: 'Running' },
-  { value: 'finished', label: 'Finished' },
-]
-const sessionMode = computed(() => (entity.value?.attributes as any)?.mode ?? 'planning')
-const draftScript = ref('')
-const scriptRef = ref<HTMLTextAreaElement | null>(null)
-let scriptSaveTimer: ReturnType<typeof setTimeout> | null = null
+// ── Rendered content ──────────────────────────────────────────────────────────
+const mdOpts = computed(() => ({
+  rich: true, postProcess: postProcessHtml, entityLookup,
+  extraTypes: systemEntityTypes.value.map(t => t.id),
+  allowTaskLists: true, allowLocalFileUris: true,
+}))
 
-const renderedScript = computed(() => {
-  const script = props.side === 'preview'
-    ? ((entity.value?.attributes as any)?.scriptContent ?? '')
-    : draftScript.value
-  if (!script) return '<p class="text-ink-ghost italic font-body" style="padding:24px">No script written yet…</p>'
-  return renderMarkdown(script, {
-    rich: true,
-    postProcess: postProcessHtml,
-    entityLookup,
-    extraTypes: systemEntityTypes.value.map(t => t.id),
-    allowTaskLists: true,
-    allowLocalFileUris: true,
-  })
+const renderedContent = computed(() => {
+  if (!draftContent.value?.trim()) return '<p class="md-empty">Nothing written yet…</p>'
+  return renderMarkdown(draftContent.value, mdOpts.value)
 })
 
+const renderedScript = computed(() => {
+  const content = draftScript.value || (entity.value?.attributes as any)?.scriptContent || ''
+  if (!content.trim()) return '<p class="md-empty">No script written yet…</p>'
+  return renderMarkdown(content, mdOpts.value)
+})
+
+function renderBlock(block: string): string {
+  return block.trim() ? renderMarkdown(block, mdOpts.value) : ''
+}
+
+// ── Mixed mode ────────────────────────────────────────────────────────────────
+const editableBlocks = ref<string[]>([''])
+const activeBlock = ref<number | null>(null)
+const mixedRefs: Record<number, HTMLTextAreaElement> = {}
+
+function syncBlocks() {
+  const blocks = draftContent.value.split(/\n\n+/)
+  editableBlocks.value = blocks.length > 0 ? blocks : ['']
+  activeBlock.value = null
+}
+
+function activateBlock(i: number) {
+  activeBlock.value = i
+  nextTick(() => {
+    const el = mixedRefs[i]
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  })
+}
+
+function onBlockInput(i: number) {
+  const el = mixedRefs[i]
+  if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+  draftContent.value = editableBlocks.value.join('\n\n')
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
+}
+
+function onBlockBlur() {
+  while (editableBlocks.value.length > 1 && !editableBlocks.value[editableBlocks.value.length - 1].trim()) {
+    editableBlocks.value.pop()
+  }
+  activeBlock.value = null
+}
+
+function addBlock() {
+  editableBlocks.value.push('')
+  nextTick(() => activateBlock(editableBlocks.value.length - 1))
+}
+
+// ── Entity load ───────────────────────────────────────────────────────────────
+watch(() => props.entityId, async (id) => {
+  await store.loadEntity(id)
+  draftContent.value = entity.value?.content ?? ''
+  draftName.value = entity.value?.name ?? ''
+  draftAttributes.value = { ...(entity.value?.attributes ?? {}) }
+  draftScript.value = (entity.value?.attributes as any)?.scriptContent ?? ''
+  isEditingName.value = false
+  activePanel.value = 'content'
+  activeBlock.value = null
+  if (viewMode.value === 'mixed') syncBlocks()
+}, { immediate: true })
+
+watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
+  if (val !== undefined && val !== draftScript.value) draftScript.value = val ?? ''
+})
+
+// ── Input handlers ────────────────────────────────────────────────────────────
 function onScriptInput() {
   if (scriptSaveTimer) clearTimeout(scriptSaveTimer)
   scriptSaveTimer = setTimeout(async () => {
@@ -559,83 +644,136 @@ function onScriptInput() {
   checkAutocomplete(scriptRef.value, draftScript.value, true)
 }
 
-async function setSessionMode(mode: string) {
-  const attrs = { ...(entity.value?.attributes as any ?? {}), mode }
+function onNotesInput() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
+  checkAutocomplete(editorRef.value, draftContent.value, false)
+}
+
+function onAttributesChange(attrs: EntityAttributes) {
   draftAttributes.value = attrs
-  await store.updateEntity(props.entityId, { attributes: attrs })
+  if (attrSaveTimer) clearTimeout(attrSaveTimer)
+  attrSaveTimer = setTimeout(() => store.updateEntity(props.entityId, { attributes: attrs }), 500)
 }
 
-// Keep draftScript synced if attributes change externally
-watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
-  if (val !== undefined && val !== draftScript.value) {
-    draftScript.value = val ?? ''
-  }
-})
-
-watch(() => props.entityId, async (id) => {
-  await store.loadEntity(id)
-  draftContent.value = entity.value?.content ?? ''
-  draftName.value = entity.value?.name ?? ''
-  draftAttributes.value = { ...(entity.value?.attributes ?? {}) }
-  draftScript.value = (entity.value?.attributes as any)?.scriptContent ?? ''
-  viewMode.value = 'preview'
-  isEditingName.value = false
-  activePanel.value = 'content'
-}, { immediate: true })
-
-function entityLookup(type: string, name: string): { imageUrl?: string; iconHtml?: string; color: string } | null {
-  const typeKey = type.toLowerCase()
-  // Encounters — show map image or broadsword icon
-  if (typeKey === 'encounter') {
-    const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
-    const imageUrl = enc?.mapSource
-    const color = ENCOUNTER_COLOR
-    return { imageUrl, iconHtml: imageUrl ? undefined : typeIconHtml('encounter', color), color }
-  }
-  // Campaign entities
-  const entity = store.findByTypeAndName(typeKey, name)
-  if (entity) {
-    const attrs = entity.attributes as any
-    const imageUrl = attrs.portraitSource || attrs.logoSource || attrs.imageSource || undefined
-    const color = typeColorMap[entity.type] ?? '#888'
-    return { imageUrl, iconHtml: imageUrl ? undefined : typeIconHtml(entity.type, color), color }
-  }
-  // System entity types
-  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === typeKey)
-  if (sysType) {
-    const cached = systemRecordCache.value.get(`${sysType.id}:${name.toLowerCase()}`)
-    const color = cached?.color ?? sysType.color
-    const icon = giIconByName(sysType.icon)
-    return { iconHtml: icon ? iconToSvg(icon, color) : undefined, color }
-  }
-  return null
+// ── Insert helpers ────────────────────────────────────────────────────────────
+function insertInto(el: HTMLTextAreaElement | null, draft: { value: string }, before: string, after: string) {
+  if (!el) return
+  const start = el.selectionStart; const end = el.selectionEnd
+  const selected = draft.value.slice(start, end)
+  draft.value = draft.value.slice(0, start) + before + selected + after + draft.value.slice(end)
+  nextTick(() => { el.setSelectionRange(start + before.length, start + before.length + selected.length); el.focus() })
 }
 
-const renderedContent = computed(() => {
-  const content = props.side === 'preview' ? (entity.value?.content ?? '') : draftContent.value
-  if (!content) return '<p class="text-ink-ghost italic font-body">Nothing written yet…</p>'
-  return renderMarkdown(content, {
-    rich: true,
-    postProcess: postProcessHtml,
-    entityLookup,
-    extraTypes: systemEntityTypes.value.map(t => t.id),
-    allowTaskLists: true,
-    allowLocalFileUris: true,
-  })
+function insertScript(before: string, after: string) { insertInto(scriptRef.value, draftScript, before, after) }
+function insertNotes(before: string, after: string) { insertInto(editorRef.value, draftContent, before, after) }
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0, isScript: false })
+
+async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
+  if (!el) return
+  const pos = el.selectionStart
+  const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
+  if (!match) { autocomplete.value.show = false; return }
+  const partialType = match[1].toLowerCase()
+  if (partialType === 'roll') { autocomplete.value.show = false; return }
+  const partialName = match[2]
+  const campaignCandidates = store.entities.filter(e =>
+    e.campaignId === props.campaignId &&
+    (!partialType || e.type.startsWith(partialType)) &&
+    (!partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
+  ).map(e => ({ type: e.type, name: e.name, id: e.id }))
+  const encounterCandidates = 'encounter'.startsWith(partialType)
+    ? campaignEncounters.value
+        .filter(e => !partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
+        .map(e => ({ type: 'encounter', name: e.name, id: e.id }))
+    : []
+  let sysCandidates: { type: string; name: string; id: number }[] = []
+  if (campaignSystemId.value) {
+    const matchingSysType = systemEntityTypes.value.find(t => !partialType || t.id.toLowerCase().startsWith(partialType))
+    if (matchingSysType) {
+      const rows = await getDb().records
+        .where('systemId').equals(campaignSystemId.value)
+        .filter(r => r.entityTypeId === matchingSysType.id && (!partialName || r.name.toLowerCase().includes(partialName.toLowerCase())))
+        .toArray()
+      sysCandidates = rows.map(r => ({ type: matchingSysType.id, name: r.name, id: r.id! }))
+    }
+  }
+  const candidates = [...campaignCandidates, ...encounterCandidates, ...sysCandidates].slice(0, 8)
+  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, isScript }
+}
+
+function applyAutocomplete(item: any, isScript: boolean) {
+  const el = isScript ? scriptRef.value : editorRef.value
+  const draft = isScript ? draftScript : draftContent
+  if (!el) return
+  const pos = el.selectionStart
+  const before = draft.value.slice(0, autocomplete.value.triggerStart)
+  const after = draft.value.slice(pos)
+  const replacement = `{{${item.type}: ${item.name}}}`
+  draft.value = `${before}${replacement}${after}`
+  autocomplete.value.show = false
+  nextTick(() => { const p = before.length + replacement.length; el.setSelectionRange(p, p); el.focus() })
+}
+
+// ── Preview click ─────────────────────────────────────────────────────────────
+const { triggerRoll } = useDiceRoll()
+
+function onPreviewClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.classList.contains('roll-ref')) { const roll = target.dataset.roll; if (roll) triggerRoll(roll); return }
+  if (target.classList.contains('entity-ref')) {
+    const type = target.dataset.entityType; const name = target.dataset.entityName
+    if (!type || !name) return
+    if (type === 'encounter') {
+      const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+      if (enc) router.push(`/encounter/${enc.id}`)
+      return
+    }
+    const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+    if (sysType && campaignSystemId.value) {
+      router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
+    } else {
+      emit('navigate', type, name)
+    }
+  }
+}
+
+// ── Image / map URLs ──────────────────────────────────────────────────────────
+const entityImageUrl = computed(() => {
+  const attrs = entity.value?.attributes as any
+  if (!attrs) return null
+  return attrs.logoSource || attrs.portraitSource || (entity.value?.type !== 'location' ? attrs.imageSource : null) || null
 })
 
-function linkAvatar(type: string, name: string): { imageUrl: string | null; iconName: string; color: string } {
+const entityMapUrl = computed(() => {
+  if (entity.value?.type !== 'location') return null
+  return (entity.value?.attributes as any)?.imageSource ?? null
+})
+
+// ── Links ─────────────────────────────────────────────────────────────────────
+const outgoingLinks = computed(() => store.linksFrom(props.entityId))
+const backlinks = computed(() => entity.value ? store.backlinksTo(entity.value.type, entity.value.name) : [])
+const pinnedOn = computed(() => entity.value ? store.pinnedLocationsFor(entity.value.id) : [])
+const sourceEntity = (id: number) => store.entities.find(e => e.id === id)
+const scriptLinks = computed(() => {
+  if (entity.value?.type !== 'session') return []
+  return extractLinks((entity.value?.attributes as any)?.scriptContent ?? '')
+})
+
+function linkAvatar(type: string, name: string) {
   const typeKey = type.toLowerCase()
   if (typeKey === 'encounter') {
     const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
     return { imageUrl: enc?.mapSource ?? null, iconName: 'gi-broadsword', color: ENCOUNTER_COLOR }
   }
-  const entity = store.findByTypeAndName(typeKey, name)
-  if (entity) {
-    const attrs = entity.attributes as any
+  const ent = store.findByTypeAndName(typeKey, name)
+  if (ent) {
+    const attrs = ent.attributes as any
     const imageUrl = attrs.portraitSource || attrs.logoSource || attrs.imageSource || null
-    const cfg = ENTITY_TYPE_CONFIG[entity.type as keyof typeof ENTITY_TYPE_CONFIG]
-    return { imageUrl, iconName: cfg?.defaultIcon ?? 'gi-scroll-unfurled', color: typeColorMap[entity.type] ?? '#888' }
+    const cfg = ENTITY_TYPE_CONFIG[ent.type as keyof typeof ENTITY_TYPE_CONFIG]
+    return { imageUrl, iconName: cfg?.defaultIcon ?? 'gi-scroll-unfurled', color: typeColorMap[ent.type] ?? '#888' }
   }
   const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === typeKey)
   if (sysType) return { imageUrl: null, iconName: sysType.icon, color: sysType.color }
@@ -643,27 +781,12 @@ function linkAvatar(type: string, name: string): { imageUrl: string | null; icon
   return { imageUrl: null, iconName: cfg?.defaultIcon ?? 'gi-scroll-unfurled', color: typeColorMap[typeKey] ?? '#888' }
 }
 
-const outgoingLinks = computed(() => store.linksFrom(props.entityId))
-const scriptOutgoingLinks = computed(() => {
-  if (entity.value?.type !== 'session') return []
-  const scriptContent = (entity.value?.attributes as any)?.scriptContent ?? ''
-  return extractLinks(scriptContent)
-})
-const pinnedOn = computed(() => {
-  if (!entity.value) return []
-  return store.pinnedLocationsFor(entity.value.id)
-})
-const backlinks = computed(() => {
-  if (!entity.value) return []
-  return store.backlinksTo(entity.value.type, entity.value.name)
-})
-const sourceEntity = (id: number) => store.entities.find(e => e.id === id)
-
 function navigateToSource(sourceId: number) {
   const e = sourceEntity(sourceId)
   if (e) emit('navigate', e.type, e.name)
 }
 
+// ── Name editing / delete ─────────────────────────────────────────────────────
 function startEditName() {
   draftName.value = entity.value?.name ?? ''
   isEditingName.value = true
@@ -676,141 +799,6 @@ async function saveName() {
     await store.updateEntity(props.entityId, { name: draftName.value.trim() })
   }
 }
-
-function onInput() {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
-  checkAutocomplete(editorRef.value, draftContent.value, false)
-}
-
-function onAttributesChange(attrs: EntityAttributes) {
-  draftAttributes.value = attrs
-  if (attrSaveTimer) clearTimeout(attrSaveTimer)
-  attrSaveTimer = setTimeout(() => store.updateEntity(props.entityId, { attributes: attrs }), 500)
-}
-
-async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
-  if (!el) return
-  const pos = el.selectionStart
-  const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
-  if (!match) { autocomplete.value.show = false; return }
-  const partialType = match[1].toLowerCase()
-  if (partialType === 'roll') { autocomplete.value.show = false; return }
-  const partialName = match[2]
-  // Campaign entities
-  const campaignCandidates = store.entities.filter(e => {
-    return e.campaignId === props.campaignId &&
-      (!partialType || e.type.startsWith(partialType)) &&
-      (!partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
-  }).map(e => ({ type: e.type, name: e.name }))
-  // Encounters
-  const encounterCandidates = 'encounter'.startsWith(partialType)
-    ? campaignEncounters.value
-        .filter(e => !partialName || e.name.toLowerCase().includes(partialName.toLowerCase()))
-        .map(e => ({ type: 'encounter', name: e.name }))
-    : []
-  // System entity records
-  let sysCandidates: { type: string; name: string }[] = []
-  if (campaignSystemId.value) {
-    const matchingSysType = systemEntityTypes.value.find(t => !partialType || t.id.toLowerCase().startsWith(partialType))
-    if (matchingSysType) {
-      const rows = await getDb().records
-        .where('systemId').equals(campaignSystemId.value)
-        .filter(r => r.entityTypeId === matchingSysType.id && (!partialName || r.name.toLowerCase().includes(partialName.toLowerCase())))
-        .toArray()
-      sysCandidates = rows.map(r => ({ type: matchingSysType.id, name: r.name }))
-    }
-  }
-  const candidates = [...campaignCandidates, ...encounterCandidates, ...sysCandidates].slice(0, 8)
-  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, isScript }
-}
-
-function applyAutocomplete(item: any) {
-  const isScript = autocomplete.value.isScript
-  const el = isScript ? scriptRef.value : editorRef.value
-  if (!el) return
-  const pos = el.selectionStart
-  const draft = isScript ? draftScript.value : draftContent.value
-  const before = draft.slice(0, autocomplete.value.triggerStart)
-  const after = draft.slice(pos)
-  const replacement = `{{${item.type}: ${item.name}}}`
-  if (isScript) draftScript.value = `${before}${replacement}${after}`
-  else draftContent.value = `${before}${replacement}${after}`
-  autocomplete.value.show = false
-  nextTick(() => {
-    const newPos = before.length + replacement.length
-    el.setSelectionRange(newPos, newPos)
-    el.focus()
-  })
-}
-
-function insertMarkdown(before: string, after: string) {
-  const el = editorRef.value
-  if (!el) return
-  const start = el.selectionStart
-  const end = el.selectionEnd
-  const selected = draftContent.value.slice(start, end)
-  draftContent.value = draftContent.value.slice(0, start) + before + selected + after + draftContent.value.slice(end)
-  nextTick(() => { el.setSelectionRange(start + before.length, start + before.length + selected.length); el.focus() })
-}
-
-function insertEntityRef(type: string) { insertMarkdown(`{{${type}: `, '}}') }
-
-function insertMarkdownScript(before: string, after: string) {
-  const el = scriptRef.value
-  if (!el) return
-  const start = el.selectionStart
-  const end = el.selectionEnd
-  const selected = draftScript.value.slice(start, end)
-  draftScript.value = draftScript.value.slice(0, start) + before + selected + after + draftScript.value.slice(end)
-  nextTick(() => { el.setSelectionRange(start + before.length, start + before.length + selected.length); el.focus() })
-}
-
-function insertEntityRefScript(type: string) { insertMarkdownScript(`{{${type}: `, '}}') }
-
-const { triggerRoll } = useDiceRoll()
-
-function onPreviewClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (target.classList.contains('roll-ref')) {
-    const roll = target.dataset.roll
-    if (roll) triggerRoll(roll)
-    return
-  }
-  if (target.classList.contains('entity-ref')) {
-    const type = target.dataset.entityType
-    const name = target.dataset.entityName
-    if (!type || !name) return
-    // Encounter: navigate to the encounter editor
-    if (type === 'encounter') {
-      const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
-      if (enc) router.push(`/encounter/${enc.id}`)
-      return
-    }
-    // Check if this is a system entity type
-    const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
-    if (sysType && campaignSystemId.value) {
-      router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
-    } else {
-      emit('navigate', type, name)
-    }
-  }
-}
-
-const entityImageUrl = computed(() => {
-  const attrs = entity.value?.attributes as any
-  if (!attrs) return null
-  const src = attrs.logoSource || attrs.portraitSource || (entity.value?.type !== 'location' ? attrs.imageSource : null)
-  if (!src) return null
-  return src   // ← was: return type (wrong)
-})
-
-const entityMapUrl = computed(() => {
-  if (entity.value?.type !== 'location') return null
-  const attrs = entity.value?.attributes as any
-  if (!attrs?.imageSource) return null
-  return attrs.imageType === 'url' ? attrs.imageSource : `${attrs.imageSource}`
-})
 
 async function confirmDelete() {
   if (confirm(`Delete "${entity.value?.name}"? This cannot be undone.`)) {
@@ -830,132 +818,233 @@ async function confirmDelete() {
   background: transparent;
 }
 
+/* ── Header ──────────────────────────────────────────────────────────────── */
 .editor-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: transparent;
-  border-bottom: 1px solid var(--parch-line);
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .entity-type-badge {
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 2px 9px;
+  border-radius: var(--r4);
   border: 1px solid;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   flex-shrink: 0;
 }
 
+.editor-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  margin: 0;
+}
+.editor-name:hover { color: var(--accent-l); }
+
+.editor-name-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--bg2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r1);
+  padding: 3px 8px;
+  color: var(--text);
+  outline: none;
+}
+
+.header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.mode-btn {
+  padding: 3px 10px;
+  border-radius: var(--r4);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.mode-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-l); }
+.mode-btn:hover:not(.active) { border-color: var(--border-hi); color: var(--text2); }
+
+.hdr-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r1);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.hdr-btn:hover { border-color: var(--border-hi); background: var(--surface-hi); }
+.hdr-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-l); }
+.hdr-btn--danger { color: var(--danger); }
+.hdr-btn--danger:hover { background: var(--danger-bg); border-color: var(--danger); }
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+.editor-tabbar {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 6px;
+  background: var(--bg2);
+}
+.etab-spacer { flex: 1; }
+.etab-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  overflow: hidden;
+  background: var(--bg);
+}
+.etab {
+  padding: 3px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.etab + .etab { border-left: 1px solid var(--border); }
+.etab:hover:not(:disabled) { color: var(--text2); background: var(--surface-hi); }
+.etab.active { background: var(--accent-bg); color: var(--accent-l); }
+.etab:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
 .editor-body {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.attributes-pane {
+.attributes-pane { flex: 1; overflow-y: auto; padding: 18px 20px; }
+
+.editor-empty {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  font-size: 13px;
+  font-style: italic;
+  padding: 32px;
+  text-align: center;
 }
 
-/* ── Split layout ─────────────────────────────────────────────────── */
-.mode-btn {
-  padding: 4px 12px; border-radius: var(--r-pill);
-  background: var(--parch-dark); border: 1px solid var(--parch-line);
-  color: var(--ink-ghost); font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.07em;
-  cursor: pointer; transition: all 0.15s;
-}
-.mode-btn.active {
-  background: #b87de822; border-color: #b87de855; color: #b87de8;
-}
-.mode-btn:hover:not(.active) { color: var(--ink); background: rgba(28,20,16,0.08); }
-
-.session-pane-label {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-bottom: 1px solid var(--parch-line);
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--ink-ghost);
-  flex-shrink: 0;
-}
-
-.split-pane {
+/* ── Session split ───────────────────────────────────────────────────────── */
+.session-split {
   flex: 1;
   display: flex;
   overflow: hidden;
   min-height: 0;
 }
 
-.split-divider {
+.session-split-divider {
   width: 1px;
-  background: var(--parch-line);
+  background: var(--border);
   flex-shrink: 0;
 }
 
+.session-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+.session-pane-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg2);
+}
+.session-pane-label-text {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--pane-accent, var(--text3));
+}
+.session-pane-label-badge {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r4);
+  padding: 1px 7px;
+  margin-left: auto;
+}
+
+/* ── Edit pane ───────────────────────────────────────────────────────────── */
 .edit-pane {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 0;
   min-height: 0;
 }
 
-.preview-pane {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-/* ── Editor toolbar ───────────────────────────────────────────────── */
 .editor-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: transparent;
-  border-bottom: 1px solid var(--parch-line);
+  gap: 3px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   flex-wrap: wrap;
+  background: var(--bg2);
 }
 
 .tb-btn {
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r1);
   background: transparent;
-  border: 1px solid var(--parch-line);
-  color: var(--ink-faded);
+  border: 1px solid transparent;
+  color: var(--text3);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.12s;
 }
+.tb-btn:hover { background: var(--surface-hi); border-color: var(--border); color: var(--text); }
+.tb-btn.italic { font-style: italic; }
+.tb-entity { font-weight: 700; font-size: 11px; }
 
-.tb-btn:hover {
-  background: var(--parch-dark);
-  color: var(--ink);
-}
-
-.tb-btn.entity-insert {
-  font-weight: 700;
-  font-size: 11px;
-}
-
-.tb-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--parch-line);
-  margin: 0 4px;
-}
+.tb-divider { width: 1px; height: 16px; background: var(--border-hi); margin: 0 3px; }
 
 .editor-area-wrap {
   flex: 1;
@@ -970,460 +1059,238 @@ async function confirmDelete() {
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 20px 24px;
+  padding: 18px 22px;
   background: transparent;
   border: none;
   outline: none;
   resize: none;
   overflow-y: auto;
-  color: var(--ink);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  line-height: 1.7;
-  caret-color: var(--gold);
+  color: var(--text);
+  font-family: var(--fm);
+  font-size: 13px;
+  line-height: 1.75;
+  caret-color: var(--accent);
 }
+.editor-textarea::placeholder { color: var(--text3); }
 
+/* ── Autocomplete ────────────────────────────────────────────────────────── */
 .autocomplete-dropdown {
   position: absolute;
   bottom: 8px;
-  left: 24px;
+  left: 22px;
   z-index: var(--z-sidebar);
-  background: var(--parch-dark);
-  border: 1px solid var(--ink-ghost);
-  border-radius: 8px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r2);
   width: 280px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sh-md);
 }
-
 .autocomplete-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   width: 100%;
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--ink);
+  color: var(--text);
   transition: background 0.1s;
   text-align: left;
+  font-size: 13px;
+}
+.autocomplete-item:hover { background: var(--surface-hi); }
+.autocomplete-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.autocomplete-name { flex: 1; }
+.autocomplete-type { font-size: 10px; color: var(--text3); }
+.autocomplete-empty { font-size: 12px; color: var(--text3); padding: 8px 12px; font-style: italic; margin: 0; }
+
+/* ── Preview pane ────────────────────────────────────────────────────────── */
+.preview-pane {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.autocomplete-item:hover {
-  background: var(--parch-line);
-}
+.preview-body { padding: 20px 26px; flex: 1; }
 
-.autocomplete-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* ── Preview image ────────────────────────────────────────────────── */
+/* Banner — wide (default) */
 .preview-banner {
   flex-shrink: 0;
-  padding: 20px 28px 0;
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  padding: 18px 26px 0;
 }
-
-.preview-banner-img-circle {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid var(--ink-ghost);
-  flex-shrink: 0;
-}
-
-.preview-banner-img-wide {
+.preview-banner-img {
   width: 100%;
-  max-height: 160px;
+  max-height: 180px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--r2);
+  border: 1px solid var(--border);
+  display: block;
 }
 
-.preview-banner-meta {
+/* Banner — portrait (NPC) */
+.preview-banner--portrait {
+  display: flex;
+  justify-content: center;
+  padding: 20px 26px 4px;
+}
+.preview-banner-img--portrait {
+  width: 110px;
+  height: 150px;
+  max-height: none;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: var(--r2);
+  border: 2px solid var(--border-hi);
+  box-shadow: var(--sh);
+}
+
+.preview-map-section { padding: 0 26px 18px; flex-shrink: 0; }
+.preview-map-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text3); margin-bottom: 6px;
+}
+.preview-map-img-wrap { border-radius: var(--r2); overflow: hidden; border: 1px solid var(--border); }
+.preview-map-img { width: 100%; display: block; }
+
+/* ── Mixed mode ──────────────────────────────────────────────────────────── */
+.mixed-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 18px 40px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-height: 0;
 }
 
-.preview-banner-title {
+.mixed-block {
+  border-radius: var(--r1);
+  border: 1px solid transparent;
+  transition: border-color 0.12s, background 0.12s;
+}
+.mixed-block:hover:not(.mixed-block--active) { border-color: var(--border); background: var(--bg2); }
+.mixed-block--active { border-color: var(--accent); background: var(--accent-bg); }
+
+.mixed-preview { padding: 5px 10px; cursor: text; min-height: 30px; }
+.mixed-placeholder { color: var(--text3); font-style: italic; font-size: 13px; }
+
+.mixed-textarea {
+  width: 100%;
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text);
+  font-family: var(--fm);
   font-size: 13px;
-  color: var(--gold);
-  font-style: italic;
+  line-height: 1.75;
+  caret-color: var(--accent);
+  min-height: 30px;
+  overflow: hidden;
+  display: block;
 }
 
-.preview-banner-level {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--forge-accent-dim, rgba(235, 189, 52, 0.12));
-  color: var(--gold);
-  border: 1px solid rgba(235, 189, 52, 0.3);
-  width: fit-content;
+.mixed-add-btn {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: var(--r4);
+  border: 1px dashed var(--border-hi);
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
 }
+.mixed-add-btn:hover { color: var(--text2); border-color: var(--border-hi); background: var(--bg2); }
 
-/* ── Markdown preview ─────────────────────────────────────────────── */
-.preview-pane .markdown-body {
-  padding: 20px 28px;
-  flex: 1;
-}
-
-/* ── Links panel ──────────────────────────────────────────────────── */
+/* ── Links panel ─────────────────────────────────────────────────────────── */
 .links-panel {
   flex-shrink: 0;
-  border-top: 1px solid var(--parch-line);
-  padding: 10px 16px;
-  background: transparent;
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
   display: flex;
-  gap: 24px;
+  gap: 20px;
   flex-wrap: wrap;
-  max-height: 120px;
+  max-height: 108px;
   overflow-y: auto;
+  background: var(--bg2);
 }
-
-.links-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 160px;
+.links-section { display: flex; flex-direction: column; gap: 4px; min-width: 100px; }
+.links-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text3);
 }
-
-.links-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
+.links-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .link-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: var(--parch-dark);
-  border: 1px solid var(--parch-line);
-  cursor: pointer;
-  transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: var(--r4);
+  background: var(--bg); border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.12s;
+  text-decoration: none; color: var(--text2); font-size: 12px;
 }
+.link-chip:hover { background: var(--surface-hi); border-color: var(--border-hi); }
+.link-avatar { width: 14px; height: 14px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.link-sub { font-size: 10px; color: var(--text3); }
 
-.link-chip:hover {
-  background: var(--parch-line);
-}
-
-.link-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.link-avatar {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid rgba(28,20,16,0.1);
-}
-
-.link-meta {
-  font-size: 10px;
-  color: var(--gold);
-  font-style: italic;
-}
+.md-empty { color: var(--text3); font-style: italic; padding: 20px 0 0; margin: 0; font-size: 14px; }
 </style>
 
 <style>
+/* ── Markdown body (global) ──────────────────────────────────────────────── */
 .markdown-body {
   color: var(--ink);
   font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 17px;
-  line-height: 1.75;
-}
-
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3 {
-  color: var(--gold);
-  margin: 1.2em 0 0.4em;
-}
-
-.markdown-body h1 {
-  font-size: 1.6em;
-}
-
-.markdown-body h2 {
-  font-size: 1.3em;
-}
-
-.markdown-body h3 {
-  font-size: 1.1em;
-}
-
-.markdown-body p {
-  margin: 0.6em 0;
-}
-
-.markdown-body ul {
-  list-style: none;
-  padding-left: 1.5em;
-  margin: 0.5em 0;
-}
-
-.markdown-body ul > li {
-  position: relative;
-}
-
-.markdown-body ul > li::before {
-  content: '✦';
-  position: absolute;
-  left: -1.2em;
-  top: 1.46em;
-  transform: translateY(-50%);
-  color: var(--gold);
-  font-size: 0.6em;
-  line-height: 1;
-}
-
-.markdown-body ol {
-  list-style: decimal;
-  padding-left: 1.8em;
-  margin: 0.5em 0;
-}
-
-.markdown-body li {
-  margin: 0.2em 0;
-}
-
-.markdown-body strong {
-  color: #e8d4a0;
-}
-
-.markdown-body em {
-  color: #b0b8d0;
-  font-style: italic;
-}
-
-.markdown-body a {
-  color: var(--gold);
-  text-decoration: underline;
-  text-decoration-color: rgba(184, 134, 11, 0.5);
-  text-underline-offset: 3px;
-  transition: text-decoration-color 0.15s;
-}
-
-.markdown-body a:hover {
-  text-decoration-color: var(--gold);
-}
-
-.markdown-body blockquote {
-  border-left: 3px solid var(--gold);
-  padding-left: 1em;
-  margin: 0.8em 0;
-  color: #9090b0;
-  font-style: italic;
-}
-
-.markdown-body code {
-  background: var(--parch-dark);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  color: var(--gold);
-}
-
-.markdown-body hr {
-  border-color: var(--parch-line);
-  margin: 1.5em 0;
-}
-
-.entity-ref {
-  cursor: pointer;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-weight: 600;
-  transition: background 0.15s;
-  display: inline;
-}
-
-.entity-ref:hover {
-  filter: brightness(1.2);
-}
-
-.entity-ref em {
-  font-size: 0.85em;
-  font-style: normal;
-  opacity: 0.75;
-  margin-left: 3px;
-}
-
-.entity-ref--note {
-  color: #7ba8e8;
-  background: rgba(91, 141, 217, 0.15);
-}
-
-.entity-ref--npc {
-  color: #7dd89a;
-  background: rgba(93, 184, 122, 0.15);
-}
-
-.entity-ref--item {
-  color: var(--gold);
-  background: rgba(201, 151, 58, 0.15);
-}
-
-.entity-ref--location {
-  color: #b98ee8;
-  background: rgba(155, 109, 217, 0.15);
-}
-
-.entity-ref--faction {
-  color: #e87a7a;
-  background: rgba(217, 91, 91, 0.15);
-}
-
-.entity-ref--encounter {
-  color: #e8a87a;
-  background: rgba(217, 141, 91, 0.15);
-}
-
-/* Entity ref avatar inline image */
-.entity-ref-avatar {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  object-fit: cover;
-  vertical-align: middle;
-  margin-right: 3px;
-  margin-top: -2px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.entity-ref-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  vertical-align: middle;
-  margin-right: 4px;
-  margin-top: -1px;
-  flex-shrink: 0;
-}
-
-/* ── Tables ───────────────────────────────────────────────────── */
-.markdown-body table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 1em 0;
   font-size: 15px;
+  line-height: 1.8;
 }
-.markdown-body th {
-  background: rgba(184,134,11,0.1);
-  border: 1px solid var(--parch-line, rgba(255,255,255,0.08));
-  padding: 7px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: var(--gold);
-}
-.markdown-body td {
-  border: 1px solid var(--parch-line, rgba(255,255,255,0.08));
-  padding: 6px 12px;
-}
-.markdown-body tr:nth-child(even) td {
-  background: rgba(255,255,255,0.02);
-}
-
-/* ── Task lists ───────────────────────────────────────────────── */
-.markdown-body .task-item {
-  list-style: none;
-  margin-left: -1.2em;
-}
-.markdown-body .task-item::before {
-  display: none;
-}
-.markdown-body .task-item input[type="checkbox"] {
-  margin-right: 7px;
-  accent-color: var(--gold);
-  width: 14px;
-  height: 14px;
-  vertical-align: middle;
-  cursor: default;
-}
-.markdown-body .task-item--done {
-  color: var(--ink-ghost, rgba(200,185,165,0.5));
-  text-decoration: line-through;
-}
-
-/* ── Highlight ==text== ───────────────────────────────────────── */
-.markdown-body mark {
-  background: rgba(235,189,52,0.22);
-  color: var(--ink);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-style: normal;
-}
-
-/* ── Strikethrough ~~text~~ ───────────────────────────────────── */
-.markdown-body s, .markdown-body del {
-  color: var(--ink-ghost, rgba(200,185,165,0.5));
-}
-
-/* ── Callouts > [!NOTE] ───────────────────────────────────────── */
-.callout {
-  border-left: 4px solid var(--callout-color, var(--gold));
-  background: color-mix(in srgb, var(--callout-color, var(--gold)) 10%, transparent);
-  border-radius: 0 6px 6px 0;
-  padding: 0;
-  margin: 1.1em 0;
-  overflow: hidden;
-}
-.callout-title {
-  font-weight: 700;
-  color: var(--callout-color, var(--gold));
-  font-size: 12px;
-  padding: 7px 14px;
-  background: color-mix(in srgb, var(--callout-color, var(--gold)) 16%, transparent);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.callout-body {
-  color: var(--ink);
-  font-size: 15px;
-  line-height: 1.7;
-  padding: 8px 14px 10px;
-}
-.callout-body p { margin: 0.3em 0; }
-
-.roll-ref {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(184,134,11,0.1);
-  border: 1px solid rgba(184,134,11,0.35);
-  border-radius: 5px;
-  padding: 1px 8px;
-  color: var(--gold);
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.88em;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.roll-ref:hover {
-  background: rgba(184,134,11,0.22);
-  border-color: var(--gold);
-  box-shadow: 0 0 8px rgba(184,134,11,0.2);
-}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--gold); margin: 1.2em 0 0.4em; }
+.markdown-body h1 { font-size: 1.5em; } .markdown-body h2 { font-size: 1.25em; } .markdown-body h3 { font-size: 1.05em; }
+.markdown-body p { margin: 0.55em 0; }
+.markdown-body ul { list-style: none; padding-left: 1.4em; margin: 0.4em 0; }
+.markdown-body ul > li { position: relative; }
+.markdown-body ul > li::before { content: '✦'; position: absolute; left: -1.2em; top: 1.46em; transform: translateY(-50%); color: var(--gold); font-size: 0.55em; line-height: 1; }
+.markdown-body ol { list-style: decimal; padding-left: 1.6em; margin: 0.4em 0; }
+.markdown-body li { margin: 0.2em 0; }
+.markdown-body strong { color: #e8d4a0; }
+.markdown-body em { color: #b0b8d0; font-style: italic; }
+.markdown-body a { color: var(--gold); text-decoration: underline; text-decoration-color: rgba(184,134,11,0.4); text-underline-offset: 3px; }
+.markdown-body a:hover { text-decoration-color: var(--gold); }
+.markdown-body blockquote { border-left: 3px solid var(--gold); padding-left: 1em; margin: 0.8em 0; color: #9090b0; font-style: italic; }
+.markdown-body code { background: var(--parch-dark); padding: 1px 5px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold); }
+.markdown-body hr { border-color: var(--parch-line); margin: 1.4em 0; }
+.markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
+.markdown-body th { background: rgba(184,134,11,0.1); border: 1px solid var(--parch-line); padding: 6px 11px; text-align: left; font-weight: 600; color: var(--gold); }
+.markdown-body td { border: 1px solid var(--parch-line); padding: 5px 11px; }
+.markdown-body tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.markdown-body .task-item { list-style: none; margin-left: -1.2em; }
+.markdown-body .task-item::before { display: none; }
+.markdown-body .task-item input[type="checkbox"] { margin-right: 7px; accent-color: var(--gold); width: 13px; height: 13px; vertical-align: middle; cursor: default; }
+.markdown-body .task-item--done { color: var(--ink-ghost); text-decoration: line-through; }
+.markdown-body mark { background: rgba(235,189,52,0.2); color: var(--ink); padding: 1px 4px; border-radius: 3px; }
+.markdown-body s, .markdown-body del { color: var(--ink-ghost); }
+.callout { border-left: 4px solid var(--callout-color, var(--gold)); background: color-mix(in srgb, var(--callout-color, var(--gold)) 10%, transparent); border-radius: 0 6px 6px 0; margin: 1em 0; overflow: hidden; }
+.callout-title { font-weight: 700; color: var(--callout-color, var(--gold)); font-size: 11px; padding: 6px 14px; background: color-mix(in srgb, var(--callout-color, var(--gold)) 16%, transparent); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+.callout-body { color: var(--ink); font-size: 14px; line-height: 1.7; padding: 7px 14px 9px; }
+.callout-body p { margin: 0.25em 0; }
+.entity-ref { cursor: pointer; border-radius: 3px; padding: 1px 4px; font-weight: 600; transition: background 0.12s; display: inline; }
+.entity-ref:hover { filter: brightness(1.2); }
+.entity-ref em { font-size: 0.85em; font-style: normal; opacity: 0.75; margin-left: 3px; }
+.entity-ref--note    { color: #7ba8e8; background: rgba(91,141,217,0.15); }
+.entity-ref--npc     { color: #7dd89a; background: rgba(93,184,122,0.15); }
+.entity-ref--item    { color: var(--gold); background: rgba(201,151,58,0.15); }
+.entity-ref--location { color: #b98ee8; background: rgba(155,109,217,0.15); }
+.entity-ref--faction  { color: #e87a7a; background: rgba(217,91,91,0.15); }
+.entity-ref--encounter { color: #e8a87a; background: rgba(217,141,91,0.15); }
+.entity-ref-avatar { display: inline-block; width: 14px; height: 14px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 3px; margin-top: -2px; border: 1px solid rgba(255,255,255,0.2); }
+.entity-ref-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-top: -1px; flex-shrink: 0; }
+.roll-ref { display: inline-flex; align-items: center; gap: 3px; background: rgba(184,134,11,0.1); border: 1px solid rgba(184,134,11,0.35); border-radius: 5px; padding: 1px 8px; color: var(--gold); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; transition: all 0.12s; white-space: nowrap; }
+.roll-ref:hover { background: rgba(184,134,11,0.22); border-color: var(--gold); }
+.mixed-preview.markdown-body { padding: 0; font-size: 14px; }
 </style>

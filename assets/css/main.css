@@ -2133,28 +2133,7 @@ html[data-theme="dark"] .erow:hover { background: oklch(100% 0 0 / 0.05); }
   opacity: 0.25;
 }
 
-/* ── Entity detail pane ── */
-.entry-pane {
-  display: flex;
-  flex: 1;
-  height: 100%;
-  overflow: hidden;
-}
-.entry-pane-editor {
-  flex: 1;
-  min-width: 0;
-  border-right: 1px solid var(--border);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.entry-pane-preview {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+
 
 /* ═══════════════════════════════════════════════════════════════════════
    SYSTEM PAGES — Library, Entity Browser, Builder
