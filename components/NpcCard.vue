@@ -147,10 +147,13 @@ const hasTags = computed(() => {
 /* ── Portrait ────────────────────────────────────────────── */
 .npc-card-portrait {
     width: 120px;
-    flex-shrink: 0;
-    align-self: stretch;
-    border-right: 1px solid var(--border);
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid rgba(124, 196, 78, 0.35);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    margin: 10px;
 }
 .npc-card--compact .npc-card-portrait {
     width: 44px;
