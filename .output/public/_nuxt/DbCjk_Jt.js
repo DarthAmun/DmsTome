@@ -1,0 +1,1 @@
+import{_ as o}from"./cJgDrG0E.js";import{_ as n,c as t,o as e}from"./CCjd3_Fc.js";import"./Dcfyo9gd.js";const r={};function _(s,a){const c=o;return e(),t(c,{type:"npc"})}const m=n(r,[["render",_]]);export{m as default};

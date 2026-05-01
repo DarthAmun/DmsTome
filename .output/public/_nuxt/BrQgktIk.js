@@ -1,0 +1,1 @@
+import{_ as t,b as n,d as s,o}from"./CCjd3_Fc.js";const a={},c={class:"edetail-empty"};function r(l,e){return o(),n("div",c,[...e[0]||(e[0]=[s("span",{class:"edetail-empty-icon"},"📋",-1),s("span",null,"Select a session or create one",-1)])])}const i=t(a,[["render",r]]);export{i as default};

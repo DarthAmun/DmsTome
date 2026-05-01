@@ -1,0 +1,1 @@
+import{e as a,J as n,f as r,B as c,g as m,c as u,o as _,z as p}from"./CCjd3_Fc.js";const y=a({__name:"[id]",setup(i){const s=n(),e=r(),t=c();return m(async()=>{s.systems.length||await s.loadAll(),e.path===`/system/${e.params.id}`&&t.replace(`/system/${e.params.id}/library`)}),(l,d)=>{const o=p;return _(),u(o)}}});export{y as default};

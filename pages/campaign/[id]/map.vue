@@ -1,31 +1,25 @@
 <template>
   <div class="map-folio">
     <!-- ACTIVE MAP — full width -->
-    <div v-if="activeLocationId" class="map-view-shell">
-      <div class="map-sheet map-sheet-3"></div>
-      <div class="map-sheet map-sheet-2"></div>
-      <div class="map-view">
-        <div class="map-view-header">
-          <button class="back-btn" @click="goBack">
-            <OhVueIcon name="md-arrowback" scale="0.75" />
-            {{ locationStack.length > 0 ? "Up a Level" : "All Locations" }}
-          </button>
-          <span class="map-view-name">{{ activeLocationName }}</span>
-        </div>
-        <div class="map-body">
-          <WorldMap
-            :campaign-id="campaignId"
-            :root-location-id="activeLocationId"
-            :location-stack="locationStack"
-            @navigate-entity="navigateToEntity"
-            @drill-down="onDrillDown"
-            @navigate-crumb="onNavigateCrumb"
-          />
-        </div>
+    <div v-if="activeLocationId" class="map-view">
+      <div class="map-view-header">
+        <button class="back-btn" @click="goBack">
+          <OhVueIcon name="md-arrowback" scale="0.75" />
+          {{ locationStack.length > 0 ? "Up a Level" : "All Locations" }}
+        </button>
+        <span class="map-view-name">{{ activeLocationName }}</span>
       </div>
-      <!-- end map-view -->
+      <div class="map-body">
+        <WorldMap
+          :campaign-id="campaignId"
+          :root-location-id="activeLocationId"
+          :location-stack="locationStack"
+          @navigate-entity="navigateToEntity"
+          @drill-down="onDrillDown"
+          @navigate-crumb="onNavigateCrumb"
+        />
+      </div>
     </div>
-    <!-- end map-view-shell -->
 
     <!-- ATLAS INDEX -->
     <template v-else>
@@ -410,53 +404,13 @@ function pinCount(loc: any): number {
   overflow: visible;
 }
 
-.map-view-shell {
-  position: relative;
-  flex: 1;
-  overflow: visible;
-  padding: 14px 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
-
-.map-sheet {
-  position: absolute;
-  border-radius: 2px;
-  pointer-events: none;
-}
-
-.map-sheet-3 {
-  inset: 10px 12px 8px 12px;
-  background-color: #b8ac96; /* aged-parchment sheet tint — no variable */
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  transform: rotate(1.5deg) translateX(10px);
-  transform-origin: top center;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
-}
-
-.map-sheet-2 {
-  inset: 10px 12px 8px 12px;
-  background-color: #cdc09e; /* aged-parchment sheet tint — no variable */
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  transform: rotate(-1.0deg) translateX(-8px);
-  transform-origin: top center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
-}
-
 .map-view {
   position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  border-radius: 2px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+  background: var(--bg);
 }
 
 .map-view-header {

@@ -1,267 +1,229 @@
 <template>
-  <div class="book-shell">
-    <div class="tome-page page-enter">
-      <div class="open-book">
+  <div class="settings-shell screen-in">
 
-        <!-- ── LEFT PAGE — Appearance ── -->
-        <div class="book-stack book-stack--left">
-          <div class="book-sheet-3" />
-          <div class="book-sheet-2" />
-          <div class="book-sheet-1" />
-          <div class="book-leaf book-leaf--left">
-
-            <div class="page-header">
-              <div class="page-chapter-num">DM's Tome</div>
-              <h1 class="page-title">Settings</h1>
-              <div class="page-rule" />
-            </div>
-
-            <div class="leaf-inner">
-
-              <!-- Appearance -->
-              <section class="sett-section">
-                <h2 class="sett-section-title">
-                  <OhVueIcon name="md-brightness4" scale="0.8" /> Appearance
-                </h2>
-                <div class="sett-group">
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Paper Texture</span>
-                      <span class="sett-desc">Aged parchment effect on pages</span>
-                    </div>
-                    <button class="sett-toggle" :class="{ on: settings.paperTexture }"
-                      @click="update('paperTexture', !settings.paperTexture)" />
-                  </div>
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Page Animations</span>
-                      <span class="sett-desc">Page flip and entrance transitions</span>
-                    </div>
-                    <button class="sett-toggle" :class="{ on: settings.pageAnimations }"
-                      @click="update('pageAnimations', !settings.pageAnimations)" />
-                  </div>
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Arcane Sparks</span>
-                      <span class="sett-desc">Particle burst on button clicks</span>
-                    </div>
-                    <button class="sett-toggle" :class="{ on: settings.sparkEffects }"
-                      @click="update('sparkEffects', !settings.sparkEffects)" />
-                  </div>
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Ink Write Effect</span>
-                      <span class="sett-desc">Animate headings letter by letter</span>
-                    </div>
-                    <button class="sett-toggle" :class="{ on: settings.inkWrite }"
-                      @click="update('inkWrite', !settings.inkWrite)" />
-                  </div>
-                </div>
-              </section>
-
-              <!-- About -->
-              <section class="sett-section sett-section--about">
-                <h2 class="sett-section-title">
-                  <OhVueIcon name="gi-book-cover" scale="0.8" /> About
-                </h2>
-                <div class="sett-about">
-                  <img src="/icons/icon-512.png" class="sett-about-logo" alt="DM's Tome" />
-                  <div class="sett-about-info">
-                    <div class="sett-about-name">DM's Tome</div>
-                    <div class="sett-about-version">Version {{ version }}</div>
-                    <div class="sett-about-desc">Offline-first campaign manager for Dungeon Masters. All data lives in your browser.</div>
-                  </div>
-                </div>
-              </section>
-
-            </div>
-          </div>
-        </div>
-
-        <div class="book-binding" />
-
-        <!-- ── RIGHT PAGE — Data ── -->
-        <div class="book-stack book-stack--right">
-          <div class="book-sheet-3" />
-          <div class="book-sheet-2" />
-          <div class="book-sheet-1" />
-          <div class="book-leaf book-leaf--right">
-
-            <div class="page-header">
-              <div class="page-chapter-num">Grimoire</div>
-              <h1 class="page-title">Data &amp; Backups</h1>
-              <div class="page-rule" />
-            </div>
-
-            <div class="leaf-inner">
-
-              <!-- Data Management -->
-              <section class="sett-section">
-                <h2 class="sett-section-title">
-                  <OhVueIcon name="md-storage" scale="0.8" /> Import &amp; Export
-                </h2>
-                <div class="sett-group">
-
-                  <!-- Everything -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Everything</span>
-                      <span class="sett-desc">All campaigns, systems, tokens and records</span>
-                      <div v-if="stats" class="sett-pills">
-                        <span class="sett-pill">{{ stats.campaigns }} campaigns</span>
-                        <span class="sett-pill">{{ stats.entities }} notes</span>
-                        <span class="sett-pill">{{ stats.systems }} systems</span>
-                        <span class="sett-pill">{{ stats.records }} records</span>
-                        <span class="sett-pill">{{ stats.tokens }} tokens</span>
-                      </div>
-                    </div>
-                    <div class="sett-btn-pair">
-                      <button class="sett-btn" @click="exportAll">
-                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                      </button>
-                      <label class="sett-btn">
-                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                        <input type="file" accept=".json" style="display:none" @change="openImport($event, 'all')" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Campaigns -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Campaigns</span>
-                      <span class="sett-desc">Campaigns with encounters, notes and links</span>
-                      <div v-if="stats" class="sett-pills">
-                        <span class="sett-pill">{{ stats.campaigns }} campaigns</span>
-                        <span class="sett-pill">{{ stats.encounters }} encounters</span>
-                        <span class="sett-pill">{{ stats.entities }} notes</span>
-                      </div>
-                    </div>
-                    <div class="sett-btn-pair">
-                      <button class="sett-btn" @click="exportCampaigns">
-                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                      </button>
-                      <label class="sett-btn">
-                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                        <input type="file" accept=".json" style="display:none" @change="openImport($event, 'campaigns')" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Systems schema -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Systems</span>
-                      <span class="sett-desc">Rule system schemas only, no records</span>
-                      <div v-if="stats" class="sett-pills">
-                        <span class="sett-pill">{{ stats.systems }} systems</span>
-                      </div>
-                    </div>
-                    <div class="sett-btn-pair">
-                      <button class="sett-btn" @click="exportSystems(false)">
-                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                      </button>
-                      <label class="sett-btn">
-                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                        <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems')" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Systems + records -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Systems + Records</span>
-                      <span class="sett-desc">System schemas including all data records</span>
-                      <div v-if="stats" class="sett-pills">
-                        <span class="sett-pill">{{ stats.systems }} systems</span>
-                        <span class="sett-pill">{{ stats.records }} records</span>
-                      </div>
-                    </div>
-                    <div class="sett-btn-pair">
-                      <button class="sett-btn" @click="exportSystems(true)">
-                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                      </button>
-                      <label class="sett-btn">
-                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                        <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems-full')" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Tokens -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Tokens</span>
-                      <span class="sett-desc">Token templates and their images</span>
-                      <div v-if="stats" class="sett-pills">
-                        <span class="sett-pill">{{ stats.tokens }} tokens</span>
-                      </div>
-                    </div>
-                    <div class="sett-btn-pair">
-                      <button class="sett-btn" @click="exportTokens">
-                        <OhVueIcon name="md-filedownload" scale="0.8" /> Export
-                      </button>
-                      <label class="sett-btn">
-                        <OhVueIcon name="md-fileupload" scale="0.8" /> Import
-                        <input type="file" accept=".json" style="display:none" @change="openImport($event, 'tokens')" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Campaign → Markdown -->
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Export as Markdown</span>
-                      <span class="sett-desc">Download a campaign's notes and encounters as a Markdown zip</span>
-                      <select v-if="campaigns.length" v-model="mdExportCampaignId" class="sett-md-select">
-                        <option :value="null">— choose campaign —</option>
-                        <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-                      </select>
-                      <span v-else class="sett-desc" style="margin-top:4px">No campaigns found</span>
-                    </div>
-                    <button
-                      class="sett-btn"
-                      :disabled="!mdExportCampaignId || mdExporting"
-                      @click="exportCampaignMarkdown"
-                    >
-                      <OhVueIcon :name="mdExporting ? 'md-animation' : 'md-filedownload'" scale="0.8" />
-                      {{ mdExporting ? 'Exporting…' : 'Export' }}
-                    </button>
-                  </div>
-
-                </div>
-              </section>
-
-              <!-- Danger Zone -->
-              <section class="sett-section sett-section--danger">
-                <h2 class="sett-section-title">
-                  <OhVueIcon name="md-warningamber" scale="0.8" /> Danger Zone
-                </h2>
-                <div class="sett-group">
-                  <div class="sett-row">
-                    <div class="sett-row-text">
-                      <span class="sett-label">Wipe All Data</span>
-                      <span class="sett-desc">Permanently delete every campaign, session, system and token. Cannot be undone.</span>
-                    </div>
-                    <button class="sett-btn sett-btn--danger" @click="clearAll">
-                      <OhVueIcon name="md-delete-outlined" scale="0.8" /> Wipe
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-            </div>
-          </div>
-        </div>
-
+    <!-- Left nav -->
+    <nav class="settings-nav">
+      <div class="settings-nav-group">
+        <div class="settings-nav-label">Preferences</div>
+        <button
+          v-for="s in NAV_SECTIONS"
+          :key="s.id"
+          class="settings-nav-item"
+          :class="{ active: activeSection === s.id }"
+          @click="activeSection = s.id"
+        >
+          <span class="settings-nav-icon">{{ s.icon }}</span>
+          {{ s.label }}
+        </button>
       </div>
-    </div>
 
-    <SpineNav />
+      <div class="settings-nav-group">
+        <div class="settings-nav-label">Data</div>
+        <button
+          class="settings-nav-item"
+          :class="{ active: activeSection === 'data' }"
+          @click="activeSection = 'data'"
+        >
+          <span class="settings-nav-icon">⬡</span>
+          Import &amp; Export
+        </button>
+        <button
+          class="settings-nav-item settings-nav-item--danger"
+          :class="{ active: activeSection === 'danger' }"
+          @click="activeSection = 'danger'"
+        >
+          <span class="settings-nav-icon">⚠</span>
+          Danger Zone
+        </button>
+      </div>
+
+      <div class="settings-nav-group">
+        <div class="settings-nav-label">Info</div>
+        <button
+          class="settings-nav-item"
+          :class="{ active: activeSection === 'about' }"
+          @click="activeSection = 'about'"
+        >
+          <span class="settings-nav-icon">◎</span>
+          About
+        </button>
+      </div>
+    </nav>
+
+    <!-- Body -->
+    <div class="settings-body">
+
+      <!-- Appearance -->
+      <section v-if="activeSection === 'appearance'" class="sett-section">
+        <div class="sett-section-title">Appearance</div>
+        <div class="sett-group">
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Theme</span>
+              <span class="sett-desc">Light or dark interface</span>
+            </div>
+            <div class="sett-theme-pills">
+              <button class="sett-pill-btn" :class="{ active: settings.theme === 'dark' }"
+                @click="update('theme', 'dark')">Dark</button>
+              <button class="sett-pill-btn" :class="{ active: settings.theme === 'light' }"
+                @click="update('theme', 'light')">Light</button>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Page Animations</span>
+              <span class="sett-desc">Entrance transitions on navigation</span>
+            </div>
+            <button class="sett-toggle" :class="{ on: settings.pageAnimations }"
+              @click="update('pageAnimations', !settings.pageAnimations)" />
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Arcane Sparks</span>
+              <span class="sett-desc">Particle burst on clicks</span>
+            </div>
+            <button class="sett-toggle" :class="{ on: settings.sparkEffects }"
+              @click="update('sparkEffects', !settings.sparkEffects)" />
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Ink Write Effect</span>
+              <span class="sett-desc">Animate headings letter by letter on page load</span>
+            </div>
+            <button class="sett-toggle" :class="{ on: settings.inkWrite }"
+              @click="update('inkWrite', !settings.inkWrite)" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Import & Export -->
+      <section v-else-if="activeSection === 'data'" class="sett-section">
+        <div class="sett-section-title">Import &amp; Export</div>
+        <div class="sett-group">
+
+          <div v-if="stats" class="sett-stats-row">
+            <span class="sett-stat">{{ stats.campaigns }} campaigns</span>
+            <span class="sett-stat">{{ stats.entities }} notes</span>
+            <span class="sett-stat">{{ stats.systems }} systems</span>
+            <span class="sett-stat">{{ stats.records }} records</span>
+            <span class="sett-stat">{{ stats.tokens }} tokens</span>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Everything</span>
+              <span class="sett-desc">All campaigns, systems, tokens and records</span>
+            </div>
+            <div class="sett-btn-pair">
+              <button class="sett-btn" @click="exportAll">↓ Export</button>
+              <label class="sett-btn">↑ Import
+                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'all')" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Campaigns</span>
+              <span class="sett-desc">Campaigns with encounters, notes and links</span>
+            </div>
+            <div class="sett-btn-pair">
+              <button class="sett-btn" @click="exportCampaigns">↓ Export</button>
+              <label class="sett-btn">↑ Import
+                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'campaigns')" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Systems</span>
+              <span class="sett-desc">Rule system schemas only</span>
+            </div>
+            <div class="sett-btn-pair">
+              <button class="sett-btn" @click="exportSystems(false)">↓ Export</button>
+              <label class="sett-btn">↑ Import
+                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems')" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Systems + Records</span>
+              <span class="sett-desc">System schemas with all data records</span>
+            </div>
+            <div class="sett-btn-pair">
+              <button class="sett-btn" @click="exportSystems(true)">↓ Export</button>
+              <label class="sett-btn">↑ Import
+                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems-full')" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Tokens</span>
+              <span class="sett-desc">Token templates and their images</span>
+            </div>
+            <div class="sett-btn-pair">
+              <button class="sett-btn" @click="exportTokens">↓ Export</button>
+              <label class="sett-btn">↑ Import
+                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'tokens')" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Export as Markdown</span>
+              <span class="sett-desc">Download a campaign's notes as a Markdown zip</span>
+              <select v-if="campaigns.length" v-model="mdExportCampaignId" class="sett-md-select">
+                <option :value="null">— choose campaign —</option>
+                <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <button class="sett-btn" :disabled="!mdExportCampaignId || mdExporting" @click="exportCampaignMarkdown">
+              {{ mdExporting ? 'Exporting…' : '↓ Export' }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Danger Zone -->
+      <section v-else-if="activeSection === 'danger'" class="sett-section sett-section--danger">
+        <div class="sett-section-title">Danger Zone</div>
+        <div class="sett-group">
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Wipe All Data</span>
+              <span class="sett-desc">Permanently delete every campaign, system and token. This cannot be undone.</span>
+            </div>
+            <button class="sett-btn sett-btn--danger" @click="clearAll">Wipe</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section v-else-if="activeSection === 'about'" class="sett-section">
+        <div class="sett-section-title">About</div>
+        <div class="sett-about">
+          <img src="/icons/icon-512.png" class="sett-about-logo" alt="DM's Tome"
+            @error="(e: Event) => (e.target as HTMLImageElement).style.display = 'none'" />
+          <div class="sett-about-info">
+            <div class="sett-about-name">DM's Tome</div>
+            <div class="sett-about-version">Version {{ version }}</div>
+            <div class="sett-about-desc">Offline-first D&amp;D campaign manager. All data lives in your browser — no account required.</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
   </div>
 
-  <!-- Import modal -->
   <ImportModal
     :open="modalOpen"
     :phase="modalPhase"
@@ -279,7 +241,6 @@
 </template>
 
 <script setup lang="ts">
-// Uses getDb() directly for bulk import operations not covered by dbApi
 import JSZip from 'jszip'
 import { getDb, dbApi } from '~/composables/useDb'
 import type { ImportSection, EntityTypeRow, LogLine } from '../components/ImportModal.vue'
@@ -287,7 +248,12 @@ import type { ImportSection, EntityTypeRow, LogLine } from '../components/Import
 const { public: { version } } = useRuntimeConfig()
 const { settings, update } = useSettings()
 
-// ── DB stats ───────────────────────────────────────────────────────
+const NAV_SECTIONS = [
+  { id: 'appearance', label: 'Appearance', icon: '◐' },
+]
+
+const activeSection = ref('appearance')
+
 interface DbStats {
   campaigns: number; encounters: number; encounterTokens: number
   entities: number; entityLinks: number; tokens: number
@@ -295,8 +261,6 @@ interface DbStats {
 }
 
 const stats = ref<DbStats | null>(null)
-
-// ── Campaign list for Markdown export ─────────────────────────────
 const campaigns = ref<{ id: number; name: string }[]>([])
 const mdExportCampaignId = ref<number | null>(null)
 const mdExporting = ref(false)
@@ -317,7 +281,6 @@ async function loadStats() {
 
 onMounted(() => { loadStats(); loadCampaigns() })
 
-// ── Helpers ────────────────────────────────────────────────────────
 function download(data: object, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -336,7 +299,6 @@ async function readJson(e: Event): Promise<any | null> {
   finally { (e.target as HTMLInputElement).value = '' }
 }
 
-// ── Export ─────────────────────────────────────────────────────────
 async function exportAll() {
   const db = getDb()
   const [campaigns, encounters, encounterTokens, entities, entityLinks, tokens, systems, records] =
@@ -373,19 +335,13 @@ async function exportTokens() {
   download({ version: 1, type: 'tokens', exportedAt: new Date().toISOString(), tokens }, `dmstome-tokens-${slug()}.json`)
 }
 
-// ── Export Campaign as Markdown ────────────────────────────────────
 function wikilinkify(text: string): string {
   if (!text) return ''
-  // Convert {{type: Name}} inline refs to [[Name]]
   return text.replace(/\{\{(\w+):\s*([^}]+)\}\}/g, (_m, _type, name) => `[[${name.trim()}]]`)
 }
 
 function entityFrontmatter(e: any): string {
-  const lines = [
-    '---',
-    `name: "${(e.name ?? '').replace(/"/g, '\\"')}"`,
-    `type: "${e.type ?? ''}"`,
-  ]
+  const lines = ['---', `name: "${(e.name ?? '').replace(/"/g, '\\"')}"`, `type: "${e.type ?? ''}"`]
   if (e.tags?.length) lines.push(`tags: [${e.tags.map((t: string) => `"${t}"`).join(', ')}]`)
   lines.push('---')
   return lines.join('\n')
@@ -394,70 +350,34 @@ function entityFrontmatter(e: any): string {
 async function exportCampaignMarkdown() {
   if (!mdExportCampaignId.value) return
   mdExporting.value = true
-
   try {
     const db = getDb()
     const campaignId = mdExportCampaignId.value
-
-    // Load data
     const campaign = (await dbApi.campaigns.list()).find((c: any) => c.id === campaignId)
     if (!campaign) { alert('Campaign not found.'); return }
-
     const entities = (await dbApi.entities.list(campaignId)) as any[]
     const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
-
     const zip = new JSZip()
     const root = zip.folder(campaign.name.replace(/[/\\:*?"<>|]/g, '_'))!
-
-    // _index.md — campaign overview
-    const campaignMd = [
-      `---`,
-      `name: "${campaign.name.replace(/"/g, '\\"')}"`,
-      `created: "${campaign.createdAt ?? ''}"`,
-      `---`,
-      ``,
-      `# ${campaign.name}`,
-      ``,
-      campaign.description ? wikilinkify(campaign.description) : '_No description._',
-    ].join('\n')
-    root.file('_index.md', campaignMd)
-
-    // notes/{type}/{name}.md
+    root.file('_index.md', [`---`, `name: "${campaign.name.replace(/"/g, '\\"')}"`, `---`, ``, `# ${campaign.name}`, ``, campaign.description ? wikilinkify(campaign.description) : '_No description._'].join('\n'))
     const notesFolder = root.folder('notes')!
     for (const e of entities) {
-      const typeName = (e.type ?? 'misc').replace(/[/\\:*?"<>|]/g, '_')
-      const folder = notesFolder.folder(typeName)!
+      const folder = notesFolder.folder((e.type ?? 'misc').replace(/[/\\:*?"<>|]/g, '_'))!
       const safeName = (e.name ?? 'Unnamed').replace(/[/\\:*?"<>|]/g, '_')
-      const body = wikilinkify(e.content ?? e.notes ?? '')
-      const md = [entityFrontmatter(e), '', `# ${e.name ?? 'Unnamed'}`, '', body || '_No content._'].join('\n')
-      folder.file(`${safeName}.md`, md)
+      folder.file(`${safeName}.md`, [entityFrontmatter(e), '', `# ${e.name ?? 'Unnamed'}`, '', wikilinkify(e.content ?? e.notes ?? '') || '_No content._'].join('\n'))
     }
-
-    // encounters/_index.md — encounter list
     if (encounters.length) {
       const encFolder = root.folder('encounters')!
-      const listMd = [
-        `# Encounters — ${campaign.name}`,
-        '',
-        ...encounters.map(enc => `- **${enc.name ?? 'Unnamed'}**${enc.notes ? ': ' + enc.notes : ''}`),
-      ].join('\n')
-      encFolder.file('_index.md', listMd)
+      encFolder.file('_index.md', [`# Encounters — ${campaign.name}`, '', ...encounters.map(enc => `- **${enc.name ?? 'Unnamed'}**`)].join('\n'))
     }
-
-    // Download
     const blob = await zip.generateAsync({ type: 'blob' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `${campaign.name.replace(/[/\\:*?"<>|]/g, '_')}-${slug()}.zip`
-    a.click()
+    a.href = url; a.download = `${campaign.name.replace(/[/\\:*?"<>|]/g, '_')}-${slug()}.zip`; a.click()
     URL.revokeObjectURL(url)
-  } finally {
-    mdExporting.value = false
-  }
+  } finally { mdExporting.value = false }
 }
 
-// ── Import modal state ─────────────────────────────────────────────
 const modalOpen    = ref(false)
 const modalPhase   = ref<'configure' | 'running' | 'done'>('configure')
 const modalPayload = ref<any>(null)
@@ -468,258 +388,230 @@ const progressDone     = ref(0)
 const progressTotal    = ref(0)
 
 async function openImport(e: Event, _expectedType: string) {
-  // payload is untyped — validated below in buildImportSections
   const payload = await readJson(e)
   if (!payload) return
-  // markRaw prevents Vue from wrapping the payload in a Proxy,
-  // which would make it uncloneable by IndexedDB's structured clone algorithm
   modalPayload.value = markRaw(payload)
   buildImportSections(payload)
-  modalPhase.value   = 'configure'
-  logLines.value     = []
-  progressDone.value = 0
-  progressTotal.value = 0
-  modalOpen.value    = true
+  modalPhase.value = 'configure'; logLines.value = []; progressDone.value = 0; progressTotal.value = 0
+  modalOpen.value = true
 }
 
 function buildImportSections(payload: any) {
   const sections: ImportSection[] = []
-
   function addSection(key: string, label: string) {
     const arr: any[] | undefined = payload[key]
     if (arr && arr.length > 0) sections.push({ key, label, count: arr.length, enabled: true })
   }
-
-  addSection('campaigns',       'Campaigns')
-  addSection('encounters',      'Encounters')
-  addSection('encounterTokens', 'Encounter Tokens')
-  addSection('entities',        'Notes & Entities')
-  addSection('entityLinks',     'Entity Links')
-  addSection('tokens',          'Tokens')
-  addSection('systems',         'System Schemas')
-
+  addSection('campaigns', 'Campaigns'); addSection('encounters', 'Encounters')
+  addSection('encounterTokens', 'Encounter Tokens'); addSection('entities', 'Notes & Entities')
+  addSection('entityLinks', 'Entity Links'); addSection('tokens', 'Tokens')
+  addSection('systems', 'System Schemas')
   importSections.value = sections
-
-  // Records with per-entity-type rows
   const records: any[] = payload.records ?? []
   if (records.length > 0) {
     const byType = new Map<string, number>()
     for (const r of records) byType.set(r.entityTypeId, (byType.get(r.entityTypeId) ?? 0) + 1)
-
-    // Resolve display names from system schemas in the same file
     const nameLookup = new Map<string, string>()
     for (const sys of payload.systems ?? []) {
       let etArr: any[] = []
       try { etArr = typeof sys.entityTypes === 'string' ? JSON.parse(sys.entityTypes) : sys.entityTypes ?? [] } catch {}
       for (const et of etArr) { if (!nameLookup.has(et.id)) nameLookup.set(et.id, et.name) }
     }
-
-    entityTypeRows.value = [...byType.entries()].map(([id, count]) => ({
-      id, name: nameLookup.get(id) ?? id, count, enabled: true,
-    }))
-  } else {
-    entityTypeRows.value = []
-  }
+    entityTypeRows.value = [...byType.entries()].map(([id, count]) => ({ id, name: nameLookup.get(id) ?? id, count, enabled: true }))
+  } else { entityTypeRows.value = [] }
 }
 
 async function runImport() {
   if (!modalPayload.value) return
   const payload = modalPayload.value
   const db = getDb()
-
-  modalPhase.value   = 'running'
-  logLines.value     = []
-  progressDone.value = 0
-
-  const addLog = (ok: boolean, msg: string) => {
-    logLines.value = [...logLines.value, { ok, msg }]
-  }
-
-  // ── Step 1: resolve system IDs ──────────────────────────────────────
-  // Records link to systems via numeric systemId which is DB-local and may
-  // differ between machines. We resolve the correct target ID by matching
-  // on shortId (the stable human slug), then remap records before inserting.
-  const systemIdRemap = new Map<number, number>() // exportedId → actualDbId
+  modalPhase.value = 'running'; logLines.value = []; progressDone.value = 0
+  const addLog = (ok: boolean, msg: string) => { logLines.value = [...logLines.value, { ok, msg }] }
+  const systemIdRemap = new Map<number, number>()
   const systemsSec = importSections.value.find(s => s.key === 'systems')
   const hasEnabledRecords = entityTypeRows.value.some(r => r.enabled) && (payload.records?.length > 0)
-
   for (const sys of (payload.systems ?? [])) {
-    // Try to find the matching system in the current DB by its shortId
-    const existing = sys.shortId
-      ? await db.systems.where('shortId').equals(sys.shortId).first()
-      : null
-
+    const existing = sys.shortId ? await db.systems.where('shortId').equals(sys.shortId).first() : null
     if (systemsSec?.enabled) {
-      // Importing schema: upsert and track where it landed
       try {
-        if (existing) {
-          // Update in place — keep the DB id the user already has
-          await db.systems.put({ ...sys, id: existing.id })
-          systemIdRemap.set(sys.id, existing.id)
-          addLog(true, `System updated: ${sys.name}`)
-        } else {
-          // New system — put with the exported id (preserve link to records)
-          await db.systems.put(sys)
-          systemIdRemap.set(sys.id, sys.id)
-          addLog(true, `System imported: ${sys.name}`)
-        }
-      } catch (err) {
-        addLog(false, `System failed: ${sys.name} — ${err}`)
-      }
+        if (existing) { await db.systems.put({ ...sys, id: existing.id }); systemIdRemap.set(sys.id, existing.id); addLog(true, `System updated: ${sys.name}`) }
+        else { await db.systems.put(sys); systemIdRemap.set(sys.id, sys.id); addLog(true, `System imported: ${sys.name}`) }
+      } catch (err) { addLog(false, `System failed: ${sys.name} — ${err}`) }
       progressDone.value++
     } else if (hasEnabledRecords) {
-      // Not importing schema but need to know where records should go
-      if (existing) {
-        systemIdRemap.set(sys.id, existing.id)
-      } else {
-        addLog(false, `Warning: No existing system found for "${sys.name}" (shortId: ${sys.shortId}). Records for this system will be skipped.`)
-      }
+      if (existing) systemIdRemap.set(sys.id, existing.id)
+      else addLog(false, `Warning: No existing system found for "${sys.name}" (shortId: ${sys.shortId}). Records for this system will be skipped.`)
     }
   }
-
-  // ── Step 2: build general work queue ───────────────────────────────
   type WorkItem = { table: any; row: any }
   const work: WorkItem[] = []
-
   function queueSection(key: string, table: any) {
-    if (key === 'systems') return // handled above
+    if (key === 'systems') return
     const sec = importSections.value.find(s => s.key === key)
     if (!sec?.enabled) return
     for (const row of (payload[key] ?? [])) work.push({ table, row })
   }
-
-  queueSection('campaigns',       db.campaigns)
-  queueSection('encounters',      db.encounters)
-  queueSection('encounterTokens', db.encounterTokens)
-  queueSection('entities',        db.entities)
-  queueSection('entityLinks',     db.entityLinks)
-  queueSection('tokens',          db.tokens)
-
-  // Records: filter by enabled entity types, remap systemId, normalise data to JSON string
+  queueSection('campaigns', db.campaigns); queueSection('encounters', db.encounters)
+  queueSection('encounterTokens', db.encounterTokens); queueSection('entities', db.entities)
+  queueSection('entityLinks', db.entityLinks); queueSection('tokens', db.tokens)
   const enabledTypeIds = new Set(entityTypeRows.value.filter(r => r.enabled).map(r => r.id))
   for (const row of (payload.records ?? [])) {
     if (!enabledTypeIds.has(row.entityTypeId)) continue
     const targetSystemId = systemIdRemap.get(row.systemId)
-    if (targetSystemId === undefined) continue // no matching system, skip
+    if (targetSystemId === undefined) continue
     const rec: any = { ...row, systemId: targetSystemId }
-    // Normalise: import files may use 'attributes' or 'data' for the field values
-    if (rec.attributes !== undefined && rec.data === undefined) {
-      rec.data = typeof rec.attributes === 'string' ? rec.attributes : JSON.stringify(rec.attributes)
-      delete rec.attributes
-    }
-    // Ensure `data` is stored as a JSON string regardless of how the import file encoded it
+    if (rec.attributes !== undefined && rec.data === undefined) { rec.data = typeof rec.attributes === 'string' ? rec.attributes : JSON.stringify(rec.attributes); delete rec.attributes }
     if (typeof rec.data !== 'string') rec.data = JSON.stringify(rec.data ?? {})
     if (!rec.data) rec.data = '{}'
     work.push({ table: db.records, row: rec })
   }
-
   const systemCount = systemsSec?.enabled ? (payload.systems?.length ?? 0) : 0
   progressTotal.value = systemCount + work.length
-
-  if (progressTotal.value === 0) {
-    addLog(false, 'Nothing was selected to import.')
-    modalPhase.value = 'done'
-    return
-  }
-
-  // ── Step 3: batch insert ────────────────────────────────────────────
+  if (progressTotal.value === 0) { addLog(false, 'Nothing was selected to import.'); modalPhase.value = 'done'; return }
   const BATCH = 50
   for (let i = 0; i < work.length; i += BATCH) {
     const batch = work.slice(i, i + BATCH)
     const results = await Promise.allSettled(batch.map(item => item.table.put(item.row)))
-
     let batchOk = 0
     const newLines: LogLine[] = []
     for (let j = 0; j < batch.length; j++) {
-      if (results[j].status === 'fulfilled') {
-        batchOk++
-      } else {
-        newLines.push({ ok: false, msg: `Failed: ${(results[j] as PromiseRejectedResult).reason}` })
-      }
+      if (results[j].status === 'fulfilled') batchOk++
+      else newLines.push({ ok: false, msg: `Failed: ${(results[j] as PromiseRejectedResult).reason}` })
       progressDone.value++
     }
     if (batchOk > 0) newLines.unshift({ ok: true, msg: `Imported ${batchOk} items (batch ${Math.floor(i / BATCH) + 1})` })
     logLines.value = [...logLines.value, ...newLines]
-
     await new Promise(resolve => setTimeout(resolve, 0))
   }
-
   await loadStats()
   modalPhase.value = 'done'
 }
 
-// ── Danger ─────────────────────────────────────────────────────────
 async function clearAll() {
   if (!confirm('Permanently delete ALL data — campaigns, systems, tokens, everything?')) return
   if (!confirm('Last chance: this cannot be undone. Continue?')) return
   const db = getDb()
-  await Promise.all([
-    db.campaigns.clear(), db.encounters.clear(), db.encounterTokens.clear(),
-    db.entities.clear(), db.entityLinks.clear(), db.tokens.clear(),
-    db.systems.clear(), db.records.clear(),
-  ])
+  await Promise.all([db.campaigns.clear(), db.encounters.clear(), db.encounterTokens.clear(), db.entities.clear(), db.entityLinks.clear(), db.tokens.clear(), db.systems.clear(), db.records.clear()])
   await loadStats()
   alert('All data has been wiped.')
 }
 </script>
 
 <style scoped>
-.book-shell {
+.settings-shell {
   display: flex;
-  height: 100vh;
-  background: var(--leather);
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--bg);
 }
 
-.tome-page {
-  flex: 1;
-  min-height: 0;
+/* Left nav */
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
   display: flex;
   flex-direction: column;
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  margin: 20px 20px 20px 60px;
-  border-radius: 2px;
-  box-shadow: var(--page-shadow);
-  overflow: visible;
+  gap: 0;
+  padding: 16px 8px;
+  overflow-y: auto;
 }
 
-/* Override leaf-inner default padding/overflow for settings */
-.leaf-inner {
-  padding: 16px 28px 24px;
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
 }
 
-/* ── Section ── */
-.sett-section {
-  padding: 16px 0 4px;
-  border-bottom: 1px solid var(--parch-line);
-}
-.sett-section:last-child { border-bottom: none; }
-
-.sett-section-title {
-  font-family: var(--font-head);
-  font-size: 9px;
+.settings-nav-label {
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-ghost);
-  margin-bottom: 12px;
+  color: var(--text3);
+  padding: 4px 10px 6px;
+}
+
+.settings-nav-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--r1);
+  border: none;
+  background: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  font-family: var(--fu);
 }
-.sett-section--danger .sett-section-title { color: #c05040; }
+.settings-nav-item:hover { background: var(--surface-hi); color: var(--text); }
+.settings-nav-item.active { background: var(--accent-bg); color: var(--accent); }
+.settings-nav-item--danger { color: var(--danger); }
+.settings-nav-item--danger:hover { background: var(--danger-bg); color: var(--danger); }
+.settings-nav-item--danger.active { background: var(--danger-bg); color: var(--danger); }
+.settings-nav-icon { font-size: 14px; flex-shrink: 0; opacity: 0.7; }
 
-/* ── Rows ── */
+/* Body */
+.settings-body {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 28px 32px;
+}
+
+/* Section */
+.sett-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  overflow: hidden;
+  max-width: 640px;
+}
+
+.sett-section-title {
+  font-family: var(--fh);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text2);
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sett-section--danger .sett-section-title { color: var(--danger); }
+
 .sett-group { display: flex; flex-direction: column; }
+
+.sett-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sett-stat {
+  font-family: var(--fm);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
 
 .sett-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--parch-line);
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
 }
 .sett-row:last-child { border-bottom: none; }
 
@@ -730,49 +622,31 @@ async function clearAll() {
   flex: 1;
   min-width: 0;
 }
+.sett-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.sett-desc { font-size: 11px; color: var(--text3); line-height: 1.4; }
 
-.sett-label {
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
+.sett-theme-pills { display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px; }
+.sett-pill-btn {
+  padding: 4px 12px;
+  border-radius: var(--r1);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: var(--fu);
 }
+.sett-pill-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.sett-pill-btn.active { background: var(--accent-bg); border-color: oklch(58% 0.24 295 / 0.4); color: var(--accent); font-weight: 500; }
 
-.sett-desc {
-  font-family: var(--font-ui);
-  font-size: 11px;
-  color: var(--ink-ghost);
-  line-height: 1.4;
-}
-
-/* ── Stat pills ── */
-.sett-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 5px;
-}
-.sett-pill {
-  font-family: var(--font-head);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-ghost);
-  background: rgba(28,20,16,0.05);
-  border: 1px solid var(--parch-line);
-  border-radius: 999px;
-  padding: 2px 7px;
-}
-
-/* ── Toggle ── */
 .sett-toggle {
   flex-shrink: 0;
   width: 38px;
   height: 20px;
   border-radius: 10px;
-  background: rgba(28, 20, 16, 0.12);
-  border: 1px solid var(--parch-line);
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
   position: relative;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
@@ -784,65 +658,54 @@ async function clearAll() {
   top: 2px; left: 2px;
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--ink-ghost);
+  background: var(--text3);
   transition: transform 0.2s, background 0.2s;
 }
-.sett-toggle.on { background: rgba(184,134,11,0.25); border-color: rgba(184,134,11,0.5); }
-.sett-toggle.on::after { transform: translateX(18px); background: var(--gold); }
+.sett-toggle.on { background: var(--accent-bg); border-color: oklch(58% 0.24 295 / 0.4); }
+.sett-toggle.on::after { transform: translateX(18px); background: var(--accent); }
 
-/* ── Buttons ── */
 .sett-btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--parch-dark);
-  border: 1px solid var(--parch-line);
-  color: var(--ink-faded);
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: var(--r1);
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: all 0.12s;
+  margin-top: 2px;
+  font-family: var(--fu);
 }
-.sett-btn:hover { color: var(--ink); border-color: var(--gold); }
-
-.sett-btn-pair { display: flex; gap: 5px; flex-shrink: 0; margin-top: 2px; }
-
-.sett-btn--danger { color: #c05040; border-color: rgba(192,80,64,0.3); }
-.sett-btn--danger:hover { border-color: #c05040; background: rgba(192,80,64,0.08); }
+.sett-btn:hover { border-color: var(--border-hi); color: var(--text); }
 .sett-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.sett-btn:disabled:hover { color: var(--ink-faded); border-color: var(--parch-line); }
+.sett-btn--danger { color: var(--danger); border-color: oklch(54% 0.22 22 / 0.3); }
+.sett-btn--danger:hover { background: var(--danger-bg); border-color: var(--danger); }
 
-/* Markdown export campaign select */
+.sett-btn-pair { display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px; }
+
 .sett-md-select {
   margin-top: 6px;
-  font-family: var(--font-ui);
-  font-size: 11px;
-  color: var(--ink);
-  background: var(--parch-dark);
-  border: 1px solid var(--parch-line);
-  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
   padding: 4px 8px;
-  width: 100%;
   max-width: 220px;
   cursor: pointer;
   outline: none;
+  font-family: var(--fu);
 }
-.sett-md-select:focus { border-color: var(--gold); }
+.sett-md-select:focus { border-color: oklch(58% 0.24 295 / 0.5); }
 
-/* ── About ── */
-.sett-section--about { border-bottom: none; }
-.sett-about { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
-.sett-about-logo { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; opacity: 0.85; }
-.sett-about-name { font-family: var(--font-deco); font-size: 15px; color: var(--ink); margin-bottom: 2px; }
-.sett-about-version {
-  font-family: var(--font-head); font-size: 9px; font-weight: 600;
-  letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px;
-}
-.sett-about-desc { font-family: var(--font-ui); font-size: 11px; color: var(--ink-ghost); line-height: 1.5; }
+.sett-about { display: flex; align-items: center; gap: 16px; padding: 20px 16px; }
+.sett-about-logo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; opacity: 0.85; flex-shrink: 0; }
+.sett-about-name { font-family: var(--fh); font-size: 16px; color: var(--text); margin-bottom: 3px; }
+.sett-about-version { font-family: var(--fm); font-size: 11px; color: var(--accent); margin-bottom: 6px; }
+.sett-about-desc { font-size: 12px; color: var(--text3); line-height: 1.5; }
 </style>

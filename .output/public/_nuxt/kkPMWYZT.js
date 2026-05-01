@@ -1,0 +1,1 @@
+import{_ as t}from"./cJgDrG0E.js";import{_ as c,c as e,o as n}from"./CCjd3_Fc.js";import"./Dcfyo9gd.js";const r={};function _(s,a){const o=t;return n(),e(o,{type:"note"})}const p=c(r,[["render",_]]);export{p as default};

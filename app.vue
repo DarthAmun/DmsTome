@@ -1,41 +1,150 @@
 <template>
   <div id="app-root" @click="onMagicClick">
-    <NuxtPage />
-    <BookmarkRibbon v-if="!isPlayerRoute" />
+
+    <template v-if="!isPlayerRoute">
+      <AppSidebar ref="sidebarRef" />
+      <div class="content-area">
+        <BookmarkRibbon />
+        <NuxtPage />
+      </div>
+    </template>
+
+    <template v-else>
+      <NuxtPage />
+    </template>
+
     <GlobalSearch v-if="!isPlayerRoute" />
     <DiceRoller v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
+
+    <!-- New Campaign dialog -->
+    <Teleport to="body">
+      <div v-if="showNewCampaign" class="pv-dialog-mask" @click.self="showNewCampaign = false">
+        <div class="pv-dialog">
+          <div class="pv-dialog-header">
+            <span class="pv-dialog-title">Begin a New Campaign</span>
+            <button class="pv-dialog-close" @click="showNewCampaign = false">
+              <OhVueIcon name="md-close" scale="0.85" />
+            </button>
+          </div>
+          <div class="pv-dialog-content">
+            <div class="dlg-field">
+              <label class="f-label">Title</label>
+              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…"
+                @keyup.enter="createCampaign" autofocus />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Description</label>
+              <textarea class="f-input-box f-textarea" v-model="newCamp.description" placeholder="A dark tale of…" rows="3" />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">System</label>
+              <select class="f-input-box f-select" v-model="newCamp.systemId">
+                <option :value="null">— none —</option>
+                <option v-for="s in systems" :key="s.id" :value="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="pv-dialog-footer">
+            <button class="ghost-btn" @click="showNewCampaign = false">Cancel</button>
+            <button class="seal-btn" @click="createCampaign">Begin</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- New System dialog -->
+      <div v-if="showNewSystem" class="pv-dialog-mask" @click.self="showNewSystem = false">
+        <div class="pv-dialog">
+          <div class="pv-dialog-header">
+            <span class="pv-dialog-title">Define a New System</span>
+            <button class="pv-dialog-close" @click="showNewSystem = false">
+              <OhVueIcon name="md-close" scale="0.85" />
+            </button>
+          </div>
+          <div class="pv-dialog-content">
+            <div class="dlg-field">
+              <label class="f-label">Name</label>
+              <input class="f-input-box" v-model="newSys.name" placeholder="Pathfinder 2e…" autofocus />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Short ID</label>
+              <input class="f-input-box" style="font-family:var(--fm);font-size:12px"
+                v-model="newSys.shortId" placeholder="pf2e" />
+            </div>
+            <div class="dlg-field">
+              <label class="f-label">Description</label>
+              <textarea class="f-input-box f-textarea" v-model="newSys.description" placeholder="Optional…" rows="3" />
+            </div>
+          </div>
+          <div class="pv-dialog-footer">
+            <button class="ghost-btn" @click="showNewSystem = false">Cancel</button>
+            <button class="seal-btn" @click="createSystem">Create</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <Transition name="install">
       <button v-if="installPrompt" class="install-pill" @click="installApp" title="Install DM's Tome">
         <OhVueIcon name="md-install-mobile" scale="0.9" />
         Install App
       </button>
     </Transition>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { useSettings } from '~/composables/useSettings'
 import { useBookmarks } from '~/composables/useBookmarks'
+import { useAppDialogs } from '~/composables/useAppDialogs'
+import { useSystemsStore } from '~/stores/systems'
+import { dbApi } from '~/composables/useDb'
+
 const { settings } = useSettings()
-useBookmarks() // initialise bookmarks from localStorage on app load
+useBookmarks()
 
 const route = useRoute()
+const router = useRouter()
 const isPlayerRoute = computed(() =>
   route.path.endsWith('/player') || route.path.endsWith('/map-player')
 )
 
+const sidebarRef = ref<{ reload: () => void } | null>(null)
+const { showNewCampaign, showNewSystem } = useAppDialogs()
+
+// ── New Campaign ─────────────────────────────────────────────────
+const systemsStore = useSystemsStore()
+const systems = computed(() => systemsStore.systems)
+onMounted(() => { if (!systems.value.length) systemsStore.loadAll() })
+
+const newCamp = ref({ name: '', description: '', systemId: null as number | null })
+const newSys = ref({ name: '', shortId: '', description: '' })
+
+async function createCampaign() {
+  if (!newCamp.value.name.trim()) return
+  const c = await dbApi.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
+  if (newCamp.value.systemId) await dbApi.campaigns.update(c.id, { system_id: newCamp.value.systemId })
+  newCamp.value = { name: '', description: '', systemId: null }
+  showNewCampaign.value = false
+  sidebarRef.value?.reload()
+  router.push(`/campaign/${c.id}/sessions`)
+}
+
+async function createSystem() {
+  if (!newSys.value.name.trim()) return
+  const sys = await systemsStore.createSystem(newSys.value)
+  newSys.value = { name: '', shortId: '', description: '' }
+  showNewSystem.value = false
+  sidebarRef.value?.reload()
+  router.push(`/system/${sys.id}/builder`)
+}
+
 // ── Ink write animation ──────────────────────────────────────────
 const INK_SELECTORS = [
-  '.entry-name',
-  '.leaf-type',
-  '.leaf-new-label',
-  '.page-title',
-  '.right-hint',
-  '.folio-chapter-name',
-  '.folio-chapter-sub',
-  '.sys-stat-num',
-  '.loc-detail-name',
+  '.entry-name', '.leaf-type', '.leaf-new-label', '.page-title',
+  '.right-hint', '.folio-chapter-name', '.folio-chapter-sub',
+  '.sys-stat-num', '.loc-detail-name',
 ]
 
 function inkWritePage() {
@@ -43,7 +152,7 @@ function inkWritePage() {
   let t = 0
   targets.forEach((el: Element) => {
     const htmlEl = el as HTMLElement
-    htmlEl.style.opacity = ''  // clear pre-hide
+    htmlEl.style.opacity = ''
     const nodes = Array.from(htmlEl.childNodes)
     interface Part { ch: string; tag: string | null }
     const parts: Part[] = []
@@ -62,7 +171,7 @@ function inkWritePage() {
     const stagger = Math.min(14, Math.max(3, 220 / n))
     htmlEl.innerHTML = parts.map((p, i) => {
       const delay = (t + i * stagger).toFixed(1)
-      const ch = p.ch === ' ' ? '&nbsp;' : p.ch.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      const ch = p.ch === ' ' ? '&nbsp;' : p.ch.replace(/&/g, '&amp;').replace(/</g, '&lt;')
       const span = `<span class="ink-c" style="animation-delay:${delay}ms">${ch}</span>`
       return p.tag ? `<${p.tag}>${span}</${p.tag}>` : span
     }).join('')
@@ -70,8 +179,6 @@ function inkWritePage() {
     if (t > 320) t = 320
   })
 }
-
-const { public: { version } } = useRuntimeConfig()
 
 // ── PWA install prompt ───────────────────────────────────────────
 const installPrompt = ref<Event | null>(null)
@@ -94,7 +201,6 @@ async function installApp() {
   if (outcome === 'accepted') installPrompt.value = null
 }
 
-const router = useRouter()
 router.afterEach(() => {
   nextTick(() => {
     if (!settings.value.inkWrite) return
@@ -108,10 +214,10 @@ router.afterEach(() => {
 function onMagicClick(e: MouseEvent) {
   if (!settings.value.sparkEffects) return
   const el = e.target as HTMLElement
-  if (!el.closest('button, a, .spine-tab, .ink-card, .v6-card, .ink-card-new, .entry')) return
+  if (!el.closest('button, a, .ink-card, .v6-card, .ink-card-new, .entry, .home-card')) return
   const layer = document.getElementById('spark-layer')
   if (!layer) return
-  const palette = ['var(--gold)', '#f0bc2a', 'var(--blood)', '#c05000', '#e8dcc5', '#7c3aed']
+  const palette = ['var(--accent)', 'var(--accent-l)', '#f0bc2a', '#c05000', '#e8dcc5', '#7c3aed']
   const n = 5 + Math.floor(Math.random() * 6)
   for (let i = 0; i < n; i++) {
     const s = document.createElement('div')
@@ -136,7 +242,10 @@ function onMagicClick(e: MouseEvent) {
 #app-root {
   height: 100vh;
   overflow: hidden;
-  background: var(--leather);
+  display: flex;
+  background: var(--bg);
+  position: relative;
+  z-index: 1;
 }
 
 #spark-layer {
@@ -146,38 +255,4 @@ function onMagicClick(e: MouseEvent) {
   z-index: var(--z-top);
   overflow: hidden;
 }
-
-/* PWA install pill — bottom-center, only when browser offers install */
-.install-pill {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: var(--z-sidebar);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  background: var(--leather);
-  border: 1px solid rgba(184,134,11,0.4);
-  border-radius: 999px;
-  color: rgba(184,134,11,0.8);
-  font-family: var(--font-head);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
-  transition: all 0.2s;
-}
-.install-pill:hover {
-  border-color: var(--gold);
-  color: var(--gold);
-  background: #1a1208;
-}
-
-/* Slide up / fade in transition */
-.install-enter-active, .install-leave-active { transition: opacity 0.3s, transform 0.3s; }
-.install-enter-from, .install-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 </style>

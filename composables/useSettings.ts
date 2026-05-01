@@ -1,4 +1,5 @@
 export interface AppSettings {
+  theme: 'dark' | 'light'
   paperTexture: boolean
   pageAnimations: boolean
   sparkEffects: boolean
@@ -6,17 +7,19 @@ export interface AppSettings {
 }
 
 const DEFAULTS: AppSettings = {
-  paperTexture: true,
+  theme: 'dark',
+  paperTexture: false,
   pageAnimations: true,
   sparkEffects: true,
-  inkWrite: true,
+  inkWrite: false,
 }
 
 const settings = ref<AppSettings>({ ...DEFAULTS })
 
 function applySettings() {
+  if (!import.meta.client) return
   const root = document.documentElement
-  root.style.setProperty('--paper', settings.value.paperTexture ? 'url("/natural-paper.png")' : 'none')
+  root.setAttribute('data-theme', settings.value.theme)
   root.classList.toggle('no-animations', !settings.value.pageAnimations)
 }
 

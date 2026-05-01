@@ -1,11 +1,8 @@
 <template>
-  <div class="encounter-shell">
-    <div class="enc-sheet enc-sheet-3"></div>
-    <div class="enc-sheet enc-sheet-2"></div>
-    <div
-      class="encounter-page"
-      :class="{ 'fog-paint-mode': activeTool === 'fog' || activeTool === 'measure' || activeTool === 'shapes' }"
-    >
+  <div
+    class="encounter-page"
+    :class="{ 'fog-paint-mode': activeTool === 'fog' || activeTool === 'measure' || activeTool === 'shapes' }"
+  >
       <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
       <header class="encounter-toolbar">
         <!-- Back -->
@@ -707,8 +704,6 @@
       </Teleport>
     </div>
     <!-- end encounter-page -->
-  </div>
-  <!-- end encounter-shell -->
 </template>
 
 <script setup lang="ts">
@@ -1411,44 +1406,6 @@ function getImageUrl(token: any): string {
 <style scoped>
 /* ── Encounter VTT — parchment sidebars + dark canvas ── */
 
-.encounter-shell {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  padding: 20px 28px;
-  box-sizing: border-box;
-  background: var(--leather);
-  overflow: hidden;
-}
-
-.enc-sheet {
-  position: absolute;
-  border-radius: 2px;
-  pointer-events: none;
-}
-
-/* Sheet 3 — furthest back, rotated right, slightly larger */
-.enc-sheet-3 {
-  inset: 18px 20px 12px 20px;
-  background-color: #b8ac96;
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  transform: rotate(1.4deg) translateX(10px);
-  transform-origin: top center;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
-}
-
-/* Sheet 2 — middle, rotated left */
-.enc-sheet-2 {
-  inset: 18px 20px 12px 20px;
-  background-color: #cdc09e;
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  transform: rotate(-1.0deg) translateX(-8px);
-  transform-origin: top center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
-}
-
 .encounter-page {
   position: relative;
   display: flex;
@@ -1456,11 +1413,7 @@ function getImageUrl(token: any): string {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  border-radius: 2px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+  background: var(--bg);
 }
 
 /* ── Toolbar ── */

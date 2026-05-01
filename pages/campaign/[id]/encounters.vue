@@ -1,146 +1,167 @@
 <template>
-  <div class="enc-page">
-    <div class="open-book">
+  <div class="chronicle screen-in">
 
-      <!-- LEFT PAGE -->
-      <div class="book-stack book-stack--left">
-        <div class="book-sheet-3"></div>
-        <div class="book-sheet-2"></div>
-        <div class="book-sheet-1"></div>
-        <div class="book-leaf book-leaf--left">
-          <div class="page-header">
-            <div class="page-chapter-num">{{ campaignName }}</div>
-            <h1 class="page-title">The Battlefield</h1>
-            <div class="page-rule" />
+    <!-- Left panel: encounter list -->
+    <div class="elist">
+      <div class="elist-head">
+        <div class="elist-head-title" style="color: #4ab8e8">Encounters</div>
+        <button class="btn-accent-sm" @click="createEncounter">+ New</button>
+      </div>
+
+      <div class="elist-search">
+        <span class="elist-search-icon">⌕</span>
+        <input v-model="search" class="elist-search-input" placeholder="Search encounters…" />
+      </div>
+
+      <div class="elist-body">
+        <div v-if="!filtered.length" class="elist-empty">
+          <div style="font-size:28px;opacity:0.15">⚔</div>
+          <span>{{ search ? 'No results' : 'No encounters yet' }}</span>
+          <button class="btn-accent-sm" style="margin-top:8px" @click="createEncounter">Create one</button>
+        </div>
+
+        <div
+          v-for="enc in filtered"
+          :key="enc.id"
+          class="erow"
+          :class="{ active: activeId === enc.id }"
+          @click="selectEncounter(enc)"
+        >
+          <div class="erow-dot" :style="{ background: enc.status === 'active' ? '#4ab8e8' : activeId === enc.id ? '#4ab8e8' : 'var(--border-hi)' }" />
+          <div class="erow-name">{{ enc.name }}</div>
+          <span v-if="enc.status" class="erow-pill" :style="statusStyle(enc.status)">{{ enc.status }}</span>
+          <span class="erow-date">{{ formatDate(enc.updatedAt) }}</span>
+          <div class="enc-actions" @click.stop>
+            <button class="enc-act" title="Clone" @click.stop="cloneEncounter(enc.id)">⎘</button>
+            <button class="enc-act enc-act--del" title="Delete" @click.stop="deleteEncounter(enc.id)">✕</button>
           </div>
-          <div class="leaf-inner">
-            <div class="leaf-header">
-              <span class="leaf-type" style="color:var(--blood)">Encounters</span>
-              <span class="leaf-count">{{ encounters.length }} engagements</span>
-            </div>
-            <div v-for="(enc, i) in pagedEncounters" :key="enc.id" class="entry"
-              :style="{ '--et-color': enc.status === 'active' ? 'var(--blood)' : 'var(--ink-ghost)' }"
-              @click="openEncounter(enc)">
-              <span class="entry-num">{{ listPage * PAGE_SIZE + i + 1 }}</span>
-              <div class="entry-icon">
-                <div class="entry-badge">
-                  <OhVueIcon name="gi-broadsword" scale="0.75"
-                    :style="{ color: enc.status === 'active' ? 'var(--blood)' : 'var(--ink-faded)' }" />
-                </div>
-              </div>
-              <div class="entry-body">
-                <div class="entry-top">
-                  <span class="entry-name">{{ enc.name }}</span>
-                  <span class="entry-leader" />
-                  <span class="entry-date">{{ formatDate(enc.updatedAt) }}</span>
-                  <div class="entry-actions" @click.stop>
-                    <button class="entry-act" title="Clone encounter" @click.stop="cloneEncounter(enc.id)">
-                      <OhVueIcon name="md-contentcopy" scale="0.75" />
-                    </button>
-                    <button class="entry-act entry-act--del" @click.stop="deleteEncounter(enc.id)">
-                      <OhVueIcon name="md-delete" scale="0.75" />
-                    </button>
-                  </div>
-                </div>
-                <div class="entry-attrs">
-                  <span class="ea-bool" :class="enc.status === 'active' ? 'ea-bool--danger' : 'ea-bool--muted'">
-                    {{ enc.status || 'prepared' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div v-if="!encounters.length" class="leaf-empty">
-              <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
-              <em>No encounters yet. Begin a new engagement.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: encounter detail -->
+    <div class="edetail">
+
+      <!-- Selected encounter -->
+      <div v-if="selectedEncounter" class="enc-detail">
+        <div class="enc-detail-topbar">
+          <div class="enc-detail-name">{{ selectedEncounter.name }}</div>
+          <span v-if="selectedEncounter.status" class="erow-pill" :style="statusStyle(selectedEncounter.status)">
+            {{ selectedEncounter.status }}
+          </span>
+          <span class="enc-detail-date">Updated {{ formatDate(selectedEncounter.updatedAt) }}</span>
+        </div>
+
+        <div class="enc-detail-body">
+          <!-- Map preview -->
+          <div class="enc-map-preview" :class="{ 'has-map': selectedEncounter.mapSource }">
+            <img v-if="selectedEncounter.mapSource" :src="selectedEncounter.mapSource" class="enc-map-img" alt="" />
+            <div v-else class="enc-map-placeholder">
+              <span style="font-size:32px;opacity:0.15">🗺</span>
+              <span style="font-size:12px;color:var(--text3)">No map set</span>
             </div>
           </div>
-          <div class="leaf-footer">
-            <button class="leaf-nav-btn" :disabled="!hasPrevPage" @click="prevPage">
-              <OhVueIcon name="md-chevronleft" scale="0.9" />
-            </button>
-            <button class="leaf-new" @click="createEncounter">
-              <span class="leaf-new-line-l"></span>
-              <span class="leaf-new-label">✦ New Encounter ✦</span>
-              <span class="leaf-new-line-r"></span>
-            </button>
-            <span class="leaf-folio-num">{{ listPage + 1 }} / {{ totalPages }}</span>
-            <button class="leaf-nav-btn" :disabled="!hasNextPage" @click="nextPage">
-              <OhVueIcon name="md-chevronright" scale="0.9" />
-            </button>
+
+          <!-- Stats row -->
+          <div class="enc-detail-stats">
+            <div class="enc-stat">
+              <div class="enc-stat-val">{{ selectedEncounter.tokenCount ?? 0 }}</div>
+              <div class="enc-stat-label">Tokens</div>
+            </div>
+            <div class="enc-stat">
+              <div class="enc-stat-val">{{ selectedEncounter.roundNumber ?? 0 }}</div>
+              <div class="enc-stat-label">Round</div>
+            </div>
+            <div class="enc-stat">
+              <div class="enc-stat-val" :style="{ color: selectedEncounter.fovEnabled ? 'var(--accent)' : 'var(--text3)' }">
+                {{ selectedEncounter.fovEnabled ? 'On' : 'Off' }}
+              </div>
+              <div class="enc-stat-label">FOV</div>
+            </div>
+          </div>
+
+          <!-- Open button -->
+          <NuxtLink :to="`/encounter/${selectedEncounter.id}`" class="enc-open-btn">
+            <span class="enc-open-btn-icon">⚔</span>
+            Open Battlefield Editor
+          </NuxtLink>
+
+          <!-- Actions -->
+          <div class="enc-detail-actions">
+            <button class="btn btn-ghost btn-sm" @click="cloneEncounter(selectedEncounter.id)">⎘ Clone</button>
+            <button class="btn btn-danger btn-sm" @click="deleteEncounter(selectedEncounter.id)">Delete</button>
           </div>
         </div>
       </div>
 
-      <div class="book-binding"></div>
-
-      <!-- RIGHT PAGE -->
-      <div class="book-stack book-stack--right">
-        <div class="book-sheet-3"></div>
-        <div class="book-sheet-2"></div>
-        <div class="book-sheet-1"></div>
-        <div class="book-leaf book-leaf--right">
-          <div class="leaf-inner--right">
-            <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.05;margin-bottom:24px" />
-            <p class="right-hint"><em>Select an encounter to open<br>the full battlefield editor.</em></p>
-          </div>
-        </div>
+      <!-- Empty state -->
+      <div v-else class="edetail-empty">
+        <span class="edetail-empty-icon">⚔</span>
+        <span>Select an encounter or create a new one</span>
+        <button class="btn-accent-sm" style="margin-top:10px" @click="createEncounter">+ New Encounter</button>
       </div>
 
     </div>
+
   </div>
 </template>
 
-
 <script setup lang="ts">
-import { dbApi } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
 import { useFormatters } from '~/composables/useFormatters'
 
 const { formatDateShort: formatDate } = useFormatters()
-
 const route = useRoute()
 const router = useRouter()
 const campaignId = Number(route.params.id)
-const campaignName = ref('')
+
 const encounters = ref<any[]>([])
+const search = ref('')
+const activeId = ref<number | null>(null)
 
-const PAGE_SIZE = 10
-const listPage = ref(0)
-const hasPrevPage = computed(() => listPage.value > 0)
-const hasNextPage = computed(() => (listPage.value + 1) * PAGE_SIZE < encounters.value.length)
-const totalPages = computed(() => Math.max(1, Math.ceil(encounters.value.length / PAGE_SIZE)))
-const pagedEncounters = computed(() => encounters.value.slice(listPage.value * PAGE_SIZE, (listPage.value + 1) * PAGE_SIZE))
+const filtered = computed(() => {
+  if (!search.value) return encounters.value
+  const q = search.value.toLowerCase()
+  return encounters.value.filter(e => e.name.toLowerCase().includes(q))
+})
 
-function prevPage() { if (hasPrevPage.value) listPage.value-- }
-function nextPage() { if (hasNextPage.value) listPage.value++ }
-watch(encounters, () => { listPage.value = 0 })
+const selectedEncounter = computed(() =>
+  encounters.value.find(e => e.id === activeId.value) ?? null
+)
 
 onMounted(async () => {
   if (!campaignId || isNaN(campaignId)) { router.replace('/'); return }
-  const camps = await dbApi.campaigns.list()
-  campaignName.value = camps.find((c: any) => c.id === campaignId)?.name ?? ''
   await loadEncounters()
 })
 
 async function loadEncounters() {
   const rows = await dbApi.encounters.list(campaignId)
-  // Normalize raw DB snake_case to camelCase for template reads
-  encounters.value = rows.map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    status: r.status,
-    updatedAt: r.updated_at,
-    createdAt: r.created_at,
+  const db = getDb()
+  const withTokens = await Promise.all(rows.map(async (r: any) => {
+    const tokenCount = await db.encounterTokens.where('encounter_id').equals(r.id).count()
+    return {
+      id: r.id,
+      name: r.name,
+      status: r.status,
+      updatedAt: r.updated_at,
+      mapSource: r.map_source ?? null,
+      roundNumber: r.round_number ?? 0,
+      fovEnabled: !!r.fov_enabled,
+      tokenCount,
+    }
   }))
+  encounters.value = withTokens
 }
 
-function openEncounter(enc: any) {
-  router.push(`/encounter/${enc.id}`)
+function selectEncounter(enc: any) {
+  activeId.value = enc.id
 }
 
 async function createEncounter() {
   const enc = await dbApi.encounters.create({ campaignId, name: 'New Encounter' })
   if (!enc?.id) return
-  router.push(`/encounter/${enc.id}`)
+  await loadEncounters()
+  activeId.value = enc.id
 }
 
 async function cloneEncounter(id: number) {
@@ -148,7 +169,6 @@ async function cloneEncounter(id: number) {
   if (!source) return
   const copy = await dbApi.encounters.create({ campaignId, name: `${source.name} (Copy)` })
   if (!copy?.id) return
-  // Copy map and grid settings
   await dbApi.encounters.update({
     id: copy.id,
     map_source: source.map_source,
@@ -157,7 +177,6 @@ async function cloneEncounter(id: number) {
     grid_offset_x: source.grid_offset_x,
     grid_offset_y: source.grid_offset_y,
   })
-  // Copy token placements (reset combat state: HP, conditions, dead status)
   for (const token of (source as any).tokens ?? []) {
     await dbApi.encounterTokens.add({
       encounterId: copy.id,
@@ -174,60 +193,161 @@ async function cloneEncounter(id: number) {
 async function deleteEncounter(id: number) {
   if (!confirm('Delete this encounter?')) return
   await dbApi.encounters.delete(id)
+  if (activeId.value === id) activeId.value = null
   await loadEncounters()
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  active: '#4ab8e8',
+  prepared: 'var(--text3)',
+  finished: '#b87de8',
+}
+function statusStyle(status: string) {
+  const c = STATUS_COLORS[status] ?? 'var(--text3)'
+  return { color: c, borderColor: c + '44', background: c + '11' }
+}
 </script>
 
 <style scoped>
-.enc-page { height: 100%; display: flex; flex-direction: column; background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; overflow: visible; }
-
-.leaf-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--parch-line); }
-.leaf-type  { font-family: var(--font-head); font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
-.leaf-count { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); }
-.leaf-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 0; color: var(--ink-ghost); font-family: var(--font-body); font-size: 14px; font-style: italic; gap: 0; }
-
-/* Entry */
-.entry {
-  align-items: flex-start;
-  border-left: 2px solid transparent;
-  transition: border-color 0.15s, background 0.15s;
-}
-.entry:hover {
-  border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent);
-  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent);
-}
-
-.entry-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); opacity: 0.4; width: 18px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1; }
-.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.entry-badge {
-  width: 24px; height: 24px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent);
-  border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent);
+.enc-actions {
+  display: none;
+  gap: 3px;
   flex-shrink: 0;
 }
-.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.entry-top { display: flex; align-items: center; gap: 6px; }
-.entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.entry-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
-.entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; flex-shrink: 0; white-space: nowrap; }
-.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
-.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
-.entry:hover .entry-actions { opacity: 1; }
-.entry-act { width: 18px; height: 18px; border-radius: 2px; background: rgba(28,20,16,0.06); /* = var(--ink) at 6% */ border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
+.erow:hover .enc-actions { display: flex; }
 
-/* .ea-bool* rgba values: = var(--gold)/var(--blood)/var(--ink) at 5–30% opacity */
-.ea-bool { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px 2px 5px; border-radius: 2px; color: var(--gold); background: rgba(184,134,11,0.08); border: 1px solid rgba(184,134,11,0.3); flex-shrink: 0; }
-.ea-bool--danger { color: var(--blood); background: rgba(139,26,26,0.08); border-color: rgba(139,26,26,0.3); }
-.ea-bool--muted  { color: var(--ink-ghost); background: rgba(28,20,16,0.05); border-color: rgba(28,20,16,0.15); }
+.enc-act {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r1);
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.enc-act:hover { background: var(--surface-hi); color: var(--text2); border-color: var(--border); }
+.enc-act--del:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
 
-/* Footer pagination */
-.leaf-footer { display: flex; align-items: center; gap: 8px; padding: 8px 16px 14px; border-top: 1px dashed var(--parch-line); background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; }
-.leaf-footer .leaf-new { flex: 1; width: auto; }
-.leaf-nav-btn { width: 26px; height: 26px; border-radius: 2px; background: none; border: 1px solid var(--parch-line); color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
-.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
-.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
-.leaf-folio-num { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); letter-spacing: 0.12em; white-space: nowrap; }
+/* Detail panel */
+.enc-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.enc-detail-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.enc-detail-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enc-detail-date {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--fm);
+  flex-shrink: 0;
+}
+
+.enc-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.enc-map-preview {
+  width: 100%;
+  border-radius: var(--r2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg2);
+  max-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.enc-map-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 20px;
+}
+.enc-map-img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  display: block;
+}
+
+.enc-detail-stats {
+  display: flex;
+  gap: 16px;
+}
+.enc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px;
+  border-radius: var(--r2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-width: 64px;
+}
+.enc-stat-val {
+  font-family: var(--fm);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.enc-stat-label { font-size: 11px; color: var(--text3); }
+
+.enc-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  border-radius: var(--r2);
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.1s;
+  width: 100%;
+  justify-content: center;
+}
+.enc-open-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.enc-open-btn-icon { font-size: 16px; }
+
+.enc-detail-actions {
+  display: flex;
+  gap: 8px;
+}
 </style>

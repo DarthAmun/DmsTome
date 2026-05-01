@@ -30,6 +30,8 @@ export interface DbCampaign {
   id?: number
   name: string
   description: string
+  banner_source?: string | null  // base64 data URL or http URL
+  banner_type?: 'file' | 'url'
   created_at: string
   updated_at: string
 }
@@ -189,6 +191,18 @@ class DmForgeDb extends Dexie {
     })
     // v5: add encounterWalls table; fov_enabled/vision_range/is_player_token are non-indexed columns
     this.version(5).stores({
+      campaigns:      '++id, updated_at, system_id',
+      encounters:     '++id, campaign_id, created_at',
+      tokens:         '++id, is_template, name',
+      encounterTokens:'++id, encounter_id, token_id, linked_record_id',
+      entities:       '++id, campaign_id, type, name',
+      entityLinks:    '++id, source_id, target_type, target_name',
+      systems:        '++id, shortId, updatedAt',
+      records:        '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls: '++id, encounter_id',
+    })
+    // v6: banner_source/banner_type added to campaigns — non-indexed columns, no store change needed
+    this.version(6).stores({
       campaigns:      '++id, updated_at, system_id',
       encounters:     '++id, campaign_id, created_at',
       tokens:         '++id, is_template, name',

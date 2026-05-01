@@ -1,303 +1,102 @@
 <template>
-  <div class="book-shell">
-    <div class="tome-page page-enter">
+  <div class="home-page page-enter">
 
-      <div class="open-book">
-
-        <!-- LEFT PAGE -->
-        <div class="book-stack book-stack--left">
-          <div class="book-sheet-3"></div>
-          <div class="book-sheet-2"></div>
-          <div class="book-sheet-1"></div>
-          <div class="book-leaf book-leaf--left">
-            <div class="page-header">
-              <div class="page-chapter-num">DM's Tome</div>
-              <h1 class="page-title">{{ chapterTitle }}</h1>
-              <div class="page-rule" />
-            </div>
-            <div class="leaf-inner">
-
-              <!-- CAMPAIGNS -->
-              <template v-if="section === 'campaigns'">
-                <div class="leaf-header">
-                  <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
-                  <span class="leaf-count">{{ campaigns.length }} entries</span>
-                </div>
-                <div v-for="(c, i) in leftEntries" :key="c.id" class="entry"
-                  style="--et-color: var(--blood)" @click="openCampaign(c)">
-                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
-                  <div class="entry-icon"><div class="entry-badge">
-                    <OhVueIcon name="gi-broadsword" scale="0.75" style="color:var(--blood)" />
-                  </div></div>
-                  <div class="entry-body">
-                    <div class="entry-top">
-                      <span class="entry-name">{{ c.name }}</span>
-                      <span class="entry-leader" />
-                      <!-- c.updated_at: raw DB snake_case field (dbApi.campaigns.list does not normalize) -->
-                      <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
-                      <div class="entry-actions" @click.stop>
-                        <button class="entry-act" @click.stop="startEditCampaign(c)">
-                          <OhVueIcon name="md-editnote" scale="0.75" />
-                        </button>
-                        <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
-                          <OhVueIcon name="md-delete" scale="0.75" />
-                        </button>
-                      </div>
-                    </div>
-                    <div v-if="c.description || systemName(c.system_id)" class="entry-attrs">
-                      <span v-if="systemName(c.system_id)" class="ea-pill"
-                        style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
-                        {{ systemName(c.system_id) }}
-                      </span>
-                      <span v-if="c.description" class="ea-text">{{ c.description }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="!campaigns.length" class="leaf-empty">
-                  <OhVueIcon name="gi-broadsword" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
-                  <em>No campaigns yet. Write the first entry.</em>
-                </div>
-              </template>
-
-              <!-- SYSTEMS -->
-              <template v-else-if="section === 'systems'">
-                <div class="leaf-header">
-                  <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
-                  <span class="leaf-count">{{ systems.length }} defined</span>
-                </div>
-                <div v-for="(sys, i) in leftEntries" :key="sys.id!" class="entry"
-                  style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}/library`)">
-                  <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + i + 1 }}</span>
-                  <div class="entry-icon"><div class="entry-badge">
-                    <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
-                  </div></div>
-                  <div class="entry-body">
-                    <div class="entry-top">
-                      <span class="entry-name">{{ sys.name }}</span>
-                      <span class="entry-leader" />
-                      <span class="entry-date">v{{ sys.version }}</span>
-                      <div class="entry-actions" @click.stop>
-                        <button class="entry-act" @click.stop="startEditSystem(sys)">
-                          <OhVueIcon name="md-editnote" scale="0.75" />
-                        </button>
-                        <button class="entry-act entry-act--del" @click.stop="deleteSystem(sys.id!)">
-                          <OhVueIcon name="md-delete" scale="0.75" />
-                        </button>
-                      </div>
-                    </div>
-                    <div class="entry-attrs">
-                      <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
-                        {{ sys.entityTypes.length }} types
-                      </span>
-                      <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="!systems.length" class="leaf-empty">
-                  <OhVueIcon name="gi-scroll-unfurled" scale="2.5" style="opacity:0.07;margin-bottom:10px" />
-                  <em>No systems defined yet.</em>
-                </div>
-              </template>
-
-              <!-- LIBRARY -->
-              <template v-else>
-                <div class="leaf-header">
-                  <span class="leaf-type" style="color:var(--gold)">Library</span>
-                  <span class="leaf-count">all records</span>
-                </div>
-                <div v-if="!systems.length" class="leaf-empty">
-                  <em>Define a system first to populate the library.</em>
-                </div>
-                <div v-for="sys in systems" :key="sys.id!" class="lib-system">
-                  <div class="lib-system-head">
-                    <span class="lib-system-name">{{ sys.name }}</span>
-                    <span class="lib-rule" />
-                  </div>
-                  <div class="lib-chips">
-                    <NuxtLink v-for="et in sys.entityTypes" :key="et.id" :to="`/system/${sys.id}/${et.id}`"
-                      class="lib-chip" :style="{ '--chip-color': et.color }">
-                      <OhVueIcon :name="et.icon || 'gi-scroll-unfurled'" scale="0.85" />
-                      {{ et.plural }}
-                    </NuxtLink>
-                  </div>
-                </div>
-              </template>
-
-            </div>
-            <div v-if="section !== 'library'" class="leaf-footer">
-              <button class="leaf-nav-btn" :disabled="!hasPrevSpread" @click="prevSpread">
-                <OhVueIcon name="md-chevronleft" scale="0.9" />
-              </button>
-              <button v-if="section === 'campaigns'" class="leaf-new" @click="showNew = true">
-                <span class="leaf-new-line-l"></span>
-                <span class="leaf-new-label">✦ Begin New Campaign ✦</span>
-                <span class="leaf-new-line-r"></span>
-              </button>
-              <button v-else class="leaf-new" @click="showNewSystem = true">
-                <span class="leaf-new-line-l"></span>
-                <span class="leaf-new-label">✦ Define New System ✦</span>
-                <span class="leaf-new-line-r"></span>
-              </button>
-              <span class="leaf-folio-num">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="book-binding"></div>
-
-        <!-- RIGHT PAGE -->
-        <div class="book-stack book-stack--right">
-          <div class="book-sheet-3"></div>
-          <div class="book-sheet-2"></div>
-          <div class="book-sheet-1"></div>
-          <div class="book-leaf book-leaf--right">
-            <template v-if="section !== 'library' && rightEntries.length > 0">
-              <div class="leaf-inner">
-
-                <!-- CAMPAIGNS right -->
-                <template v-if="section === 'campaigns'">
-                  <div class="leaf-header">
-                    <span class="leaf-type" style="color:var(--blood)">Campaigns</span>
-                    <span class="leaf-count">continued</span>
-                  </div>
-                  <div v-for="(c, i) in rightEntries" :key="c.id" class="entry"
-                    style="--et-color: var(--blood)" @click="openCampaign(c)">
-                    <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
-                    <div class="entry-icon"><div class="entry-badge">
-                      <OhVueIcon name="gi-broadsword" scale="0.75" style="color:var(--blood)" />
-                    </div></div>
-                    <div class="entry-body">
-                      <div class="entry-top">
-                        <span class="entry-name">{{ c.name }}</span>
-                        <span class="entry-leader" />
-                        <!-- c.updated_at: raw DB snake_case field (dbApi.campaigns.list does not normalize) -->
-                        <span class="entry-date">{{ formatDate(c.updated_at) }}</span>
-                        <div class="entry-actions" @click.stop>
-                          <button class="entry-act" @click.stop="startEditCampaign(c)">
-                            <OhVueIcon name="md-editnote" scale="0.75" />
-                          </button>
-                          <button class="entry-act entry-act--del" @click.stop="deleteCampaign(c.id)">
-                            <OhVueIcon name="md-delete" scale="0.75" />
-                          </button>
-                        </div>
-                      </div>
-                      <div v-if="c.description || systemName(c.system_id)" class="entry-attrs">
-                        <span v-if="systemName(c.system_id)" class="ea-pill"
-                          style="color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)">
-                          {{ systemName(c.system_id) }}
-                        </span>
-                        <span v-if="c.description" class="ea-text">{{ c.description }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-
-                <!-- SYSTEMS right -->
-                <template v-else-if="section === 'systems'">
-                  <div class="leaf-header">
-                    <span class="leaf-type" style="color:var(--arcane-l)">Systems</span>
-                    <span class="leaf-count">continued</span>
-                  </div>
-                  <div v-for="(sys, i) in rightEntries" :key="sys.id!" class="entry"
-                    style="--et-color: var(--arcane-l)" @click="$router.push(`/system/${sys.id}/library`)">
-                    <span class="entry-num">{{ spreadPage * PAGE_HALF * 2 + PAGE_HALF + i + 1 }}</span>
-                    <div class="entry-icon"><div class="entry-badge">
-                      <OhVueIcon name="gi-scroll-unfurled" scale="0.75" style="color:var(--arcane-l)" />
-                    </div></div>
-                    <div class="entry-body">
-                      <div class="entry-top">
-                        <span class="entry-name">{{ sys.name }}</span>
-                        <span class="entry-leader" />
-                        <span class="entry-date">v{{ sys.version }}</span>
-                        <div class="entry-actions" @click.stop>
-                          <button class="entry-act" @click.stop="startEditSystem(sys)">
-                            <OhVueIcon name="md-editnote" scale="0.75" />
-                          </button>
-                          <button class="entry-act entry-act--del" @click.stop="deleteSystem(sys.id!)">
-                            <OhVueIcon name="md-delete" scale="0.75" />
-                          </button>
-                        </div>
-                      </div>
-                      <div class="entry-attrs">
-                        <span class="ea-pill" style="color:var(--arcane-l);border-color:var(--arcane-l);background:color-mix(in srgb,var(--arcane-l) 10%,transparent)">
-                          {{ sys.entityTypes.length }} types
-                        </span>
-                        <span v-if="sys.description" class="ea-text">{{ sys.description }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-
-              </div>
-              <div class="leaf-footer--right">
-                <span class="leaf-folio-num">{{ spreadPage + 1 }} / {{ totalSpreads }}</span>
-                <button class="leaf-nav-btn" :disabled="!hasNextSpread" @click="nextSpread">
-                  <OhVueIcon name="md-chevronright" scale="0.9" />
-                </button>
-              </div>
-            </template>
-
-            <!-- PLACEHOLDER when right page is empty -->
-            <template v-else>
-              <div class="leaf-inner--right">
-                <template v-if="section === 'campaigns'">
-                  <OhVueIcon name="gi-broadsword" scale="4" style="opacity:0.13;margin-bottom:24px" />
-                  <p class="right-hint"><em>Select a campaign to continue<br>your adventure.</em></p>
-                </template>
-                <template v-else-if="section === 'systems'">
-                  <OhVueIcon name="gi-scroll-unfurled" scale="4" style="opacity:0.13;margin-bottom:24px" />
-                  <p class="right-hint"><em>Each system defines the entities<br>and fields for your campaigns.</em></p>
-                </template>
-                <template v-else>
-                  <OhVueIcon name="gi-open-treasure-chest" scale="4" style="opacity:0.13;margin-bottom:24px" />
-                  <p class="right-hint"><em>Browse all records across<br>every system.</em></p>
-                </template>
-              </div>
-            </template>
-          </div>
-        </div>
-
+    <!-- Header -->
+    <div class="home-header">
+      <div class="home-header-text">
+        <h1 class="home-title">DM's Tome</h1>
+        <p class="home-sub">Your campaigns, chronicles &amp; systems</p>
       </div>
     </div>
 
-    <SpineNav />
-
-    <!-- DIALOGS -->
-    <Teleport to="body">
-      <div v-if="showNew" class="pv-dialog-mask" @click.self="showNew = false">
-        <div class="pv-dialog">
-          <div class="pv-dialog-header">
-            <span class="pv-dialog-title">Begin a New Campaign</span>
-            <button class="pv-dialog-close" @click="showNew = false">
-              <OhVueIcon name="md-close" scale="0.85" />
-            </button>
-          </div>
-          <div class="pv-dialog-content">
-            <div class="dlg-field">
-              <label class="f-label">Title</label>
-              <input class="f-input-box" v-model="newCamp.name" placeholder="Curse of Strahd…"
-                @keyup.enter="createCampaign" autofocus />
+    <!-- Campaigns section -->
+    <div class="home-content">
+      <div v-if="campaigns.length" class="home-section">
+        <div class="home-section-head">
+          <span class="home-section-label">Campaigns</span>
+          <button class="home-new-btn" @click="showNewCampaign = true">+ New</button>
+        </div>
+        <div class="home-grid">
+          <div
+            v-for="c in campaigns"
+            :key="c.id"
+            class="home-card"
+            :style="{ '--card-color': campaignColor(c.id!) }"
+            @click="openCampaign(c)"
+          >
+            <div class="home-card-stripe" />
+            <div class="home-card-body">
+              <div class="home-card-name">{{ c.name }}</div>
+              <div v-if="c.description" class="home-card-desc">{{ c.description }}</div>
+              <div class="home-card-meta">
+                <span v-if="systemName(c.system_id)" class="home-card-pill">{{ systemName(c.system_id) }}</span>
+                <span class="home-card-date">{{ formatDate(c.updated_at) }}</span>
+              </div>
             </div>
-            <div class="dlg-field">
-              <label class="f-label">Chronicle</label>
-              <textarea class="f-input-box f-textarea" v-model="newCamp.description" placeholder="A dark tale of…" rows="3" />
-            </div>
-            <div class="dlg-field">
-              <label class="f-label">System</label>
-              <select class="f-input-box f-select" v-model="newCamp.systemId">
-                <option :value="null">— none —</option>
-                <option v-for="s in store.systems" :key="s.id" :value="s.id">{{ s.name }}</option>
-              </select>
+            <div class="home-card-actions" @click.stop>
+              <button class="home-card-act" title="Edit" @click.stop="startEditCampaign(c)">
+                <OhVueIcon name="md-editnote" scale="0.75" />
+              </button>
+              <button class="home-card-act home-card-act--del" title="Delete" @click.stop="deleteCampaign(c.id!)">
+                <OhVueIcon name="md-delete" scale="0.75" />
+              </button>
             </div>
           </div>
-          <div class="pv-dialog-footer">
-            <button class="ghost-btn" @click="showNew = false">Cancel</button>
-            <button class="seal-btn" @click="createCampaign">Begin</button>
-          </div>
+          <button class="home-card home-card--add" @click="showNewCampaign = true">
+            <span class="home-card-add-icon">+</span>
+            <span class="home-card-add-label">New Campaign</span>
+          </button>
         </div>
       </div>
 
-      <!-- EDIT CAMPAIGN -->
+      <!-- Empty state -->
+      <div v-else class="home-empty">
+        <div class="home-empty-icon">
+          <OhVueIcon name="gi-broadsword" scale="3" />
+        </div>
+        <h2 class="home-empty-title">No campaigns yet</h2>
+        <p class="home-empty-sub">Create your first campaign to begin your chronicle.</p>
+        <button class="home-empty-btn" @click="showNewCampaign = true">Begin a Campaign</button>
+      </div>
+
+      <!-- Systems section -->
+      <div v-if="systems.length" class="home-section" style="margin-top: 32px">
+        <div class="home-section-head">
+          <span class="home-section-label">Systems</span>
+          <button class="home-new-btn" @click="showNewSystem = true">+ New</button>
+        </div>
+        <div class="home-sys-list">
+          <NuxtLink
+            v-for="sys in systems"
+            :key="sys.id!"
+            :to="`/system/${sys.id}/library`"
+            class="home-sys-row"
+          >
+            <div class="home-sys-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
+            <div class="home-sys-body">
+              <div class="home-sys-name">{{ sys.name }}</div>
+              <div class="home-sys-meta">v{{ sys.version }} · {{ sys.entityTypes.length }} entity types</div>
+            </div>
+            <div class="home-sys-actions" @click.stop>
+              <button class="home-card-act" title="Edit" @click.stop="startEditSystem(sys)">
+                <OhVueIcon name="md-editnote" scale="0.75" />
+              </button>
+              <button class="home-card-act home-card-act--del" title="Delete" @click.stop="deleteSystem(sys.id!)">
+                <OhVueIcon name="md-delete" scale="0.75" />
+              </button>
+            </div>
+            <OhVueIcon name="md-chevronright" scale="0.85" class="home-sys-arrow" />
+          </NuxtLink>
+          <button class="home-sys-row home-sys-row--add" @click="showNewSystem = true">
+            <div class="home-sys-icon home-sys-icon--add">+</div>
+            <span style="color: var(--text2)">Define a new system</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Campaign Dialog -->
+    <Teleport to="body">
       <div v-if="editingCamp" class="pv-dialog-mask" @click.self="editingCamp = null">
         <div class="pv-dialog">
           <div class="pv-dialog-header">
@@ -312,14 +111,14 @@
               <input class="f-input-box" v-model="editCampForm.name" @keyup.enter="saveEditCampaign" autofocus />
             </div>
             <div class="dlg-field">
-              <label class="f-label">Chronicle</label>
+              <label class="f-label">Description</label>
               <textarea class="f-input-box f-textarea" v-model="editCampForm.description" rows="3" />
             </div>
             <div class="dlg-field">
               <label class="f-label">System</label>
               <select class="f-input-box f-select" v-model="editCampForm.systemId">
                 <option :value="null">— none —</option>
-                <option v-for="s in store.systems" :key="s.id" :value="s.id">{{ s.name }}</option>
+                <option v-for="s in systems" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
           </div>
@@ -330,7 +129,7 @@
         </div>
       </div>
 
-      <!-- EDIT SYSTEM -->
+      <!-- Edit System Dialog -->
       <div v-if="editingSys" class="pv-dialog-mask" @click.self="editingSys = null">
         <div class="pv-dialog">
           <div class="pv-dialog-header">
@@ -346,7 +145,7 @@
             </div>
             <div class="dlg-field">
               <label class="f-label">Short ID</label>
-              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="editSysForm.shortId" />
+              <input class="f-input-box" style="font-family:var(--fm);font-size:12px" v-model="editSysForm.shortId" />
             </div>
             <div class="dlg-field">
               <label class="f-label">Description</label>
@@ -359,117 +158,48 @@
           </div>
         </div>
       </div>
-
-      <div v-if="showNewSystem" class="pv-dialog-mask" @click.self="showNewSystem = false">
-        <div class="pv-dialog">
-          <div class="pv-dialog-header">
-            <span class="pv-dialog-title">Define a New System</span>
-            <button class="pv-dialog-close" @click="showNewSystem = false">
-              <OhVueIcon name="md-close" scale="0.85" />
-            </button>
-          </div>
-          <div class="pv-dialog-content">
-            <div class="dlg-field">
-              <label class="f-label">Name</label>
-              <input class="f-input-box" v-model="newSys.name" placeholder="Pathfinder 2e…" autofocus />
-            </div>
-            <div class="dlg-field">
-              <label class="f-label">Short ID</label>
-              <input class="f-input-box" style="font-family:var(--font-mono);font-size:12px" v-model="newSys.shortId"
-                placeholder="pf2e" />
-            </div>
-            <div class="dlg-field">
-              <label class="f-label">Description</label>
-              <textarea class="f-input-box f-textarea" v-model="newSys.description" placeholder="Optional…" rows="3" />
-            </div>
-          </div>
-          <div class="pv-dialog-footer">
-            <button class="ghost-btn" @click="showNewSystem = false">Cancel</button>
-            <button class="seal-btn" @click="createSystem">Create</button>
-          </div>
-        </div>
-      </div>
     </Teleport>
+
   </div>
 </template>
-
 
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
 import { dbApi } from '~/composables/useDb'
 import { useFormatters } from '~/composables/useFormatters'
+import { useAppDialogs } from '~/composables/useAppDialogs'
+
+const { showNewCampaign, showNewSystem } = useAppDialogs()
 
 const { formatDate } = useFormatters()
-
 const router = useRouter()
-const route = useRoute()
 const store = useSystemsStore()
-
-const section = ref<'campaigns' | 'systems' | 'library'>(
-  (route.query.section as any) ?? 'campaigns'
-)
-
-watch(() => route.query.section, (val) => {
-  if (val === 'campaigns' || val === 'systems' || val === 'library')
-    section.value = val
-})
-const campaigns = ref<any[]>([])
-const showNew = ref(false)
-
-const PAGE_HALF = 8
-const spreadPage = ref<number>(0)
-const activeList = computed(() => section.value === 'campaigns' ? campaigns.value : (systems.value as any[]))
-const hasPrevSpread = computed(() => spreadPage.value > 0)
-const hasNextSpread = computed(() => (spreadPage.value + 1) * PAGE_HALF * 2 < activeList.value.length)
-const totalSpreads = computed(() => Math.max(1, Math.ceil(activeList.value.length / (PAGE_HALF * 2))))
-const leftEntries = computed(() => activeList.value.slice(spreadPage.value * PAGE_HALF * 2, spreadPage.value * PAGE_HALF * 2 + PAGE_HALF))
-const rightEntries = computed(() => activeList.value.slice(spreadPage.value * PAGE_HALF * 2 + PAGE_HALF, (spreadPage.value + 1) * PAGE_HALF * 2))
-function prevSpread() { if (hasPrevSpread.value) spreadPage.value-- }
-function nextSpread() { if (hasNextSpread.value) spreadPage.value++ }
-watch(section, () => { spreadPage.value = 0 })
-const showNewSystem = ref(false)
-const newCamp = ref({ name: '', description: '', systemId: null as number | null })
-const newSys = ref({ name: '', shortId: '', description: '' })
-const editingCamp = ref<any>(null)
-const editCampForm = ref({ name: '', description: '', systemId: null as number | null })
-const editingSys = ref<any>(null)
-const editSysForm = ref({ name: '', shortId: '', description: '' })
-
-const chapterTitle = computed(() => ({ campaigns: 'The Chronicle', systems: 'The Codex', library: 'The Library' }[section.value]))
 const systems = computed(() => store.systems)
 
-function systemName(id?: number | null) { return id ? store.getSystem(id)?.name ?? null : null }
+const campaigns = ref<any[]>([])
 
 onMounted(async () => {
   await store.loadAll()
   campaigns.value = await dbApi.campaigns.list()
 })
 
-function openCampaign(c: any) { router.push(`/campaign/${c.id}`) }
-
-async function createCampaign() {
-  if (!newCamp.value.name.trim()) return
-  const c = await dbApi.campaigns.create({ name: newCamp.value.name, description: newCamp.value.description })
-  if (newCamp.value.systemId) { await dbApi.campaigns.update(c.id, { system_id: newCamp.value.systemId }); c.system_id = newCamp.value.systemId }
-  campaigns.value.unshift(c)
-  newCamp.value = { name: '', description: '', systemId: null }
-  showNew.value = false
-  openCampaign(c)
+function systemName(id?: number | null) {
+  return id ? store.getSystem(id)?.name ?? null : null
 }
 
-async function createSystem() {
-  if (!newSys.value.name.trim()) return
-  const sys = await store.createSystem(newSys.value)
-  newSys.value = { name: '', shortId: '', description: '' }
-  showNewSystem.value = false
-  router.push(`/system/${sys.id}/builder`)
+function openCampaign(c: any) {
+  router.push(`/campaign/${c.id}/sessions`)
 }
 
 async function deleteCampaign(id: number) {
-  if (!confirm('Delete this campaign?')) return
+  if (!confirm('Delete this campaign and all its data?')) return
   await dbApi.campaigns.delete(id)
   campaigns.value = campaigns.value.filter(c => c.id !== id)
 }
+
+// Edit campaign
+const editingCamp = ref<any>(null)
+const editCampForm = ref({ name: '', description: '', systemId: null as number | null })
 
 function startEditCampaign(c: any) {
   editingCamp.value = c
@@ -488,6 +218,10 @@ async function saveEditCampaign() {
   editingCamp.value = null
 }
 
+// Edit system
+const editingSys = ref<any>(null)
+const editSysForm = ref({ name: '', shortId: '', description: '' })
+
 function startEditSystem(sys: any) {
   editingSys.value = sys
   editSysForm.value = { name: sys.name, shortId: sys.shortId, description: sys.description ?? '' }
@@ -495,11 +229,7 @@ function startEditSystem(sys: any) {
 
 async function saveEditSystem() {
   if (!editingSys.value || !editSysForm.value.name.trim()) return
-  await store.updateSystem(editingSys.value.id, {
-    name: editSysForm.value.name,
-    shortId: editSysForm.value.shortId,
-    description: editSysForm.value.description,
-  })
+  await store.updateSystem(editingSys.value.id, editSysForm.value)
   editingSys.value = null
 }
 
@@ -508,213 +238,309 @@ async function deleteSystem(id: number) {
   await store.deleteSystem(id)
 }
 
-
+// Campaign colors
+const CAMPAIGN_COLORS = [
+  '#7c6fe8', '#e87c6f', '#6fe8c0', '#e8c46f', '#6fa8e8',
+  '#e86fa8', '#a8e86f', '#e86f6f', '#6fe8a8', '#c46fe8',
+]
+function campaignColor(id: number): string {
+  return CAMPAIGN_COLORS[id % CAMPAIGN_COLORS.length]
+}
 </script>
 
 <style scoped>
-/* Note: some classes below (.book-shell, .tome-page, .page-content, .entry,
-   .entry-icon, .entry-name, .entry-date, .leaf-footer, .leaf-new) override
-   main.css defaults — intentional, tuned for the home spread layout. */
-.book-shell {
-  display: flex;
-  height: 100vh;
-  background: var(--leather);
-}
-
-.tome-page {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
-  margin: 20px 20px 20px 60px;
-  border-radius: 2px;
-  box-shadow: var(--page-shadow);
-  overflow: visible;
-  position: relative;
-  z-index: 1;
-}
-
-/* Open book */
-
-.page-content {
+.home-page {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
-
-.leaf-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--parch-line);
+.home-header {
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.leaf-type {
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+.home-title {
+  font-family: var(--fh);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
 }
 
-.leaf-count {
-  font-family: var(--font-head);
-  font-size: 9px;
-  color: var(--ink-ghost);
+.home-sub {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 3px;
 }
 
-.leaf-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32px 0;
-  color: var(--ink-ghost);
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-style: italic;
-  gap: 0;
+.home-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 40px;
 }
 
-/* Entries */
-.entry { align-items: flex-start; border-left: 2px solid transparent; transition: border-color 0.15s, background 0.15s; }
-.entry:hover { border-left-color: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 40%, transparent); background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 4%, transparent); }
-.entry-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-ghost); opacity: 0.4; width: 18px; flex-shrink: 0; text-align: right; padding-top: 2px; line-height: 1; }
-.entry-icon { width: 32px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.entry-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--et-color, var(--ink-ghost)) 13%, transparent); border: 1px solid color-mix(in srgb, var(--et-color, var(--ink-ghost)) 30%, transparent); flex-shrink: 0; }
-.entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.entry-top { display: flex; align-items: center; gap: 6px; }
-.entry-name { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.entry-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted var(--ink-ghost); opacity: 0.3; align-self: center; position: relative; top: 1px; }
-.entry-date { font-family: var(--font-head); font-size: 8px; color: var(--ink-ghost); letter-spacing: 0.05em; flex-shrink: 0; white-space: nowrap; }
-.entry-attrs { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding-bottom: 3px; overflow: hidden; }
-.ea-pill { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px 2px 5px; border: 1px solid currentColor; border-radius: 2px; flex-shrink: 0; white-space: nowrap; }
-.ea-text { display: inline-flex; align-items: center; font-family: var(--font-ui); font-size: 11px; color: var(--ink-ghost); font-style: italic; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entry-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
-.entry:hover .entry-actions { opacity: 1; }
-.entry-act { width: 20px; height: 20px; border-radius: 2px; background: rgba(28,20,16,0.06); border: 1px solid transparent; color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.entry-act:hover { background: rgba(28,20,16,0.12); }
-.entry-act--del:hover { background: var(--blood-pale); color: var(--blood); border-color: var(--blood); }
-
-/* Footer pagination */
-.leaf-nav-btn { width: 26px; height: 26px; border-radius: 2px; background: none; border: 1px solid var(--parch-line); color: var(--ink-ghost); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
-.leaf-nav-btn:hover:not(:disabled) { border-color: var(--ink-faded); color: var(--ink); }
-.leaf-nav-btn:disabled { opacity: 0.25; cursor: default; }
-.leaf-folio-num { font-family: var(--font-head); font-size: 9px; color: var(--ink-ghost); letter-spacing: 0.12em; white-space: nowrap; }
-
-/* Footer new entry */
-.leaf-new {
+/* Section */
+.home-section-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
+  margin-bottom: 14px;
+}
+
+.home-section-label {
+  font-family: var(--fh);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.home-new-btn {
+  padding: 3px 10px;
+  border-radius: var(--r1);
+  border: 1px solid var(--border);
   background: none;
-  border: none;
+  color: var(--text2);
+  font-size: 12px;
   cursor: pointer;
-  padding: 4px 0;
+  transition: all 0.12s;
+}
+.home-new-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* Campaign grid */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.home-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.home-card:hover {
+  border-color: var(--border-hi);
+  box-shadow: var(--sh);
+}
+
+.home-card-stripe {
+  height: 3px;
+  background: var(--card-color, var(--accent));
+  flex-shrink: 0;
+}
+
+.home-card-body {
+  padding: 14px 14px 10px;
+  flex: 1;
+}
+
+.home-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-card-desc {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   margin-bottom: 8px;
 }
 
-.leaf-footer {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px 12px;
-  border-top: 1px dashed var(--parch-line);
-  flex-shrink: 0;
-}
-.leaf-footer .leaf-new { flex: 1; width: auto; margin-bottom: 0; }
-.leaf-footer--right {
-  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  padding: 8px 16px 12px;
-  border-top: 1px dashed var(--parch-line);
-  flex-shrink: 0;
-}
-
-.leaf-footnote-bar {
-  padding: 4px 16px 8px;
-  flex-shrink: 0;
-}
-
-.leaf-footnote {
-  font-family: var(--font-head);
-  font-size: 9px;
-  color: var(--ink-ghost);
-  margin-top: 4px;
-}
-
-.leaf-footnote-link {
-  color: var(--ink-ghost);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  transition: color 0.15s;
-}
-
-.leaf-footnote-link:hover {
-  color: var(--gold);
-}
-
-
-/* Library */
-.lib-system {
-  margin-bottom: 24px;
-}
-
-.lib-system-head {
+.home-card-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 6px;
 }
 
-.lib-system-name {
-  font-family: var(--font-head);
+.home-card-pill {
   font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid oklch(58% 0.24 295 / 0.2);
+}
+
+.home-card-date {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: auto;
+}
+
+.home-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.home-card:hover .home-card-actions { opacity: 1; }
+
+.home-card-act {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r1);
+  border: 1px solid var(--border);
+  background: var(--surface-hi);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.home-card-act:hover { color: var(--text); border-color: var(--border-hi); }
+.home-card-act--del:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+
+.home-card--add {
+  border-style: dashed;
+  background: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100px;
+  cursor: pointer;
+  color: var(--text3);
+  transition: all 0.15s;
+}
+.home-card--add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+.home-card-add-icon { font-size: 24px; line-height: 1; }
+.home-card-add-label { font-size: 12px; font-weight: 500; }
+
+/* Empty state */
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text2);
+}
+
+.home-empty-icon {
+  opacity: 0.12;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.home-empty-title {
+  font-family: var(--fh);
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.home-empty-sub {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 20px;
+}
+
+.home-empty-btn {
+  padding: 10px 24px;
+  border-radius: var(--r2);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-faded);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.home-empty-btn:hover { opacity: 0.85; }
+
+/* Systems list */
+.home-sys-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-sys-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.12s, background 0.12s;
+}
+.home-sys-row:hover { border-color: var(--border-hi); background: var(--surface-hi); }
+
+.home-sys-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  border: 1px solid oklch(58% 0.24 295 / 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fh);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
-.lib-rule {
-  flex: 1;
-  height: 1px;
-  background: var(--parch-line);
-}
+.home-sys-icon--add { background: none; border-style: dashed; color: var(--text3); font-size: 18px; }
 
-.lib-chips {
+.home-sys-body { flex: 1; min-width: 0; }
+
+.home-sys-name { font-size: 14px; font-weight: 500; color: var(--text); }
+
+.home-sys-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.home-sys-arrow { color: var(--text3); flex-shrink: 0; }
+
+.home-sys-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
+.home-sys-row:hover .home-sys-actions { opacity: 1; }
 
-.lib-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--parch-dark);
-  border: 1px solid var(--ink-ghost);
-  border-radius: 2px;
-  text-decoration: none;
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--chip-color, var(--ink-faded));
-  transition: all 0.18s;
+.home-sys-row--add {
+  border-style: dashed;
+  background: none;
+  color: var(--text3);
+  font-size: 13px;
 }
-
-.lib-chip:hover {
-  background: var(--ink);
-  color: var(--parch);
-  border-color: var(--ink);
-}
-
+.home-sys-row--add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+.home-sys-row--add:hover .home-sys-icon--add { color: var(--accent); border-color: var(--accent); }
 </style>
