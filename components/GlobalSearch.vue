@@ -1,5 +1,12 @@
 <template>
   <Teleport to="body">
+    <!-- Pill trigger -->
+    <button class="gs-pill-trigger" @click="open = true">
+      <span class="gs-pill-icon">⌕</span>
+      <span>Search</span>
+      <span class="gs-pill-shortcut">{{ isMac ? '⌘K' : 'Ctrl+K' }}</span>
+    </button>
+
     <!-- Modal -->
     <Transition name="gs-fade">
       <div v-if="open" class="pv-dialog-mask" @click.self="close">
@@ -379,6 +386,40 @@ if (import.meta.client) {
 </script>
 
 <style scoped>
+/* ── Pill trigger (fixed bottom-right, above dice roller) ── */
+.gs-pill-trigger {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 199;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 8px 12px;
+  border-radius: 99px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-md);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  transition: all 0.18s;
+  user-select: none;
+}
+.gs-pill-trigger:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.gs-pill-icon { font-size: 15px; line-height: 1; }
+.gs-pill-shortcut {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: var(--fm);
+  margin-left: 2px;
+}
+
 /* Dialog sizing override */
 .gs-dialog {
   width: 560px;

@@ -1,66 +1,143 @@
 <template>
   <div class="home-page page-enter">
 
-    <!-- Header -->
+    <!-- Greeting -->
     <div class="home-header">
-      <div class="home-header-text">
-        <h1 class="home-title">DM's Tome</h1>
-        <p class="home-sub">Your campaigns, chronicles &amp; systems</p>
+      <div class="home-greeting">
+        <h1 class="home-greeting-title">{{ greeting }}, Dungeon Master.</h1>
+        <p class="home-greeting-sub">
+          {{ campaigns.length }} campaign{{ campaigns.length !== 1 ? 's' : '' }} ·
+          {{ totalEntities }} entries ·
+          {{ systems.length }} system{{ systems.length !== 1 ? 's' : '' }}
+        </p>
       </div>
     </div>
 
-    <!-- Campaigns section -->
     <div class="home-content">
-      <div v-if="campaigns.length" class="home-section">
+
+      <!-- ── Campaigns ── -->
+      <div class="home-section">
         <div class="home-section-head">
           <span class="home-section-label">Campaigns</span>
           <button class="home-new-btn" @click="showNewCampaign = true">+ New</button>
         </div>
-        <div class="home-grid">
+
+        <div v-if="campaigns.length" class="home-camp-grid">
           <div
             v-for="c in campaigns"
             :key="c.id"
-            class="home-card"
-            :style="{ '--card-color': campaignColor(c.id!) }"
+            class="home-camp-card"
             @click="openCampaign(c)"
           >
-            <div class="home-card-stripe" />
-            <div class="home-card-body">
-              <div class="home-card-name">{{ c.name }}</div>
-              <div v-if="c.description" class="home-card-desc">{{ c.description }}</div>
-              <div class="home-card-meta">
-                <span v-if="systemName(c.system_id)" class="home-card-pill">{{ systemName(c.system_id) }}</span>
-                <span class="home-card-date">{{ formatDate(c.updated_at) }}</span>
+            <!-- Gradient banner -->
+            <div class="home-camp-banner" :style="{ background: campBanner(c) }">
+              <div class="home-camp-banner-text">
+                <div class="home-camp-banner-name">{{ c.name }}</div>
+                <div class="home-camp-banner-sys">{{ systemName(c.system_id) || 'No system' }}</div>
+              </div>
+              <div class="home-camp-card-actions" @click.stop>
+                <button class="home-camp-act" title="Edit" @click.stop="startEditCampaign(c)">
+                  <OhVueIcon name="md-editnote" scale="0.7" />
+                </button>
+                <button class="home-camp-act home-camp-act--del" title="Delete" @click.stop="deleteCampaign(c.id!)">
+                  <OhVueIcon name="md-delete" scale="0.7" />
+                </button>
               </div>
             </div>
-            <div class="home-card-actions" @click.stop>
-              <button class="home-card-act" title="Edit" @click.stop="startEditCampaign(c)">
-                <OhVueIcon name="md-editnote" scale="0.75" />
-              </button>
-              <button class="home-card-act home-card-act--del" title="Delete" @click.stop="deleteCampaign(c.id!)">
-                <OhVueIcon name="md-delete" scale="0.75" />
-              </button>
+
+            <!-- Body -->
+            <div class="home-camp-body">
+              <div v-if="c.description" class="home-camp-desc">{{ c.description }}</div>
+
+              <!-- Entity type pills -->
+              <div class="home-camp-pills">
+                <span
+                  v-for="et in entityTypesFor(c.id)"
+                  :key="et.type"
+                  class="home-camp-pill"
+                  :style="{ color: et.color, borderColor: et.color + '40', background: et.color + '10' }"
+                  @click.stop="openCampaign(c, et.type)"
+                >{{ et.count }} {{ et.plural }}</span>
+              </div>
+
+              <!-- Footer meta -->
+              <div class="home-camp-meta">
+                <span class="home-camp-meta-dot" :style="{ background: campHue(c) }" />
+                <span class="home-camp-meta-label">{{ campEntityCount(c.id) }} entries</span>
+                <span class="home-camp-meta-date">{{ formatDate(c.updated_at) }}</span>
+              </div>
             </div>
           </div>
-          <button class="home-card home-card--add" @click="showNewCampaign = true">
-            <span class="home-card-add-icon">+</span>
-            <span class="home-card-add-label">New Campaign</span>
+
+          <!-- New card -->
+          <button class="home-camp-card home-camp-card--new" @click="showNewCampaign = true">
+            <span class="home-camp-new-icon">+</span>
+            <span class="home-camp-new-label">New Campaign</span>
           </button>
         </div>
-      </div>
 
-      <!-- Empty state -->
-      <div v-else class="home-empty">
-        <div class="home-empty-icon">
-          <OhVueIcon name="gi-broadsword" scale="3" />
+        <!-- Empty state -->
+        <div v-else class="home-empty">
+          <div class="home-empty-icon">
+            <OhVueIcon name="gi-broadsword" scale="3" />
+          </div>
+          <h2 class="home-empty-title">No campaigns yet</h2>
+          <p class="home-empty-sub">Create your first campaign to begin your chronicle.</p>
+          <button class="home-empty-btn" @click="showNewCampaign = true">Begin a Campaign</button>
         </div>
-        <h2 class="home-empty-title">No campaigns yet</h2>
-        <p class="home-empty-sub">Create your first campaign to begin your chronicle.</p>
-        <button class="home-empty-btn" @click="showNewCampaign = true">Begin a Campaign</button>
       </div>
 
-      <!-- Systems section -->
-      <div v-if="systems.length" class="home-section" style="margin-top: 32px">
+      <!-- ── Two-column: Recent Activity + Active Quests ── -->
+      <div v-if="campaigns.length" class="home-two-col">
+
+        <!-- Recent Activity -->
+        <div>
+          <div class="home-section-label" style="margin-bottom: 10px">Recent Activity</div>
+          <div class="home-card">
+            <div class="home-card-head">
+              <span class="home-card-title">Recently Updated</span>
+            </div>
+            <div v-if="!recentActivity.length" class="home-card-empty">No entries yet</div>
+            <div
+              v-for="(a, i) in recentActivity"
+              :key="i"
+              class="home-act-row"
+              @click="openCampaign(campaigns.find(c => c.id === a.campaignId))"
+            >
+              <div class="home-act-dot" :style="{ background: a.color }" />
+              <div class="home-act-body">
+                <div class="home-act-name">{{ a.name }}</div>
+                <div class="home-act-sub">{{ a.sub }} · {{ a.campName }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Quests -->
+        <div>
+          <div class="home-section-label" style="margin-bottom: 10px">Active Quests</div>
+          <div class="home-card">
+            <div class="home-card-head">
+              <span class="home-card-title">Open Threads</span>
+            </div>
+            <div v-if="!activeQuests.length" class="home-card-empty">No active quests</div>
+            <div
+              v-for="(q, i) in activeQuests"
+              :key="i"
+              class="home-quest-row"
+              @click="openCampaign(campaigns.find(c => c.id === q.campaignId), 'quests')"
+            >
+              <div class="home-quest-dot" />
+              <div class="home-quest-name">{{ q.name }}</div>
+              <div class="home-quest-camp">{{ q.campName }}</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Systems ── -->
+      <div v-if="systems.length" class="home-section" style="margin-top: 8px">
         <div class="home-section-head">
           <span class="home-section-label">Systems</span>
           <button class="home-new-btn" @click="showNewSystem = true">+ New</button>
@@ -93,9 +170,10 @@
           </button>
         </div>
       </div>
+
     </div>
 
-    <!-- Edit Campaign Dialog -->
+    <!-- ── Edit Campaign Dialog ── -->
     <Teleport to="body">
       <div v-if="editingCamp" class="pv-dialog-mask" @click.self="editingCamp = null">
         <div class="pv-dialog">
@@ -168,36 +246,139 @@ import { useSystemsStore } from '~/stores/systems'
 import { dbApi } from '~/composables/useDb'
 import { useFormatters } from '~/composables/useFormatters'
 import { useAppDialogs } from '~/composables/useAppDialogs'
+import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
 
 const { showNewCampaign, showNewSystem } = useAppDialogs()
-
 const { formatDate } = useFormatters()
 const router = useRouter()
 const store = useSystemsStore()
 const systems = computed(() => store.systems)
 
 const campaigns = ref<any[]>([])
+const entityMap = ref<Record<number, any[]>>({})
 
 onMounted(async () => {
   await store.loadAll()
   campaigns.value = await dbApi.campaigns.list()
+  // Load entities for each campaign
+  const results = await Promise.all(
+    campaigns.value.map(c => dbApi.entities.list(c.id).then((ents: any[]) => ({ id: c.id, ents })))
+  )
+  const map: Record<number, any[]> = {}
+  results.forEach(r => { map[r.id] = r.ents })
+  entityMap.value = map
 })
 
+// ── Greeting ──────────────────────────────────────────────────────────────────
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+})
+
+const totalEntities = computed(() =>
+  Object.values(entityMap.value).reduce((sum, ents) => sum + ents.length, 0)
+)
+
+// ── Campaign helpers ──────────────────────────────────────────────────────────
+const ENTITY_TYPES = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({
+  type: type as EntityType,
+  plural: cfg.plural,
+  color: cfg.color,
+}))
+
+function nameHue(name: string): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
+  return h
+}
+
+function campHue(c: any): string {
+  const hue = nameHue(c.name)
+  return `hsl(${hue}, 55%, 50%)`
+}
+
+function campBanner(c: any): string {
+  const hue = nameHue(c.name)
+  return `linear-gradient(135deg, hsl(${hue},52%,22%) 0%, hsl(${(hue + 50) % 360},58%,14%) 100%)`
+}
+
+function campEntityCount(id: number): number {
+  return entityMap.value[id]?.length ?? 0
+}
+
+function entityTypesFor(id: number) {
+  const ents = entityMap.value[id] ?? []
+  const counts: Record<string, number> = {}
+  ents.forEach(e => { counts[e.type] = (counts[e.type] ?? 0) + 1 })
+  return ENTITY_TYPES
+    .filter(et => counts[et.type])
+    .map(et => ({ ...et, count: counts[et.type] }))
+}
+
+// ── Recent Activity ───────────────────────────────────────────────────────────
+const ENTITY_COLORS: Partial<Record<EntityType, string>> = {
+  session: '#6b9fe8', npc: '#5db870', item: '#e8b84e',
+  location: '#7eaacc', faction: '#e86fa8', quest: '#e8924a',
+  event: '#ebbd34', note: 'var(--text3)',
+}
+
+const recentActivity = computed(() => {
+  const items: { name: string; sub: string; campName: string; color: string; campaignId: number }[] = []
+  campaigns.value.forEach(c => {
+    const ents = entityMap.value[c.id] ?? []
+    ents.forEach(e => {
+      items.push({
+        name: e.name,
+        sub: ENTITY_TYPE_CONFIG[e.type as EntityType]?.label ?? e.type,
+        campName: c.name,
+        color: ENTITY_COLORS[e.type as EntityType] ?? 'var(--text3)',
+        campaignId: c.id,
+      })
+    })
+  })
+  return items.slice(0, 8)
+})
+
+// ── Active Quests ─────────────────────────────────────────────────────────────
+const activeQuests = computed(() => {
+  const quests: { name: string; campName: string; campaignId: number }[] = []
+  campaigns.value.forEach(c => {
+    const ents = entityMap.value[c.id] ?? []
+    ents
+      .filter(e => e.type === 'quest' && JSON.parse(e.attributes ?? '{}').status === 'active')
+      .forEach(e => quests.push({ name: e.name, campName: c.name, campaignId: c.id }))
+  })
+  return quests.slice(0, 8)
+})
+
+// ── Navigation ────────────────────────────────────────────────────────────────
 function systemName(id?: number | null) {
   return id ? store.getSystem(id)?.name ?? null : null
 }
 
-function openCampaign(c: any) {
-  router.push(`/campaign/${c.id}/sessions`)
+const TYPE_PLURAL_ROUTE: Record<string, string> = {
+  npc: 'npcs', location: 'locations', item: 'items',
+  faction: 'factions', quest: 'quests', event: 'events',
+  session: 'sessions', note: 'notes',
+}
+
+function openCampaign(c: any, type?: string) {
+  if (!c) return
+  const route = type
+    ? `/campaign/${c.id}/${TYPE_PLURAL_ROUTE[type] ?? type}`
+    : `/campaign/${c.id}/sessions`
+  router.push(route)
 }
 
 async function deleteCampaign(id: number) {
   if (!confirm('Delete this campaign and all its data?')) return
   await dbApi.campaigns.delete(id)
   campaigns.value = campaigns.value.filter(c => c.id !== id)
+  delete entityMap.value[id]
 }
 
-// Edit campaign
+// ── Edit campaign ─────────────────────────────────────────────────────────────
 const editingCamp = ref<any>(null)
 const editCampForm = ref({ name: '', description: '', systemId: null as number | null })
 
@@ -218,7 +399,7 @@ async function saveEditCampaign() {
   editingCamp.value = null
 }
 
-// Edit system
+// ── Edit system ───────────────────────────────────────────────────────────────
 const editingSys = ref<any>(null)
 const editSysForm = ref({ name: '', shortId: '', description: '' })
 
@@ -237,15 +418,6 @@ async function deleteSystem(id: number) {
   if (!confirm('Delete this system and all its records?')) return
   await store.deleteSystem(id)
 }
-
-// Campaign colors
-const CAMPAIGN_COLORS = [
-  '#7c6fe8', '#e87c6f', '#6fe8c0', '#e8c46f', '#6fa8e8',
-  '#e86fa8', '#a8e86f', '#e86f6f', '#6fe8a8', '#c46fe8',
-]
-function campaignColor(id: number): string {
-  return CAMPAIGN_COLORS[id % CAMPAIGN_COLORS.length]
-}
 </script>
 
 <style scoped>
@@ -257,33 +429,40 @@ function campaignColor(id: number): string {
   min-width: 0;
 }
 
+/* ── Header / Greeting ── */
 .home-header {
-  padding: 28px 32px 20px;
+  padding: 26px 32px 18px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.home-title {
+.home-greeting-title {
   font-family: var(--fh);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.02em;
 }
 
-.home-sub {
+.home-greeting-sub {
   font-size: 13px;
-  color: var(--text2);
+  color: var(--text3);
   margin-top: 3px;
 }
 
+/* ── Scrollable content ── */
 .home-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px 40px;
+  padding: 24px 32px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
-/* Section */
+/* ── Section ── */
+.home-section { display: flex; flex-direction: column; }
+
 .home-section-head {
   display: flex;
   align-items: center;
@@ -297,7 +476,7 @@ function campaignColor(id: number): string {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text2);
+  color: var(--text3);
 }
 
 .home-new-btn {
@@ -310,176 +489,220 @@ function campaignColor(id: number): string {
   cursor: pointer;
   transition: all 0.12s;
 }
-.home-new-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg);
-}
+.home-new-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
-/* Campaign grid */
-.home-grid {
+/* ── Campaign grid ── */
+.home-camp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
-.home-card {
-  position: relative;
+.home-camp-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r2);
+  border-radius: var(--r3);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   display: flex;
   flex-direction: column;
 }
-.home-card:hover {
+.home-camp-card:hover {
   border-color: var(--border-hi);
-  box-shadow: var(--sh);
+  box-shadow: var(--sh-md);
+  transform: translateY(-2px);
 }
 
-.home-card-stripe {
-  height: 3px;
-  background: var(--card-color, var(--accent));
-  flex-shrink: 0;
-}
-
-.home-card-body {
-  padding: 14px 14px 10px;
-  flex: 1;
-}
-
-.home-card-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-card-desc {
-  font-size: 12px;
-  color: var(--text2);
-  line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  margin-bottom: 8px;
-}
-
-.home-card-meta {
+/* Gradient banner */
+.home-camp-banner {
+  position: relative;
+  padding: 16px 14px 14px;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
+  min-height: 80px;
 }
-
-.home-card-pill {
-  font-size: 10px;
+.home-camp-banner-text { position: relative; z-index: 1; flex: 1; }
+.home-camp-banner-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.home-camp-banner-sys {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
   font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--accent-bg);
-  color: var(--accent);
-  border: 1px solid oklch(58% 0.24 295 / 0.2);
 }
 
-.home-card-date {
-  font-family: var(--fm);
-  font-size: 10px;
-  color: var(--text3);
-  margin-left: auto;
-}
-
-.home-card-actions {
+.home-camp-card-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: 4px;
-  padding: 6px 10px 8px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.home-card:hover .home-card-actions { opacity: 1; }
+.home-camp-card:hover .home-camp-card-actions { opacity: 1; }
 
-.home-card-act {
+.home-camp-act {
   width: 24px;
   height: 24px;
   border-radius: var(--r1);
-  border: 1px solid var(--border);
-  background: var(--surface-hi);
-  color: var(--text2);
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: rgba(255,255,255,0.7);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.12s;
 }
-.home-card-act:hover { color: var(--text); border-color: var(--border-hi); }
-.home-card-act--del:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+.home-camp-act:hover { background: rgba(0,0,0,0.5); color: #fff; }
+.home-camp-act--del:hover { background: rgba(180,40,40,0.7); border-color: transparent; }
 
-.home-card--add {
+/* Card body */
+.home-camp-body {
+  padding: 12px 14px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.home-camp-desc {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-camp-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.home-camp-pill {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.home-camp-pill:hover { opacity: 0.75; }
+
+.home-camp-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+}
+.home-camp-meta-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.home-camp-meta-label { font-size: 12px; color: var(--text3); }
+.home-camp-meta-date {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: auto;
+}
+
+/* New campaign card */
+.home-camp-card--new {
   border-style: dashed;
   background: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 100px;
+  min-height: 120px;
   cursor: pointer;
   color: var(--text3);
   transition: all 0.15s;
 }
-.home-card--add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.home-camp-card--new:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.home-camp-new-icon { font-size: 26px; line-height: 1; }
+.home-camp-new-label { font-size: 12px; font-weight: 500; }
 
-.home-card-add-icon { font-size: 24px; line-height: 1; }
-.home-card-add-label { font-size: 12px; font-weight: 500; }
+/* ── Two-column ── */
+.home-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 800px) { .home-two-col { grid-template-columns: 1fr; } }
 
-/* Empty state */
-.home-empty {
+/* ── Shared card ── */
+.home-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  overflow: hidden;
+}
+.home-card-head {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  color: var(--text2);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
 }
+.home-card-title { font-size: 12px; font-weight: 600; color: var(--text2); }
+.home-card-empty { padding: 20px 14px; font-size: 12px; color: var(--text3); font-style: italic; text-align: center; }
 
-.home-empty-icon {
-  opacity: 0.12;
-  margin-bottom: 20px;
-  color: var(--text);
-}
-
-.home-empty-title {
-  font-family: var(--fh);
-  font-size: 18px;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
-.home-empty-sub {
-  font-size: 13px;
-  color: var(--text2);
-  margin-bottom: 20px;
-}
-
-.home-empty-btn {
-  padding: 10px 24px;
-  border-radius: var(--r2);
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
+/* ── Recent activity rows ── */
+.home-act-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: background 0.1s;
 }
-.home-empty-btn:hover { opacity: 0.85; }
+.home-act-row:last-child { border-bottom: none; }
+.home-act-row:hover { background: var(--surface-hi); }
 
-/* Systems list */
+.home-act-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.home-act-body { flex: 1; min-width: 0; }
+.home-act-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-act-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+/* ── Active quest rows ── */
+.home-quest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.home-quest-row:last-child { border-bottom: none; }
+.home-quest-row:hover { background: var(--surface-hi); }
+
+.home-quest-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e8924a;
+  flex-shrink: 0;
+}
+.home-quest-name { font-size: 13px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-quest-camp { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+
+/* ── Systems list ── */
 .home-sys-list {
   display: flex;
   flex-direction: column;
@@ -502,37 +725,24 @@ function campaignColor(id: number): string {
 .home-sys-row:hover { border-color: var(--border-hi); background: var(--surface-hi); }
 
 .home-sys-icon {
-  width: 34px;
-  height: 34px;
+  width: 34px; height: 34px;
   border-radius: 8px;
   background: var(--accent-bg);
   border: 1px solid oklch(58% 0.24 295 / 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   font-family: var(--fh);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11px; font-weight: 700;
   color: var(--accent);
   flex-shrink: 0;
 }
-
 .home-sys-icon--add { background: none; border-style: dashed; color: var(--text3); font-size: 18px; }
 
 .home-sys-body { flex: 1; min-width: 0; }
-
 .home-sys-name { font-size: 14px; font-weight: 500; color: var(--text); }
-
 .home-sys-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
 .home-sys-arrow { color: var(--text3); flex-shrink: 0; }
 
-.home-sys-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
+.home-sys-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
 .home-sys-row:hover .home-sys-actions { opacity: 1; }
 
 .home-sys-row--add {
@@ -543,4 +753,44 @@ function campaignColor(id: number): string {
 }
 .home-sys-row--add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
 .home-sys-row--add:hover .home-sys-icon--add { color: var(--accent); border-color: var(--accent); }
+
+/* ── Action buttons (shared) ── */
+.home-card-act {
+  width: 24px; height: 24px;
+  border-radius: var(--r1);
+  border: 1px solid var(--border);
+  background: var(--surface-hi);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.home-card-act:hover { color: var(--text); border-color: var(--border-hi); }
+.home-card-act--del:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+
+/* ── Empty state ── */
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text2);
+}
+.home-empty-icon { opacity: 0.12; margin-bottom: 20px; color: var(--text); }
+.home-empty-title { font-family: var(--fh); font-size: 18px; color: var(--text); margin-bottom: 8px; }
+.home-empty-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.home-empty-btn {
+  padding: 10px 24px;
+  border-radius: var(--r2);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.home-empty-btn:hover { opacity: 0.85; }
 </style>

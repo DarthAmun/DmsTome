@@ -1,20 +1,18 @@
 <template>
   <Teleport to="body">
-    <!-- Floating button -->
-    <div
-      ref="fabRef"
+    <!-- Pill trigger -->
+    <button
       class="dice-fab"
-      :class="{ 'dice-fab--open': panelOpen, 'dice-fab--dragging': isDragging && dragMoved }"
-      :style="fabStyle"
-      @mousedown.prevent="onFabMouseDown"
-      @touchstart.prevent="onFabTouchStart"
+      :class="{ 'dice-fab--open': panelOpen }"
+      @click="panelOpen = !panelOpen"
     >
-      <OhVueIcon name="fa-dice-d20" scale="1.35" />
-    </div>
+      <OhVueIcon name="fa-dice-d20" scale="1.1" />
+      <span>Dice</span>
+    </button>
 
     <!-- Panel -->
     <Transition name="dp">
-      <div v-if="panelOpen" class="dice-panel" :style="panelStyle" @mousedown.stop @keydown.escape="panelOpen = false">
+      <div v-if="panelOpen" class="dice-panel" @mousedown.stop @keydown.escape="panelOpen = false">
         <!-- Header -->
         <div class="dp-header">
           <span class="dp-title">Dice Roller</span>
@@ -47,9 +45,12 @@
           <div class="dp-modifier-row">
             <span class="dp-mod-label">Modifier</span>
             <button class="dp-mod-btn" @click="modifier--">−</button>
-            <span class="dp-mod-val" :class="modifier > 0 ? 'dp-mod--pos' : modifier < 0 ? 'dp-mod--neg' : 'dp-mod--zero'">
-              {{ modifier >= 0 ? '+' : '' }}{{ modifier }}
-            </span>
+            <input
+              type="number"
+              class="dp-mod-val"
+              :class="modifier > 0 ? 'dp-mod--pos' : modifier < 0 ? 'dp-mod--neg' : 'dp-mod--zero'"
+              v-model.number="modifier"
+            />
             <button class="dp-mod-btn" @click="modifier++">+</button>
           </div>
         </div>
@@ -106,24 +107,7 @@ const DIE_ICON: Record<number, string> = {
   20: 'fa-dice-d20',
 }
 
-const FAB_SIZE = 52
-const EDGE_M = 14
-
-const fabSide = ref<'left' | 'right'>('right')
-const fabY = ref(EDGE_M)
 const panelOpen = ref(false)
-
-onMounted(() => {
-  // Position above the gs-pill (bottom: 20px, ~32px tall) with 20px gap
-  fabY.value = window.innerHeight - FAB_SIZE - 72
-})
-
-const isDragging = ref(false)
-const dragMoved = ref(false)
-const dragX = ref(0)
-const dragY = ref(0)
-const dragStartX = ref(0)
-const dragStartY = ref(0)
 
 const pool = reactive<Record<number, number>>({ 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 })
 const modifier = ref(0)
@@ -151,24 +135,6 @@ const poolLabel = computed(() => {
   return s
 })
 
-const fabStyle = computed(() => {
-  if (isDragging.value && dragMoved.value) {
-    return { left: dragX.value - FAB_SIZE / 2 + 'px', top: dragY.value - FAB_SIZE / 2 + 'px', transition: 'none' }
-  }
-  return {
-    [fabSide.value]: EDGE_M + 'px',
-    top: fabY.value + 'px',
-    transition: isDragging.value ? 'none' : 'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-  }
-})
-
-const panelStyle = computed(() => {
-  const h = typeof window !== 'undefined' ? window.innerHeight : 600
-  const panelHeight = 480
-  const y = Math.max(8, Math.min(h - panelHeight - 8, fabY.value - panelHeight / 2 + FAB_SIZE / 2))
-  const offset = EDGE_M + FAB_SIZE + 10 + 'px'
-  return fabSide.value === 'right' ? { right: offset, top: y + 'px' } : { left: offset, top: y + 'px' }
-})
 
 function addDie(sides: DieSides) {
   pool[sides]++
@@ -248,123 +214,52 @@ function rollDice() {
   history.value = [r, ...history.value].slice(0, 8)
 }
 
-// ── Drag (mouse) ─────────────────────────────────────────────────
-function onFabMouseDown(e: MouseEvent) {
-  isDragging.value = true
-  dragMoved.value = false
-  dragStartX.value = dragX.value = e.clientX
-  dragStartY.value = dragY.value = e.clientY
-  document.addEventListener('mousemove', onDocMove)
-  document.addEventListener('mouseup', onDocUp)
-}
-function onDocMove(e: MouseEvent) {
-  if (!isDragging.value) return
-  dragX.value = e.clientX
-  dragY.value = e.clientY
-  if (Math.abs(e.clientX - dragStartX.value) > 6 || Math.abs(e.clientY - dragStartY.value) > 6)
-    dragMoved.value = true
-}
-function onDocUp(e: MouseEvent) {
-  isDragging.value = false
-  if (dragMoved.value) {
-    fabSide.value = e.clientX > window.innerWidth / 2 ? 'right' : 'left'
-    fabY.value = Math.max(EDGE_M, Math.min(window.innerHeight - FAB_SIZE - EDGE_M, e.clientY - FAB_SIZE / 2))
-  } else {
-    panelOpen.value = !panelOpen.value
-  }
-  document.removeEventListener('mousemove', onDocMove)
-  document.removeEventListener('mouseup', onDocUp)
-}
-
-// ── Drag (touch) ─────────────────────────────────────────────────
-function onFabTouchStart(e: TouchEvent) {
-  const t = e.touches[0]
-  isDragging.value = true
-  dragMoved.value = false
-  dragStartX.value = dragX.value = t.clientX
-  dragStartY.value = dragY.value = t.clientY
-  document.addEventListener('touchmove', onDocTouchMove, { passive: false })
-  document.addEventListener('touchend', onDocTouchEnd)
-}
-function onDocTouchMove(e: TouchEvent) {
-  e.preventDefault()
-  if (!isDragging.value) return
-  const t = e.touches[0]
-  dragX.value = t.clientX
-  dragY.value = t.clientY
-  if (Math.abs(t.clientX - dragStartX.value) > 6 || Math.abs(t.clientY - dragStartY.value) > 6)
-    dragMoved.value = true
-}
-function onDocTouchEnd(e: TouchEvent) {
-  isDragging.value = false
-  const t = e.changedTouches[0]
-  if (dragMoved.value) {
-    fabSide.value = t.clientX > window.innerWidth / 2 ? 'right' : 'left'
-    fabY.value = Math.max(EDGE_M, Math.min(window.innerHeight - FAB_SIZE - EDGE_M, t.clientY - FAB_SIZE / 2))
-  } else {
-    panelOpen.value = !panelOpen.value
-  }
-  document.removeEventListener('touchmove', onDocTouchMove)
-  document.removeEventListener('touchend', onDocTouchEnd)
-}
-
-onUnmounted(() => {
-  document.removeEventListener('mousemove', onDocMove)
-  document.removeEventListener('mouseup', onDocUp)
-  document.removeEventListener('touchmove', onDocTouchMove)
-  document.removeEventListener('touchend', onDocTouchEnd)
-})
 </script>
 
 <style scoped>
-/* ── Floating button ─────────────────────────────────────────── */
+/* ── Pill trigger ────────────────────────────────────────────── */
 .dice-fab {
   position: fixed;
-  z-index: var(--z-fab);
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--leather, #1a1208);
-  border: 2px solid rgba(184,134,11,0.45);
-  color: var(--gold, #c9973a);
+  bottom: 68px;
+  right: 20px;
+  z-index: 199;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px 8px 12px;
+  border-radius: 99px;
+  background: var(--surface-solid, var(--bg2));
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-md);
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  transition: all 0.18s;
   user-select: none;
-  touch-action: none;
 }
 .dice-fab:hover {
-  border-color: var(--gold, #c9973a);
-  box-shadow: 0 6px 28px rgba(0,0,0,0.8), 0 0 14px rgba(184,134,11,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
-  transform: scale(1.07);
+  border-color: var(--border-hi, var(--border));
+  color: var(--text);
 }
 .dice-fab--open {
-  border-color: var(--gold, #c9973a);
-  background: #1e1408;
-  box-shadow: 0 0 20px rgba(184,134,11,0.3), 0 4px 24px rgba(0,0,0,0.8);
-}
-.dice-fab--dragging {
-  cursor: grabbing;
-  transform: scale(1.1);
-  opacity: 0.9;
-}
-.dice-fab-icon {
-  width: 26px;
-  height: 26px;
+  border-color: var(--border-hi, var(--border));
+  color: var(--text);
 }
 
 /* ── Panel ───────────────────────────────────────────────────── */
 .dice-panel {
   position: fixed;
-  z-index: calc(var(--z-fab) - 1);
+  bottom: 116px;
+  right: 20px;
+  z-index: 198;
   width: 300px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
   background: var(--parch-dark, #1c140e);
   border: 1px solid rgba(184,134,11,0.3);
   border-radius: 12px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(184,134,11,0.08);
-  overflow: hidden;
 }
 
 .dp-header {
@@ -518,9 +413,22 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 700;
   font-family: monospace;
-  min-width: 32px;
+  width: 48px;
   text-align: center;
   color: var(--ink, #d4c5a9);
+  background: transparent;
+  border: 1px solid rgba(184,134,11,0.22);
+  border-radius: 4px;
+  padding: 2px 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.dp-mod-val::-webkit-outer-spin-button,
+.dp-mod-val::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+.dp-mod-val:focus {
+  border-color: rgba(184,134,11,0.55);
 }
 .dp-mod--pos { color: #7dd89a; }
 .dp-mod--neg { color: var(--blood, #c03030); }
@@ -640,9 +548,9 @@ onUnmounted(() => {
 .dp-his--fail { color: var(--blood, #c03030); }
 
 /* ── Transitions ─────────────────────────────────────────────── */
-.dp-enter-active { transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1); }
-.dp-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.dp-enter-from, .dp-leave-to { opacity: 0; transform: scale(0.88); }
+.dp-enter-active { transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1); transform-origin: bottom right; }
+.dp-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; transform-origin: bottom right; }
+.dp-enter-from, .dp-leave-to { opacity: 0; transform: scale(0.88) translateY(8px); }
 
 .dp-res-enter-active { transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
 .dp-res-enter-from { opacity: 0; transform: scale(0.75); }

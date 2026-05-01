@@ -20,17 +20,7 @@
       <h2 v-else class="editor-name" @click="startEditName">{{ entity?.name }}</h2>
 
       <div class="header-actions">
-        <template v-if="entity?.type === 'session'">
           <button
-            v-for="m in sessionModes"
-            :key="m.value"
-            class="mode-btn"
-            :class="{ active: sessionMode === m.value }"
-            @click="setSessionMode(m.value)"
-          >{{ m.label }}</button>
-        </template>
-
-        <button
           class="hdr-btn"
           :class="{ active: activePanel === 'attributes' }"
           @click="activePanel = activePanel === 'attributes' ? 'content' : 'attributes'"
@@ -55,6 +45,25 @@
       </div>
     </div>
 
+    <!-- ── Entity card / banner (all modes, non-session) ── -->
+    <template v-if="activePanel === 'content' && entity?.type !== 'session'">
+
+      <!-- NPC: business card -->
+      <NpcCard
+        v-if="entity?.type === 'npc'"
+        :name="entity.name"
+        :attrs="displayAttrs"
+        :color="typeColor"
+        class="npc-card-editor"
+      />
+
+      <!-- Other types: banner image -->
+      <div v-else-if="entityImageUrl" class="entity-banner">
+        <img :src="entityImageUrl" class="entity-banner-img" />
+      </div>
+
+    </template>
+
     <!-- ── Body ── -->
     <div class="editor-body">
 
@@ -67,7 +76,7 @@
         />
       </div>
 
-      <!-- ── Session: split layout ── -->
+      <!-- ── Session: split layout (both panes always in mixed mode) ── -->
       <template v-else-if="entity?.type === 'session'">
         <div class="session-split">
 
@@ -75,52 +84,30 @@
           <div class="session-pane">
             <div class="session-pane-label" style="--pane-accent: #b87de8">
               <span class="session-pane-label-text">Script / Prep</span>
-              <span v-if="sessionMode !== 'planning'" class="session-pane-label-badge">read-only</span>
             </div>
-
-            <!-- Planning: editable -->
-            <template v-if="sessionMode === 'planning'">
-              <div class="editor-toolbar">
-                <button class="tb-btn" title="Bold" @click="insertScript('**', '**')"><strong>B</strong></button>
-                <button class="tb-btn italic" title="Italic" @click="insertScript('*', '*')"><em>I</em></button>
-                <button class="tb-btn" title="Heading" @click="insertScript('## ', '')">H₂</button>
-                <button class="tb-btn" title="List" @click="insertScript('\n- ', '')">—</button>
-                <button class="tb-btn" title="Task" @click="insertScript('\n- [ ] ', '')">☐</button>
-                <div class="tb-divider" />
-                <button
-                  v-for="t in entityTypes" :key="t.type"
-                  class="tb-btn tb-entity" :style="{ color: t.color }"
-                  :title="`Link ${t.label}`"
-                  @click="insertScript(`{{${t.type}: `, '}}')"
-                >{{ t.label.charAt(0) }}</button>
-              </div>
-              <div class="editor-area-wrap">
+            <div class="mixed-pane">
+              <div
+                v-for="(block, i) in scriptBlocks" :key="i"
+                class="mixed-block"
+                :class="{ 'mixed-block--active': activeScriptBlock === i }"
+              >
                 <textarea
-                  ref="scriptRef"
-                  v-model="draftScript"
-                  class="editor-textarea"
-                  spellcheck="true"
-                  placeholder="Write your session script and prep notes here…"
-                  @input="onScriptInput"
+                  v-if="activeScriptBlock === i"
+                  v-model="scriptBlocks[i]"
+                  class="mixed-textarea"
+                  :ref="(el: any) => { if (el) scriptMixedRefs[i] = el }"
+                  @input="onScriptBlockInput(i)"
+                  @blur="onScriptBlockBlur"
+                  @keydown.esc.prevent="onScriptBlockBlur"
                 />
-                <div v-if="autocomplete.show && autocomplete.isScript" class="autocomplete-dropdown">
-                  <button
-                    v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
-                    class="autocomplete-item"
-                    @mousedown.prevent="applyAutocomplete(item, true)"
-                  >
-                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
-                    <span class="autocomplete-name">{{ item.name }}</span>
-                    <span class="autocomplete-type">{{ item.type }}</span>
-                  </button>
-                  <p v-if="!autocomplete.items.length" class="autocomplete-empty">No matches — will link on save</p>
-                </div>
+                <div
+                  v-else
+                  class="mixed-preview markdown-body"
+                  v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
+                  @click="activateScriptBlock(i)"
+                />
               </div>
-            </template>
-
-            <!-- Running / Finished: read-only preview -->
-            <div v-else class="preview-pane">
-              <div class="markdown-body preview-body" v-html="renderedScript" @click="onPreviewClick" />
+              <button class="mixed-add-btn" @click="addScriptBlock">+ paragraph</button>
             </div>
           </div>
 
@@ -130,60 +117,33 @@
           <div class="session-pane">
             <div class="session-pane-label" style="--pane-accent: var(--accent)">
               <span class="session-pane-label-text">Session Notes</span>
-              <span v-if="sessionMode === 'finished'" class="session-pane-label-badge">read-only</span>
             </div>
-
-            <!-- Planning: not yet started -->
-            <div v-if="sessionMode === 'planning'" class="editor-empty">
-              Session notes are available when the session is Running.
-            </div>
-
-            <!-- Running: editable -->
-            <template v-else-if="sessionMode === 'running'">
-              <div class="editor-toolbar">
-                <button class="tb-btn" title="Bold" @click="insertNotes('**', '**')"><strong>B</strong></button>
-                <button class="tb-btn italic" title="Italic" @click="insertNotes('*', '*')"><em>I</em></button>
-                <button class="tb-btn" title="Heading" @click="insertNotes('## ', '')">H₂</button>
-                <button class="tb-btn" title="List" @click="insertNotes('\n- ', '')">—</button>
-                <button class="tb-btn" title="Task" @click="insertNotes('\n- [ ] ', '')">☐</button>
-                <div class="tb-divider" />
-                <button
-                  v-for="t in entityTypes" :key="t.type"
-                  class="tb-btn tb-entity" :style="{ color: t.color }"
-                  :title="`Link ${t.label}`"
-                  @click="insertNotes(`{{${t.type}: `, '}}')"
-                >{{ t.label.charAt(0) }}</button>
-              </div>
-              <div class="editor-area-wrap">
+            <div class="mixed-pane">
+              <div
+                v-for="(block, i) in editableBlocks" :key="i"
+                class="mixed-block"
+                :class="{ 'mixed-block--active': activeBlock === i }"
+              >
                 <textarea
-                  ref="editorRef"
-                  v-model="draftContent"
-                  class="editor-textarea"
-                  spellcheck="true"
-                  placeholder="Take notes here while running the session…"
-                  @input="onNotesInput"
+                  v-if="activeBlock === i"
+                  v-model="editableBlocks[i]"
+                  class="mixed-textarea"
+                  :ref="(el: any) => { if (el) mixedRefs[i] = el }"
+                  @input="onBlockInput(i)"
+                  @blur="onBlockBlur"
+                  @keydown.esc.prevent="onBlockBlur"
                 />
-                <div v-if="autocomplete.show && !autocomplete.isScript" class="autocomplete-dropdown">
-                  <button
-                    v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
-                    class="autocomplete-item"
-                    @mousedown.prevent="applyAutocomplete(item, false)"
-                  >
-                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
-                    <span class="autocomplete-name">{{ item.name }}</span>
-                    <span class="autocomplete-type">{{ item.type }}</span>
-                  </button>
-                  <p v-if="!autocomplete.items.length" class="autocomplete-empty">No matches — will link on save</p>
-                </div>
+                <div
+                  v-else
+                  class="mixed-preview markdown-body"
+                  v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
+                  @click="activateBlock(i)"
+                />
               </div>
-            </template>
-
-            <!-- Finished: preview -->
-            <div v-else class="preview-pane">
-              <div v-if="draftContent" class="markdown-body preview-body" v-html="renderedContent" @click="onPreviewClick" />
-              <div v-else class="editor-empty">No session notes recorded.</div>
+              <button class="mixed-add-btn" @click="addBlock">+ paragraph</button>
             </div>
           </div>
+
         </div>
       </template>
 
@@ -230,17 +190,6 @@
 
       <!-- ── Single-pane: Preview ── -->
       <div v-else-if="viewMode === 'preview'" class="preview-pane">
-        <div
-          v-if="entityImageUrl"
-          class="preview-banner"
-          :class="{ 'preview-banner--portrait': entity?.type === 'npc' }"
-        >
-          <img
-            :src="entityImageUrl"
-            class="preview-banner-img"
-            :class="{ 'preview-banner-img--portrait': entity?.type === 'npc' }"
-          />
-        </div>
         <div class="markdown-body preview-body" v-html="renderedContent" @click="onPreviewClick" />
         <div v-if="entityMapUrl" class="preview-map-section">
           <div class="preview-map-label"><OhVueIcon name="md-map" scale="0.8" /> Map</div>
@@ -502,18 +451,49 @@ function setViewMode(m: ViewMode) {
   if (m === 'mixed') syncBlocks()
 }
 
-// ── Session ───────────────────────────────────────────────────────────────────
-const sessionModes = [
-  { value: 'planning', label: 'Planning' },
-  { value: 'running',  label: 'Running'  },
-  { value: 'finished', label: 'Finished' },
-]
-const sessionMode = computed(() => (entity.value?.attributes as any)?.mode ?? 'planning')
+// ── Session script mixed mode ─────────────────────────────────────────────────
+const scriptBlocks = ref<string[]>([''])
+const activeScriptBlock = ref<number | null>(null)
+const scriptMixedRefs: Record<number, HTMLTextAreaElement> = {}
 
-async function setSessionMode(mode: string) {
-  const attrs = { ...(entity.value?.attributes as any ?? {}), mode }
-  draftAttributes.value = attrs
-  await store.updateEntity(props.entityId, { attributes: attrs })
+function syncScriptBlocks() {
+  const blocks = draftScript.value.split(/\n\n+/)
+  scriptBlocks.value = blocks.length > 0 ? blocks : ['']
+  activeScriptBlock.value = null
+}
+
+function activateScriptBlock(i: number) {
+  activeScriptBlock.value = i
+  nextTick(() => {
+    const el = scriptMixedRefs[i]
+    if (!el) return
+    el.focus()
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  })
+}
+
+function onScriptBlockInput(i: number) {
+  const el = scriptMixedRefs[i]
+  if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+  draftScript.value = scriptBlocks.value.join('\n\n')
+  if (scriptSaveTimer) clearTimeout(scriptSaveTimer)
+  scriptSaveTimer = setTimeout(async () => {
+    const attrs = { ...(entity.value?.attributes as any ?? {}), scriptContent: draftScript.value }
+    await store.updateEntity(props.entityId, { attributes: attrs })
+  }, 800)
+}
+
+function onScriptBlockBlur() {
+  while (scriptBlocks.value.length > 1 && !scriptBlocks.value[scriptBlocks.value.length - 1].trim()) {
+    scriptBlocks.value.pop()
+  }
+  activeScriptBlock.value = null
+}
+
+function addScriptBlock() {
+  scriptBlocks.value.push('')
+  nextTick(() => activateScriptBlock(scriptBlocks.value.length - 1))
 }
 
 // ── Entity types ──────────────────────────────────────────────────────────────
@@ -627,7 +607,9 @@ watch(() => props.entityId, async (id) => {
   isEditingName.value = false
   activePanel.value = 'content'
   activeBlock.value = null
+  activeScriptBlock.value = null
   if (viewMode.value === 'mixed') syncBlocks()
+  if (entity.value?.type === 'session') syncScriptBlocks()
 }, { immediate: true })
 
 watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
@@ -751,6 +733,12 @@ const entityMapUrl = computed(() => {
   if (entity.value?.type !== 'location') return null
   return (entity.value?.attributes as any)?.imageSource ?? null
 })
+
+// Merged attributes (saved + unsaved draft) for the entity card
+const displayAttrs = computed(() => ({
+  ...(entity.value?.attributes as any ?? {}),
+  ...(draftAttributes.value as any),
+}))
 
 // ── Links ─────────────────────────────────────────────────────────────────────
 const outgoingLinks = computed(() => store.linksFrom(props.entityId))
@@ -1117,35 +1105,26 @@ async function confirmDelete() {
 
 .preview-body { padding: 20px 26px; flex: 1; }
 
-/* Banner — wide (default) */
-.preview-banner {
+/* ── NPC card (editor wrapper) ───────────────────────────────────────────── */
+.npc-card-editor {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  box-shadow: none;
   flex-shrink: 0;
-  padding: 18px 26px 0;
-}
-.preview-banner-img {
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  border-radius: var(--r2);
-  border: 1px solid var(--border);
-  display: block;
 }
 
-/* Banner — portrait (NPC) */
-.preview-banner--portrait {
-  display: flex;
-  justify-content: center;
-  padding: 20px 26px 4px;
+/* ── Entity banner (non-NPC) ─────────────────────────────────────────────── */
+.entity-banner {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
 }
-.preview-banner-img--portrait {
-  width: 110px;
-  height: 150px;
-  max-height: none;
+.entity-banner-img {
+  width: 100%;
+  max-height: 150px;
   object-fit: cover;
-  object-position: top center;
-  border-radius: var(--r2);
-  border: 2px solid var(--border-hi);
-  box-shadow: var(--sh);
+  display: block;
 }
 
 .preview-map-section { padding: 0 26px 18px; flex-shrink: 0; }

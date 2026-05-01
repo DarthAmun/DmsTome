@@ -108,39 +108,44 @@
     <!-- ── Right panel: special view or child route ── -->
     <div class="edetail">
 
-      <!-- Event timeline -->
+      <!-- Event timeline (vertical) -->
       <div v-if="type === 'event' && viewMode === 'timeline'" class="sv-timeline">
         <div v-if="!timelineEvents.length" class="sv-empty">
           <OhVueIcon name="gi-sands-of-time" scale="2.5" style="opacity:0.1" />
           <span>No events yet.</span>
         </div>
-        <template v-else>
-          <div class="tl-outer" ref="timelineRef">
-            <div class="tl-track">
-              <div
-                v-for="(ev, i) in timelineEvents"
-                :key="ev.id"
-                class="tl-event"
-                :class="i % 2 === 0 ? 'tl-event--above' : 'tl-event--below'"
-                @click="openEntry(ev)"
-              >
-                <div class="tl-stem" />
-                <div class="tl-node" :style="{ background: sigNodeColor((ev.attributes as any)?.significance) }" />
-                <div class="tl-card">
-                  <div class="tl-card-date">{{ (ev.attributes as any)?.date || '— undated —' }}</div>
-                  <div class="tl-card-name">{{ ev.name }}</div>
-                  <div v-if="(ev.attributes as any)?.location" class="tl-card-loc">{{ (ev.attributes as any).location }}</div>
+        <div v-else class="tl-outer">
+          <div class="tl-track">
+            <div
+              v-for="ev in timelineEvents"
+              :key="ev.id"
+              class="tl-event"
+              @click="openEntry(ev)"
+            >
+              <div class="tl-spine">
+                <div class="tl-node" :style="{ background: sigNodeColor((ev.attributes as any)?.significance), boxShadow: `0 0 0 3px ${sigNodeColor((ev.attributes as any)?.significance)}22` }" />
+                <div class="tl-line" />
+              </div>
+              <div class="tl-card">
+                <div class="tl-card-top">
+                  <span class="tl-card-name">{{ ev.name }}</span>
                   <span
                     v-if="(ev.attributes as any)?.significance"
                     class="tl-card-sig"
                     :style="{ color: sigNodeColor((ev.attributes as any)?.significance), borderColor: sigNodeColor((ev.attributes as any)?.significance) + '55' }"
                   >{{ (ev.attributes as any).significance }}</span>
                 </div>
+                <div class="tl-card-meta">
+                  <span class="tl-card-date">{{ (ev.attributes as any)?.date || '— undated —' }}</span>
+                  <template v-if="(ev.attributes as any)?.location">
+                    <span class="tl-sep">·</span>
+                    <span class="tl-card-loc">{{ (ev.attributes as any).location }}</span>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
-          <div v-if="timelineOverflows" class="tl-scroll-hint">← scroll →</div>
-        </template>
+        </div>
       </div>
 
       <!-- Session log -->
@@ -223,9 +228,6 @@ function setView(m: string) {
 }
 
 // ── Timeline (events) ─────────────────────────────────────────────────────────
-const timelineRef = ref<HTMLElement | null>(null)
-const timelineOverflows = ref(false)
-
 const timelineEvents = computed(() => {
   if (props.type !== 'event') return []
   return [...entries.value].sort((a, b) => {
@@ -240,14 +242,6 @@ const timelineEvents = computed(() => {
 function sigNodeColor(sig: string | undefined): string {
   return ({ critical: 'var(--danger)', major: '#ebbd34', minor: 'var(--text3)' } as any)[sig ?? ''] ?? 'var(--text3)'
 }
-
-watch([viewMode, () => timelineEvents.value.length], () => {
-  if (viewMode.value !== 'timeline') return
-  nextTick(() => {
-    if (!timelineRef.value) return
-    timelineOverflows.value = timelineRef.value.scrollWidth > timelineRef.value.clientWidth + 2
-  })
-})
 
 // ── Session log ───────────────────────────────────────────────────────────────
 const expandedIds = ref<Set<number>>(new Set())
@@ -406,107 +400,80 @@ onMounted(() => ensureLoaded())
   font-style: italic;
 }
 
-/* ── Event timeline ──────────────────────────────────────────────────────── */
+/* ── Event timeline (vertical) ───────────────────────────────────────────── */
 .tl-outer {
   flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px 40px;
 }
 
 .tl-track {
-  position: relative;
   display: flex;
-  align-items: stretch;
-  height: 380px;
-  min-width: max-content;
-  padding: 0 60px;
-  flex-shrink: 0;
-}
-.tl-track::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; top: 50%;
-  height: 1px;
-  background: var(--border-hi);
-  pointer-events: none;
+  flex-direction: column;
+  max-width: 580px;
 }
 
 .tl-event {
-  position: relative;
-  width: 190px;
-  flex-shrink: 0;
+  display: flex;
+  gap: 14px;
   cursor: pointer;
 }
-.tl-node {
-  position: absolute;
-  left: calc(50% - 6px); top: calc(50% - 6px);
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--bg);
-  z-index: 1;
-  transition: transform 0.15s;
-  box-shadow: 0 0 0 1px var(--border-hi);
-}
-.tl-event:hover .tl-node { transform: scale(1.4); }
 
-.tl-stem {
-  position: absolute;
-  left: calc(50% - 0.5px);
-  width: 0;
-  border-left: 1px dashed var(--border-hi);
-  opacity: 0.7;
-}
-.tl-event--above .tl-stem { bottom: calc(50% + 6px); height: 32px; }
-.tl-event--below .tl-stem { top: calc(50% + 6px); height: 32px; }
-
-.tl-card {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 160px;
-  padding: 8px 11px 9px;
-  background: var(--surface-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--r2);
+.tl-spine {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  box-shadow: var(--sh);
+  align-items: center;
+  flex-shrink: 0;
+  width: 14px;
+  padding-top: 3px;
 }
-.tl-event:hover .tl-card { border-color: var(--border-hi); box-shadow: var(--sh-md); }
-.tl-event--above .tl-card { bottom: calc(50% + 38px); }
-.tl-event--below .tl-card { top: calc(50% + 38px); }
 
-.tl-card-date {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.tl-node {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  z-index: 1;
 }
+.tl-event:hover .tl-node { transform: scale(1.3); }
+
+.tl-line {
+  flex: 1;
+  width: 1px;
+  background: var(--border-hi);
+  margin-top: 4px;
+  min-height: 12px;
+}
+.tl-event:last-child .tl-line { display: none; }
+
+.tl-card {
+  flex: 1;
+  padding: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tl-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .tl-card-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
+  transition: color 0.12s;
 }
-.tl-card-loc {
-  font-size: 11px;
-  color: var(--text3);
-  font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.tl-event:hover .tl-card-name { color: var(--accent-l); }
+
 .tl-card-sig {
-  display: inline-block;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -514,17 +481,29 @@ onMounted(() => ensureLoaded())
   border: 1px solid;
   border-radius: var(--r4);
   padding: 1px 7px;
-  margin-top: 2px;
-  align-self: flex-start;
-}
-.tl-scroll-hint {
-  text-align: center;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--text3);
-  padding: 6px 0 10px;
   flex-shrink: 0;
-  user-select: none;
+}
+
+.tl-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.tl-card-date {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text3);
+}
+
+.tl-sep { font-size: 10px; color: var(--text3); }
+
+.tl-card-loc {
+  font-size: 11px;
+  color: var(--text3);
+  font-style: italic;
 }
 
 /* ── Session log ─────────────────────────────────────────────────────────── */
