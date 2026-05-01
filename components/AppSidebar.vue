@@ -16,15 +16,6 @@
         DM's Tome
       </NuxtLink>
 
-      <!-- Theme toggle (hidden when collapsed) -->
-      <button
-        class="sb-icon-btn sb-theme-btn"
-        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggleTheme"
-      >
-        {{ isDark ? '☀' : '☾' }}
-      </button>
-
       <!-- Collapse toggle -->
       <button
         class="sb-icon-btn sb-collapse-btn"
@@ -35,152 +26,150 @@
       </button>
     </div>
 
-    <!-- Logo icon when collapsed -->
-    <div v-if="collapsed" class="sb-scroll" style="padding-top:4px">
-      <!-- Campaigns icon rail -->
-      <div
-        v-for="c in campaigns"
-        :key="c.id!"
-        class="sb-campaign-header"
-        :class="{ active: activeCampaignId === c.id }"
-        :style="{ '--dot-color': campaignColor(c.id!) }"
-        :data-tip="c.name"
-        @click="navigateToCampaign(c)"
-      >
-        <span class="sb-campaign-dot" :style="{ background: campaignColor(c.id!) }" />
-      </div>
-
-      <div class="sb-divider" />
-
-      <!-- Systems icon rail -->
-      <NuxtLink
-        v-for="sys in systems"
-        :key="sys.id!"
-        :to="`/system/${sys.id}/library`"
-        class="sb-system"
-        :class="{ active: activeSystemId === sys.id }"
-        :data-tip="sys.name"
-      >
-        <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
-      </NuxtLink>
-
-      <div class="sb-divider" />
-
-      <!-- Settings -->
-      <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }" data-tip="Settings">
-        <span class="sb-bottom-icon">⚙</span>
-      </NuxtLink>
-
-      <!-- Theme toggle (in icon rail when collapsed) -->
-      <button class="sb-bottom-row" :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'" @click="toggleTheme">
-        <span class="sb-bottom-icon">{{ isDark ? '☀' : '☾' }}</span>
-      </button>
-    </div>
-
-    <!-- ── Scroll area (expanded) ── -->
-    <div v-else class="sb-scroll">
-
-      <!-- CAMPAIGNS section -->
-      <div class="sb-section-row">
-        <span class="sb-section-label">Campaigns</span>
-        <button class="sb-section-add" title="New campaign" @click="showNewCampaign = true">+</button>
-      </div>
-
-      <div v-for="c in campaigns" :key="c.id!" class="sb-campaign">
-        <!-- Campaign header row -->
+    <!-- ── Collapsed view ── -->
+    <template v-if="collapsed">
+      <div class="sb-scroll" style="padding-top:4px">
+        <!-- Campaigns icon rail -->
         <div
+          v-for="c in campaigns"
+          :key="c.id!"
           class="sb-campaign-header"
           :class="{ active: activeCampaignId === c.id }"
-          @click="toggleCampaign(c)"
+          :data-tip="c.name"
+          @click="navigateToCampaign(c)"
         >
-          <span
-            class="sb-campaign-arrow"
-            :class="{ open: expandedCampaigns.has(c.id!) }"
-          >›</span>
-          <span
-            class="sb-campaign-dot"
-            :style="{ background: campaignColor(c.id!) }"
-          />
-          <span class="sb-campaign-name">{{ c.name }}</span>
+          <span class="sb-campaign-dot" :style="{ background: campaignColor(c.id!) }" />
         </div>
 
-        <!-- Entity type children -->
-        <Transition name="sb-children">
-          <div v-if="expandedCampaigns.has(c.id!)" class="sb-children">
-            <NuxtLink
-              v-for="et in ENTITY_TYPES"
-              :key="et.key"
-              :to="`/campaign/${c.id}/${et.segment}`"
-              class="sb-child"
-              :class="{ active: isChildActive(c.id!, et.segment) }"
-              :style="{ '--child-color': et.color }"
-            >
-              <span class="sb-child-dot" :style="{ background: et.color }" />
-              <span class="sb-child-label">{{ et.label }}</span>
-              <span class="sb-child-count">{{ entityCounts[c.id!]?.[et.key] ?? '' }}</span>
-            </NuxtLink>
+        <div class="sb-divider" />
 
-            <div class="sb-child-sep" />
+        <!-- Systems icon rail -->
+        <NuxtLink
+          v-for="sys in systems"
+          :key="sys.id!"
+          :to="`/system/${sys.id}/library`"
+          class="sb-system"
+          :class="{ active: activeSystemId === sys.id }"
+          :data-tip="sys.name"
+        >
+          <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
+        </NuxtLink>
+      </div>
 
-            <NuxtLink
-              :to="`/campaign/${c.id}/encounters`"
-              class="sb-child-tool"
-              :class="{ active: route.path === `/campaign/${c.id}/encounters` || (route.path.startsWith('/encounter') && activeCampaignId === c.id) }"
-            >
-              <span class="sb-child-tool-icon">⚔</span>
-              <span>Encounters</span>
-            </NuxtLink>
+      <!-- Collapsed bottom: settings only -->
+      <div class="sb-footer-collapsed">
+        <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }" data-tip="Settings">
+          <span class="sb-bottom-icon">⚙</span>
+        </NuxtLink>
+      </div>
+    </template>
 
-            <NuxtLink
-              :to="`/campaign/${c.id}/map`"
-              class="sb-child-tool"
-              :class="{ active: route.path === `/campaign/${c.id}/map` }"
-            >
-              <span class="sb-child-tool-icon">🗺</span>
-              <span>World Map</span>
-            </NuxtLink>
+    <!-- ── Expanded view ── -->
+    <template v-else>
+      <div class="sb-scroll">
+
+        <!-- CAMPAIGNS section -->
+        <div class="sb-section-row">
+          <span class="sb-section-label">Campaigns</span>
+          <button class="sb-section-add" title="New campaign" @click="showNewCampaign = true">+</button>
+        </div>
+
+        <div v-for="c in campaigns" :key="c.id!" class="sb-campaign">
+          <!-- Campaign header: click navigates, arrow toggles expand -->
+          <div
+            class="sb-campaign-header"
+            :class="{ active: activeCampaignId === c.id }"
+            :style="campaignHeaderStyle(c)"
+            @click="navigateToCampaign(c)"
+          >
+            <!-- Arrow only toggles expand/collapse, does not navigate -->
+            <span
+              class="sb-campaign-arrow"
+              :class="{ open: expandedCampaigns.has(c.id!) }"
+              @click.stop="toggleExpand(c)"
+            >›</span>
+            <span class="sb-campaign-dot" :style="{ background: campaignColor(c.id!) }" />
+            <span class="sb-campaign-name" :class="{ 'sb-campaign-name--banner': hasBanner(c) }">{{ c.name }}</span>
           </div>
-        </Transition>
+
+          <!-- Entity type children -->
+          <Transition name="sb-children">
+            <div v-if="expandedCampaigns.has(c.id!)" class="sb-children">
+              <NuxtLink
+                v-for="et in ENTITY_TYPES"
+                :key="et.key"
+                :to="`/campaign/${c.id}/${et.segment}`"
+                class="sb-child"
+                :class="{ active: isChildActive(c.id!, et.segment) }"
+                :style="{ '--child-color': et.color }"
+              >
+                <span class="sb-child-dot" :style="{ background: et.color }" />
+                <span class="sb-child-label">{{ et.label }}</span>
+                <span class="sb-child-count">{{ entityCounts[c.id!]?.[et.key] ?? '' }}</span>
+              </NuxtLink>
+
+              <div class="sb-child-sep" />
+
+              <NuxtLink
+                :to="`/campaign/${c.id}/encounters`"
+                class="sb-child-tool"
+                :class="{ active: route.path === `/campaign/${c.id}/encounters` || (route.path.startsWith('/encounter') && activeCampaignId === c.id) }"
+              >
+                <span class="sb-child-tool-icon">⚔</span>
+                <span>Encounters</span>
+              </NuxtLink>
+
+              <NuxtLink
+                :to="`/campaign/${c.id}/map`"
+                class="sb-child-tool"
+                :class="{ active: route.path === `/campaign/${c.id}/map` }"
+              >
+                <span class="sb-child-tool-icon">🗺</span>
+                <span>World Map</span>
+              </NuxtLink>
+            </div>
+          </Transition>
+        </div>
+
+        <div v-if="!campaigns.length" class="sb-empty">
+          <span>No campaigns yet</span>
+        </div>
+
+        <div class="sb-divider" />
+
+        <!-- SYSTEMS section -->
+        <div class="sb-section-row">
+          <span class="sb-section-label">Systems</span>
+          <button class="sb-section-add" title="New system" @click="showNewSystem = true">+</button>
+        </div>
+
+        <NuxtLink
+          v-for="sys in systems"
+          :key="sys.id!"
+          :to="`/system/${sys.id}/library`"
+          class="sb-system"
+          :class="{ active: activeSystemId === sys.id }"
+        >
+          <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
+          <span class="sb-system-name">{{ sys.name }}</span>
+          <span class="sb-system-version">v{{ sys.version }}</span>
+        </NuxtLink>
+
+        <div v-if="!systems.length" class="sb-empty">
+          <span>No systems yet</span>
+        </div>
+
       </div>
 
-      <div v-if="!campaigns.length" class="sb-empty">
-        <span>No campaigns yet</span>
+      <!-- Bottom nav (expanded) -->
+      <div class="sb-footer">
+        <div class="sb-divider" style="margin:0" />
+        <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }">
+          <span class="sb-bottom-icon">⚙</span>
+          <span class="sb-bottom-label">Settings</span>
+        </NuxtLink>
       </div>
-
-      <div class="sb-divider" />
-
-      <!-- SYSTEMS section -->
-      <div class="sb-section-row">
-        <span class="sb-section-label">Systems</span>
-        <button class="sb-section-add" title="New system" @click="showNewSystem = true">+</button>
-      </div>
-
-      <NuxtLink
-        v-for="sys in systems"
-        :key="sys.id!"
-        :to="`/system/${sys.id}/library`"
-        class="sb-system"
-        :class="{ active: activeSystemId === sys.id }"
-      >
-        <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
-        <span class="sb-system-name">{{ sys.name }}</span>
-        <span class="sb-system-version">v{{ sys.version }}</span>
-      </NuxtLink>
-
-      <div v-if="!systems.length" class="sb-empty">
-        <span>No systems yet</span>
-      </div>
-
-    </div>
-
-    <!-- ── Bottom nav (expanded only) ── -->
-    <div v-if="!collapsed" class="sb-footer">
-      <div class="sb-divider" style="margin:0" />
-      <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }">
-        <span class="sb-bottom-icon">⚙</span>
-        <span class="sb-bottom-label">Settings</span>
-      </NuxtLink>
-    </div>
+    </template>
 
   </aside>
 </template>
@@ -189,7 +178,6 @@
 import { dbApi } from '~/composables/useDb'
 import { useSystemsStore } from '~/stores/systems'
 import { useNotesStore } from '~/stores/notes'
-import { useSettings } from '~/composables/useSettings'
 import { useAppDialogs } from '~/composables/useAppDialogs'
 import type { DbCampaign } from '~/composables/useDb'
 
@@ -197,11 +185,10 @@ const { showNewCampaign, showNewSystem } = useAppDialogs()
 
 const route = useRoute()
 const router = useRouter()
-const { settings, update: updateSetting } = useSettings()
 const systemsStore = useSystemsStore()
 const notesStore = useNotesStore()
 
-// ── Collapse state ────────────────────────────────────────────────────────
+// ── Collapse state ─────────────────────────────────────────────────────────
 const collapsed = ref(false)
 if (import.meta.client) {
   collapsed.value = localStorage.getItem('sb-collapsed') === '1'
@@ -221,30 +208,26 @@ if (import.meta.client) {
   onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
-// ── Theme ────────────────────────────────────────────────────────────────
-const isDark = computed(() => settings.value.theme !== 'light')
-function toggleTheme() {
-  updateSetting('theme', isDark.value ? 'light' : 'dark')
-}
-
-// ── Campaigns ────────────────────────────────────────────────────────────
+// ── Campaigns ─────────────────────────────────────────────────────────────
 const campaigns = ref<DbCampaign[]>([])
 async function loadCampaigns() {
   campaigns.value = await dbApi.campaigns.list()
 }
 onMounted(loadCampaigns)
-
-// Provide a way for parent to reload
 defineExpose({ reload: loadCampaigns })
 
-// ── Systems ───────────────────────────────────────────────────────────────
+// ── Systems ────────────────────────────────────────────────────────────────
 const systems = computed(() => systemsStore.systems)
 onMounted(() => { if (!systems.value.length) systemsStore.loadAll() })
 
-// ── Active context ────────────────────────────────────────────────────────
+// ── Active context ─────────────────────────────────────────────────────────
 const activeCampaignId = computed(() => {
   const id = route.params.id
-  if (!route.path.startsWith('/campaign/')) return null
+  if (!route.path.startsWith('/campaign/') && !route.path.startsWith('/encounter')) return null
+  if (route.path.startsWith('/encounter')) {
+    // Try to find the campaign from the encounter store if available
+    return null // encounters are separate routes; sidebar highlights via activeCampaignId = null
+  }
   return id ? Number(id) : null
 })
 
@@ -254,32 +237,61 @@ const activeSystemId = computed(() => {
   return id ? Number(id) : null
 })
 
-// ── Expanded campaigns ────────────────────────────────────────────────────
+// ── Expanded campaigns ─────────────────────────────────────────────────────
 const expandedCampaigns = ref<Set<number>>(new Set())
 
-// Auto-expand active campaign
+// Keep active campaign always expanded
 watch(activeCampaignId, id => {
-  if (id) expandedCampaigns.value.add(id)
+  if (id) {
+    expandedCampaigns.value = new Set([...expandedCampaigns.value, id])
+  }
 }, { immediate: true })
 
-function toggleCampaign(c: DbCampaign) {
+function toggleExpand(c: DbCampaign) {
   if (!c.id) return
-  if (expandedCampaigns.value.has(c.id)) {
-    expandedCampaigns.value.delete(c.id)
-    expandedCampaigns.value = new Set(expandedCampaigns.value)
+  const next = new Set(expandedCampaigns.value)
+  if (next.has(c.id)) {
+    next.delete(c.id)
   } else {
-    expandedCampaigns.value.add(c.id)
-    expandedCampaigns.value = new Set(expandedCampaigns.value)
-    navigateToCampaign(c)
+    next.add(c.id)
   }
+  expandedCampaigns.value = next
 }
 
 function navigateToCampaign(c: DbCampaign) {
+  // Ensure expanded when navigating to it
+  if (c.id) expandedCampaigns.value = new Set([...expandedCampaigns.value, c.id])
   router.push(`/campaign/${c.id}`)
 }
 
+// ── Campaign banner ────────────────────────────────────────────────────────
+const BANNER_COLORS = [
+  ['oklch(45% 0.22 295)', 'oklch(35% 0.18 260)'],
+  ['oklch(45% 0.22 20)', 'oklch(35% 0.18 350)'],
+  ['oklch(45% 0.18 158)', 'oklch(35% 0.14 190)'],
+  ['oklch(45% 0.20 60)', 'oklch(35% 0.16 30)'],
+  ['oklch(45% 0.20 200)', 'oklch(35% 0.16 230)'],
+]
+function hasBanner(c: DbCampaign): boolean {
+  return !!((c as any).banner_source)
+}
+function campaignHeaderStyle(c: DbCampaign): Record<string, string> {
+  const src = (c as any).banner_source as string | null
+  if (src) {
+    return {
+      backgroundImage: `url(${src})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+  }
+  if (c.id != null && activeCampaignId.value === c.id) {
+    const [a, b] = BANNER_COLORS[c.id % BANNER_COLORS.length]
+    return { background: `linear-gradient(135deg, ${a}, ${b})` }
+  }
+  return {}
+}
 
-// ── Entity types list ─────────────────────────────────────────────────────
+// ── Entity types list ──────────────────────────────────────────────────────
 const ENTITY_TYPES = [
   { key: 'session',   label: 'Sessions',  segment: 'sessions',  color: '#b87de8' },
   { key: 'npc',       label: 'NPCs',      segment: 'npcs',      color: '#7cc44e' },
@@ -295,7 +307,7 @@ function isChildActive(campaignId: number, segment: string): boolean {
   return activeCampaignId.value === campaignId && route.path.includes(`/${segment}`)
 }
 
-// ── Entity counts ─────────────────────────────────────────────────────────
+// ── Entity counts ──────────────────────────────────────────────────────────
 const entityCounts = computed(() => {
   const result: Record<number, Record<string, number>> = {}
   for (const e of notesStore.entities) {
@@ -305,7 +317,7 @@ const entityCounts = computed(() => {
   return result
 })
 
-// ── Campaign color ────────────────────────────────────────────────────────
+// ── Campaign color ─────────────────────────────────────────────────────────
 const CAMPAIGN_COLORS = [
   '#7c6fe8', '#e87c6f', '#6fe8c0', '#e8c46f', '#6fa8e8',
   '#e86fa8', '#a8e86f', '#e86f6f', '#6fe8a8', '#c46fe8',
@@ -334,6 +346,42 @@ function campaignColor(id: number): string {
 .sb-footer {
   flex-shrink: 0;
   padding: 4px 6px 8px;
+}
+
+/* Collapsed bottom section */
+.sb-footer-collapsed {
+  flex-shrink: 0;
+  padding: 4px 6px 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Campaign header with banner */
+.sb-campaign-header {
+  position: relative;
+  overflow: hidden;
+}
+.sb-campaign-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, oklch(0% 0 0 / 0.45) 0%, oklch(0% 0 0 / 0.25) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sb-campaign-header[style*="url("]::after {
+  opacity: 1;
+}
+.sb-campaign-name--banner {
+  color: rgba(255,255,255,0.95) !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.sb-campaign-header[style*="background"]:not([style*="var("]) .sb-campaign-arrow,
+.sb-campaign-header[style*="url("] .sb-campaign-arrow {
+  color: rgba(255,255,255,0.8);
+}
+.sb-campaign-header[style*="url("] .sb-campaign-dot {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.3);
 }
 
 /* Children expand/collapse transition */

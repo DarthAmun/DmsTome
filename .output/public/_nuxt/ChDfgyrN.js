@@ -1,0 +1,1 @@
+import{_ as c}from"./CNNEwVc6.js";import{_ as t,c as n,o as e}from"./B_Xa2zUB.js";import"./BB6_n7wC.js";const r={};function _(s,a){const o=c;return e(),n(o,{type:"faction"})}const p=t(r,[["render",_]]);export{p as default};

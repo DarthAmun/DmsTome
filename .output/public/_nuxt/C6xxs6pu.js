@@ -1,1 +1,0 @@
-import{_ as t}from"./cJgDrG0E.js";import{_ as o,c,o as n}from"./CCjd3_Fc.js";import"./Dcfyo9gd.js";const r={};function _(s,a){const e=t;return n(),c(e,{type:"event"})}const p=o(r,[["render",_]]);export{p as default};

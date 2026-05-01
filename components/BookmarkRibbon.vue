@@ -38,6 +38,15 @@
       </div>
 
     </div>
+
+    <!-- Theme toggle (pinned right) -->
+    <button
+      class="bm-theme-btn"
+      :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+      @click="toggleTheme"
+    >
+      {{ isDark ? '☀' : '☾' }}
+    </button>
   </div>
 </template>
 
@@ -45,8 +54,13 @@
 import { useBookmarks } from '~/composables/useBookmarks'
 import { useNotesStore } from '~/stores/notes'
 import { useEncounterStore } from '~/stores/encounter'
+import { useSettings } from '~/composables/useSettings'
 
 const router = useRouter()
+const { settings, update: updateSettings } = useSettings()
+const isDark = computed(() => settings.value.theme !== 'light')
+function toggleTheme() { updateSettings('theme', isDark.value ? 'light' : 'dark') }
+
 const route = useRoute()
 const { bookmarks, removeBookmark, reorder, isBookmarked, bookmarkPage, bookmarkEntity } = useBookmarks()
 const notesStore = useNotesStore()
@@ -105,10 +119,13 @@ function onDragEnd() { draggingIndex.value = null }
 .bm-bar {
   height: 40px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   z-index: var(--z-overlay);
   padding: 0 8px;
+  gap: 4px;
 }
 
 .bm-track {
@@ -119,8 +136,28 @@ function onDragEnd() { draggingIndex.value = null }
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
 }
 .bm-track::-webkit-scrollbar { display: none; }
+
+/* Theme toggle pinned to the right */
+.bm-theme-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: none;
+  color: var(--text3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.bm-theme-btn:hover { color: var(--text2); border-color: var(--border-hi); background: var(--surface-hi); }
 
 /* Pin button */
 .bm-pin-btn {

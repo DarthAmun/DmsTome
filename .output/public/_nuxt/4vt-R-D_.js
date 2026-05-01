@@ -1,0 +1,1 @@
+import{_ as s,b as a,d as t,o as n}from"./B_Xa2zUB.js";const o={},c={class:"edetail-empty"};function r(l,e){return n(),a("div",c,[...e[0]||(e[0]=[t("span",{class:"edetail-empty-icon"},"⚜",-1),t("span",null,"Select a faction or create one",-1)])])}const i=s(o,[["render",r]]);export{i as default};

@@ -1,0 +1,1 @@
+import{_ as t}from"./CNNEwVc6.js";import{_ as o,c,o as n}from"./B_Xa2zUB.js";import"./BB6_n7wC.js";const r={};function _(s,a){const e=t;return n(),c(e,{type:"event"})}const p=o(r,[["render",_]]);export{p as default};

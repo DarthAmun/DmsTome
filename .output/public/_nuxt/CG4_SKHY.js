@@ -1,0 +1,1 @@
+import{_ as s,b as n,d as t,o}from"./B_Xa2zUB.js";const a={},c={class:"edetail-empty"};function r(l,e){return o(),n("div",c,[...e[0]||(e[0]=[t("span",{class:"edetail-empty-icon"},"📝",-1),t("span",null,"Select a note or create one",-1)])])}const i=s(a,[["render",r]]);export{i as default};

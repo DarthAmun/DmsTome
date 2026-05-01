@@ -1,0 +1,1 @@
+import{_ as o}from"./CNNEwVc6.js";import{_ as c,c as e,o as n}from"./B_Xa2zUB.js";import"./BB6_n7wC.js";const r={};function s(_,a){const t=o;return n(),e(t,{type:"quest"})}const p=c(r,[["render",s]]);export{p as default};
