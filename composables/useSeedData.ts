@@ -16,7 +16,7 @@ const ENTITIES: Array<{ type: string; name: string; attributes: object; content:
     attributes: { icon: 'gi-book-aura', tags: ['tutorial'] },
     content: `# Welcome to the Chronicle
 
-The **Chronicle** is where you document the living world of your campaign. Every NPC, location, item, faction, quest, event, and session lives here as its own entry.
+The **Chronicle** is where you document the living world of your campaign. Every NPC, location, faction, quest, event, and session lives here as its own entry.
 
 ## Writing in Markdown
 
@@ -87,34 +87,6 @@ A weathered sellsword who has operated in the eastern territories for two decade
 **Roleplaying Hook:** He'll initially deny knowing anything about the Circle. A DC 15 Insight check reveals he's lying. A DC 12 Persuasion check (after buying him a drink) gets him talking.`,
   },
   {
-    type: 'item',
-    name: 'Ember Blade',
-    attributes: { itemType: 'weapon', rarity: 'rare', isMagic: true, isCursed: false, value: '500 gp' },
-    content: `# Item Entries
-
-Track every weapon, artifact, piece of armor, treasure, or trinket your party discovers or might discover.
-
-## Sidebar Fields
-
-- **Image** — a picture of the item (upload or URL)
-- **Type** — Weapon, Armor, Consumable, Treasure, or Misc
-- **Rarity** — Common → Unique, displayed as a colored badge in the list
-- **Magic / Cursed** — toggle flags that appear as icons in the card list view
-- **Value** — free text; use your system's currency (e.g. *500 gp*, *priceless*, *3 favors*)
-
-## The Ember Blade
-
-A longsword forged from iron drawn from the volcanic fissures beneath {{location: The Shattered Vale}}. The blade runs warm to the touch and glows faintly red in darkness.
-
-**Properties:**
-- +1 bonus to attack and damage rolls
-- On a critical hit, deals an additional 1d6 fire damage
-- While held, the wielder has resistance to cold damage
-- Whispers in Ignan when bloodied — *"forge forward"*
-
-**History:** Cast by the smith-priests of the Ember Compact three centuries ago. Passed through a dozen hands before ending up in a cache beneath the Vale's black glass fields.`,
-  },
-  {
     type: 'location',
     name: 'The Shattered Vale',
     attributes: { locationType: 'wilderness', status: 'discovered' },
@@ -131,7 +103,7 @@ Locations are places in your world — cities, dungeons, wilderness regions, bui
 
 ## Map Pins
 
-Once you add a map image, you can **pin entities onto it**. Click anywhere on the map in preview mode to place a pin, then select which NPC, item, faction, or other entry to attach. This builds a spatial index — every pinned entity gets a *"Pinned at: [Location]"* backlink on its own entry.
+Once you add a map image, you can **pin entities onto it**. Click anywhere on the map in preview mode to place a pin, then select which NPC, faction, or other entry to attach. This builds a spatial index — every pinned entity gets a *"Pinned at: [Location]"* backlink on its own entry.
 
 ## The World Atlas
 

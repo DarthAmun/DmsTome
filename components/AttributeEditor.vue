@@ -91,48 +91,6 @@
       </div>
     </template>
 
-    <!-- Item -->
-    <template v-else-if="type === 'item'">
-      <div class="field">
-        <label class="f-label">Image</label>
-        <div class="input-row">
-          <InputText :model-value="attrs.imageSource || ''" placeholder="URL or file path" class="flex-1"
-            @update:model-value="v => { set('imageSource', v); set('imageType', 'url') }" />
-          <button class="icon-btn-sq" @click="browseImage('imageSource', 'imageType')">
-            <OhVueIcon name="fa-folder-open" scale="0.9" />
-          </button>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label class="f-label">Type</label>
-          <Select :model-value="attrs.itemType || null" :options="itemTypes" option-label="label" option-value="value"
-            placeholder="— select —" @update:model-value="v => set('itemType', v)" />
-        </div>
-        <div class="field">
-          <label class="f-label">Rarity</label>
-          <Select :model-value="attrs.rarity || null" :options="rarities" option-label="label" option-value="value"
-            placeholder="— select —" @update:model-value="v => set('rarity', v)" />
-        </div>
-      </div>
-      <div class="field">
-        <label class="f-label">Value</label>
-        <InputText :model-value="attrs.value || ''" placeholder="50gp, priceless…"
-          @update:model-value="v => set('value', v)" />
-      </div>
-      <div class="field">
-        <div class="toggle-row">
-          <button class="toggle-opt" :class="{ on: attrs.isMagic }" @click="set('isMagic', !attrs.isMagic)">
-            <OhVueIcon name="gi-magic-palm" scale="0.9" /> Magic
-          </button>
-          <button class="toggle-opt toggle-opt--danger" :class="{ on: attrs.isCursed }"
-            @click="set('isCursed', !attrs.isCursed)">
-            <OhVueIcon name="fa-skull" scale="0.85" /> Cursed
-          </button>
-        </div>
-      </div>
-    </template>
-
     <!-- Faction -->
     <template v-else-if="type === 'faction'">
       <div class="field">
@@ -205,8 +163,6 @@ const currentTags = computed(() => (attrs.value.tags ?? []) as string[])
 
 const locationTypes = [{ label: 'City', value: 'city' }, { label: 'Dungeon', value: 'dungeon' }, { label: 'Wilderness', value: 'wilderness' }, { label: 'Building', value: 'building' }, { label: 'Region', value: 'region' }, { label: 'Other', value: 'other' }]
 const locationStatuses = [{ label: 'Discovered', value: 'discovered' }, { label: 'Undiscovered', value: 'undiscovered' }, { label: 'Destroyed', value: 'destroyed' }]
-const itemTypes = [{ label: 'Weapon', value: 'weapon' }, { label: 'Armor', value: 'armor' }, { label: 'Consumable', value: 'consumable' }, { label: 'Treasure', value: 'treasure' }, { label: 'Misc', value: 'misc' }]
-const rarities = [{ label: 'Common', value: 'common' }, { label: 'Uncommon', value: 'uncommon' }, { label: 'Rare', value: 'rare' }, { label: 'Unique', value: 'unique' }]
 const factionTypes = [{ label: 'Criminal', value: 'criminal' }, { label: 'Religious', value: 'religious' }, { label: 'Political', value: 'political' }, { label: 'Mercenary', value: 'mercenary' }, { label: 'Arcane', value: 'arcane' }, { label: 'Other', value: 'other' }]
 const factionSizes = [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }, { label: 'Massive', value: 'massive' }]
 

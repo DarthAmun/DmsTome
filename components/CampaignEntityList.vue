@@ -194,7 +194,6 @@ import type { EntityType } from '~/types/entities'
 import { dbApi } from '~/composables/useDb'
 import NpcEntry      from '~/components/notes/NpcEntry.vue'
 import LocationEntry from '~/components/notes/LocationEntry.vue'
-import ItemEntry     from '~/components/notes/ItemEntry.vue'
 import FactionEntry  from '~/components/notes/FactionEntry.vue'
 import QuestEntry    from '~/components/notes/QuestEntry.vue'
 import EventEntry    from '~/components/notes/EventEntry.vue'
@@ -202,7 +201,7 @@ import SessionEntry  from '~/components/notes/SessionEntry.vue'
 import NoteEntry     from '~/components/notes/NoteEntry.vue'
 
 const ENTRY_COMPONENTS: Record<EntityType, Component> = {
-  npc: NpcEntry, location: LocationEntry, item: ItemEntry, faction: FactionEntry,
+  npc: NpcEntry, location: LocationEntry, faction: FactionEntry,
   quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
 }
 

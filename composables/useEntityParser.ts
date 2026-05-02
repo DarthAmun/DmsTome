@@ -13,7 +13,7 @@ export interface ParsedLink {
   metadata: Record<string, string>
 }
 
-const ENTITY_TYPES = ['note', 'npc', 'item', 'location', 'faction', 'quest', 'event', 'session', 'encounter']
+const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter']
 
 // Allows apostrophes and other special chars in names — stops only at | or }
 const ENTITY_REGEX = /\{\{(\w+):\s*([^|}\n]+?)\s*(?:\|\s*([^}]*))?\}\}/g

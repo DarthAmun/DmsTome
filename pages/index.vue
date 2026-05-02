@@ -552,7 +552,6 @@ function systemName(id?: number | null) {
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
     npc: "npcs",
     location: "locations",
-    item: "items",
     faction: "factions",
     quest: "quests",
     event: "events",

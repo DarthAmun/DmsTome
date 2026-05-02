@@ -46,7 +46,7 @@ export function useSpineContext() {
   const campaignActiveType = computed(() => {
     const path = route.path
     const TYPE_ROUTE_MAP: Record<string, string> = {
-      npcs: 'npc', locations: 'location', items: 'item',
+      npcs: 'npc', locations: 'location',
       factions: 'faction', quests: 'quest', events: 'event',
       sessions: 'session', notes: 'note',
     }

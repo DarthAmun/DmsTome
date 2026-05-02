@@ -58,7 +58,7 @@ export function useBookmarks() {
     campaignId: number
   }) {
     const TYPE_PLURAL: Record<string, string> = {
-      npc: 'npcs', location: 'locations', item: 'items',
+      npc: 'npcs', location: 'locations',
       faction: 'factions', quest: 'quests', event: 'events',
       session: 'sessions', note: 'notes',
     }

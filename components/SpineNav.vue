@@ -18,7 +18,7 @@
       <NuxtLink
         :to="`/campaign/${ctx.campaignId.value}/chronicle`"
         class="spine-tab spine-tab--l2"
-        :class="{ active: route.path.includes('/chronicle') || route.path.includes('/npcs') || route.path.includes('/locations') || route.path.includes('/items') || route.path.includes('/factions') || route.path.includes('/quests') || route.path.includes('/events') || route.path.includes('/sessions') || (route.path.includes('/notes') && !route.path.includes('/encounter')) }"
+        :class="{ active: route.path.includes('/chronicle') || route.path.includes('/npcs') || route.path.includes('/locations') || route.path.includes('/factions') || route.path.includes('/quests') || route.path.includes('/events') || route.path.includes('/sessions') || (route.path.includes('/notes') && !route.path.includes('/encounter')) }"
         title="Chronicle">
         <OhVueIcon name="gi-scroll-unfurled" scale="0.8" />
         <span class="spine-label">Chronicle</span>

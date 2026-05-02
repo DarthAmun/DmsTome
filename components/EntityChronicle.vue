@@ -56,13 +56,6 @@
             <template v-else>{{ initials(e.name) }}</template>
           </div>
 
-          <!-- Item -->
-          <div v-else-if="type === 'item'" class="erow-avatar erow-avatar--sq erow-avatar--icon"
-            :style="attrImg(e, 'imageSource') ? {} : { background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40' }">
-            <img v-if="attrImg(e, 'imageSource')" :src="attrImg(e, 'imageSource')!" class="erow-avatar-img" />
-            <OhVueIcon v-else name="gi-open-treasure-chest" scale="0.7" :style="{ color: typeConfig?.color }" />
-          </div>
-
           <!-- Faction -->
           <div v-else-if="type === 'faction'" class="erow-avatar erow-avatar--icon"
             :style="attrImg(e, 'imageSource') ? {} : { background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40' }">
@@ -322,7 +315,7 @@ const activeForList = computed(() =>
 )
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations', item: 'items',
+  npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
 }
@@ -379,8 +372,7 @@ function rowSub(e: Entity): string | null {
   const a = e.attributes as any
   if (props.type === 'npc') return [a?.title, a?.race].filter(Boolean).join(' · ') || null
   if (props.type === 'location') return a?.locationType || null
-  if (props.type === 'item') return [a?.itemType, a?.isMagic ? 'magic' : null].filter(Boolean).join(' · ') || null
-  if (props.type === 'faction') return [a?.factionType, a?.size].filter(Boolean).join(' · ') || null
+if (props.type === 'faction') return [a?.factionType, a?.size].filter(Boolean).join(' · ') || null
   if (props.type === 'quest') return a?.questGiver ? `from ${a.questGiver}` : null
   if (props.type === 'event') return [a?.location, a?.significance].filter(Boolean).join(' · ') || null
   if (props.type === 'note') { const tags = a?.tags as string[] | undefined; return tags?.length ? tags.slice(0, 2).join(', ') : null }
@@ -400,8 +392,7 @@ function rowTag(e: Entity): string | null {
   if (props.type === 'session') return a?.mode || null
   if (props.type === 'quest') return a?.status || null
   if (props.type === 'location') return a?.status || null
-  if (props.type === 'item') return a?.rarity || null
-  return null
+return null
 }
 
 const TAG_COLORS: Record<string, string> = {

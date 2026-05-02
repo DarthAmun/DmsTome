@@ -88,7 +88,7 @@ function isCurrentRoute(bmRoute: string): boolean {
   return route.path === bmPath
 }
 
-const ENTITY_SEGMENTS = new Set(['npcs', 'locations', 'items', 'factions', 'quests', 'events', 'sessions', 'notes'])
+const ENTITY_SEGMENTS = new Set(['npcs', 'locations', 'factions', 'quests', 'events', 'sessions', 'notes'])
 
 const currentEntity = computed(() => {
   const m = route.path.match(/\/campaign\/\d+\/(\w+)\/(\d+)$/)

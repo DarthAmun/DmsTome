@@ -182,7 +182,6 @@ const ENTITY_TYPES = [
         segment: "locations",
         color: "#a87de8",
     },
-    { key: "item", label: "Items", segment: "items", color: "#ebbd34" },
     {
         key: "faction",
         label: "Factions",

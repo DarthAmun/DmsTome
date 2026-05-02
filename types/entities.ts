@@ -1,4 +1,4 @@
-export type EntityType = 'session' | 'note' | 'npc' | 'item' | 'location' | 'faction' | 'quest' | 'event' 
+export type EntityType = 'session' | 'note' | 'npc' | 'location' | 'faction' | 'quest' | 'event'
 
 // Shape reference — used via EntityAttributes union
 export interface NpcAttributes {
@@ -28,17 +28,6 @@ export interface LocationAttributes {
   locationType?: 'city' | 'dungeon' | 'wilderness' | 'building' | 'region' | 'other'
   status?: 'discovered' | 'undiscovered' | 'destroyed'
   mapPins?: MapPin[]
-}
-
-// Shape reference — used via EntityAttributes union
-export interface ItemAttributes {
-  imageSource?: string
-  imageType?: 'file' | 'url'
-  itemType?: 'weapon' | 'armor' | 'consumable' | 'treasure' | 'misc'
-  rarity?: 'common' | 'uncommon' | 'rare' | 'unique'
-  isMagic?: boolean
-  isCursed?: boolean
-  value?: string
 }
 
 // Shape reference — used via EntityAttributes union
@@ -88,7 +77,7 @@ export interface PinnedLocation {
   y: number
 }
 
-export type EntityAttributes = NpcAttributes | LocationAttributes | ItemAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes
+export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes
 
 export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   label: string
@@ -99,7 +88,6 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
   note:     { label: 'Note',     plural: 'Notes',     color: '#6b9fe8', defaultIcon: 'gi-scroll-unfurled' },
   npc:      { label: 'NPC',      plural: 'NPCs',      color: '#7cc44e', defaultIcon: 'gi-person' },
-  item:     { label: 'Item',     plural: 'Items',     color: '#ebbd34', defaultIcon: 'gi-open-treasure-chest' },
   location: { label: 'Location', plural: 'Locations', color: '#a87de8', defaultIcon: 'gi-castle' },
   faction:  { label: 'Faction',  plural: 'Factions',  color: '#e05555', defaultIcon: 'gi-american-shield' },
   quest:    { label: 'Quest',    plural: 'Quests',    color: '#e8924a', defaultIcon: 'gi-holy-grail' },

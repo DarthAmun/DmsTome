@@ -5,7 +5,7 @@ import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import { useFormatters } from '~/composables/useFormatters'
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations', item: 'items',
+  npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
 }

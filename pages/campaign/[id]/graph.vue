@@ -24,7 +24,7 @@ import { useNotesStore } from '~/stores/notes'
 import { dbApi } from '~/composables/useDb'
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations', item: 'items',
+  npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
 }

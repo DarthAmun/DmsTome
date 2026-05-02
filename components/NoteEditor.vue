@@ -91,15 +91,28 @@
                 class="mixed-block"
                 :class="{ 'mixed-block--active': activeScriptBlock === i }"
               >
-                <textarea
-                  v-if="activeScriptBlock === i"
-                  v-model="scriptBlocks[i]"
-                  class="mixed-textarea"
-                  :ref="(el: any) => { if (el) scriptMixedRefs[i] = el }"
-                  @input="onScriptBlockInput(i)"
-                  @blur="onScriptBlockBlur"
-                  @keydown.esc.prevent="onScriptBlockBlur"
-                />
+                <template v-if="activeScriptBlock === i">
+                  <textarea
+                    v-model="scriptBlocks[i]"
+                    class="mixed-textarea"
+                    :ref="(el: any) => { if (el) scriptMixedRefs[i] = el }"
+                    @input="onScriptBlockInput(i)"
+                    @blur="onScriptBlockBlur"
+                    @keydown="onScriptMixedKeydown($event, i)"
+                  />
+                  <div v-if="autocomplete.show && autocomplete.source === 'mixed-script' && autocomplete.mixedIdx === i" class="autocomplete-dropdown autocomplete-dropdown--mixed">
+                    <button
+                      v-for="(item, idx) in autocomplete.items" :key="`${item.type}:${item.name}`"
+                      class="autocomplete-item"
+                      :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
+                      @mousedown.prevent="applyAutocomplete(item)"
+                    >
+                      <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                      <span class="autocomplete-name">{{ item.name }}</span>
+                      <span class="autocomplete-type">{{ item.type }}</span>
+                    </button>
+                  </div>
+                </template>
                 <div
                   v-else
                   class="mixed-preview markdown-body"
@@ -124,15 +137,28 @@
                 class="mixed-block"
                 :class="{ 'mixed-block--active': activeBlock === i }"
               >
-                <textarea
-                  v-if="activeBlock === i"
-                  v-model="editableBlocks[i]"
-                  class="mixed-textarea"
-                  :ref="(el: any) => { if (el) mixedRefs[i] = el }"
-                  @input="onBlockInput(i)"
-                  @blur="onBlockBlur"
-                  @keydown.esc.prevent="onBlockBlur"
-                />
+                <template v-if="activeBlock === i">
+                  <textarea
+                    v-model="editableBlocks[i]"
+                    class="mixed-textarea"
+                    :ref="(el: any) => { if (el) mixedRefs[i] = el }"
+                    @input="onBlockInput(i)"
+                    @blur="onBlockBlur"
+                    @keydown="onMixedBlockKeydown($event, i)"
+                  />
+                  <div v-if="autocomplete.show && autocomplete.source === 'mixed-notes' && autocomplete.mixedIdx === i" class="autocomplete-dropdown autocomplete-dropdown--mixed">
+                    <button
+                      v-for="(item, idx) in autocomplete.items" :key="`${item.type}:${item.name}`"
+                      class="autocomplete-item"
+                      :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
+                      @mousedown.prevent="applyAutocomplete(item)"
+                    >
+                      <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                      <span class="autocomplete-name">{{ item.name }}</span>
+                      <span class="autocomplete-type">{{ item.type }}</span>
+                    </button>
+                  </div>
+                </template>
                 <div
                   v-else
                   class="mixed-preview markdown-body"
@@ -172,12 +198,14 @@
             spellcheck="true"
             :placeholder="`Write your ${entity?.type ?? 'note'} here…`"
             @input="onNotesInput"
+            @keydown="onEditKeydown"
           />
-          <div v-if="autocomplete.show" class="autocomplete-dropdown">
+          <div v-if="autocomplete.show && autocomplete.source === 'edit'" class="autocomplete-dropdown">
             <button
-              v-for="item in autocomplete.items" :key="`${item.type}:${item.name}`"
+              v-for="(item, idx) in autocomplete.items" :key="`${item.type}:${item.name}`"
               class="autocomplete-item"
-              @mousedown.prevent="applyAutocomplete(item, false)"
+              :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
+              @mousedown.prevent="applyAutocomplete(item)"
             >
               <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
               <span class="autocomplete-name">{{ item.name }}</span>
@@ -205,20 +233,33 @@
           class="mixed-block"
           :class="{ 'mixed-block--active': activeBlock === i }"
         >
-          <textarea
-            v-if="activeBlock === i"
-            v-model="editableBlocks[i]"
-            class="mixed-textarea"
-            :ref="(el: any) => { if (el) mixedRefs[i] = el }"
-            @input="onBlockInput(i)"
-            @blur="onBlockBlur"
-            @keydown.esc.prevent="onBlockBlur"
-          />
+          <template v-if="activeBlock === i">
+            <textarea
+              v-model="editableBlocks[i]"
+              class="mixed-textarea"
+              :ref="(el: any) => { if (el) mixedRefs[i] = el }"
+              @input="onBlockInput(i)"
+              @blur="onBlockBlur"
+              @keydown="onMixedBlockKeydown($event, i)"
+            />
+            <div v-if="autocomplete.show && autocomplete.source === 'mixed-notes' && autocomplete.mixedIdx === i" class="autocomplete-dropdown autocomplete-dropdown--mixed">
+              <button
+                v-for="(item, idx) in autocomplete.items" :key="`${item.type}:${item.name}`"
+                class="autocomplete-item"
+                :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
+                @mousedown.prevent="applyAutocomplete(item)"
+              >
+                <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                <span class="autocomplete-name">{{ item.name }}</span>
+                <span class="autocomplete-type">{{ item.type }}</span>
+              </button>
+            </div>
+          </template>
           <div
             v-else
             class="mixed-preview markdown-body"
             v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
-            @click="activateBlock(i)"
+            @click="onMixedPreviewClick($event, i)"
           />
         </div>
         <button class="mixed-add-btn" @click="addBlock">+ paragraph</button>
@@ -348,7 +389,7 @@ function iconToSvg(icon: any, color: string): string {
 }
 function typeIconHtml(type: string, color: string): string {
   const ICONS: Record<string, string> = {
-    note: 'gi-scroll-unfurled', npc: 'gi-person', item: 'gi-open-treasure-chest',
+    note: 'gi-scroll-unfurled', npc: 'gi-person',
     location: 'gi-castle', faction: 'gi-american-shield', quest: 'gi-holy-grail',
     event: 'gi-sands-of-time', session: 'gi-book-aura', encounter: 'gi-broadsword',
   }
@@ -432,7 +473,6 @@ const draftScript = ref('')
 const draftAttributes = ref<EntityAttributes>({})
 const nameInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<HTMLTextAreaElement | null>(null)
-const scriptRef = ref<HTMLTextAreaElement | null>(null)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let scriptSaveTimer: ReturnType<typeof setTimeout> | null = null
 let attrSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -482,9 +522,11 @@ function onScriptBlockInput(i: number) {
     const attrs = { ...(entity.value?.attributes as any ?? {}), scriptContent: draftScript.value }
     await store.updateEntity(props.entityId, { attributes: attrs })
   }, 800)
+  checkAutocomplete(el ?? null, scriptBlocks.value[i], 'mixed-script', i)
 }
 
 function onScriptBlockBlur() {
+  autocomplete.value.show = false
   while (scriptBlocks.value.length > 1 && !scriptBlocks.value[scriptBlocks.value.length - 1].trim()) {
     scriptBlocks.value.pop()
   }
@@ -565,9 +607,6 @@ function buildEntryHtml(type: string, name: string, attrKey?: string): string | 
     if (attrs.role) metaParts.push(attrs.role)
   } else if (type === 'location') {
     if (attrs.locationType) metaParts.push(attrs.locationType)
-  } else if (type === 'item') {
-    if (attrs.rarity) metaParts.push(attrs.rarity)
-    if (attrs.itemType) metaParts.push(attrs.itemType)
   } else if (type === 'faction') {
     if (attrs.factionType) metaParts.push(attrs.factionType)
     if (attrs.size) metaParts.push(attrs.size)
@@ -637,9 +676,11 @@ function onBlockInput(i: number) {
   draftContent.value = editableBlocks.value.join('\n\n')
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
+  checkAutocomplete(el ?? null, editableBlocks.value[i], 'mixed-notes', i)
 }
 
 function onBlockBlur() {
+  autocomplete.value.show = false
   while (editableBlocks.value.length > 1 && !editableBlocks.value[editableBlocks.value.length - 1].trim()) {
     editableBlocks.value.pop()
   }
@@ -671,19 +712,10 @@ watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
 })
 
 // ── Input handlers ────────────────────────────────────────────────────────────
-function onScriptInput() {
-  if (scriptSaveTimer) clearTimeout(scriptSaveTimer)
-  scriptSaveTimer = setTimeout(async () => {
-    const attrs = { ...(entity.value?.attributes as any ?? {}), scriptContent: draftScript.value }
-    await store.updateEntity(props.entityId, { attributes: attrs })
-  }, 800)
-  checkAutocomplete(scriptRef.value, draftScript.value, true)
-}
-
 function onNotesInput() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
-  checkAutocomplete(editorRef.value, draftContent.value, false)
+  checkAutocomplete(editorRef.value, draftContent.value, 'edit')
 }
 
 function onAttributesChange(attrs: EntityAttributes) {
@@ -701,13 +733,20 @@ function insertInto(el: HTMLTextAreaElement | null, draft: { value: string }, be
   nextTick(() => { el.setSelectionRange(start + before.length, start + before.length + selected.length); el.focus() })
 }
 
-function insertScript(before: string, after: string) { insertInto(scriptRef.value, draftScript, before, after) }
 function insertNotes(before: string, after: string) { insertInto(editorRef.value, draftContent, before, after) }
 
 // ── Autocomplete ──────────────────────────────────────────────────────────────
-const autocomplete = ref({ show: false, items: [] as any[], triggerStart: 0, isScript: false })
+type AcSource = 'edit' | 'mixed-notes' | 'mixed-script'
+const autocomplete = ref({
+  show: false,
+  items: [] as any[],
+  triggerStart: 0,
+  source: 'edit' as AcSource,
+  mixedIdx: -1,
+  cursorIdx: 0,
+})
 
-async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, isScript: boolean) {
+async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, source: AcSource, mixedIdx = -1) {
   if (!el) return
   const pos = el.selectionStart
   const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
@@ -737,20 +776,70 @@ async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, i
     }
   }
   const candidates = [...campaignCandidates, ...encounterCandidates, ...sysCandidates].slice(0, 8)
-  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, isScript }
+  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, source, mixedIdx, cursorIdx: 0 }
 }
 
-function applyAutocomplete(item: any, isScript: boolean) {
-  const el = isScript ? scriptRef.value : editorRef.value
-  const draft = isScript ? draftScript : draftContent
+function applyAutocomplete(item: any) {
+  const ac = autocomplete.value
+  let el: HTMLTextAreaElement | null
+  let getVal: () => string
+  let setVal: (s: string) => void
+  if (ac.source === 'mixed-notes') {
+    el = mixedRefs[ac.mixedIdx] ?? null
+    getVal = () => editableBlocks.value[ac.mixedIdx]
+    setVal = (s) => { editableBlocks.value[ac.mixedIdx] = s; draftContent.value = editableBlocks.value.join('\n\n') }
+  } else if (ac.source === 'mixed-script') {
+    el = scriptMixedRefs[ac.mixedIdx] ?? null
+    getVal = () => scriptBlocks.value[ac.mixedIdx]
+    setVal = (s) => { scriptBlocks.value[ac.mixedIdx] = s; draftScript.value = scriptBlocks.value.join('\n\n') }
+  } else {
+    el = editorRef.value
+    getVal = () => draftContent.value
+    setVal = (s) => { draftContent.value = s }
+  }
   if (!el) return
   const pos = el.selectionStart
-  const before = draft.value.slice(0, autocomplete.value.triggerStart)
-  const after = draft.value.slice(pos)
+  const before = getVal().slice(0, ac.triggerStart)
+  const after = getVal().slice(pos)
   const replacement = `{{${item.type}: ${item.name}}}`
-  draft.value = `${before}${replacement}${after}`
+  setVal(`${before}${replacement}${after}`)
   autocomplete.value.show = false
-  nextTick(() => { const p = before.length + replacement.length; el.setSelectionRange(p, p); el.focus() })
+  nextTick(() => { const p = before.length + replacement.length; el!.setSelectionRange(p, p); el!.focus() })
+}
+
+function onAutocompleteKeydown(e: KeyboardEvent): boolean {
+  if (!autocomplete.value.show) return false
+  const items = autocomplete.value.items
+  if (e.key === 'Escape') { e.preventDefault(); autocomplete.value.show = false; return true }
+  if (!items.length) return false
+  if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+    e.preventDefault()
+    autocomplete.value.cursorIdx = (autocomplete.value.cursorIdx + 1) % items.length
+    return true
+  }
+  if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+    e.preventDefault()
+    autocomplete.value.cursorIdx = (autocomplete.value.cursorIdx - 1 + items.length) % items.length
+    return true
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    applyAutocomplete(items[autocomplete.value.cursorIdx])
+    return true
+  }
+  return false
+}
+
+function onEditKeydown(e: KeyboardEvent) { onAutocompleteKeydown(e) }
+
+function onMixedBlockKeydown(e: KeyboardEvent, i: number) {
+  if (onAutocompleteKeydown(e)) return
+  if (e.key === 'Escape') { e.preventDefault(); onBlockBlur() }
+}
+
+function onScriptMixedKeydown(e: KeyboardEvent, i: number) {
+  if (onAutocompleteKeydown(e)) return
+  if (e.key === 'Escape') { e.preventDefault(); onScriptBlockBlur() }
 }
 
 // ── Preview click ─────────────────────────────────────────────────────────────
@@ -1163,6 +1252,11 @@ async function confirmDelete() {
   overflow: hidden;
   box-shadow: var(--sh-md);
 }
+.autocomplete-dropdown--mixed {
+  bottom: auto;
+  top: calc(100% + 2px);
+  left: 0;
+}
 .autocomplete-item {
   display: flex;
   align-items: center;
@@ -1177,7 +1271,9 @@ async function confirmDelete() {
   text-align: left;
   font-size: 13px;
 }
-.autocomplete-item:hover { background: var(--surface-hi); }
+.autocomplete-item:hover,
+.autocomplete-item--active { background: var(--surface-hi); }
+.autocomplete-item--active { border-left: 2px solid var(--accent); padding-left: 10px; }
 .autocomplete-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .autocomplete-name { flex: 1; }
 .autocomplete-type { font-size: 10px; color: var(--text3); }
@@ -1237,6 +1333,7 @@ async function confirmDelete() {
 }
 
 .mixed-block {
+  position: relative;
   border-radius: var(--r1);
   border: 1px solid transparent;
   transition: border-color 0.12s, background 0.12s;

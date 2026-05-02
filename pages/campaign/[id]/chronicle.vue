@@ -43,7 +43,7 @@
             <div class="chr-rule" />
             <p class="chr-total">
               <span class="chr-total-num">{{ totalEntries }}</span>
-              <span class="chr-total-label">entries across 8 chronicles</span>
+              <span class="chr-total-label">entries across 7 chronicles</span>
             </p>
           </div>
         </div>
@@ -61,7 +61,7 @@ import type { EntityType } from '~/types/entities'
 import { dbApi } from '~/composables/useDb'
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations', item: 'items',
+  npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
 }
