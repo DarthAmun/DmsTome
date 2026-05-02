@@ -12,7 +12,7 @@
         class="sb-logo-img"
         @error="(e: Event) => (e.target as HTMLImageElement).style.display = 'none'"
       />
-      <NuxtLink to="/" class="sb-wordmark" :title="collapsed ? undefined : 'DM\'s Tome'">
+      <NuxtLink v-if="!collapsed" to="/" class="sb-wordmark" title="DM's Tome">
         DM's Tome
       </NuxtLink>
 
@@ -26,34 +26,74 @@
       </button>
     </div>
 
+    <!-- Logo below the toggle button, only in collapsed mode -->
+    <NuxtLink v-if="collapsed" to="/" class="sb-logo-below" title="DM's Tome">
+      <img src="/icons/icon-192.png" alt="" width="24" height="24" class="sb-logo-img"
+        @error="(e: Event) => (e.target as HTMLImageElement).style.display = 'none'" />
+    </NuxtLink>
+
     <!-- ── Collapsed view ── -->
     <template v-if="collapsed">
       <div class="sb-scroll" style="padding-top:4px">
-        <!-- Campaigns icon rail -->
-        <div
-          v-for="c in campaigns"
-          :key="c.id!"
-          class="sb-campaign-header"
-          :class="{ active: activeCampaignId === c.id }"
-          :data-tip="c.name"
-          @click="navigateToCampaign(c)"
-        >
-          <span class="sb-campaign-dot" :style="{ background: campaignColor(c.id!) }" />
+        <!-- Campaigns -->
+        <div v-for="c in campaigns" :key="c.id!">
+          <div
+            class="sb-campaign-header"
+            :class="{ active: activeCampaignId === c.id }"
+            :data-tip="c.name"
+            @click="expandedCampaigns.has(c.id!) ? toggleExpand(c) : navigateToCampaign(c)"
+          >
+            <span class="sb-campaign-dot" :style="{ background: campaignColor(c.id!) }" />
+          </div>
+          <!-- Entity type icon rail under active/expanded campaign -->
+          <div v-if="expandedCampaigns.has(c.id!)" class="sb-icon-rail">
+            <NuxtLink
+              v-for="et in ENTITY_TYPES"
+              :key="et.key"
+              :to="`/campaign/${c.id}/${et.segment}`"
+              class="sb-icon-link"
+              :class="{ active: isChildActive(c.id!, et.segment) }"
+              :data-tip="et.label"
+            >
+              <OhVueIcon :name="et.icon" scale="0.75" :style="{ color: et.color }" />
+            </NuxtLink>
+            <NuxtLink
+              :to="`/campaign/${c.id}/graph`"
+              class="sb-icon-link"
+              :class="{ active: route.path === `/campaign/${c.id}/graph` }"
+              data-tip="Graph"
+            >
+              <OhVueIcon name="gi-all-seeing-eye" scale="0.75" style="color: #7cc44e" />
+            </NuxtLink>
+          </div>
         </div>
 
         <div class="sb-divider" />
 
-        <!-- Systems icon rail -->
-        <NuxtLink
-          v-for="sys in systems"
-          :key="sys.id!"
-          :to="`/system/${sys.id}/library`"
-          class="sb-system"
-          :class="{ active: activeSystemId === sys.id }"
-          :data-tip="sys.name"
-        >
-          <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
-        </NuxtLink>
+        <!-- Systems -->
+        <div v-for="sys in systems" :key="sys.id!">
+          <div
+            class="sb-system"
+            :class="{ active: activeSystemId === sys.id }"
+            :data-tip="sys.name"
+            @click="expandedSystems.has(sys.id!) ? toggleExpandSystem(sys) : navigateToSystem(sys)"
+          >
+            <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
+          </div>
+          <!-- System entity type icons when expanded -->
+          <div v-if="expandedSystems.has(sys.id!) && sys.entityTypes?.length" class="sb-icon-rail">
+            <NuxtLink
+              v-for="et in sys.entityTypes"
+              :key="et.id"
+              :to="`/system/${sys.id}/${et.id}`"
+              class="sb-icon-link"
+              :class="{ active: route.path.includes(`/system/${sys.id}/${et.id}`) }"
+              :data-tip="et.name"
+            >
+              <OhVueIcon :name="et.icon" scale="0.75" :style="{ color: et.color }" />
+            </NuxtLink>
+          </div>
+        </div>
       </div>
 
       <!-- Collapsed bottom: settings only -->
@@ -93,7 +133,10 @@
           </div>
 
           <!-- Entity type children -->
-          <Transition name="sb-children">
+          <Transition name="sb-children" :css="false"
+            @before-enter="onBeforeEnter" @enter="onEnter" @after-enter="onAfterEnter"
+            @before-leave="onBeforeLeave" @leave="onLeave" @after-leave="onAfterLeave"
+          >
             <div v-if="expandedCampaigns.has(c.id!)" class="sb-children">
               <NuxtLink
                 v-for="et in ENTITY_TYPES"
@@ -103,7 +146,7 @@
                 :class="{ active: isChildActive(c.id!, et.segment) }"
                 :style="{ '--child-color': et.color }"
               >
-                <span class="sb-child-dot" :style="{ background: et.color }" />
+                <OhVueIcon :name="et.icon" scale="0.7" :style="{ color: et.color, flexShrink: 0, width: '14px' }" />
                 <span class="sb-child-label">{{ et.label }}</span>
                 <span class="sb-child-count">{{ entityCounts[c.id!]?.[et.key] ?? '' }}</span>
               </NuxtLink>
@@ -118,14 +161,13 @@
                 <span class="sb-child-tool-icon">⚔</span>
                 <span>Encounters</span>
               </NuxtLink>
-
               <NuxtLink
-                :to="`/campaign/${c.id}/map`"
+                :to="`/campaign/${c.id}/graph`"
                 class="sb-child-tool"
-                :class="{ active: route.path === `/campaign/${c.id}/map` }"
+                :class="{ active: route.path === `/campaign/${c.id}/graph` }"
               >
-                <span class="sb-child-tool-icon">🗺</span>
-                <span>World Map</span>
+                <OhVueIcon name="gi-all-seeing-eye" scale="0.65" style="color:#7cc44e;width:14px;flex-shrink:0" />
+                <span>Graph</span>
               </NuxtLink>
             </div>
           </Transition>
@@ -143,17 +185,49 @@
           <button class="sb-section-add" title="New system" @click="showNewSystem = true">+</button>
         </div>
 
-        <NuxtLink
-          v-for="sys in systems"
-          :key="sys.id!"
-          :to="`/system/${sys.id}/library`"
-          class="sb-system"
-          :class="{ active: activeSystemId === sys.id }"
-        >
-          <div class="sb-system-icon">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
-          <span class="sb-system-name">{{ sys.name }}</span>
-          <span class="sb-system-version">v{{ sys.version }}</span>
-        </NuxtLink>
+        <div v-for="sys in systems" :key="sys.id!" class="sb-campaign">
+          <div
+            class="sb-campaign-header"
+            :class="{ active: activeSystemId === sys.id }"
+            @click="navigateToSystem(sys)"
+          >
+            <span
+              class="sb-campaign-arrow"
+              :class="{ open: expandedSystems.has(sys.id!) }"
+              @click.stop="toggleExpandSystem(sys)"
+            >›</span>
+            <div class="sb-system-icon sb-system-icon--sm">{{ (sys.shortId || sys.name).slice(0, 2).toUpperCase() }}</div>
+            <span class="sb-campaign-name">{{ sys.name }}</span>
+            <span class="sb-system-version">v{{ sys.version }}</span>
+          </div>
+
+          <Transition name="sb-children" :css="false"
+            @before-enter="onBeforeEnter" @enter="onEnter" @after-enter="onAfterEnter"
+            @before-leave="onBeforeLeave" @leave="onLeave" @after-leave="onAfterLeave"
+          >
+            <div v-if="expandedSystems.has(sys.id!)" class="sb-children">
+              <NuxtLink
+                v-for="et in (sys.entityTypes ?? [])"
+                :key="et.id"
+                :to="`/system/${sys.id}/${et.id}`"
+                class="sb-child"
+                :class="{ active: route.path.includes(`/system/${sys.id}/${et.id}`) }"
+                :style="{ '--child-color': et.color }"
+              >
+                <OhVueIcon :name="et.icon" scale="0.7" :style="{ color: et.color, flexShrink: 0, width: '14px' }" />
+                <span class="sb-child-label">{{ et.name }}</span>
+              </NuxtLink>
+              <div v-if="!sys.entityTypes?.length" class="sb-empty" style="font-size:11px;padding:4px 12px">No entity types</div>
+              <div class="sb-child-sep" />
+              <NuxtLink :to="`/system/${sys.id}/library`" class="sb-child-tool" :class="{ active: route.path === `/system/${sys.id}/library` }">
+                <span class="sb-child-tool-icon">📚</span><span>Library</span>
+              </NuxtLink>
+              <NuxtLink :to="`/system/${sys.id}/builder`" class="sb-child-tool" :class="{ active: route.path.includes(`/system/${sys.id}/builder`) }">
+                <span class="sb-child-tool-icon">🔧</span><span>Builder</span>
+              </NuxtLink>
+            </div>
+          </Transition>
+        </div>
 
         <div v-if="!systems.length" class="sb-empty">
           <span>No systems yet</span>
@@ -239,29 +313,98 @@ const activeSystemId = computed(() => {
 
 // ── Expanded campaigns ─────────────────────────────────────────────────────
 const expandedCampaigns = ref<Set<number>>(new Set())
+const expandedSystems = ref<Set<number>>(new Set())
 
-// Keep active campaign always expanded
-watch(activeCampaignId, id => {
-  if (id) {
-    expandedCampaigns.value = new Set([...expandedCampaigns.value, id])
+// Route-driven expand: navigating to a campaign collapses systems and vice versa
+watch([activeCampaignId, activeSystemId], ([campId, sysId]) => {
+  if (campId) {
+    expandedCampaigns.value = new Set([campId])
+    expandedSystems.value = new Set()
+  } else if (sysId) {
+    expandedSystems.value = new Set([sysId])
+    expandedCampaigns.value = new Set()
   }
 }, { immediate: true })
 
 function toggleExpand(c: DbCampaign) {
   if (!c.id) return
   const next = new Set(expandedCampaigns.value)
-  if (next.has(c.id)) {
-    next.delete(c.id)
-  } else {
-    next.add(c.id)
-  }
+  if (next.has(c.id)) next.delete(c.id)
+  else { next.clear(); next.add(c.id) }
   expandedCampaigns.value = next
+  expandedSystems.value = new Set()
 }
 
 function navigateToCampaign(c: DbCampaign) {
-  // Ensure expanded when navigating to it
-  if (c.id) expandedCampaigns.value = new Set([...expandedCampaigns.value, c.id])
+  if (c.id) {
+    expandedCampaigns.value = new Set([c.id])
+    expandedSystems.value = new Set()
+  }
   router.push(`/campaign/${c.id}`)
+}
+
+// ── Systems expand ─────────────────────────────────────────────────────────
+
+function toggleExpandSystem(sys: any) {
+  if (!sys.id) return
+  const next = new Set(expandedSystems.value)
+  if (next.has(sys.id)) next.delete(sys.id)
+  else { next.clear(); next.add(sys.id) }
+  expandedSystems.value = next
+  expandedCampaigns.value = new Set()
+}
+
+function navigateToSystem(sys: any) {
+  if (sys.id) {
+    expandedSystems.value = new Set([sys.id])
+    expandedCampaigns.value = new Set()
+  }
+  router.push(`/system/${sys.id}/library`)
+}
+
+// ── Accordion animation hooks ──────────────────────────────────────────────
+function onBeforeEnter(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = '0'
+  e.style.opacity = '0'
+  e.style.overflow = 'hidden'
+}
+function onEnter(el: Element, done: () => void) {
+  const e = el as HTMLElement
+  requestAnimationFrame(() => {
+    e.style.transition = 'height 0.22s ease, opacity 0.18s ease'
+    e.style.height = e.scrollHeight + 'px'
+    e.style.opacity = '1'
+    e.addEventListener('transitionend', done, { once: true })
+  })
+}
+function onAfterEnter(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = ''
+  e.style.overflow = ''
+  e.style.opacity = ''
+  e.style.transition = ''
+}
+function onBeforeLeave(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = e.scrollHeight + 'px'
+  e.style.overflow = 'hidden'
+}
+function onLeave(el: Element, done: () => void) {
+  const e = el as HTMLElement
+  requestAnimationFrame(() => {
+    e.style.transition = 'height 0.2s ease, opacity 0.15s ease'
+    e.style.height = '0'
+    e.style.opacity = '0'
+    e.addEventListener('transitionend', done, { once: true })
+  })
+}
+function onAfterLeave(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = ''
+  e.style.overflow = ''
+  e.style.opacity = ''
+  e.style.transition = ''
 }
 
 // ── Campaign banner ────────────────────────────────────────────────────────
@@ -293,14 +436,14 @@ function campaignHeaderStyle(c: DbCampaign): Record<string, string> {
 
 // ── Entity types list ──────────────────────────────────────────────────────
 const ENTITY_TYPES = [
-  { key: 'session',   label: 'Sessions',  segment: 'sessions',  color: '#b87de8' },
-  { key: 'npc',       label: 'NPCs',      segment: 'npcs',      color: '#7cc44e' },
-  { key: 'location',  label: 'Locations', segment: 'locations', color: '#a87de8' },
-  { key: 'item',      label: 'Items',     segment: 'items',     color: '#ebbd34' },
-  { key: 'faction',   label: 'Factions',  segment: 'factions',  color: '#e05555' },
-  { key: 'quest',     label: 'Quests',    segment: 'quests',    color: '#e8924a' },
-  { key: 'event',     label: 'Events',    segment: 'events',    color: '#4ab8e8' },
-  { key: 'note',      label: 'Notes',     segment: 'notes',     color: '#6b9fe8' },
+  { key: 'session',   label: 'Sessions',  segment: 'sessions',  color: '#b87de8', icon: 'gi-book-aura' },
+  { key: 'npc',       label: 'NPCs',      segment: 'npcs',      color: '#7cc44e', icon: 'gi-person' },
+  { key: 'location',  label: 'Locations', segment: 'locations', color: '#a87de8', icon: 'gi-castle' },
+  { key: 'item',      label: 'Items',     segment: 'items',     color: '#ebbd34', icon: 'gi-open-treasure-chest' },
+  { key: 'faction',   label: 'Factions',  segment: 'factions',  color: '#e05555', icon: 'gi-american-shield' },
+  { key: 'quest',     label: 'Quests',    segment: 'quests',    color: '#e8924a', icon: 'gi-holy-grail' },
+  { key: 'event',     label: 'Events',    segment: 'events',    color: '#4ab8e8', icon: 'gi-sands-of-time' },
+  { key: 'note',      label: 'Notes',     segment: 'notes',     color: '#6b9fe8', icon: 'gi-scroll-unfurled' },
 ]
 
 function isChildActive(campaignId: number, segment: string): boolean {
@@ -384,16 +527,51 @@ function campaignColor(id: number): string {
   box-shadow: 0 0 0 1px rgba(255,255,255,0.3);
 }
 
-/* Children expand/collapse transition */
-.sb-children-enter-active,
-.sb-children-leave-active {
-  transition: opacity 0.15s, transform 0.15s;
-  overflow: hidden;
+/* Children accordion: animation driven by JS hooks (css: false on Transition) */
+
+/* Logo below the collapse button in collapsed mode */
+.sb-logo-below {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 8px;
+  opacity: 0.7;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: opacity 0.15s;
 }
-.sb-children-enter-from,
-.sb-children-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
+.sb-logo-below:hover { opacity: 1; }
+
+/* Collapsed icon rail — entity type icons under a campaign/system dot */
+.sb-icon-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 0 4px;
+}
+.sb-icon-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text2);
+  transition: background 0.12s;
+}
+.sb-icon-link:hover { background: var(--surface); color: var(--text); }
+.sb-icon-link.active { background: var(--accent-bg); color: var(--accent); }
+
+/* Smaller system icon variant inside campaign-style header */
+.sb-system-icon--sm {
+  width: 22px;
+  height: 22px;
+  font-size: 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 /* Tooltip on hover (collapsed mode) */

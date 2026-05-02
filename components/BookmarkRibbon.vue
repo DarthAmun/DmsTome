@@ -54,6 +54,7 @@
 import { useBookmarks } from '~/composables/useBookmarks'
 import { useNotesStore } from '~/stores/notes'
 import { useEncounterStore } from '~/stores/encounter'
+import { useSystemsStore } from '~/stores/systems'
 import { useSettings } from '~/composables/useSettings'
 
 const router = useRouter()
@@ -62,14 +63,29 @@ const isDark = computed(() => settings.value.theme !== 'light')
 function toggleTheme() { updateSettings('theme', isDark.value ? 'light' : 'dark') }
 
 const route = useRoute()
-const { bookmarks, removeBookmark, reorder, isBookmarked, bookmarkPage, bookmarkEntity } = useBookmarks()
+const { bookmarks, removeBookmark, reorder, isBookmarked, bookmarkPage, bookmarkEntity, bookmarkRecord } = useBookmarks()
 const notesStore = useNotesStore()
 const encounterStore = useEncounterStore()
+const systemsStore = useSystemsStore()
 
 function navigate(bm: { route: string }) { router.push(bm.route) }
 
+// Full current route including ?record= for system record pages
+const currentFullRoute = computed(() => {
+  const recordName = route.query.record as string | undefined
+  if (recordName && route.path.match(/^\/system\/\d+\//)) {
+    return `${route.path}?record=${encodeURIComponent(recordName)}`
+  }
+  return route.path
+})
+
 function isCurrentRoute(bmRoute: string): boolean {
-  return route.path === bmRoute.split('?')[0]
+  const bmPath = bmRoute.split('?')[0]
+  const bmRecord = new URLSearchParams(bmRoute.split('?')[1] ?? '').get('record')
+  if (bmRecord) {
+    return route.path === bmPath && (route.query.record as string) === bmRecord
+  }
+  return route.path === bmPath
 }
 
 const ENTITY_SEGMENTS = new Set(['npcs', 'locations', 'items', 'factions', 'quests', 'events', 'sessions', 'notes'])
@@ -80,11 +96,11 @@ const currentEntity = computed(() => {
   return notesStore.entities.find(e => e.id === Number(m[2])) ?? null
 })
 
-const isCurrentPageBookmarked = computed(() => isBookmarked(route.path))
+const isCurrentPageBookmarked = computed(() => isBookmarked(currentFullRoute.value))
 
 function toggleCurrentPage() {
   if (isCurrentPageBookmarked.value) {
-    const bm = bookmarks.value.find(b => b.route === route.path)
+    const bm = bookmarks.value.find(b => b.route === currentFullRoute.value)
     if (bm) removeBookmark(bm.id)
     return
   }
@@ -96,6 +112,24 @@ function toggleCurrentPage() {
   const encounterMatch = route.path.match(/^\/encounter\/(\d+)/)
   if (encounterMatch && encounterStore.current) {
     bookmarkPage(route.path, encounterStore.current.name, 'gi-broadsword', 'var(--accent)')
+    return
+  }
+  // System record: /system/{id}/{typeId} with ?record=name in URL
+  const sysRecordMatch = route.path.match(/^\/system\/(\d+)\/(.+)$/)
+  const recordName = route.query.record as string | undefined
+  if (sysRecordMatch && recordName) {
+    const systemId = Number(sysRecordMatch[1])
+    const typeId = sysRecordMatch[2]
+    const sys = systemsStore.getSystem(systemId)
+    const et = sys?.entityTypes?.find((t: any) => t.id === typeId)
+    bookmarkRecord({
+      id: 0,
+      name: recordName,
+      systemId,
+      entityTypeId: typeId,
+      icon: et?.icon ?? 'gi-scroll-unfurled',
+      color: et?.color ?? 'var(--ink-ghost)',
+    })
     return
   }
   const label = (document.querySelector('.page-title, .camp-banner-title') as HTMLElement)?.textContent?.trim()

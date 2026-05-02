@@ -312,6 +312,11 @@ export const dbApi = {
       await db.encounterTokens.where('encounter_id').equals(id).delete()
       await db.encounters.delete(id)
     },
+    async search(q: string, limit: number) {
+      const db = getDb()
+      const lq = q.toLowerCase()
+      return db.encounters.filter(e => e.name.toLowerCase().includes(lq)).limit(limit).toArray()
+    },
   },
 
   // ── Tokens ────────────────────────────────────────────────────────────

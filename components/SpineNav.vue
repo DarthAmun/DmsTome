@@ -49,12 +49,12 @@
         <span class="spine-label">Battlefield</span>
       </NuxtLink>
       <NuxtLink
-        :to="`/campaign/${ctx.campaignId.value}/map`"
+        :to="`/campaign/${ctx.campaignId.value}/locations`"
         class="spine-tab spine-tab--l2"
-        :class="{ active: route.path.includes('/map') }"
-        title="Atlas">
-        <OhVueIcon name="gi-treasure-map" scale="0.8" />
-        <span class="spine-label">Atlas</span>
+        :class="{ active: route.path.includes('/locations') }"
+        title="Locations">
+        <OhVueIcon name="gi-castle" scale="0.8" />
+        <span class="spine-label">Locations</span>
       </NuxtLink>
     </template>
 

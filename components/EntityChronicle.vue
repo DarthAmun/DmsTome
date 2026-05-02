@@ -12,6 +12,7 @@
           <button class="elist-vbtn" :class="{ active: viewMode === 'list' }" @click="setView('list')">List</button>
           <button v-if="type === 'event'" class="elist-vbtn" :class="{ active: viewMode === 'timeline' }" @click="setView('timeline')">Timeline</button>
           <button v-if="type === 'session'" class="elist-vbtn" :class="{ active: viewMode === 'log' }" @click="setView('log')">Log</button>
+          <button v-if="type === 'location'" class="elist-vbtn" :class="{ active: viewMode === 'map' }" @click="setView('map')">Map</button>
         </div>
         <button class="btn-accent-sm" @click="createEntry">+ New</button>
       </div>
@@ -38,8 +39,8 @@
           v-for="e in filteredEntries"
           :key="e.id"
           class="erow"
-          :class="{ active: activeEntryId === e.id }"
-          @click="openEntry(e)"
+          :class="{ active: activeForList === e.id }"
+          @click="viewMode === 'map' && type === 'location' ? selectMapLocation(e) : openEntry(e)"
         >
           <!-- NPC -->
           <div v-if="type === 'npc'" class="erow-avatar"
@@ -184,6 +185,23 @@
         </div>
       </div>
 
+      <!-- World map (locations) -->
+      <div v-else-if="type === 'location' && viewMode === 'map'" class="sv-map">
+        <WorldMap
+          v-if="mapRootId"
+          :campaign-id="campaignId"
+          :root-location-id="mapRootId"
+          :location-stack="mapStack"
+          @navigate-entity="onMapNavigateEntity"
+          @drill-down="onMapDrillDown"
+          @navigate-crumb="onMapNavigateCrumb"
+        />
+        <div v-else class="sv-empty">
+          <OhVueIcon name="gi-treasure-map" scale="2.5" style="opacity:0.1" />
+          <span>Select a location on the left to view its map</span>
+        </div>
+      </div>
+
       <!-- Default: child route -->
       <NuxtPage v-else />
     </div>
@@ -200,9 +218,12 @@ import type { Entity } from '~/stores/notes'
 const props = defineProps<{ type: EntityType }>()
 
 const route = useRoute()
+const router = useRouter()
 const {
   typeConfig, entries, openEntry, createEntry, ensureLoaded, formatDateShort,
 } = useCampaignEntity(props.type)
+
+const campaignId = computed(() => Number(route.params.id))
 
 const search = ref('')
 
@@ -217,7 +238,7 @@ const activeEntryId = computed(() =>
 )
 
 // ── View mode ─────────────────────────────────────────────────────────────────
-const hasViewToggle = props.type === 'event' || props.type === 'session'
+const hasViewToggle = props.type === 'event' || props.type === 'session' || props.type === 'location'
 const localKey = `dmstome.${props.type}.view`
 const viewMode = ref(
   hasViewToggle && import.meta.client ? (localStorage.getItem(localKey) || 'list') : 'list'
@@ -278,6 +299,61 @@ function formatSessionDate(dateStr: string): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
   if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
   return d.toLocaleDateString('en-US', opts)
+}
+
+// ── World map (locations) — fully URL-driven ──────────────────────────────────
+// Map state lives in query params so reload always works:
+//   ?map=5        → root location being viewed
+//   ?stack=3,1    → drill-down breadcrumb stack
+const mapRootId = computed(() =>
+  props.type === 'location' && route.query.map ? Number(route.query.map) : null
+)
+const mapStack = computed<number[]>(() => {
+  const s = route.query.stack as string | undefined
+  if (!s) return []
+  return s.split(',').map(Number).filter(Boolean)
+})
+
+// In map mode the left list highlights the map root; in list mode it's the detail route param
+const activeForList = computed(() =>
+  viewMode.value === 'map' && props.type === 'location'
+    ? mapRootId.value
+    : activeEntryId.value
+)
+
+const TYPE_PLURAL_ROUTE: Record<string, string> = {
+  npc: 'npcs', location: 'locations', item: 'items',
+  faction: 'factions', quest: 'quests', event: 'events',
+  session: 'sessions', note: 'notes',
+}
+
+function selectMapLocation(e: Entity) {
+  router.push({
+    path: `/campaign/${campaignId.value}/locations`,
+    query: { map: String(e.id) },
+  })
+}
+
+function onMapDrillDown(fromId: number, toId: number) {
+  const newStack = [...mapStack.value, fromId]
+  router.push({
+    path: `/campaign/${campaignId.value}/locations`,
+    query: { map: String(toId), ...(newStack.length ? { stack: newStack.join(',') } : {}) },
+  })
+}
+
+function onMapNavigateCrumb(index: number) {
+  const targetId = mapStack.value[index]
+  const newStack = mapStack.value.slice(0, index)
+  router.push({
+    path: `/campaign/${campaignId.value}/locations`,
+    query: { map: String(targetId), ...(newStack.length ? { stack: newStack.join(',') } : {}) },
+  })
+}
+
+function onMapNavigateEntity(entity: any) {
+  const segment = TYPE_PLURAL_ROUTE[entity.type] ?? (entity.type + 's')
+  router.push(`/campaign/${campaignId.value}/${segment}/${entity.id}`)
 }
 
 // ── Avatar helpers ─────────────────────────────────────────────────────────────
@@ -386,6 +462,14 @@ onMounted(() => ensureLoaded())
   flex: 1;
   overflow-y: auto;
   padding: 20px 28px 40px;
+}
+
+.sv-map {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sv-empty {

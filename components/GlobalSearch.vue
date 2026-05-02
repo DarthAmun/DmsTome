@@ -122,6 +122,33 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Encounters -->
+              <div v-if="results.encounters.length" class="gs-group">
+                <div class="gs-group-label">Encounters</div>
+                <div
+                  v-for="(item, i) in results.encounters"
+                  :key="`enc-${item.id}`"
+                  class="gs-result"
+                  :class="{ 'gs-result--active': flatIndex(3, i) === cursor }"
+                  @click="navigate(item)"
+                  @mouseenter="cursor = flatIndex(3, i)"
+                >
+                  <span class="gs-result-icon" style="color: #4ab8e8">
+                    <OhVueIcon name="gi-broadsword" scale="0.8" />
+                  </span>
+                  <span class="gs-result-name">{{ item.name }}</span>
+                  <span class="gs-result-sub">Encounter</span>
+                  <div class="gs-result-actions" @click.stop>
+                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                    </button>
+                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                      <OhVueIcon name="md-openinnew" scale="0.75" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </template>
           </div>
 
@@ -172,7 +199,7 @@ const resultsRef = ref<HTMLElement | null>(null)
 const isMac = import.meta.client && /Mac|iPhone|iPad/.test(navigator.platform)
 
 interface SearchResult {
-  kind: 'campaign' | 'entity' | 'record'
+  kind: 'campaign' | 'entity' | 'record' | 'encounter'
   id: number
   name: string
   type?: string
@@ -183,22 +210,24 @@ interface SearchResult {
   entity?: Entity
 }
 
-const results = ref<{ campaigns: SearchResult[]; entities: SearchResult[]; records: SearchResult[] }>({
+const results = ref<{ campaigns: SearchResult[]; entities: SearchResult[]; records: SearchResult[]; encounters: SearchResult[] }>({
   campaigns: [],
   entities: [],
   records: [],
+  encounters: [],
 })
 
 const totalCount = computed(() =>
-  results.value.campaigns.length + results.value.entities.length + results.value.records.length
+  results.value.campaigns.length + results.value.entities.length + results.value.records.length + results.value.encounters.length
 )
 
 // Flat cursor index across all groups
-function flatIndex(group: 0 | 1 | 2, i: number): number {
+function flatIndex(group: 0 | 1 | 2 | 3, i: number): number {
   const offsets = [
     0,
     results.value.campaigns.length,
     results.value.campaigns.length + results.value.entities.length,
+    results.value.campaigns.length + results.value.entities.length + results.value.records.length,
   ]
   return offsets[group] + i
 }
@@ -207,6 +236,7 @@ const flatResults = computed((): SearchResult[] => [
   ...results.value.campaigns,
   ...results.value.entities,
   ...results.value.records,
+  ...results.value.encounters,
 ])
 
 // Entity type helpers
@@ -237,7 +267,7 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(query, (val) => {
   if (searchTimer) clearTimeout(searchTimer)
-  if (!val.trim()) { results.value = { campaigns: [], entities: [], records: [] }; return }
+  if (!val.trim()) { results.value = { campaigns: [], entities: [], records: [], encounters: [] }; return }
   loading.value = true
   searchTimer = setTimeout(() => runSearch(val.trim()), 150)
 })
@@ -289,7 +319,17 @@ async function runSearch(q: string) {
     })
   )
 
-  results.value = { campaigns, entities, records }
+  // Encounters
+  const encounterRows = await dbApi.encounters.search(lq, 5)
+  const encounters: SearchResult[] = encounterRows.map((e: any) => ({
+    kind: 'encounter' as const,
+    id: e.id!,
+    name: e.name,
+    campaignId: e.campaign_id,
+    _subtitle: `Campaign ${e.campaign_id}`,
+  }))
+
+  results.value = { campaigns, entities, records, encounters }
   cursor.value = 0
   loading.value = false
 }
@@ -308,6 +348,7 @@ function getRoute(item: SearchResult): string {
     return `/campaign/${item.campaignId}/${segment}/${item.id}`
   }
   if (item.kind === 'record') return `/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`
+  if (item.kind === 'encounter') return `/encounter/${item.id}`
   return '/'
 }
 
@@ -333,6 +374,8 @@ function toggleResultBookmark(item: SearchResult) {
     bookmarkRecord({ id: item.id, name: item.name, systemId: item.systemId ?? 0, entityTypeId: item.entityTypeId ?? '', icon: recordIcon(item), color: recordColor(item) })
   } else if (item.kind === 'campaign') {
     bookmarkPage(`/campaign/${item.id}`, item.name, 'gi-broadsword', 'var(--blood)')
+  } else if (item.kind === 'encounter') {
+    bookmarkPage(`/encounter/${item.id}`, item.name, 'gi-broadsword', '#4ab8e8')
   }
 }
 
@@ -364,7 +407,7 @@ function scrollResultIntoView() {
 function close() {
   open.value = false
   query.value = ''
-  results.value = { campaigns: [], entities: [], records: [] }
+  results.value = { campaigns: [], entities: [], records: [], encounters: [] }
   cursor.value = 0
 }
 

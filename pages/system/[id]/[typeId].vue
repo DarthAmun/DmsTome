@@ -55,7 +55,7 @@
         <div class="sys-entity-editor-topbar">
           <div style="flex:1; font-size:14px; font-weight:600; color:var(--text)">{{ selectedRecord.name }}</div>
           <span v-if="dirty" style="font-size:11px; color:var(--text3)">Unsaved changes</span>
-          <button class="btn btn-ghost btn-sm" @click="selectedId = null">✕</button>
+          <button class="btn btn-ghost btn-sm" @click="closeRecord">✕</button>
           <button class="btn btn-ghost btn-sm" @click="editMode = !editMode">{{ editMode ? 'Done' : 'Edit' }}</button>
           <button class="btn btn-danger btn-sm" @click="deleteRecord(selectedId!)">Delete</button>
         </div>
@@ -105,6 +105,7 @@ import { useSystemsStore } from '~/stores/systems'
 import { getDb } from '~/composables/useDb'
 
 const route = useRoute()
+const router = useRouter()
 const systemsStore = useSystemsStore()
 const systemId = Number(route.params.id)
 const typeId = route.params.typeId as string
@@ -128,7 +129,7 @@ const filtered = computed(() => {
   return q ? records.value.filter(r => r.name.toLowerCase().includes(q)) : records.value
 })
 
-watch(search, () => { selectedId.value = null })
+watch(search, () => { if (selectedId.value !== null) closeRecord() })
 
 onMounted(async () => {
   await systemsStore.loadAll()
@@ -181,6 +182,12 @@ function openRecord(rec: any) {
     return v !== undefined && v !== null && v !== ''
   })
   editMode.value = !hasData
+  router.replace({ query: { record: rec.name } })
+}
+
+function closeRecord() {
+  selectedId.value = null
+  router.replace({ query: {} })
 }
 
 async function saveName() {

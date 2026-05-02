@@ -69,19 +69,6 @@
                     <span class="camp-chapter-arrow">›</span>
                 </NuxtLink>
 
-                <NuxtLink :to="`/campaign/${id}/map`" class="camp-chapter">
-                    <span class="camp-chapter-icon" style="color: #e8924a"
-                        >🗺</span
-                    >
-                    <div class="camp-chapter-body">
-                        <div class="camp-chapter-name">World Map</div>
-                        <div class="camp-chapter-sub">
-                            World maps with pinned locations
-                        </div>
-                    </div>
-                    <span class="camp-chapter-arrow">›</span>
-                </NuxtLink>
-
                 <NuxtLink :to="`/campaign/${id}/graph`" class="camp-chapter">
                     <span class="camp-chapter-icon" style="color: #7cc44e">⬡</span>
                     <div class="camp-chapter-body">
