@@ -54,7 +54,8 @@ export function parseEntityRefs(content: string): EntityRef[] {
 export function renderEntityRefs(
   html: string,
   entityLookup?: (type: string, name: string) => { imageUrl?: string; iconHtml?: string; color?: string } | null,
-  extraTypes?: string[]
+  extraTypes?: string[],
+  entryRenderer?: (type: string, name: string, attrKey?: string) => string | null
 ): string {
   const allTypes = extraTypes?.length ? [...ENTITY_TYPES, ...extraTypes.map(t => t.toLowerCase())] : ENTITY_TYPES
   return html.replace(ENTITY_REGEX, (raw, type, name, metaStr) => {
@@ -63,6 +64,15 @@ export function renderEntityRefs(
       return `<span class="roll-ref" data-roll="${expr}">🎲 ${expr}</span>`
     }
     if (!allTypes.includes(type.toLowerCase())) return raw
+
+    // Entry rendering: {{npc: Lira | entry}} or {{npc: Lira | entry:portraitSource}}
+    const trimmedMeta = (metaStr ?? '').trim()
+    if (entryRenderer && (trimmedMeta === 'entry' || trimmedMeta.startsWith('entry:'))) {
+      const attrKey = trimmedMeta.startsWith('entry:') ? trimmedMeta.slice(6).trim() : undefined
+      const rendered = entryRenderer(type.toLowerCase(), name.trim(), attrKey)
+      if (rendered !== null) return rendered
+    }
+
     const metadata = parseMeta(metaStr ?? '')
     const metaLabel = Object.entries(metadata).map(([k, v]) => `${k}: ${v}`).join(', ')
     const tooltip = metaLabel ? ` (${metaLabel})` : ''

@@ -104,7 +104,7 @@
                   v-else
                   class="mixed-preview markdown-body"
                   v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
-                  @click="activateScriptBlock(i)"
+                  @click="onScriptMixedPreviewClick($event, i)"
                 />
               </div>
               <button class="mixed-add-btn" @click="addScriptBlock">+ paragraph</button>
@@ -137,7 +137,7 @@
                   v-else
                   class="mixed-preview markdown-body"
                   v-html="block.trim() ? renderBlock(block) : '<span class=\'mixed-placeholder\'>Click to write…</span>'"
-                  @click="activateBlock(i)"
+                  @click="onMixedPreviewClick($event, i)"
                 />
               </div>
               <button class="mixed-add-btn" @click="addBlock">+ paragraph</button>
@@ -532,11 +532,65 @@ function entityLookup(type: string, name: string) {
   return null
 }
 
+// ── Inline entry renderer ──────────────────────────────────────────────────────
+function esc(s: string) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function buildEntryHtml(type: string, name: string, attrKey?: string): string | null {
+  const ent = store.findByTypeAndName(type, name)
+  if (!ent) return null
+  const attrs = (ent.attributes as any) ?? {}
+  const color = typeColorMap[type] ?? '#888'
+
+  if (attrKey) {
+    const val = attrs[attrKey]
+    if (!val) return `<span class="ie-attr-empty" title="no ${esc(attrKey)}">${esc(name)}</span>`
+    const imgKeys = ['portraitSource', 'logoSource', 'imageSource', 'mapSource']
+    if (imgKeys.includes(attrKey)) {
+      return `<img class="ie-attr-img" src="${esc(val)}" alt="${esc(name)}" data-entity-type="${type}" data-entity-name="${esc(name)}" />`
+    }
+    return `<span class="ie-attr-text">${esc(String(val))}</span>`
+  }
+
+  const imgSrc: string | undefined = attrs.portraitSource || attrs.logoSource || attrs.imageSource
+  const portraitHtml = imgSrc
+    ? `<img class="ie-portrait-img" src="${esc(imgSrc)}" alt="${esc(name)}" />`
+    : `<div class="ie-portrait-icon" style="background:${color}18;color:${color}">${esc(name.charAt(0).toUpperCase())}</div>`
+
+  const metaParts: string[] = []
+  if (type === 'npc') {
+    if (attrs.title) metaParts.push(attrs.title)
+    if (attrs.race) metaParts.push(attrs.race)
+    if (attrs.role) metaParts.push(attrs.role)
+  } else if (type === 'location') {
+    if (attrs.locationType) metaParts.push(attrs.locationType)
+  } else if (type === 'item') {
+    if (attrs.rarity) metaParts.push(attrs.rarity)
+    if (attrs.itemType) metaParts.push(attrs.itemType)
+  } else if (type === 'faction') {
+    if (attrs.factionType) metaParts.push(attrs.factionType)
+    if (attrs.size) metaParts.push(attrs.size)
+  } else if (type === 'event') {
+    if (attrs.date) metaParts.push(attrs.date)
+    if (attrs.significance) metaParts.push(attrs.significance)
+  }
+  const metaHtml = metaParts.length ? `<div class="ie-meta">${esc(metaParts.join(' · '))}</div>` : ''
+  const isDead = attrs.isAlive === false
+  const status = attrs.status && type !== 'quest' ? attrs.status : null
+  const deadHtml = isDead ? `<span class="ie-dead">☠</span>` : ''
+  const statusHtml = status ? `<span class="ie-status">${esc(status)}</span>` : ''
+  const nameCls = isDead ? 'ie-name ie-name--dead' : 'ie-name'
+
+  return `<div class="ie ie--${type}" data-entity-type="${type}" data-entity-name="${esc(name)}" style="border-left-color:${color}"><div class="ie-portrait">${portraitHtml}</div><div class="ie-body"><div class="ie-name-row"><span class="${nameCls}">${esc(name)}</span>${deadHtml}${statusHtml}</div>${metaHtml}</div></div>`
+}
+
 // ── Rendered content ──────────────────────────────────────────────────────────
 const mdOpts = computed(() => ({
   rich: true, postProcess: postProcessHtml, entityLookup,
   extraTypes: systemEntityTypes.value.map(t => t.id),
   allowTaskLists: true, allowLocalFileUris: true,
+  entryRenderer: buildEntryHtml,
 }))
 
 const renderedContent = computed(() => {
@@ -704,22 +758,35 @@ const { triggerRoll } = useDiceRoll()
 
 function onPreviewClick(e: MouseEvent) {
   const target = e.target as HTMLElement
-  if (target.classList.contains('roll-ref')) { const roll = target.dataset.roll; if (roll) triggerRoll(roll); return }
-  if (target.classList.contains('entity-ref')) {
-    const type = target.dataset.entityType; const name = target.dataset.entityName
-    if (!type || !name) return
-    if (type === 'encounter') {
-      const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
-      if (enc) router.push(`/encounter/${enc.id}`)
-      return
-    }
-    const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
-    if (sysType && campaignSystemId.value) {
-      router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
-    } else {
-      emit('navigate', type, name)
-    }
+  const rollEl = target.closest('.roll-ref') as HTMLElement | null
+  if (rollEl) { const roll = rollEl.dataset.roll; if (roll) triggerRoll(roll); return }
+  const entityEl = target.closest('[data-entity-type]') as HTMLElement | null
+  if (!entityEl) return
+  const type = entityEl.dataset.entityType; const name = entityEl.dataset.entityName
+  if (!type || !name) return
+  if (type === 'encounter') {
+    const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
+    if (enc) router.push(`/encounter/${enc.id}`)
+    return
   }
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+  if (sysType && campaignSystemId.value) {
+    router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
+  } else {
+    emit('navigate', type, name)
+  }
+}
+
+function onMixedPreviewClick(e: MouseEvent, i: number) {
+  const el = (e.target as HTMLElement).closest('[data-entity-type], .roll-ref')
+  if (el) { onPreviewClick(e); return }
+  activateBlock(i)
+}
+
+function onScriptMixedPreviewClick(e: MouseEvent, i: number) {
+  const el = (e.target as HTMLElement).closest('[data-entity-type], .roll-ref')
+  if (el) { onPreviewClick(e); return }
+  activateScriptBlock(i)
 }
 
 // ── Image / map URLs ──────────────────────────────────────────────────────────
@@ -741,13 +808,35 @@ const displayAttrs = computed(() => ({
 }))
 
 // ── Links ─────────────────────────────────────────────────────────────────────
-const outgoingLinks = computed(() => store.linksFrom(props.entityId))
-const backlinks = computed(() => entity.value ? store.backlinksTo(entity.value.type, entity.value.name) : [])
+const outgoingLinks = computed(() => {
+  const seen = new Set<string>()
+  return store.linksFrom(props.entityId).filter(l => {
+    const key = `${l.targetType}:${l.targetName.toLowerCase()}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+})
+const backlinks = computed(() => {
+  if (!entity.value) return []
+  const seen = new Set<number>()
+  return store.backlinksTo(entity.value.type, entity.value.name).filter(l => {
+    if (seen.has(l.sourceId)) return false
+    seen.add(l.sourceId)
+    return true
+  })
+})
 const pinnedOn = computed(() => entity.value ? store.pinnedLocationsFor(entity.value.id) : [])
 const sourceEntity = (id: number) => store.entities.find(e => e.id === id)
 const scriptLinks = computed(() => {
   if (entity.value?.type !== 'session') return []
-  return extractLinks((entity.value?.attributes as any)?.scriptContent ?? '')
+  const seen = new Set<string>()
+  return extractLinks((entity.value?.attributes as any)?.scriptContent ?? '').filter(l => {
+    const key = `${l.type}:${l.name.toLowerCase()}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 })
 
 function linkAvatar(type: string, name: string) {
@@ -1272,4 +1361,46 @@ async function confirmDelete() {
 .roll-ref { display: inline-flex; align-items: center; gap: 3px; background: rgba(184,134,11,0.1); border: 1px solid rgba(184,134,11,0.35); border-radius: 5px; padding: 1px 8px; color: var(--gold); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; transition: all 0.12s; white-space: nowrap; }
 .roll-ref:hover { background: rgba(184,134,11,0.22); border-color: var(--gold); }
 .mixed-preview.markdown-body { padding: 0; font-size: 14px; }
+
+/* ── Inline entry cards ({{type: name | entry}}) ──────────────────────────── */
+.ie {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--bg2, #1c1912);
+  border: 1px solid var(--border, rgba(120,100,60,0.3));
+  border-left: 3px solid;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  margin: 3px 0;
+  max-width: 320px;
+  vertical-align: middle;
+  transition: filter 0.12s;
+  font-style: normal;
+  text-decoration: none;
+}
+.ie:hover { filter: brightness(1.15); }
+.ie-portrait {
+  width: 52px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border, rgba(120,100,60,0.2));
+  overflow: hidden;
+}
+.ie-portrait-img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.ie-portrait-icon {
+  width: 100%; height: 100%; min-height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700;
+}
+.ie-body { padding: 6px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
+.ie-name-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.ie-name { font-size: 13px; font-weight: 700; color: var(--ink, #d4c5a9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ie-name--dead { text-decoration: line-through; opacity: 0.5; }
+.ie-dead { font-size: 11px; }
+.ie-status { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 5px; border-radius: 3px; background: rgba(200,150,60,0.15); color: var(--gold, #c9973a); border: 1px solid rgba(200,150,60,0.3); white-space: nowrap; }
+.ie-meta { font-size: 11px; font-style: italic; color: var(--ink-ghost, #8a7a65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Single-attribute renders */
+.ie-attr-img { display: block; max-width: 280px; max-height: 200px; border-radius: 6px; object-fit: cover; cursor: pointer; margin: 3px 0; }
+.ie-attr-text { font-style: italic; color: var(--ink, #d4c5a9); }
+.ie-attr-empty { font-style: italic; opacity: 0.5; font-size: 12px; }
 </style>

@@ -43,6 +43,9 @@ const store = useNotesStore()
 const cyContainer = ref<HTMLElement | null>(null)
 let cy: any = null
 
+// Keyed by "id:portraitSrc|icon" — invalidates automatically when portrait/icon changes
+const imageCache = new Map<string, string>()
+
 const tooltip = ref({ show: false, x: 0, y: 0, name: '', type: '', meta: '' })
 const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, ...cfg }))
 const typeColorMap = Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]))
@@ -144,23 +147,41 @@ async function getNodeImage(entity: any): Promise<string> {
   return makeInitialDataUrl(color, entity.name.charAt(0).toUpperCase())
 }
 
+function imageCacheKey(entity: any): string {
+  const attrs = entity.attributes ?? {}
+  return `${entity.id}:${attrs.portraitSource || attrs.imageSource || attrs.icon || ''}`
+}
+
 async function buildNodesWithImages() {
-  const entityMap = Object.fromEntries(
-    store.entities
-      .filter(e => e.campaignId === props.campaignId)
-      .map(e => [`${e.type}-${e.id}`, e])
-  )
-  const imageMap: Record<string, string> = {}
+  const campaignEntities = store.entities.filter(e => e.campaignId === props.campaignId)
   await Promise.all(
-    Object.entries(entityMap).map(async ([key, entity]) => {
-      imageMap[key] = await getNodeImage(entity)
+    campaignEntities.map(async (entity) => {
+      const key = imageCacheKey(entity)
+      if (!imageCache.has(key)) {
+        imageCache.set(key, await getNodeImage(entity))
+      }
     })
   )
   const { nodes, edges } = store.getGraphData(props.campaignId)
-  const nodesWithImages = nodes.map((n: any) => ({
-    data: { ...n.data, image: imageMap[n.data.id] ?? '' }
-  }))
+  const nodesWithImages = nodes.map((n: any) => {
+    const entity = campaignEntities.find(e => e.id === n.data.entityId)
+    const img = entity ? (imageCache.get(imageCacheKey(entity)) ?? '') : ''
+    return { data: { ...n.data, image: img } }
+  })
   return { nodesWithImages, edges }
+}
+
+let rebuildTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleRebuild() {
+  if (rebuildTimer) clearTimeout(rebuildTimer)
+  rebuildTimer = setTimeout(async () => {
+    if (!cy) return
+    const { nodesWithImages, edges } = await buildNodesWithImages()
+    cy.elements().remove()
+    cy.add([...nodesWithImages, ...edges])
+    cy.style(buildStyle())
+    resetLayout()
+  }, 300)
 }
 
 onMounted(async () => {
@@ -177,7 +198,14 @@ onMounted(async () => {
     container: cyContainer.value,
     elements: [...nodesWithImages, ...edges],
     style: buildStyle(),
-    layout: { name: 'cose-bilkent', animate: true, animationDuration: 500, randomize: true, idealEdgeLength: 120, nodeRepulsion: 8000 },
+    layout: {
+      name: nodesWithImages.length > 80 ? 'breadthfirst' : 'cose-bilkent',
+      animate: false,
+      randomize: false,
+      idealEdgeLength: 100,
+      nodeRepulsion: 6000,
+      nodeDimensionsIncludeLabels: true,
+    },
     wheelSensitivity: 0.3,
   })
 
@@ -191,19 +219,16 @@ onMounted(async () => {
   })
   cy.on('mouseover', 'edge', (evt: any) => {
     const pos = evt.renderedPosition
-    tooltip.value = { show: true, x: pos.x + 12, y: pos.y - 10, name: `${evt.target.source().data('label')} → ${evt.target.target().data('label')}`, type: 'link', meta: evt.target.data('label') ?? '' }
+    tooltip.value = { show: true, x: pos.x + 12, y: pos.y - 10, name: `${evt.target.source().data('label')} → ${evt.target.target().data('label')}`, type: 'link', meta: '' }
   })
   cy.on('mouseout', 'node edge', () => { tooltip.value.show = false })
 })
 
-watch(() => store.links, async () => {
-  if (!cy) return
-  const { nodesWithImages, edges } = await buildNodesWithImages()
-  cy.elements().remove()
-  cy.add([...nodesWithImages, ...edges])
-  cy.style(buildStyle())
-  resetLayout()
-}, { deep: true })
+// Watch structural changes only — no deep traversal of link objects
+watch(
+  [() => store.entities.filter(e => e.campaignId === props.campaignId).length, () => store.links.length],
+  scheduleRebuild
+)
 
 function buildStyle() {
   return [
@@ -259,10 +284,23 @@ function buildStyle() {
 }
 
 function resetLayout() {
-  cy?.layout({ name: 'cose-bilkent', animate: true, animationDuration: 400, randomize: false, idealEdgeLength: 120, nodeRepulsion: 8000 }).run()
+  if (!cy) return
+  const n = cy.nodes().length
+  cy.layout({
+    name: n > 80 ? 'breadthfirst' : 'cose-bilkent',
+    animate: n < 40,
+    animationDuration: 300,
+    randomize: false,
+    idealEdgeLength: 100,
+    nodeRepulsion: 6000,
+    nodeDimensionsIncludeLabels: true,
+  }).run()
 }
 function fitView() { cy?.fit(undefined, 40) }
-onUnmounted(() => { cy?.destroy() })
+onUnmounted(() => {
+  if (rebuildTimer) clearTimeout(rebuildTimer)
+  cy?.destroy()
+})
 </script>
 
 <style scoped>

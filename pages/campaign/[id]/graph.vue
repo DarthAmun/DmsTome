@@ -6,7 +6,11 @@
       <div class="page-rule" />
     </div>
     <div class="graph-body">
+      <div v-if="!loaded" class="graph-loading">
+        <div class="graph-loading-text">Building graph…</div>
+      </div>
       <NotesGraph
+        v-else
         :campaign-id="campaignId"
         @navigate="onNavigate"
       />
@@ -30,6 +34,7 @@ const router = useRouter()
 const store = useNotesStore()
 const campaignId = Number(route.params.id)
 const campaignName = ref('')
+const loaded = ref(false)
 
 function onNavigate(type: string, name: string) {
   const entry = store.findByTypeAndName(type, name)
@@ -43,6 +48,7 @@ onMounted(async () => {
     store.loadAll(campaignId),
   ])
   campaignName.value = camp?.name ?? ''
+  loaded.value = true
 })
 </script>
 
@@ -57,5 +63,22 @@ onMounted(async () => {
 .graph-body {
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+.graph-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graph-loading-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2, #8a7a65);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 </style>

@@ -26,6 +26,8 @@ export interface RenderMarkdownOptions {
   allowTaskLists?: boolean
   /** Widen the URI regexp so local-file:// image srcs survive. */
   allowLocalFileUris?: boolean
+  /** Render {{type: name | entry}} or {{type: name | entry:attrKey}} as inline cards. */
+  entryRenderer?: (type: string, name: string, attrKey?: string) => string | null
 }
 
 const mdStrict = new MarkdownIt({ html: false, linkify: true })
@@ -87,7 +89,7 @@ export function useEntityMarkdown() {
     const md = options.rich ? mdRich : mdStrict
     let html = md.render(content)
     if (options.postProcess) html = options.postProcess(html)
-    html = renderEntityRefs(html, options.entityLookup, options.extraTypes)
+    html = renderEntityRefs(html, options.entityLookup, options.extraTypes, options.entryRenderer)
 
     const addAttr = ['data-entity-type', 'data-entity-name', 'style', 'class', 'data-roll']
     if (options.allowTaskLists) addAttr.push('type', 'checked', 'disabled')

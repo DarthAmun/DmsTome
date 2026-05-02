@@ -144,20 +144,26 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   function getGraphData(campaignId: number) {
-    const nodes = entities.value
-      .filter(e => e.campaignId === campaignId)
-      .map(e => ({ data: { id: `${e.type}-${e.id}`, label: e.name, type: e.type, entityId: e.id } }))
+    const campaignEntities = entities.value.filter(e => e.campaignId === campaignId)
+    const byId = new Map(campaignEntities.map(e => [e.id, e]))
+    const byTypeName = new Map(campaignEntities.map(e => [`${e.type}:${e.name.toLowerCase()}`, e]))
 
-    const edges = links.value
-      .filter(l => entities.value.find(e => e.id === l.sourceId)?.campaignId === campaignId)
-      .map(l => {
-        const source = entities.value.find(e => e.id === l.sourceId)
-        const target = entities.value.find(e => e.type === l.targetType && e.name.toLowerCase() === l.targetName.toLowerCase())
-        if (!source || !target) return null
-        const metaLabel = Object.entries(l.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')
-        return { data: { id: `edge-${l.id}`, source: `${source.type}-${source.id}`, target: `${target.type}-${target.id}`, label: metaLabel, metadata: l.metadata } }
-      })
-      .filter(Boolean)
+    const nodes = campaignEntities.map(e => ({
+      data: { id: `${e.type}-${e.id}`, label: e.name, type: e.type, entityId: e.id }
+    }))
+
+    const edgeSeen = new Set<string>()
+    const edges: any[] = []
+    for (const l of links.value) {
+      const source = byId.get(l.sourceId)
+      if (!source) continue
+      const target = byTypeName.get(`${l.targetType}:${l.targetName.toLowerCase()}`)
+      if (!target) continue
+      const edgeKey = `${source.type}-${source.id}→${target.type}-${target.id}`
+      if (edgeSeen.has(edgeKey)) continue
+      edgeSeen.add(edgeKey)
+      edges.push({ data: { id: `edge-${l.id}`, source: `${source.type}-${source.id}`, target: `${target.type}-${target.id}`, label: '' } })
+    }
 
     return { nodes, edges }
   }
