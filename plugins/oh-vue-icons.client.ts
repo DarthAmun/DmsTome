@@ -2,7 +2,7 @@ import { OhVueIcon, addIcons } from 'oh-vue-icons'
 import * as GiIcons from 'oh-vue-icons/icons/gi'
 import {
   MdArrowback, MdArrowforward,
-  MdAdd, MdDelete, MdDeleteOutlined, MdEditnote,
+  MdAdd, MdAddcircleoutline, MdDelete, MdDeleteOutlined, MdEdit, MdEditnote,
   MdClose, MdSort, MdMap,
   MdVisibility, MdVisibilityoff,
   MdCloud, MdSunny, MdAccesstime,
@@ -32,7 +32,7 @@ addIcons(...Object.values(GiIcons))
 // Add MD and FA icons individually
 addIcons(
   MdArrowback, MdArrowforward,
-  MdAdd, MdDelete, MdDeleteOutlined, MdEditnote,
+  MdAdd, MdAddcircleoutline, MdDelete, MdDeleteOutlined, MdEdit, MdEditnote,
   MdClose, MdSort, MdMap,
   MdVisibility, MdVisibilityoff,
   MdCloud, MdSunny, MdAccesstime,

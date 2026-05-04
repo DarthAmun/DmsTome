@@ -1,5 +1,5 @@
 <template>
-  <div class="note-editor">
+  <div class="note-editor" :class="{ 'history-mode': isHistoryMode }">
 
     <!-- ── Header ── -->
     <div class="editor-header">
@@ -17,10 +17,12 @@
         @keyup.enter="saveName"
         @keyup.escape="isEditingName = false"
       />
-      <h2 v-else class="editor-name" @click="startEditName">{{ entity?.name }}</h2>
+      <h2 v-else class="editor-name" @click="!isHistoryMode && startEditName()">
+        {{ isHistoryMode ? (viewingSnapshot?.name ?? entity?.name) : entity?.name }}
+      </h2>
 
       <div class="header-actions">
-          <button
+        <button
           class="hdr-btn"
           :class="{ active: activePanel === 'attributes' }"
           @click="activePanel = activePanel === 'attributes' ? 'content' : 'attributes'"
@@ -29,7 +31,17 @@
           <span>Attributes</span>
         </button>
 
-        <button class="hdr-btn hdr-btn--danger" @click="confirmDelete">
+        <button
+          v-if="supportsSnapshots && !isHistoryMode"
+          class="hdr-btn"
+          title="Record Historical State"
+          @click="showCreateDialog = true"
+        >
+          <OhVueIcon name="gi-time" scale="0.8" />
+          <span>History</span>
+        </button>
+
+        <button v-if="!isHistoryMode" class="hdr-btn hdr-btn--danger" @click="confirmDelete">
           <OhVueIcon name="md-delete" scale="0.8" />
         </button>
       </div>
@@ -43,7 +55,22 @@
         <button class="etab" :class="{ active: viewMode === 'mixed' }" @click="setViewMode('mixed')">Mixed</button>
         <button class="etab" :class="{ active: viewMode === 'preview' }" @click="setViewMode('preview')">Preview</button>
       </div>
+      <span v-if="isHistoryMode && viewMode !== 'preview'" class="snap-edit-indicator">
+        <OhVueIcon name="gi-time" scale="0.7" />
+        Editing snapshot
+      </span>
     </div>
+
+    <!-- ── Snapshot timeline (directly under tabbar, for supported types) ── -->
+    <SnapshotTimeline
+      v-if="supportsSnapshots && (snapshots.length > 0 || isHistoryMode)"
+      :snapshots="snapshots"
+      :viewing-snapshot="viewingSnapshot"
+      @view-snapshot="onViewSnapshot"
+      @return-to-present="onReturnToPresent"
+      @create-snapshot="showCreateDialog = true"
+      @edit-snapshot="onEditSnapshot"
+    />
 
     <!-- ── Entity card / banner (all modes, non-session) ── -->
     <template v-if="activePanel === 'content' && entity?.type !== 'session'">
@@ -51,7 +78,7 @@
       <!-- NPC: business card -->
       <NpcCard
         v-if="entity?.type === 'npc'"
-        :name="entity.name"
+        :name="isHistoryMode ? (viewingSnapshot?.name ?? entity.name) : entity.name"
         :attrs="displayAttrs"
         :color="typeColor"
         class="npc-card-editor"
@@ -269,7 +296,7 @@
 
     <!-- ── Links panel (non-session) ── -->
     <div
-      v-if="entity?.type !== 'session' && (outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0)"
+      v-if="entity?.type !== 'session' && (outgoingLinks.length > 0 || backlinks.length > 0 || pinnedOn.length > 0 || (entity?.type === 'event' && linkedSnapshots.length > 0))"
       class="links-panel"
     >
       <div v-if="pinnedOn.length > 0" class="links-section">
@@ -328,6 +355,34 @@
           </button>
         </div>
       </div>
+
+      <!-- Linked historical states (only on event entries) -->
+      <div
+        v-if="entity?.type === 'event' && linkedSnapshots.length > 0"
+        class="links-section links-section--snapshots"
+      >
+        <div class="links-label links-label--icon">
+          <OhVueIcon name="gi-time" scale="0.75" style="color:var(--gold)" />
+          Historical States at this Event
+        </div>
+        <div
+          v-for="snap in linkedSnapshots"
+          :key="snap.id"
+          class="snap-event-link"
+          @click="navigateToSnapshot(snap)"
+        >
+          <OhVueIcon
+            :name="entityIconForSnapshot(snap)"
+            scale="0.8"
+            :style="{ color: entityColorForSnapshot(snap) }"
+          />
+          <div class="snap-event-link-body">
+            <span class="snap-event-link-name">{{ snap.name }}</span>
+            <span class="snap-event-link-label">{{ snap.label }}</span>
+          </div>
+          <OhVueIcon name="md-chevronright" scale="0.75" style="color:var(--ink-ghost)" />
+        </div>
+      </div>
     </div>
 
     <!-- ── Links panel (session) ── -->
@@ -362,19 +417,37 @@
       </div>
     </div>
 
+    <SnapshotCreateDialog
+      :open="showCreateDialog"
+      :entity-id="entity?.id ?? 0"
+      :campaign-id="props.campaignId"
+      @close="showCreateDialog = false"
+      @created="onSnapshotCreated"
+    />
+
+    <SnapshotEditDialog
+      :open="showEditDialog"
+      :snapshot="editingSnapshot"
+      :campaign-id="props.campaignId"
+      @close="showEditDialog = false; editingSnapshot = null"
+      @deleted="onSnapshotDeleted"
+      @saved="onSnapshotSaved"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import * as GiIcons from 'oh-vue-icons/icons/gi'
 import { useNotesStore } from '~/stores/notes'
+import type { EntitySnapshot } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
 import { extractLinks } from '~/composables/useEntityParser'
 import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
 import { useDiceRoll } from '~/composables/useDiceRoll'
 import { getDb } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
-import type { EntityAttributes } from '~/types/entities'
+import type { EntityType, EntityAttributes } from '~/types/entities'
 
 const { renderMarkdown } = useEntityMarkdown()
 
@@ -407,6 +480,7 @@ const emit = defineEmits<{ navigate: [type: string, name: string]; deleted: [] }
 const store = useNotesStore()
 const systemsStore = useSystemsStore()
 const router = useRouter()
+const route = useRoute()
 
 // ── Campaign-level data ───────────────────────────────────────────────────────
 const campaignEncounters = ref<{ id: number; name: string; mapSource?: string }[]>([])
@@ -465,6 +539,18 @@ ${body ? `<div class="callout-body">${body}</div>` : ''}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const entity = computed(() => store.entities.find(e => e.id === props.entityId) ?? store.currentEntity)
+
+// ── Snapshot support ─────────────────────────────────────────────────────────
+const SNAPSHOT_TYPES = new Set(['npc', 'location', 'faction', 'quest'])
+const supportsSnapshots = computed(() =>
+  entity.value ? SNAPSHOT_TYPES.has(entity.value.type) : false
+)
+const viewingSnapshot = ref<EntitySnapshot | null>(null)
+const showCreateDialog = ref(false)
+const showEditDialog = ref(false)
+const editingSnapshot = ref<EntitySnapshot | null>(null)
+const isHistoryMode = computed(() => viewingSnapshot.value !== null)
+
 const isEditingName = ref(false)
 const activePanel = ref<'content' | 'attributes'>('content')
 const draftName = ref('')
@@ -547,6 +633,7 @@ const entityTypes = [
 const typeColorMap: Record<string, string> = {
   ...Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color])),
   encounter: ENCOUNTER_COLOR,
+  snapshot: 'var(--gold)',
 }
 const typeColor = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.color ?? 'var(--accent)')
 const typeLabel = computed(() => ENTITY_TYPE_CONFIG[entity.value?.type ?? 'note']?.label ?? '')
@@ -624,17 +711,71 @@ function buildEntryHtml(type: string, name: string, attrKey?: string): string | 
   return `<div class="ie ie--${type}" data-entity-type="${type}" data-entity-name="${esc(name)}" style="border-left-color:${color}"><div class="ie-portrait">${portraitHtml}</div><div class="ie-body"><div class="ie-name-row"><span class="${nameCls}">${esc(name)}</span>${deadHtml}${statusHtml}</div>${metaHtml}</div></div>`
 }
 
+// ── Snapshot entry renderer ────────────────────────────────────────────────────
+function buildSnapshotEntryHtml(type: string, name: string, snapshotLabel: string, attrKey?: string): string | null {
+  const ent = store.findByTypeAndName(type, name)
+  if (!ent) return null
+  const color = typeColorMap[type] ?? '#888'
+  const snap = store.snapshots.find(s =>
+    s.entityId === ent.id && s.label.toLowerCase() === snapshotLabel.toLowerCase()
+  )
+  const attrs = snap ? snap.attributes : (ent.attributes as any) ?? {}
+  const entityName = snap ? snap.name : ent.name
+
+  if (attrKey) {
+    const val = attrs[attrKey]
+    if (!val) return `<span class="ie-attr-empty" title="no ${esc(attrKey)} in snapshot '${esc(snapshotLabel)}'">${esc(entityName)}</span>`
+    const imgKeys = ['portraitSource', 'logoSource', 'imageSource', 'mapSource']
+    if (imgKeys.includes(attrKey)) {
+      return `<img class="ie-attr-img" src="${esc(val)}" alt="${esc(entityName)}" data-entity-type="${type}" data-entity-name="${esc(name)}" data-snapshot-label="${esc(snapshotLabel)}" />`
+    }
+    return `<span class="ie-attr-text" data-entity-type="${type}" data-entity-name="${esc(name)}" data-snapshot-label="${esc(snapshotLabel)}">${esc(String(val))}</span>`
+  }
+
+  const imgSrc: string | undefined = attrs.portraitSource || attrs.logoSource || attrs.imageSource
+  const portraitHtml = imgSrc
+    ? `<img class="ie-portrait-img" src="${esc(imgSrc)}" alt="${esc(entityName)}" />`
+    : `<div class="ie-portrait-icon" style="background:${color}18;color:${color}">${esc(entityName.charAt(0).toUpperCase())}</div>`
+
+  const metaParts: string[] = []
+  if (type === 'npc') {
+    if (attrs.title) metaParts.push(attrs.title)
+    if (attrs.race) metaParts.push(attrs.race)
+    if (attrs.role) metaParts.push(attrs.role)
+  } else if (type === 'location') {
+    if (attrs.locationType) metaParts.push(attrs.locationType)
+  } else if (type === 'faction') {
+    if (attrs.factionType) metaParts.push(attrs.factionType)
+    if (attrs.size) metaParts.push(attrs.size)
+  } else if (type === 'event') {
+    if (attrs.date) metaParts.push(attrs.date)
+    if (attrs.significance) metaParts.push(attrs.significance)
+  }
+  const metaHtml = metaParts.length ? `<div class="ie-meta">${esc(metaParts.join(' · '))}</div>` : ''
+  const isDead = attrs.isAlive === false
+  const deadHtml = isDead ? `<span class="ie-dead">☠</span>` : ''
+  const nameCls = isDead ? 'ie-name ie-name--dead' : 'ie-name'
+  const badgeCls = snap ? 'ie-snap-badge' : 'ie-snap-badge ie-snap-badge--unloaded'
+  const histBadge = `<span class="${badgeCls}">⏎ ${esc(snapshotLabel)}</span>`
+
+  return `<div class="ie ie--${type} ie--snap" data-entity-type="${type}" data-entity-name="${esc(name)}" data-snapshot-label="${esc(snapshotLabel)}" style="border-left-color:${color}"><div class="ie-portrait">${portraitHtml}</div><div class="ie-body"><div class="ie-name-row"><span class="${nameCls}">${esc(entityName)}</span>${deadHtml}${histBadge}</div>${metaHtml}</div></div>`
+}
+
 // ── Rendered content ──────────────────────────────────────────────────────────
 const mdOpts = computed(() => ({
   rich: true, postProcess: postProcessHtml, entityLookup,
   extraTypes: systemEntityTypes.value.map(t => t.id),
   allowTaskLists: true, allowLocalFileUris: true,
   entryRenderer: buildEntryHtml,
+  snapshotRenderer: buildSnapshotEntryHtml,
 }))
 
+const displayContent = computed(() => draftContent.value)
+
 const renderedContent = computed(() => {
-  if (!draftContent.value?.trim()) return '<p class="md-empty">Nothing written yet…</p>'
-  return renderMarkdown(draftContent.value, mdOpts.value)
+  const content = displayContent.value
+  if (!content?.trim()) return '<p class="md-empty">Nothing written yet…</p>'
+  return renderMarkdown(content, mdOpts.value)
 })
 
 const renderedScript = computed(() => {
@@ -675,7 +816,13 @@ function onBlockInput(i: number) {
   if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
   draftContent.value = editableBlocks.value.join('\n\n')
   if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
+  saveTimer = setTimeout(() => {
+    if (viewingSnapshot.value) {
+      store.updateSnapshotContent(viewingSnapshot.value.id, { content: draftContent.value })
+    } else {
+      store.updateEntity(props.entityId, { content: draftContent.value })
+    }
+  }, 800)
   checkAutocomplete(el ?? null, editableBlocks.value[i], 'mixed-notes', i)
 }
 
@@ -694,6 +841,10 @@ function addBlock() {
 
 // ── Entity load ───────────────────────────────────────────────────────────────
 watch(() => props.entityId, async (id) => {
+  viewingSnapshot.value = null
+  showCreateDialog.value = false
+  showEditDialog.value = false
+  editingSnapshot.value = null
   await store.loadEntity(id)
   draftContent.value = entity.value?.content ?? ''
   draftName.value = entity.value?.name ?? ''
@@ -707,6 +858,65 @@ watch(() => props.entityId, async (id) => {
   if (entity.value?.type === 'session') syncScriptBlocks()
 }, { immediate: true })
 
+// Load snapshots when entity changes (only for supported types)
+// Also handles the ?snapshot= query param to auto-open a historical state.
+watch(() => entity.value?.id, async (id) => {
+  if (!id) return
+  if (supportsSnapshots.value) {
+    await store.loadSnapshots(id)
+    const snapId = route.query.snapshot
+    if (snapId) {
+      const snap = store.snapshots.find(s => s.id === Number(snapId))
+      if (snap) onViewSnapshot(snap)
+      // Remove the param without a navigation by replacing the current route
+      const { snapshot: _removed, ...rest } = route.query
+      router.replace({ query: rest })
+    }
+  }
+}, { immediate: true })
+
+const snapshots = computed(() =>
+  store.snapshotsEntityId === entity.value?.id
+    ? store.snapshots
+    : []
+)
+
+// Load snapshots linked to this event (event entities only)
+const linkedSnapshots = ref<any[]>([])
+
+watch(() => entity.value?.id, async (id) => {
+  if (!id || entity.value?.type !== 'event') {
+    linkedSnapshots.value = []
+    return
+  }
+  linkedSnapshots.value = await getDb().entitySnapshots
+    .where('event_id').equals(id).toArray()
+}, { immediate: true })
+
+function entityIconForSnapshot(snap: any): string {
+  const ent = store.entities.find(e => e.id === snap.entity_id)
+  if (!ent) return 'gi-scroll-unfurled'
+  return ENTITY_TYPE_CONFIG[ent.type as EntityType]?.defaultIcon ?? 'gi-scroll-unfurled'
+}
+
+function entityColorForSnapshot(snap: any): string {
+  const ent = store.entities.find(e => e.id === snap.entity_id)
+  if (!ent) return 'var(--ink-ghost)'
+  return ENTITY_TYPE_CONFIG[ent.type as EntityType]?.color ?? 'var(--ink-ghost)'
+}
+
+function navigateToSnapshot(snap: any) {
+  const ent = store.entities.find(e => e.id === snap.entity_id)
+  if (!ent) return
+  const TYPE_PLURAL: Record<string, string> = {
+    npc: 'npcs', location: 'locations',
+    faction: 'factions', quest: 'quests',
+  }
+  const segment = TYPE_PLURAL[ent.type]
+  if (!segment) return
+  router.push(`/campaign/${props.campaignId}/${segment}/${ent.id}?snapshot=${snap.id}`)
+}
+
 watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
   if (val !== undefined && val !== draftScript.value) draftScript.value = val ?? ''
 })
@@ -714,14 +924,26 @@ watch(() => (draftAttributes.value as any)?.scriptContent, (val) => {
 // ── Input handlers ────────────────────────────────────────────────────────────
 function onNotesInput() {
   if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => store.updateEntity(props.entityId, { content: draftContent.value }), 800)
+  saveTimer = setTimeout(() => {
+    if (viewingSnapshot.value) {
+      store.updateSnapshotContent(viewingSnapshot.value.id, { content: draftContent.value })
+    } else {
+      store.updateEntity(props.entityId, { content: draftContent.value })
+    }
+  }, 800)
   checkAutocomplete(editorRef.value, draftContent.value, 'edit')
 }
 
 function onAttributesChange(attrs: EntityAttributes) {
   draftAttributes.value = attrs
   if (attrSaveTimer) clearTimeout(attrSaveTimer)
-  attrSaveTimer = setTimeout(() => store.updateEntity(props.entityId, { attributes: attrs }), 500)
+  attrSaveTimer = setTimeout(() => {
+    if (viewingSnapshot.value) {
+      store.updateSnapshotContent(viewingSnapshot.value.id, { attributes: attrs })
+    } else {
+      store.updateEntity(props.entityId, { attributes: attrs })
+    }
+  }, 500)
 }
 
 // ── Insert helpers ────────────────────────────────────────────────────────────
@@ -744,12 +966,33 @@ const autocomplete = ref({
   source: 'edit' as AcSource,
   mixedIdx: -1,
   cursorIdx: 0,
+  mode: 'entity' as 'entity' | 'snapshot',
 })
 
 async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, source: AcSource, mixedIdx = -1) {
   if (!el) return
   const pos = el.selectionStart
-  const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}]*)$/)
+
+  // Snapshot label autocomplete: {{type: name @ partial_label
+  const snapMatch = text.slice(0, pos).match(/\{\{(\w+):\s*([^@|}\n]+?)\s*@\s*([^}|]*)$/)
+  if (snapMatch) {
+    const [, partialType, entityName] = snapMatch
+    const partialLabel = snapMatch[3]
+    const ent = store.findByTypeAndName(partialType.toLowerCase(), entityName.trim())
+    if (ent) {
+      const snaps = await getDb().entitySnapshots.where('entity_id').equals(ent.id).toArray()
+      const filtered = snaps.filter(s => !partialLabel.trim() || s.label.toLowerCase().includes(partialLabel.trim().toLowerCase()))
+      const items = filtered.slice(0, 8).map(s => ({ type: 'snapshot', name: s.label, id: s.id }))
+      const atPos = snapMatch.index! + snapMatch[0].indexOf('@')
+      autocomplete.value = { show: items.length > 0, items, triggerStart: atPos, source, mixedIdx, cursorIdx: 0, mode: 'snapshot' }
+      return
+    }
+    autocomplete.value.show = false
+    return
+  }
+
+  // Entity autocomplete: {{type: partial_name
+  const match = text.slice(0, pos).match(/\{\{(\w+):\s*([^}@]*)$/)
   if (!match) { autocomplete.value.show = false; return }
   const partialType = match[1].toLowerCase()
   if (partialType === 'roll') { autocomplete.value.show = false; return }
@@ -776,7 +1019,7 @@ async function checkAutocomplete(el: HTMLTextAreaElement | null, text: string, s
     }
   }
   const candidates = [...campaignCandidates, ...encounterCandidates, ...sysCandidates].slice(0, 8)
-  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, source, mixedIdx, cursorIdx: 0 }
+  autocomplete.value = { show: candidates.length > 0, items: candidates, triggerStart: pos - match[0].length, source, mixedIdx, cursorIdx: 0, mode: 'entity' }
 }
 
 function applyAutocomplete(item: any) {
@@ -801,7 +1044,9 @@ function applyAutocomplete(item: any) {
   const pos = el.selectionStart
   const before = getVal().slice(0, ac.triggerStart)
   const after = getVal().slice(pos)
-  const replacement = `{{${item.type}: ${item.name}}}`
+  const replacement = ac.mode === 'snapshot'
+    ? `@ ${item.name}}}`
+    : `{{${item.type}: ${item.name}}}`
   setVal(`${before}${replacement}${after}`)
   autocomplete.value.show = false
   nextTick(() => { const p = before.length + replacement.length; el!.setSelectionRange(p, p); el!.focus() })
@@ -845,7 +1090,11 @@ function onScriptMixedKeydown(e: KeyboardEvent, i: number) {
 // ── Preview click ─────────────────────────────────────────────────────────────
 const { triggerRoll } = useDiceRoll()
 
-function onPreviewClick(e: MouseEvent) {
+const ENTITY_TYPE_PLURAL: Record<string, string> = {
+  npc: 'npcs', location: 'locations', faction: 'factions', quest: 'quests',
+}
+
+async function onPreviewClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   const rollEl = target.closest('.roll-ref') as HTMLElement | null
   if (rollEl) { const roll = rollEl.dataset.roll; if (roll) triggerRoll(roll); return }
@@ -853,6 +1102,23 @@ function onPreviewClick(e: MouseEvent) {
   if (!entityEl) return
   const type = entityEl.dataset.entityType; const name = entityEl.dataset.entityName
   if (!type || !name) return
+
+  // Snapshot link — navigate to entity at specific historical state
+  const snapshotLabel = entityEl.dataset.snapshotLabel
+  if (snapshotLabel) {
+    const ent = store.findByTypeAndName(type, name)
+    if (ent) {
+      const snaps = await getDb().entitySnapshots.where('entity_id').equals(ent.id).toArray()
+      const snap = snaps.find(s => s.label.toLowerCase() === snapshotLabel.toLowerCase())
+      const segment = ENTITY_TYPE_PLURAL[ent.type]
+      if (segment) {
+        const q = snap ? `?snapshot=${snap.id}` : ''
+        router.push(`/campaign/${props.campaignId}/${segment}/${ent.id}${q}`)
+      }
+    }
+    return
+  }
+
   if (type === 'encounter') {
     const enc = campaignEncounters.value.find(e => e.name.toLowerCase() === name.toLowerCase())
     if (enc) router.push(`/encounter/${enc.id}`)
@@ -890,11 +1156,16 @@ const entityMapUrl = computed(() => {
   return (entity.value?.attributes as any)?.imageSource ?? null
 })
 
-// Merged attributes (saved + unsaved draft) for the entity card
-const displayAttrs = computed(() => ({
-  ...(entity.value?.attributes as any ?? {}),
-  ...(draftAttributes.value as any),
-}))
+// Merged attributes for the entity card.
+// In history mode: just draftAttributes (seeded from snapshot on entry, editable).
+// In present mode: merge saved entity attrs with unsaved draft.
+const displayAttrs = computed(() => {
+  if (isHistoryMode.value) return draftAttributes.value as any
+  return {
+    ...(entity.value?.attributes as any ?? {}),
+    ...(draftAttributes.value as any),
+  }
+})
 
 // ── Links ─────────────────────────────────────────────────────────────────────
 const outgoingLinks = computed(() => {
@@ -960,9 +1231,14 @@ function startEditName() {
 }
 
 async function saveName() {
+  const newName = draftName.value.trim()
   isEditingName.value = false
-  if (draftName.value.trim() && draftName.value !== entity.value?.name) {
-    await store.updateEntity(props.entityId, { name: draftName.value.trim() })
+  if (!newName) return
+  if (viewingSnapshot.value) {
+    await store.updateSnapshotContent(viewingSnapshot.value.id, { name: newName })
+    viewingSnapshot.value = { ...viewingSnapshot.value, name: newName }
+  } else if (newName !== entity.value?.name) {
+    await store.updateEntity(props.entityId, { name: newName })
   }
 }
 
@@ -971,6 +1247,43 @@ async function confirmDelete() {
     await store.deleteEntity(props.entityId)
     emit('deleted')
   }
+}
+
+// ── Snapshot handlers ────────────────────────────────────────────────────────
+function onViewSnapshot(snap: EntitySnapshot) {
+  viewingSnapshot.value = snap
+  // Seed the edit drafts from snapshot so all view modes show snapshot content
+  draftContent.value = snap.content
+  draftAttributes.value = { ...snap.attributes }
+  if (viewMode.value === 'mixed') syncBlocks()
+}
+
+function onReturnToPresent() {
+  viewingSnapshot.value = null
+  // Restore drafts from live entity
+  draftContent.value = entity.value?.content ?? ''
+  draftAttributes.value = { ...(entity.value?.attributes ?? {}) }
+  const saved = (import.meta.client ? localStorage.getItem(VM_KEY) : null) ?? 'mixed'
+  setViewMode(saved as ViewMode)
+}
+
+function onEditSnapshot(snap: EntitySnapshot) {
+  editingSnapshot.value = snap
+  showEditDialog.value = true
+}
+
+async function onSnapshotCreated(_snapshotId: number) {
+  viewingSnapshot.value = null
+}
+
+function onSnapshotDeleted(id: number) {
+  if (viewingSnapshot.value?.id === id) {
+    viewingSnapshot.value = null
+  }
+}
+
+function onSnapshotSaved() {
+  // Store already updated — no action needed
 }
 </script>
 
@@ -1405,6 +1718,72 @@ async function confirmDelete() {
 .link-sub { font-size: 10px; color: var(--text3); }
 
 .md-empty { color: var(--text3); font-style: italic; padding: 20px 0 0; margin: 0; font-size: 14px; }
+
+/* ── Event-linked snapshots ──────────────────────────────────────────────── */
+.links-section--snapshots { width: 100%; }
+.links-label--icon {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.snap-event-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--parch-line);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.snap-event-link:last-child { border-bottom: none; }
+.snap-event-link:hover { padding-left: 8px; }
+.snap-event-link-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.snap-event-link-name {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+}
+.snap-event-link-label {
+  font-family: var(--font-head);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ── History mode ────────────────────────────────────────────────────────── */
+.note-editor.history-mode .editor-name {
+  color: var(--ink-ghost);
+}
+.note-editor.history-mode .editor-name::after {
+  content: ' (historical)';
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-ghost);
+  font-weight: 400;
+}
+.note-editor.history-mode .editor-tabbar {
+  opacity: 0.7;
+}
+.snap-edit-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-left: 12px;
+  opacity: 0.8;
+}
 </style>
 
 <style>
@@ -1500,4 +1879,13 @@ async function confirmDelete() {
 .ie-attr-img { display: block; max-width: 280px; max-height: 200px; border-radius: 6px; object-fit: cover; cursor: pointer; margin: 3px 0; }
 .ie-attr-text { font-style: italic; color: var(--ink, #d4c5a9); }
 .ie-attr-empty { font-style: italic; opacity: 0.5; font-size: 12px; }
+/* Snapshot history badge on inline cards */
+.ie-snap-badge {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+  background: rgba(184,134,11,0.12); color: var(--gold, #c9973a);
+  border: 1px solid rgba(184,134,11,0.3);
+}
+.ie-snap-badge--unloaded { opacity: 0.6; border-style: dashed; }
 </style>

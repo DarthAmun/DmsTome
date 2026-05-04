@@ -113,6 +113,20 @@ export interface DbEntityLink {
   metadata: string            // JSON
 }
 
+export interface DbEntitySnapshot {
+  id?: number
+  entity_id: number        // FK to entities table
+  label: string            // GM-typed label: "Before Ascension", "Session 12"
+  note: string             // optional short note about why this snapshot was taken
+  content: string          // full markdown content at time of snapshot
+  attributes: string       // JSON string of all attributes at time of snapshot
+  name: string             // name of the entity at time of snapshot
+  created_at: string       // ISO timestamp
+  // linked event (optional)
+  event_id: number | null  // FK to entities table where type='event'
+  event_name: string | null
+}
+
 export interface DbSystem {
   id?: number
   name: string
@@ -136,15 +150,16 @@ export interface DbRecord {
 
 // ── Database class ─────────────────────────────────────────────────────────
 class DmForgeDb extends Dexie {
-  campaigns!:       Table<DbCampaign>
-  encounters!:      Table<DbEncounter>
-  tokens!:          Table<DbToken>
-  encounterTokens!: Table<DbEncounterToken>
-  entities!:        Table<DbEntity>
-  entityLinks!:     Table<DbEntityLink>
-  systems!:         Table<DbSystem>
-  records!:         Table<DbRecord>
-  encounterWalls!:  Table<DbEncounterWall>
+  campaigns!:        Table<DbCampaign>
+  encounters!:       Table<DbEncounter>
+  tokens!:           Table<DbToken>
+  encounterTokens!:  Table<DbEncounterToken>
+  entities!:         Table<DbEntity>
+  entityLinks!:      Table<DbEntityLink>
+  systems!:          Table<DbSystem>
+  records!:          Table<DbRecord>
+  encounterWalls!:   Table<DbEncounterWall>
+  entitySnapshots!:  Table<DbEntitySnapshot>
 
   constructor() {
     super('dmforge')
@@ -212,6 +227,32 @@ class DmForgeDb extends Dexie {
       systems:        '++id, shortId, updatedAt',
       records:        '++id, systemId, entityTypeId, name, updatedAt',
       encounterWalls: '++id, encounter_id',
+    })
+    // v7: add entitySnapshots table for historical states of npcs/locations/factions/quests
+    this.version(7).stores({
+      campaigns:        '++id, updated_at, system_id',
+      encounters:       '++id, campaign_id, created_at',
+      tokens:           '++id, is_template, name',
+      encounterTokens:  '++id, encounter_id, token_id, linked_record_id',
+      entities:         '++id, campaign_id, type, name',
+      entityLinks:      '++id, source_id, target_type, target_name',
+      systems:          '++id, shortId, updatedAt',
+      records:          '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:   '++id, encounter_id',
+      entitySnapshots:  '++id, entity_id, event_id, created_at',
+    })
+    // v8: add event_id index to entitySnapshots for efficient event→snapshot queries
+    this.version(8).stores({
+      campaigns:        '++id, updated_at, system_id',
+      encounters:       '++id, campaign_id, created_at',
+      tokens:           '++id, is_template, name',
+      encounterTokens:  '++id, encounter_id, token_id, linked_record_id',
+      entities:         '++id, campaign_id, type, name',
+      entityLinks:      '++id, source_id, target_type, target_name',
+      systems:          '++id, shortId, updatedAt',
+      records:          '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:   '++id, encounter_id',
+      entitySnapshots:  '++id, entity_id, event_id, created_at',
     })
   }
 }
@@ -607,6 +648,33 @@ export const dbApi = {
     },
     async delete(id: number) {
       await getDb().records.delete(id)
+    },
+  },
+
+  // ── Entity snapshots ──────────────────────────────────────────────────
+  snapshots: {
+    async list(entityId: number): Promise<DbEntitySnapshot[]> {
+      return getDb().entitySnapshots
+        .where('entity_id').equals(entityId)
+        .sortBy('created_at')
+    },
+
+    async create(snapshot: Omit<DbEntitySnapshot, 'id'>): Promise<DbEntitySnapshot> {
+      const id = await getDb().entitySnapshots.add(snapshot)
+      return { ...snapshot, id }
+    },
+
+    async update(id: number, changes: Partial<Pick<DbEntitySnapshot, 'label' | 'note' | 'event_id' | 'event_name'>>): Promise<void> {
+      await getDb().entitySnapshots.update(id, changes)
+    },
+
+    async delete(id: number): Promise<void> {
+      await getDb().entitySnapshots.delete(id)
+    },
+
+    async deleteByEntity(entityId: number): Promise<void> {
+      await getDb().entitySnapshots
+        .where('entity_id').equals(entityId).delete()
     },
   },
 

@@ -28,6 +28,8 @@ export interface RenderMarkdownOptions {
   allowLocalFileUris?: boolean
   /** Render {{type: name | entry}} or {{type: name | entry:attrKey}} as inline cards. */
   entryRenderer?: (type: string, name: string, attrKey?: string) => string | null
+  /** Render {{type: name @ snapshotLabel}} as historical snapshot cards. */
+  snapshotRenderer?: (type: string, name: string, snapshotLabel: string, attrKey?: string) => string | null
 }
 
 const mdStrict = new MarkdownIt({ html: false, linkify: true })
@@ -89,9 +91,9 @@ export function useEntityMarkdown() {
     const md = options.rich ? mdRich : mdStrict
     let html = md.render(content)
     if (options.postProcess) html = options.postProcess(html)
-    html = renderEntityRefs(html, options.entityLookup, options.extraTypes, options.entryRenderer)
+    html = renderEntityRefs(html, options.entityLookup, options.extraTypes, options.entryRenderer, options.snapshotRenderer)
 
-    const addAttr = ['data-entity-type', 'data-entity-name', 'style', 'class', 'data-roll']
+    const addAttr = ['data-entity-type', 'data-entity-name', 'style', 'class', 'data-roll', 'data-snapshot-label']
     if (options.allowTaskLists) addAttr.push('type', 'checked', 'disabled')
 
     const sanitizeCfg: any = { ADD_ATTR: addAttr }

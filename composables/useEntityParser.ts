@@ -15,8 +15,9 @@ export interface ParsedLink {
 
 const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter']
 
-// Allows apostrophes and other special chars in names — stops only at | or }
-const ENTITY_REGEX = /\{\{(\w+):\s*([^|}\n]+?)\s*(?:\|\s*([^}]*))?\}\}/g
+// Allows apostrophes and other special chars in names — stops at @, |, or }
+// Groups: 1=type, 2=name, 3=snapshotLabel (@ sigil, optional), 4=meta (| sigil, optional)
+const ENTITY_REGEX = /\{\{(\w+):\s*([^@|}\n]+?)\s*(?:@\s*([^|}\n]+?)\s*)?(?:\|\s*([^}]*))?\}\}/g
 
 function parseMeta(metaStr: string): Record<string, string> {
   const metadata: Record<string, string> = {}
@@ -37,7 +38,7 @@ export function parseEntityRefs(content: string): EntityRef[] {
   let match: RegExpExecArray | null
   ENTITY_REGEX.lastIndex = 0
   while ((match = ENTITY_REGEX.exec(content)) !== null) {
-    const [raw, type, name, metaStr] = match
+    const [raw, type, name, _snapLabel, metaStr] = match
     if (!ENTITY_TYPES.includes(type.toLowerCase())) continue
     refs.push({
       type: type.toLowerCase(),
@@ -55,15 +56,24 @@ export function renderEntityRefs(
   html: string,
   entityLookup?: (type: string, name: string) => { imageUrl?: string; iconHtml?: string; color?: string } | null,
   extraTypes?: string[],
-  entryRenderer?: (type: string, name: string, attrKey?: string) => string | null
+  entryRenderer?: (type: string, name: string, attrKey?: string) => string | null,
+  snapshotRenderer?: (type: string, name: string, snapshotLabel: string, attrKey?: string) => string | null
 ): string {
   const allTypes = extraTypes?.length ? [...ENTITY_TYPES, ...extraTypes.map(t => t.toLowerCase())] : ENTITY_TYPES
-  return html.replace(ENTITY_REGEX, (raw, type, name, metaStr) => {
+  return html.replace(ENTITY_REGEX, (raw, type, name, snapLabel, metaStr) => {
     if (type.toLowerCase() === 'roll') {
       const expr = name.trim()
       return `<span class="roll-ref" data-roll="${expr}">🎲 ${expr}</span>`
     }
     if (!allTypes.includes(type.toLowerCase())) return raw
+
+    // Snapshot rendering: {{npc: Lira @ Before Ascension}} or {{npc: Lira @ Before Ascension | portraitSource}}
+    const snapLabelTrimmed = (snapLabel ?? '').trim()
+    if (snapshotRenderer && snapLabelTrimmed) {
+      const attrKey = (metaStr ?? '').trim() || undefined
+      const rendered = snapshotRenderer(type.toLowerCase(), name.trim(), snapLabelTrimmed, attrKey)
+      if (rendered !== null) return rendered
+    }
 
     // Entry rendering: {{npc: Lira | entry}} or {{npc: Lira | entry:portraitSource}}
     const trimmedMeta = (metaStr ?? '').trim()

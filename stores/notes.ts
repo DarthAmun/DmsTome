@@ -2,7 +2,8 @@
 // See the DATA MODEL NOTE in composables/useDb.ts for the full two-system explanation.
 import { defineStore } from 'pinia'
 import { extractLinks } from '~/composables/useEntityParser'
-import { dbApi } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
+import type { DbEntitySnapshot } from '~/composables/useDb'
 import type { EntityType, EntityAttributes } from '~/types/entities'
 
 export interface Entity {
@@ -22,6 +23,19 @@ export interface EntityLink {
   targetType: string
   targetName: string
   metadata: Record<string, string>
+}
+
+export interface EntitySnapshot {
+  id: number
+  entityId: number
+  label: string
+  note: string
+  content: string
+  attributes: Record<string, any>
+  name: string
+  createdAt: string
+  eventId: number | null
+  eventName: string | null
 }
 
 export const useNotesStore = defineStore('notes', () => {
@@ -101,6 +115,7 @@ export const useNotesStore = defineStore('notes', () => {
 
   async function deleteEntity(id: number) {
     try {
+      await dbApi.snapshots.deleteByEntity(id)
       await dbApi.entities.delete(id)
       entities.value = entities.value.filter(e => e.id !== id)
       links.value = links.value.filter(l => l.sourceId !== id)
@@ -168,6 +183,132 @@ export const useNotesStore = defineStore('notes', () => {
     return { nodes, edges }
   }
 
+  // ── Snapshots ────────────────────────────────────────────────────────────
+
+  const snapshots = ref<EntitySnapshot[]>([])
+  const snapshotsEntityId = ref<number | null>(null)
+
+  async function loadSnapshots(entityId: number) {
+    try {
+      const raw = await dbApi.snapshots.list(entityId)
+      snapshots.value = raw.map(normalizeSnapshot)
+      snapshotsEntityId.value = entityId
+    } catch (err) {
+      console.error('[NotesStore] loadSnapshots:', err)
+    }
+  }
+
+  async function createSnapshot(
+    entityId: number,
+    label: string,
+    note: string,
+    eventId: number | null = null,
+    eventName: string | null = null
+  ): Promise<EntitySnapshot> {
+    try {
+      const entity = entities.value.find(e => e.id === entityId)
+      if (!entity) throw new Error('Entity not found')
+      const raw = await dbApi.snapshots.create({
+        entity_id: entityId,
+        label,
+        note,
+        content: entity.content,
+        attributes: JSON.stringify(entity.attributes),
+        name: entity.name,
+        created_at: new Date().toISOString(),
+        event_id: eventId,
+        event_name: eventName,
+      })
+      const snap = normalizeSnapshot(raw)
+      if (snapshotsEntityId.value === entityId) {
+        snapshots.value.push(snap)
+      }
+      return snap
+    } catch (err) {
+      console.error('[NotesStore] createSnapshot:', err)
+      throw err
+    }
+  }
+
+  async function updateSnapshot(
+    id: number,
+    changes: { label?: string; note?: string; eventId?: number | null; eventName?: string | null }
+  ): Promise<void> {
+    try {
+      await dbApi.snapshots.update(id, {
+        label: changes.label,
+        note: changes.note,
+        event_id: changes.eventId,
+        event_name: changes.eventName,
+      })
+      const idx = snapshots.value.findIndex(s => s.id === id)
+      if (idx !== -1) Object.assign(snapshots.value[idx], {
+        label: changes.label ?? snapshots.value[idx].label,
+        note: changes.note ?? snapshots.value[idx].note,
+        eventId: changes.eventId !== undefined ? changes.eventId : snapshots.value[idx].eventId,
+        eventName: changes.eventName !== undefined ? changes.eventName : snapshots.value[idx].eventName,
+      })
+    } catch (err) {
+      console.error('[NotesStore] updateSnapshot:', err)
+      throw err
+    }
+  }
+
+  async function deleteSnapshot(id: number): Promise<void> {
+    try {
+      await dbApi.snapshots.delete(id)
+      snapshots.value = snapshots.value.filter(s => s.id !== id)
+    } catch (err) {
+      console.error('[NotesStore] deleteSnapshot:', err)
+      throw err
+    }
+  }
+
+  async function updateSnapshotContent(
+    id: number,
+    changes: { content?: string; attributes?: Record<string, any>; name?: string }
+  ): Promise<void> {
+    try {
+      const dbChanges: any = {}
+      if (changes.content !== undefined) dbChanges.content = changes.content
+      if (changes.name !== undefined) dbChanges.name = changes.name
+      if (changes.attributes !== undefined)
+        dbChanges.attributes = JSON.stringify(changes.attributes)
+
+      await getDb().entitySnapshots.update(id, dbChanges)
+
+      const idx = snapshots.value.findIndex(s => s.id === id)
+      if (idx !== -1) {
+        if (changes.content !== undefined)
+          snapshots.value[idx].content = changes.content
+        if (changes.name !== undefined)
+          snapshots.value[idx].name = changes.name
+        if (changes.attributes !== undefined)
+          snapshots.value[idx].attributes = changes.attributes
+      }
+    } catch (err) {
+      console.error('[NotesStore] updateSnapshotContent:', err)
+      throw err
+    }
+  }
+
+  function normalizeSnapshot(raw: DbEntitySnapshot): EntitySnapshot {
+    return {
+      id: raw.id!,
+      entityId: raw.entity_id,
+      label: raw.label,
+      note: raw.note,
+      content: raw.content,
+      attributes: typeof raw.attributes === 'string'
+        ? JSON.parse(raw.attributes || '{}')
+        : raw.attributes,
+      name: raw.name,
+      createdAt: raw.created_at,
+      eventId: raw.event_id,
+      eventName: raw.event_name,
+    }
+  }
+
   function normalize(raw: any): Entity {
     return {
       id: raw.id,
@@ -207,5 +348,7 @@ export const useNotesStore = defineStore('notes', () => {
     entities, currentEntity, links, isLoading, byType,
     loadAll, loadEntity, createEntity, updateEntity, deleteEntity,
     findByTypeAndName, linksFrom, backlinksTo, getGraphData, pinnedLocationsFor,
+    snapshots, snapshotsEntityId,
+    loadSnapshots, createSnapshot, updateSnapshot, updateSnapshotContent, deleteSnapshot,
   }
 })
