@@ -122,6 +122,45 @@
       </div>
     </template>
 
+    <!-- Session -->
+    <template v-else-if="type === 'session'">
+      <div class="field">
+        <label class="f-label">Status</label>
+        <Select :model-value="attrs.mode || null" :options="sessionModes" option-label="label"
+          option-value="value" placeholder="— select —" @update:model-value="v => set('mode', v)" />
+      </div>
+      <div class="field">
+        <label class="f-label">Icon</label>
+        <div class="icon-picker">
+          <button v-for="ico in noteIcons" :key="ico.name" class="icon-opt" :class="{ active: attrs.icon === ico.name }"
+            :title="ico.label" @click="set('icon', ico.name)">
+            <OhVueIcon :name="ico.name" scale="1.2" />
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Quest -->
+    <template v-else-if="type === 'quest'">
+      <div class="field">
+        <label class="f-label">Status</label>
+        <Select :model-value="attrs.status || null" :options="questStatuses" option-label="label"
+          option-value="value" placeholder="— select —" @update:model-value="v => set('status', v)" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="f-label">Quest Giver</label>
+          <InputText :model-value="attrs.questGiver || ''" placeholder="Who gave this quest…"
+            @update:model-value="v => set('questGiver', v)" />
+        </div>
+        <div class="field">
+          <label class="f-label">Reward</label>
+          <InputText :model-value="attrs.reward || ''" placeholder="Gold, items, favor…"
+            @update:model-value="v => set('reward', v)" />
+        </div>
+      </div>
+    </template>
+
     <!-- Note -->
     <template v-else>
       <div class="field">
@@ -165,6 +204,8 @@ const locationTypes = [{ label: 'City', value: 'city' }, { label: 'Dungeon', val
 const locationStatuses = [{ label: 'Discovered', value: 'discovered' }, { label: 'Undiscovered', value: 'undiscovered' }, { label: 'Destroyed', value: 'destroyed' }]
 const factionTypes = [{ label: 'Criminal', value: 'criminal' }, { label: 'Religious', value: 'religious' }, { label: 'Political', value: 'political' }, { label: 'Mercenary', value: 'mercenary' }, { label: 'Arcane', value: 'arcane' }, { label: 'Other', value: 'other' }]
 const factionSizes = [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }, { label: 'Massive', value: 'massive' }]
+const sessionModes = [{ label: 'Planning', value: 'planning' }, { label: 'Running', value: 'running' }, { label: 'Finished', value: 'finished' }]
+const questStatuses = [{ label: 'Active', value: 'active' }, { label: 'Dormant', value: 'dormant' }, { label: 'Completed', value: 'completed' }, { label: 'Failed', value: 'failed' }]
 
 function set(key: string, value: any) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })

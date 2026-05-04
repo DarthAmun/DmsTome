@@ -63,10 +63,15 @@
             <OhVueIcon v-else name="gi-american-shield" scale="0.7" :style="{ color: typeConfig?.color }" />
           </div>
 
-          <!-- Session number badge -->
-          <div v-else-if="type === 'session'" class="erow-num-badge"
-            :style="{ background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40', color: typeConfig?.color }">
-            {{ (e.attributes as any)?.sessionNumber || '#' }}
+          <!-- Session: selected icon if set, otherwise session number badge -->
+          <div v-else-if="type === 'session'">
+            <div v-if="(e.attributes as any)?.icon" class="erow-icon-badge" :style="{ color: typeConfig?.color }">
+              <OhVueIcon :name="(e.attributes as any).icon" scale="0.75" />
+            </div>
+            <div v-else class="erow-num-badge"
+              :style="{ background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40', color: typeConfig?.color }">
+              {{ (e.attributes as any)?.sessionNumber || '#' }}
+            </div>
           </div>
 
           <!-- Quest icon -->
@@ -203,8 +208,9 @@
 </template>
 
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it'
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
+import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
+import { useNotesStore } from '~/stores/notes'
 import type { EntityType } from '~/types/entities'
 import type { Entity } from '~/stores/notes'
 
@@ -239,6 +245,12 @@ const viewMode = ref(
 function setView(m: string) {
   viewMode.value = m
   if (import.meta.client) localStorage.setItem(localKey, m)
+  if (props.type !== 'location') return
+  if (m === 'map' && activeEntryId.value) {
+    router.push({ path: `/campaign/${campaignId.value}/locations`, query: { map: String(activeEntryId.value) } })
+  } else if (m === 'list' && mapRootId.value) {
+    router.push(`/campaign/${campaignId.value}/locations/${mapRootId.value}`)
+  }
 }
 
 // ── Timeline (events) ─────────────────────────────────────────────────────────
@@ -259,7 +271,17 @@ function sigNodeColor(sig: string | undefined): string {
 
 // ── Session log ───────────────────────────────────────────────────────────────
 const expandedIds = ref<Set<number>>(new Set())
-const mdParser = new MarkdownIt({ html: false, linkify: true, typographer: true, breaks: true })
+const { renderMarkdown } = useEntityMarkdown()
+const notesStore = useNotesStore()
+const SESSION_TYPE_COLORS: Record<string, string> = {
+  npc: '#7cc44e', location: '#a87de8', faction: '#e05555',
+  quest: '#e8924a', event: '#4ab8e8', note: '#6b9fe8', session: '#b87de8',
+}
+function sessionEntityLookup(type: string, name: string) {
+  const ent = notesStore.findByTypeAndName(type, name)
+  if (!ent) return null
+  return { color: SESSION_TYPE_COLORS[ent.type] ?? '#888' }
+}
 
 const logSessions = computed(() => {
   if (props.type !== 'session') return []
@@ -278,7 +300,7 @@ function toggleExpand(id: number) {
 }
 
 function renderSessionNotes(content: string): string {
-  return mdParser.render(content || '')
+  return renderMarkdown(content || '', { rich: true, entityLookup: sessionEntityLookup })
 }
 
 function sessionStatusColor(mode: string | undefined): string {

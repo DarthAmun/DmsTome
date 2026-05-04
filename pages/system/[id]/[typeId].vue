@@ -141,6 +141,13 @@ onMounted(async () => {
   }
 })
 
+// React to bookmark navigation while already on this page
+watch(() => route.query.record ?? route.query.open, async (name) => {
+  if (!name) return
+  const target = records.value.find(r => r.name.toLowerCase() === String(name).toLowerCase())
+  if (target && target.id !== selectedId.value) openRecord(target)
+})
+
 function parseRecordData(data: any): Record<string, any> {
   if (!data) return {}
   if (typeof data === 'object') return data
@@ -170,6 +177,7 @@ async function createRecord() {
   draftData.value = {}
   dirty.value = false
   editMode.value = true
+  router.replace({ query: { record: rec.name } })
 }
 
 function openRecord(rec: any) {
@@ -196,6 +204,7 @@ async function saveName() {
   const rec = records.value.find(r => r.id === selectedId.value)
   if (rec) rec.name = draftName.value
   dirty.value = false
+  router.replace({ query: { record: draftName.value } })
 }
 
 async function updateField(key: string, value: any) {

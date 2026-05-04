@@ -48,6 +48,24 @@
                 </NuxtLink>
             </div>
 
+            <!-- Active quests -->
+            <template v-if="activeQuests.length">
+              <div class="camp-section-label" style="margin-top: 24px">Active Quests</div>
+              <div class="camp-quests">
+                <NuxtLink
+                  v-for="q in activeQuests"
+                  :key="q.id"
+                  :to="`/campaign/${id}/quests/${q.id}`"
+                  class="camp-quest-row"
+                >
+                  <span class="camp-quest-icon">⚑</span>
+                  <span class="camp-quest-name">{{ q.name }}</span>
+                  <span v-if="(q.attributes as any)?.questGiver" class="camp-quest-sub">from {{ (q.attributes as any).questGiver }}</span>
+                  <span class="camp-quest-arr">›</span>
+                </NuxtLink>
+              </div>
+            </template>
+
             <!-- Quick access -->
             <div class="camp-section-label" style="margin-top: 24px">
                 Quick Access
@@ -201,6 +219,12 @@ const counts = computed(() => {
     }
     return result;
 });
+
+const activeQuests = computed(() =>
+    notesStore.entities.filter(
+        e => e.campaignId === id && e.type === 'quest' && (e.attributes as any)?.status === 'active'
+    )
+);
 
 const BANNER_COLORS = [
     ["oklch(45% 0.22 295)", "oklch(35% 0.18 260)"],
@@ -454,4 +478,19 @@ const bannerStyle = computed(() => {
 .camp-setting-select:focus {
     border-color: var(--accent);
 }
+
+/* Active quests */
+.camp-quests { display: flex; flex-direction: column; gap: 4px; }
+.camp-quest-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: var(--r2);
+  background: var(--surface); border: 1px solid var(--border);
+  text-decoration: none; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.camp-quest-row:hover { background: var(--surface-hi); border-color: rgba(232,146,74,0.4); }
+.camp-quest-icon { font-size: 15px; color: #e8924a; flex-shrink: 0; }
+.camp-quest-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.camp-quest-sub { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.camp-quest-arr { font-size: 18px; color: var(--text3); flex-shrink: 0; }
 </style>
