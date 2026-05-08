@@ -56,6 +56,8 @@ import { useNotesStore } from '~/stores/notes'
 import { useEncounterStore } from '~/stores/encounter'
 import { useSystemsStore } from '~/stores/systems'
 import { useSettings } from '~/composables/useSettings'
+import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
 
 const router = useRouter()
 const { settings, update: updateSettings } = useSettings()
@@ -70,20 +72,29 @@ const systemsStore = useSystemsStore()
 
 function navigate(bm: { route: string }) { router.push(bm.route) }
 
-// Full current route including ?record= for system record pages
+// Full current route including ?record= for system records and ?snap= for history snapshots
 const currentFullRoute = computed(() => {
   const recordName = route.query.record as string | undefined
   if (recordName && route.path.match(/^\/system\/\d+\//)) {
     return `${route.path}?record=${encodeURIComponent(recordName)}`
   }
+  const snapId = route.query.snap as string | undefined
+  if (snapId && route.path.match(/\/campaign\/\d+\/\w+\/\d+$/)) {
+    return `${route.path}?snap=${snapId}`
+  }
   return route.path
 })
 
 function isCurrentRoute(bmRoute: string): boolean {
-  const bmPath = bmRoute.split('?')[0]
-  const bmRecord = new URLSearchParams(bmRoute.split('?')[1] ?? '').get('record')
+  const [bmPath, bmQueryStr] = bmRoute.split('?')
+  const bmParams = new URLSearchParams(bmQueryStr ?? '')
+  const bmRecord = bmParams.get('record')
+  const bmSnap = bmParams.get('snap')
   if (bmRecord) {
     return route.path === bmPath && (route.query.record as string) === bmRecord
+  }
+  if (bmSnap) {
+    return route.path === bmPath && (route.query.snap as string) === bmSnap
   }
   return route.path === bmPath
 }
@@ -106,6 +117,19 @@ function toggleCurrentPage() {
   }
   const entity = currentEntity.value
   if (entity) {
+    const snapId = Number(route.query.snap)
+    if (snapId) {
+      const snap = notesStore.snapshots.find(s => s.id === snapId)
+      const snapLabel = snap?.label || snap?.name || `Snapshot #${snapId}`
+      const config = ENTITY_TYPE_CONFIG[entity.type as EntityType]
+      bookmarkPage(
+        currentFullRoute.value,
+        `${entity.name} › ${snapLabel}`,
+        config?.defaultIcon ?? 'gi-scroll-unfurled',
+        config?.color ?? 'var(--ink-ghost)',
+      )
+      return
+    }
     bookmarkEntity({ id: entity.id, name: entity.name, type: entity.type, campaignId: entity.campaignId })
     return
   }

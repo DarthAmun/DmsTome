@@ -1,6 +1,49 @@
 <template>
   <template v-if="currentEntry">
-    <NoteEditor
+    <NpcEditor
+      v-if="props.type === 'npc'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <LocationEditor
+      v-else-if="props.type === 'location'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <FactionEditor
+      v-else-if="props.type === 'faction'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <QuestEditor
+      v-else-if="props.type === 'quest'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <EventEditor
+      v-else-if="props.type === 'event'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <SessionEditor
+      v-else-if="props.type === 'session'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <NoteEditorSimple
+      v-else
       :entity-id="currentEntry.id"
       :campaign-id="campaignId"
       @navigate="onNavigate"

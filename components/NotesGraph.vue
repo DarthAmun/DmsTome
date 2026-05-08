@@ -1,395 +1,840 @@
 <template>
-  <div class="graph-container">
-    <div class="graph-toolbar">
-      <button class="f-btn f-btn--ghost f-btn--sm" @click="resetLayout">
-        <OhVueIcon name="md-autoawesome" scale="0.8" /> Reset
-      </button>
-      <button class="f-btn f-btn--ghost f-btn--sm" @click="fitView">
-        <OhVueIcon name="md-map" scale="0.8" /> Fit
-      </button>
-      <div class="type-filters">
-        <button v-for="t in typeTabs" :key="t.type"
-          class="type-filter-btn"
-          :class="{ active: activeTypes.has(t.type) }"
-          :style="activeTypes.has(t.type) ? { borderColor: t.color, color: t.color, background: t.color + '18' } : {}"
-          @click="toggleType(t.type)">
-          <span class="legend-dot" :style="{ background: activeTypes.has(t.type) ? t.color : 'var(--ink-ghost)' }" />
-          {{ t.plural }}
-        </button>
-      </div>
+    <div class="graph-container" @click="contextMenu.show = false">
+        <!-- Toolbar -->
+        <div class="graph-toolbar">
+            <!-- Entity search -->
+            <div class="graph-search" ref="searchWrapRef">
+                <input
+                    v-model="searchQuery"
+                    class="graph-search-input"
+                    placeholder="Add entity to graph…"
+                    @input="onSearchInput"
+                    @focus="onSearchInput"
+                />
+                <div
+                    v-if="searchResults.length > 0"
+                    class="graph-search-dropdown"
+                >
+                    <div
+                        v-for="entity in searchResults"
+                        :key="entity.id"
+                        class="graph-search-item"
+                        @mousedown.prevent="
+                            addEntityToGraph(entity);
+                            searchQuery = '';
+                            searchResults = [];
+                        "
+                    >
+                        <span
+                            class="gsi-type"
+                            :style="{ color: typeColor(entity.type) }"
+                            >{{ entity.type }}</span
+                        >
+                        {{ entity.name }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Type filters -->
+            <div class="type-filters">
+                <button
+                    v-for="t in typeTabs"
+                    :key="t.type"
+                    class="type-filter-btn"
+                    :class="{ active: visibleTypes.has(t.type) }"
+                    :style="
+                        visibleTypes.has(t.type)
+                            ? {
+                                  borderColor: t.color,
+                                  color: t.color,
+                                  background: t.color + '18',
+                              }
+                            : {}
+                    "
+                    @click="toggleType(t.type)"
+                >
+                    <span
+                        class="legend-dot"
+                        :style="{
+                            background: visibleTypes.has(t.type)
+                                ? t.color
+                                : 'var(--text3)',
+                        }"
+                    />
+                    {{ t.plural }}
+                </button>
+            </div>
+
+            <div class="graph-toolbar-right">
+                <button
+                    class="toolbar-btn"
+                    :class="{ active: showMentions }"
+                    @click="toggleMentions"
+                    title="Toggle mention edges"
+                >
+                    <OhVueIcon name="md-link" scale="0.8" />
+                    Mentions
+                </button>
+                <button
+                    class="toolbar-btn"
+                    :class="{ active: showHiddenPanel }"
+                    @click="showHiddenPanel = !showHiddenPanel"
+                >
+                    <OhVueIcon name="md-visibilityoff" scale="0.8" />
+                    Hidden ({{ hiddenNodes.size }})
+                </button>
+                <button class="toolbar-btn" @click="fitGraph" title="Fit view">
+                    <OhVueIcon name="md-fitscreen" scale="0.8" />
+                    Fit
+                </button>
+            </div>
+        </div>
+
+        <!-- Vue Flow canvas -->
+        <div class="graph-canvas-wrapper">
+            <VueFlow
+                v-model:nodes="nodes"
+                v-model:edges="edges"
+                :node-types="nodeTypes"
+                :default-edge-options="{ type: 'smoothstep', animated: false }"
+                :delete-key-code="null"
+                @pane-ready="onPaneReady"
+                @connect="onConnect"
+                @node-drag-stop="onNodeDragStop"
+                @move-end="onMoveEnd"
+                @node-double-click="onNodeDoubleClick"
+                @node-context-menu="onNodeContextMenu"
+                @edge-context-menu="onEdgeContextMenu"
+                @pane-click="contextMenu.show = false"
+                :snap-to-grid="true"
+                :snap-grid="[10, 10]"
+            >
+                <Background pattern-color="var(--text)" :gap="20" />
+                <Controls />
+            </VueFlow>
+        </div>
+
+        <!-- Context menu -->
+        <div
+            v-if="contextMenu.show"
+            class="graph-context-menu"
+            :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+        >
+            <button class="ctx-item" @click="onContextOpen">Open</button>
+            <button class="ctx-item" @click="onContextHide">Hide</button>
+            <button class="ctx-item ctx-item--danger" @click="onContextRemove">
+                Remove from graph
+            </button>
+        </div>
+
+        <!-- Hidden nodes panel -->
+        <HiddenNodesPanel
+            :open="showHiddenPanel"
+            :hidden-entities="hiddenEntities"
+            @close="showHiddenPanel = false"
+            @show-node="onShowNode"
+        />
+
+        <!-- Connection modal -->
+        <ConnectionModal
+            :open="connModal.show"
+            :connection="connModal.connection"
+            :source-name="connModal.sourceName"
+            :target-name="connModal.targetName"
+            @close="connModal.show = false"
+            @saved="onConnectionSaved"
+            @deleted="onConnectionDeleted"
+        />
     </div>
-    <div ref="cyContainer" class="cy-canvas" />
-    <div v-if="tooltip.show" class="graph-tooltip" :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }">
-      <div class="tooltip-name">{{ tooltip.name }}</div>
-      <div class="tooltip-type">{{ tooltip.type }}</div>
-      <div v-if="tooltip.meta" class="tooltip-meta">{{ tooltip.meta }}</div>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from '~/stores/notes'
-import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import {
-  GiScrollUnfurled, GiBookAura, GiDeathNote, GiMagicHat,
-  GiHouseKeys, GiSandsOfTime, GiAllSeeingEye, GiCastle,
-  GiCoins, GiBroadsword,
-} from 'oh-vue-icons/icons/gi'
+    VueFlow,
+    type Node,
+    type Edge,
+    type Connection,
+    type VueFlowStore,
+} from "@vue-flow/core";
+import { Background } from "@vue-flow/background";
+import { Controls } from "@vue-flow/controls";
+import { useNotesStore, type Entity } from "~/stores/notes";
+import { ENTITY_TYPE_CONFIG } from "~/types/entities";
+import { dbApi, type DbEntityConnection } from "~/composables/useDb";
+import EntityNode from "~/components/graph/EntityNode.vue";
+import {
+    GiScrollUnfurled,
+    GiBookAura,
+    GiDeathNote,
+    GiMagicHat,
+    GiHouseKeys,
+    GiSandsOfTime,
+    GiAllSeeingEye,
+    GiCastle,
+    GiCoins,
+    GiBroadsword,
+} from "oh-vue-icons/icons/gi";
 
-const props = defineProps<{ campaignId: number }>()
-const emit = defineEmits<{ navigate: [type: string, name: string] }>()
+const props = defineProps<{ campaignId: number }>();
+const emit = defineEmits<{ navigate: [type: string, name: string] }>();
 
-const store = useNotesStore()
-const cyContainer = ref<HTMLElement | null>(null)
-let cy: any = null
+const store = useNotesStore();
+let flowApi: VueFlowStore | null = null;
 
-// Keyed by "id:portraitSrc|icon" — invalidates automatically when portrait/icon changes
-const imageCache = new Map<string, string>()
-
-const tooltip = ref({ show: false, x: 0, y: 0, name: '', type: '', meta: '' })
-const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({ type, ...cfg }))
-const typeColorMap = Object.fromEntries(Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]))
-const activeTypes = ref<Set<string>>(new Set(Object.keys(ENTITY_TYPE_CONFIG)))
-
-function toggleType(type: string) {
-  const next = new Set(activeTypes.value)
-  if (next.has(type)) {
-    if (next.size === 1) return // keep at least one
-    next.delete(type)
-  } else {
-    next.add(type)
-  }
-  activeTypes.value = next
-  applyTypeFilter()
+function onPaneReady(api: VueFlowStore) {
+    flowApi = api;
 }
 
-function applyTypeFilter() {
-  if (!cy) return
-  cy.nodes().forEach((node: any) => {
-    if (activeTypes.value.has(node.data('type'))) {
-      node.style('display', 'element')
-    } else {
-      node.style('display', 'none')
-    }
-  })
-  cy.edges().forEach((edge: any) => {
-    const srcVisible = activeTypes.value.has(edge.source().data('type'))
-    const tgtVisible = activeTypes.value.has(edge.target().data('type'))
-    edge.style('display', srcVisible && tgtVisible ? 'element' : 'none')
-  })
+// ── Node type registration ────────────────────────────────────────────────────
+const nodeTypes = { entity: EntityNode };
+
+// ── Reactive state ────────────────────────────────────────────────────────────
+const nodes = ref<Node[]>([]);
+const edges = ref<Edge[]>([]);
+const positions = ref<Record<number, { x: number; y: number }>>({});
+const hiddenNodes = ref<Set<number>>(new Set());
+const visibleTypes = ref<Set<string>>(new Set(Object.keys(ENTITY_TYPE_CONFIG)));
+const showMentions = ref(true);
+const showHiddenPanel = ref(false);
+const connections = ref<DbEntityConnection[]>([]);
+const imageCache = new Map<string, string>();
+
+const searchQuery = ref("");
+const searchResults = ref<Entity[]>([]);
+const searchWrapRef = ref<HTMLElement | null>(null);
+
+const contextMenu = ref({ show: false, x: 0, y: 0, entityId: 0 });
+const connModal = ref({
+    show: false,
+    connection: null as DbEntityConnection | null,
+    sourceName: "",
+    targetName: "",
+});
+
+let viewportZoom = 1;
+let viewportX = 0;
+let viewportY = 0;
+let layoutSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ── Type config helpers ───────────────────────────────────────────────────────
+const typeTabs = Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({
+    type,
+    ...cfg,
+}));
+
+function typeColor(type: string): string {
+    return (ENTITY_TYPE_CONFIG as any)[type]?.color ?? "var(--text3)";
 }
 
-// Registry mapping icon name -> oh-vue-icons icon object
+// ── Icon registry for SVG fallback ───────────────────────────────────────────
 const iconRegistry: Record<string, any> = {
-  'gi-scroll-unfurled': GiScrollUnfurled,
-  'gi-book-aura': GiBookAura,
-  'gi-death-note': GiDeathNote,
-  'gi-magic-hat': GiMagicHat,
-  'gi-house-keys': GiHouseKeys,
-  'gi-sands-of-time': GiSandsOfTime,
-  'gi-all-seeing-eye': GiAllSeeingEye,
-  'gi-castle': GiCastle,
-  'gi-coins': GiCoins,
-  'gi-broadsword': GiBroadsword,
-}
+    "gi-scroll-unfurled": GiScrollUnfurled,
+    "gi-book-aura": GiBookAura,
+    "gi-death-note": GiDeathNote,
+    "gi-magic-hat": GiMagicHat,
+    "gi-house-keys": GiHouseKeys,
+    "gi-sands-of-time": GiSandsOfTime,
+    "gi-all-seeing-eye": GiAllSeeingEye,
+    "gi-castle": GiCastle,
+    "gi-coins": GiCoins,
+    "gi-broadsword": GiBroadsword,
+};
 
-// Fallback: colored circle with initial letter
 function makeInitialDataUrl(color: string, initial: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
     <circle cx="22" cy="22" r="21" fill="#1e1e1e" stroke="${color}" stroke-width="1.5"/>
-    <text x="22" y="28" text-anchor="middle" font-family="var(--font-display)" font-size="16" font-weight="700" fill="${color}">${initial}</text>
-  </svg>`
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+    <text x="22" y="28" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="${color}">${initial}</text>
+  </svg>`;
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 }
 
-// Render an oh-vue-icons icon as a circular SVG data URL
 function makeOhIconDataUrl(iconName: string, color: string): string | null {
-  const icon = iconRegistry[iconName]
-  if (!icon?.raw) return null
-
-  const iconSize = 28
-  const offset = (44 - iconSize) / 2
-  const scaleX = iconSize / icon.width
-  const scaleY = iconSize / icon.height
-  const translateX = offset - icon.minX * scaleX
-  const translateY = offset - icon.minY * scaleY
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+    const icon = iconRegistry[iconName];
+    if (!icon?.raw) return null;
+    const iconSize = 28;
+    const offset = (44 - iconSize) / 2;
+    const scaleX = iconSize / icon.width;
+    const scaleY = iconSize / icon.height;
+    const translateX = offset - icon.minX * scaleX;
+    const translateY = offset - icon.minY * scaleY;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
     <circle cx="22" cy="22" r="21" fill="#1e1e1e" stroke="${color}" stroke-width="1.5"/>
     <g transform="translate(${translateX},${translateY}) scale(${scaleX},${scaleY})" fill="${color}">
       ${icon.raw}
     </g>
-  </svg>`
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+  </svg>`;
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 }
 
-async function getNodeImage(entity: any): Promise<string> {
-  const attrs = entity.attributes ?? {}
-  const color = typeColorMap[entity.type] ?? '#606060'
-
-  // Notes: render the selected icon
-  if (entity.type === 'note' && attrs.icon) {
-    const iconUrl = makeOhIconDataUrl(attrs.icon, color)
-    if (iconUrl) return iconUrl
-  }
-
-  // Other entities: use portrait/image if available
-  const imageSrc = attrs.portraitSource || attrs.imageSource
-  const imageType = attrs.portraitType || attrs.imageType
-  if (imageSrc) {
-    try {
-      // Images are stored as data URLs in IndexedDB, just return directly
-      if (imageSrc) return imageSrc
-    } catch { /* fall through */ }
-  }
-
-  // Fallback: initial letter in type color
-  return makeInitialDataUrl(color, entity.name.charAt(0).toUpperCase())
+async function getNodeImage(entity: Entity): Promise<string> {
+    const attrs = entity.attributes ?? {};
+    const color = typeColor(entity.type);
+    if (entity.type === "note" && (attrs as any).icon) {
+        const url = makeOhIconDataUrl((attrs as any).icon, color);
+        if (url) return url;
+    }
+    const imageSrc =
+        (attrs as any).portraitSource || (attrs as any).imageSource;
+    if (imageSrc) return imageSrc;
+    return makeInitialDataUrl(color, entity.name.charAt(0).toUpperCase());
 }
 
-function imageCacheKey(entity: any): string {
-  const attrs = entity.attributes ?? {}
-  return `${entity.id}:${attrs.portraitSource || attrs.imageSource || attrs.icon || ''}`
+function imageCacheKey(entity: Entity): string {
+    const attrs = entity.attributes ?? {};
+    return `${entity.id}:${(attrs as any).portraitSource || (attrs as any).imageSource || (attrs as any).icon || ""}`;
 }
 
-async function buildNodesWithImages() {
-  const campaignEntities = store.entities.filter(e => e.campaignId === props.campaignId)
-  await Promise.all(
-    campaignEntities.map(async (entity) => {
-      const key = imageCacheKey(entity)
-      if (!imageCache.has(key)) {
-        imageCache.set(key, await getNodeImage(entity))
-      }
-    })
-  )
-  const { nodes, edges } = store.getGraphData(props.campaignId)
-  const nodesWithImages = nodes.map((n: any) => {
-    const entity = campaignEntities.find(e => e.id === n.data.entityId)
-    const img = entity ? (imageCache.get(imageCacheKey(entity)) ?? '') : ''
-    return { data: { ...n.data, image: img } }
-  })
-  return { nodesWithImages, edges }
+// ── Computed helpers ──────────────────────────────────────────────────────────
+const canvasEntityIds = computed(
+    () => new Set(Object.keys(positions.value).map(Number)),
+);
+
+const hiddenEntities = computed(() =>
+    store.entities.filter((e) => hiddenNodes.value.has(e.id!)),
+);
+
+// ── Build helpers ─────────────────────────────────────────────────────────────
+function buildNode(
+    entity: Entity,
+    position: { x: number; y: number },
+    imageUrl: string,
+): Node {
+    return {
+        id: String(entity.id),
+        type: "entity",
+        position,
+        data: {
+            entityId: entity.id!,
+            name: entity.name,
+            type: entity.type,
+            color: typeColor(entity.type),
+            imageUrl,
+            attributes: entity.attributes ?? {},
+        },
+        hidden: !visibleTypes.value.has(entity.type),
+    };
 }
 
-let rebuildTimer: ReturnType<typeof setTimeout> | null = null
-function scheduleRebuild() {
-  if (rebuildTimer) clearTimeout(rebuildTimer)
-  rebuildTimer = setTimeout(async () => {
-    if (!cy) return
-    const { nodesWithImages, edges } = await buildNodesWithImages()
-    cy.elements().remove()
-    cy.add([...nodesWithImages, ...edges])
-    cy.style(buildStyle())
-    resetLayout()
-  }, 300)
+function buildEdges(): Edge[] {
+    const result: Edge[] = [];
+    const onCanvasIds = new Set(
+        store.entities
+            .filter(
+                (e) =>
+                    canvasEntityIds.value.has(e.id!) &&
+                    !hiddenNodes.value.has(e.id!),
+            )
+            .map((e) => e.id!),
+    );
+    const explicitPairs = new Set<string>();
+
+    for (const conn of connections.value) {
+        if (
+            !onCanvasIds.has(conn.source_entity_id) ||
+            !onCanvasIds.has(conn.target_entity_id)
+        )
+            continue;
+        explicitPairs.add(`${conn.source_entity_id}-${conn.target_entity_id}`);
+        explicitPairs.add(`${conn.target_entity_id}-${conn.source_entity_id}`);
+
+        const edgeStyle: Record<string, any> = {};
+        if (conn.color) edgeStyle.stroke = conn.color;
+
+        const markerEnd =
+            conn.direction !== "none" ? { type: "arrowclosed" } : undefined;
+        const markerStart =
+            conn.direction === "two-way" ? { type: "arrowclosed" } : undefined;
+
+        result.push({
+            id: `conn-${conn.id}`,
+            source: String(conn.source_entity_id),
+            target: String(conn.target_entity_id),
+            label: conn.label || undefined,
+            style: edgeStyle,
+            markerEnd,
+            markerStart,
+            data: { isExplicit: true, connectionId: conn.id },
+        } as Edge);
+    }
+
+    if (showMentions.value) {
+        for (const link of store.links) {
+            const sourceEntity = store.entities.find(
+                (e) => e.id === link.sourceId,
+            );
+            if (!sourceEntity || !onCanvasIds.has(sourceEntity.id!)) continue;
+            const targetEntity = store.findByTypeAndName(
+                link.targetType,
+                link.targetName,
+            );
+            if (!targetEntity || !onCanvasIds.has(targetEntity.id!)) continue;
+            const pairKey = `${sourceEntity.id}-${targetEntity.id}`;
+            if (explicitPairs.has(pairKey)) continue;
+            result.push({
+                id: `mention-${link.sourceId}-${link.targetType}-${link.targetName}`,
+                source: String(sourceEntity.id),
+                target: String(targetEntity.id),
+                style: { strokeDasharray: "5,5", stroke: "var(--text3)" },
+                selectable: false,
+                focusable: false,
+                data: { isExplicit: false },
+            } as Edge);
+        }
+    }
+
+    return result;
 }
 
+async function rebuildGraph() {
+    const canvasEnts = store.entities.filter(
+        (e) =>
+            canvasEntityIds.value.has(e.id!) && !hiddenNodes.value.has(e.id!),
+    );
+    await Promise.all(
+        canvasEnts.map(async (entity) => {
+            const key = imageCacheKey(entity);
+            if (!imageCache.has(key)) {
+                imageCache.set(key, await getNodeImage(entity));
+            }
+        }),
+    );
+    nodes.value = canvasEnts.map((e) =>
+        buildNode(
+            e,
+            positions.value[e.id!],
+            imageCache.get(imageCacheKey(e)) ?? "",
+        ),
+    );
+    edges.value = buildEdges();
+}
+
+// ── Add entity to graph ───────────────────────────────────────────────────────
+async function addEntityToGraph(entity: Entity) {
+    const entityId = entity.id!;
+    if (canvasEntityIds.value.has(entityId)) return;
+    hiddenNodes.value.delete(entityId);
+    positions.value = {
+        ...positions.value,
+        [entityId]: {
+            x: Math.random() * 400 - 200,
+            y: Math.random() * 400 - 200,
+        },
+    };
+    await rebuildGraph();
+    scheduleLayoutSave();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function onSearchInput() {
+    const q = searchQuery.value.toLowerCase().trim();
+    if (!q) {
+        searchResults.value = [];
+        return;
+    }
+    searchResults.value = store.entities
+        .filter(
+            (e) =>
+                e.campaignId === props.campaignId &&
+                !canvasEntityIds.value.has(e.id!) &&
+                e.name.toLowerCase().includes(q),
+        )
+        .slice(0, 8);
+}
+
+// ── Type visibility ───────────────────────────────────────────────────────────
+function toggleType(type: string) {
+    const next = new Set(visibleTypes.value);
+    if (next.has(type)) {
+        if (next.size === 1) return;
+        next.delete(type);
+    } else next.add(type);
+    visibleTypes.value = next;
+    nodes.value = nodes.value.map((n) => ({
+        ...n,
+        hidden: !next.has(n.data.type),
+    }));
+}
+
+// ── Mentions toggle ───────────────────────────────────────────────────────────
+function toggleMentions() {
+    showMentions.value = !showMentions.value;
+    edges.value = buildEdges();
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+async function onConnect(conn: Connection) {
+    const sourceId = Number(conn.source);
+    const targetId = Number(conn.target);
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const newConn = await dbApi.connections.add({
+        campaign_id: props.campaignId,
+        source_entity_id: sourceId,
+        target_entity_id: targetId,
+        label: "",
+        direction: "one-way",
+        color: null,
+    });
+    connections.value = [...connections.value, newConn];
+    edges.value = buildEdges();
+}
+
+function onNodeDragStop(event: {
+    event: MouseEvent;
+    node: Node;
+    nodes: Node[];
+}) {
+    const { node } = event;
+    positions.value = {
+        ...positions.value,
+        [Number(node.id)]: node.position,
+    };
+    scheduleLayoutSave();
+}
+
+function onMoveEnd({
+    flowTransform,
+}: {
+    flowTransform: { x: number; y: number; zoom: number };
+}) {
+    viewportZoom = flowTransform.zoom;
+    viewportX = flowTransform.x;
+    viewportY = flowTransform.y;
+    scheduleLayoutSave();
+}
+
+function onNodeDoubleClick(event: { node: Node }) {
+    const entity = store.entities.find((e) => e.id === Number(event.node.id));
+    if (entity) emit("navigate", entity.type, entity.name);
+}
+
+function onNodeContextMenu(event: { event: MouseEvent; node: Node }) {
+    event.event.preventDefault();
+    contextMenu.value = {
+        show: true,
+        x: event.event.clientX,
+        y: event.event.clientY,
+        entityId: Number(event.node.id),
+    };
+}
+
+function onEdgeContextMenu(event: { event: MouseEvent; edge: Edge }) {
+    event.event.preventDefault();
+    if (!event.edge.data?.isExplicit) return;
+    const conn = connections.value.find(
+        (c) => c.id === event.edge.data.connectionId,
+    );
+    if (!conn) return;
+    const src = store.entities.find((e) => e.id === conn.source_entity_id);
+    const tgt = store.entities.find((e) => e.id === conn.target_entity_id);
+    connModal.value = {
+        show: true,
+        connection: conn,
+        sourceName: src?.name ?? "",
+        targetName: tgt?.name ?? "",
+    };
+}
+
+// ── Context menu actions ──────────────────────────────────────────────────────
+function onContextOpen() {
+    const entity = store.entities.find(
+        (e) => e.id === contextMenu.value.entityId,
+    );
+    if (entity) emit("navigate", entity.type, entity.name);
+    contextMenu.value.show = false;
+}
+
+function onContextHide() {
+    const entityId = contextMenu.value.entityId;
+    hiddenNodes.value = new Set([...hiddenNodes.value, entityId]);
+    nodes.value = nodes.value.filter((n) => Number(n.id) !== entityId);
+    edges.value = buildEdges();
+    contextMenu.value.show = false;
+    scheduleLayoutSave();
+}
+
+function onContextRemove() {
+    const entityId = contextMenu.value.entityId;
+    const { [entityId]: _, ...rest } = positions.value;
+    positions.value = rest;
+    nodes.value = nodes.value.filter((n) => Number(n.id) !== entityId);
+    edges.value = buildEdges();
+    contextMenu.value.show = false;
+    scheduleLayoutSave();
+}
+
+// ── Show hidden node ──────────────────────────────────────────────────────────
+async function onShowNode(entityId: number) {
+    hiddenNodes.value = new Set(
+        [...hiddenNodes.value].filter((id) => id !== entityId),
+    );
+    if (!positions.value[entityId]) {
+        positions.value = {
+            ...positions.value,
+            [entityId]: {
+                x: Math.random() * 400 - 200,
+                y: Math.random() * 400 - 200,
+            },
+        };
+    }
+    await rebuildGraph();
+    scheduleLayoutSave();
+}
+
+// ── Connection modal ──────────────────────────────────────────────────────────
+async function onConnectionSaved(updated: DbEntityConnection) {
+    if (!updated.id) return;
+    await dbApi.connections.update(updated.id, {
+        label: updated.label,
+        direction: updated.direction,
+        color: updated.color,
+    });
+    connections.value = connections.value.map((c) =>
+        c.id === updated.id ? updated : c,
+    );
+    edges.value = buildEdges();
+    connModal.value.show = false;
+}
+
+async function onConnectionDeleted(id: number) {
+    await dbApi.connections.delete(id);
+    connections.value = connections.value.filter((c) => c.id !== id);
+    edges.value = buildEdges();
+    connModal.value.show = false;
+}
+
+// ── Layout persistence ────────────────────────────────────────────────────────
+function scheduleLayoutSave() {
+    if (layoutSaveTimer) clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = setTimeout(saveLayout, 1000);
+}
+
+async function saveLayout() {
+    await dbApi.graphLayout.save({
+        campaign_id: props.campaignId,
+        positions: JSON.stringify(positions.value),
+        hidden_nodes: JSON.stringify([...hiddenNodes.value]),
+        zoom: viewportZoom,
+        pan_x: viewportX,
+        pan_y: viewportY,
+    });
+}
+
+function fitGraph() {
+    fitView({ padding: 0.1 });
+}
+
+// ── Mount ─────────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  const [cytoscape, layoutExt] = await Promise.all([
-    import('cytoscape'),
-    import('cytoscape-cose-bilkent'),
-  ])
-  const Cytoscape = cytoscape.default
-  Cytoscape.use(layoutExt.default)
+    if (!store.entities.length) await store.loadAll(props.campaignId);
 
-  const { nodesWithImages, edges } = await buildNodesWithImages()
+    const [layout, conns] = await Promise.all([
+        dbApi.graphLayout.get(props.campaignId),
+        dbApi.connections.list(props.campaignId),
+    ]);
 
-  cy = Cytoscape({
-    container: cyContainer.value,
-    elements: [...nodesWithImages, ...edges],
-    style: buildStyle(),
-    layout: {
-      name: nodesWithImages.length > 80 ? 'breadthfirst' : 'cose-bilkent',
-      animate: false,
-      randomize: false,
-      idealEdgeLength: 100,
-      nodeRepulsion: 6000,
-      nodeDimensionsIncludeLabels: true,
-    },
-    wheelSensitivity: 0.3,
-  })
+    connections.value = conns;
 
-  cy.on('tap', 'node', (evt: any) => {
-    const { type, label } = evt.target.data()
-    emit('navigate', type, label)
-  })
-  cy.on('mouseover', 'node', (evt: any) => {
-    const pos = evt.renderedPosition
-    tooltip.value = { show: true, x: pos.x + 12, y: pos.y - 10, name: evt.target.data('label'), type: evt.target.data('type'), meta: '' }
-  })
-  cy.on('mouseover', 'edge', (evt: any) => {
-    const pos = evt.renderedPosition
-    tooltip.value = { show: true, x: pos.x + 12, y: pos.y - 10, name: `${evt.target.source().data('label')} → ${evt.target.target().data('label')}`, type: 'link', meta: '' }
-  })
-  cy.on('mouseout', 'node edge', () => { tooltip.value.show = false })
-})
+    if (layout) {
+        positions.value = JSON.parse(layout.positions);
+        hiddenNodes.value = new Set(JSON.parse(layout.hidden_nodes));
+        viewportZoom = layout.zoom;
+        viewportX = layout.pan_x;
+        viewportY = layout.pan_y;
+    }
 
-// Watch structural changes only — no deep traversal of link objects
-watch(
-  [() => store.entities.filter(e => e.campaignId === props.campaignId).length, () => store.links.length],
-  scheduleRebuild
-)
+    await rebuildGraph();
+});
 
-function buildStyle() {
-  return [
-    {
-      selector: 'node',
-      style: {
-        'width': '44px',
-        'height': '44px',
-        'background-color': (ele: any) => typeColorMap[ele.data('type')] ?? '#606060',
-        'background-image': (ele: any) => ele.data('image') || 'none',
-        'background-fit': 'cover',
-        'background-clip': 'node',
-        'border-width': '2px',
-        'border-color': (ele: any) => typeColorMap[ele.data('type')] ?? '#606060',
-        'border-opacity': 0.8,
-        'shape': 'ellipse',
-        'label': 'data(label)',
-        'color': '#f0f0f0',
-        'font-family': 'DM Sans, system-ui, sans-serif',
-        'font-size': '11px',
-        'text-valign': 'bottom',
-        'text-margin-y': '6px',
-        'text-outline-color': '#141414',
-        'text-outline-width': '2px',
-        'cursor': 'pointer',
-      },
-    },
-    {
-      selector: 'node:selected',
-      style: { 'border-width': '3px', 'border-opacity': 1, 'width': '52px', 'height': '52px' },
-    },
-    {
-      selector: 'edge',
-      style: {
-        'width': 1.5,
-        'line-color': '#484848',
-        'target-arrow-color': '#484848',
-        'target-arrow-shape': 'triangle',
-        'curve-style': 'bezier',
-        'label': 'data(label)',
-        'font-size': '10px',
-        'color': '#a0a0a0',
-        'text-outline-color': '#141414',
-        'text-outline-width': '2px',
-        'font-family': 'DM Sans, system-ui, sans-serif',
-      },
-    },
-    {
-      selector: 'edge:hover',
-      style: { 'line-color': '#b8860b', 'target-arrow-color': '#b8860b' },
-    },
-  ]
-}
+// Watch for entity/link changes
+watch([() => store.entities.length, () => store.links.length], () => {
+    rebuildGraph();
+});
 
-function resetLayout() {
-  if (!cy) return
-  const n = cy.nodes().length
-  cy.layout({
-    name: n > 80 ? 'breadthfirst' : 'cose-bilkent',
-    animate: n < 40,
-    animationDuration: 300,
-    randomize: false,
-    idealEdgeLength: 100,
-    nodeRepulsion: 6000,
-    nodeDimensionsIncludeLabels: true,
-  }).run()
-}
-function fitView() { cy?.fit(undefined, 40) }
 onUnmounted(() => {
-  if (rebuildTimer) clearTimeout(rebuildTimer)
-  cy?.destroy()
-})
+    if (layoutSaveTimer) clearTimeout(layoutSaveTimer);
+});
 </script>
 
 <style scoped>
 .graph-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
-  position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
 }
 
 .graph-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--parch-dark);
-  border-bottom: 1px solid var(--parch-line);
-  flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 10;
+}
+
+.graph-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.graph-search {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.graph-search-input {
+    width: 200px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--r1);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.12s;
+}
+.graph-search-input:focus {
+    border-color: var(--accent);
+}
+
+.graph-search-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 240px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.graph-search-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.graph-search-item:hover {
+    background: var(--surface-hi);
+}
+
+.gsi-type {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
 }
 
 .type-filters {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: 8px;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
 }
 
 .type-filter-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--parch-dark);
-  border: 1px solid var(--parch-line);
-  color: var(--ink-ghost);
-  font-size: 11px;
-  font-weight: 600;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
 }
-.type-filter-btn:hover { color: var(--ink); }
+.type-filter-btn:hover {
+    color: var(--text2);
+}
 
 .legend-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
-.cy-canvas {
-  flex: 1;
-  background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply;
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: var(--r1);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+    flex-shrink: 0;
+}
+.toolbar-btn:hover {
+    border-color: var(--border-hi);
+    background: var(--surface-hi);
+}
+.toolbar-btn.active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent-l);
 }
 
-/* Tooltip sits on Cytoscape's dark canvas — no parchment variables apply */
-.graph-tooltip {
-  position: absolute;
-  pointer-events: none;
-  background: #1e1e1e;
-  border: 1px solid #484848;
-  border-radius: 8px;
-  padding: 8px 12px;
-  z-index: var(--z-sidebar);
-  max-width: 200px;
+.graph-canvas-wrapper {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
 }
 
-.tooltip-name {
-  font-family: var(--font-display);
-  font-size: 13px;
-  color: var(--gold);
+.graph-context-menu {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+    z-index: 200;
+    overflow: hidden;
+    min-width: 140px;
 }
 
-.tooltip-type {
-  font-size: 11px;
-  color: #606060; /* neutral gray for dark tooltip */
-  font-family: 'DM Sans', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.ctx-item {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.1s;
 }
-
-.tooltip-meta {
-  font-size: 11px;
-  color: var(--gold);
-  margin-top: 2px;
-  font-family: 'DM Sans', sans-serif;
+.ctx-item:hover {
+    background: var(--surface-hi);
+}
+.ctx-item--danger {
+    color: var(--danger);
+}
+.ctx-item--danger:hover {
+    background: var(--danger-bg, #3a1a1a);
 }
 </style>

@@ -1,1 +1,3 @@
-<template><CampaignEntityEntry type="location" /></template>
+<template>
+    <NuxtPage />
+</template>

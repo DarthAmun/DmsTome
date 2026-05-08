@@ -148,18 +148,40 @@ export interface DbRecord {
   updatedAt: string
 }
 
+export interface DbEntityConnection {
+  id?: number
+  campaign_id: number
+  source_entity_id: number
+  target_entity_id: number
+  label: string            // empty string = no label
+  direction: 'one-way' | 'two-way' | 'none'
+  color: string | null     // null = default edge color
+}
+
+export interface DbGraphLayout {
+  id?: number
+  campaign_id: number      // one per campaign
+  positions: string        // JSON: Record<entityId, {x, y}>
+  hidden_nodes: string     // JSON: number[]
+  zoom: number
+  pan_x: number
+  pan_y: number
+}
+
 // ── Database class ─────────────────────────────────────────────────────────
 class DmForgeDb extends Dexie {
-  campaigns!:        Table<DbCampaign>
-  encounters!:       Table<DbEncounter>
-  tokens!:           Table<DbToken>
-  encounterTokens!:  Table<DbEncounterToken>
-  entities!:         Table<DbEntity>
-  entityLinks!:      Table<DbEntityLink>
-  systems!:          Table<DbSystem>
-  records!:          Table<DbRecord>
-  encounterWalls!:   Table<DbEncounterWall>
-  entitySnapshots!:  Table<DbEntitySnapshot>
+  campaigns!:         Table<DbCampaign>
+  encounters!:        Table<DbEncounter>
+  tokens!:            Table<DbToken>
+  encounterTokens!:   Table<DbEncounterToken>
+  entities!:          Table<DbEntity>
+  entityLinks!:       Table<DbEntityLink>
+  systems!:           Table<DbSystem>
+  records!:           Table<DbRecord>
+  encounterWalls!:    Table<DbEncounterWall>
+  entitySnapshots!:   Table<DbEntitySnapshot>
+  entityConnections!: Table<DbEntityConnection>
+  graphLayouts!:      Table<DbGraphLayout>
 
   constructor() {
     super('dmforge')
@@ -253,6 +275,21 @@ class DmForgeDb extends Dexie {
       records:          '++id, systemId, entityTypeId, name, updatedAt',
       encounterWalls:   '++id, encounter_id',
       entitySnapshots:  '++id, entity_id, event_id, created_at',
+    })
+    // v9: add entityConnections and graphLayouts tables for graph overhaul
+    this.version(9).stores({
+      campaigns:          '++id, updated_at, system_id',
+      encounters:         '++id, campaign_id, created_at',
+      tokens:             '++id, is_template, name',
+      encounterTokens:    '++id, encounter_id, token_id, linked_record_id',
+      entities:           '++id, campaign_id, type, name',
+      entityLinks:        '++id, source_id, target_type, target_name',
+      systems:            '++id, shortId, updatedAt',
+      records:            '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:     '++id, encounter_id',
+      entitySnapshots:    '++id, entity_id, event_id, created_at',
+      entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
+      graphLayouts:       '++id, campaign_id',
     })
   }
 }
@@ -675,6 +712,47 @@ export const dbApi = {
     async deleteByEntity(entityId: number): Promise<void> {
       await getDb().entitySnapshots
         .where('entity_id').equals(entityId).delete()
+    },
+  },
+
+  // ── Entity connections (explicit graph edges) ─────────────────────────
+  connections: {
+    async list(campaignId: number): Promise<DbEntityConnection[]> {
+      return getDb().entityConnections
+        .where('campaign_id').equals(campaignId).toArray()
+    },
+    async add(conn: Omit<DbEntityConnection, 'id'>): Promise<DbEntityConnection> {
+      const id = await getDb().entityConnections.add(conn as DbEntityConnection)
+      return { ...conn, id }
+    },
+    async update(id: number, changes: Partial<DbEntityConnection>): Promise<void> {
+      await getDb().entityConnections.update(id, changes)
+    },
+    async delete(id: number): Promise<void> {
+      await getDb().entityConnections.delete(id)
+    },
+    async deleteByEntity(entityId: number): Promise<void> {
+      const db = getDb()
+      await db.entityConnections.where('source_entity_id').equals(entityId).delete()
+      await db.entityConnections.where('target_entity_id').equals(entityId).delete()
+    },
+  },
+
+  // ── Graph layout (persisted positions + hidden nodes per campaign) ─────
+  graphLayout: {
+    async get(campaignId: number): Promise<DbGraphLayout | undefined> {
+      return getDb().graphLayouts
+        .where('campaign_id').equals(campaignId).first()
+    },
+    async save(layout: Omit<DbGraphLayout, 'id'> & { id?: number }): Promise<void> {
+      const db = getDb()
+      const existing = await db.graphLayouts
+        .where('campaign_id').equals(layout.campaign_id).first()
+      if (existing?.id) {
+        await db.graphLayouts.update(existing.id, layout)
+      } else {
+        await db.graphLayouts.add(layout as DbGraphLayout)
+      }
     },
   },
 

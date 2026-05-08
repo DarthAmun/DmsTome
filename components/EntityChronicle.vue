@@ -9,9 +9,9 @@
           {{ typeConfig?.plural }}
         </div>
         <div v-if="hasViewToggle" class="elist-vtabs">
-          <button class="elist-vbtn" :class="{ active: viewMode === 'list' }" @click="setView('list')">List</button>
-          <button v-if="type === 'event'" class="elist-vbtn" :class="{ active: viewMode === 'timeline' }" @click="setView('timeline')">Timeline</button>
-          <button v-if="type === 'session'" class="elist-vbtn" :class="{ active: viewMode === 'log' }" @click="setView('log')">Log</button>
+          <button class="elist-vbtn" :class="{ active: !route.path.endsWith('/log') && !route.path.endsWith('/timeline') }" @click="setView('list')">List</button>
+          <button v-if="type === 'event'" class="elist-vbtn" :class="{ active: route.path.endsWith('/timeline') }" @click="setView('timeline')">Timeline</button>
+          <button v-if="type === 'session'" class="elist-vbtn" :class="{ active: route.path.endsWith('/log') }" @click="setView('log')">Log</button>
           <button v-if="type === 'location'" class="elist-vbtn" :class="{ active: viewMode === 'map' }" @click="setView('map')">Map</button>
         </div>
         <button class="btn-accent-sm" @click="createEntry">+ New</button>
@@ -107,8 +107,8 @@
     <!-- ── Right panel: special view or child route ── -->
     <div class="edetail">
 
-      <!-- Event timeline (vertical) -->
-      <div v-if="type === 'event' && viewMode === 'timeline'" class="sv-timeline">
+      <!-- Event timeline (vertical) — only shown if no dedicated timeline route child is active -->
+      <div v-if="false" class="sv-timeline">
         <div v-if="!timelineEvents.length" class="sv-empty">
           <OhVueIcon name="gi-sands-of-time" scale="2.5" style="opacity:0.1" />
           <span>No events yet.</span>
@@ -147,8 +147,8 @@
         </div>
       </div>
 
-      <!-- Session log -->
-      <div v-else-if="type === 'session' && viewMode === 'log'" class="sv-log">
+      <!-- Session log — only shown if no dedicated log route child is active -->
+      <div v-else-if="false" class="sv-log">
         <div v-if="!logSessions.length" class="sv-empty">
           <OhVueIcon name="gi-book-aura" scale="2.5" style="opacity:0.1" />
           <span>No sessions recorded yet.</span>
@@ -183,8 +183,8 @@
         </div>
       </div>
 
-      <!-- World map (locations) -->
-      <div v-else-if="type === 'location' && viewMode === 'map'" class="sv-map">
+      <!-- World map (locations) — not shown when navigated to a specific location entry -->
+      <div v-else-if="type === 'location' && viewMode === 'map' && !activeEntryId" class="sv-map">
         <WorldMap
           v-if="mapRootId"
           :campaign-id="campaignId"
@@ -243,6 +243,22 @@ const viewMode = ref(
   hasViewToggle && import.meta.client ? (localStorage.getItem(localKey) || 'list') : 'list'
 )
 function setView(m: string) {
+  if (m === 'log' && props.type === 'session') {
+    router.push(`/campaign/${campaignId.value}/sessions/log`)
+    return
+  }
+  if (m === 'timeline' && props.type === 'event') {
+    router.push(`/campaign/${campaignId.value}/events/timeline`)
+    return
+  }
+  if (m === 'list' && props.type === 'session' && route.path.endsWith('/log')) {
+    router.push(`/campaign/${campaignId.value}/sessions`)
+    return
+  }
+  if (m === 'list' && props.type === 'event' && route.path.endsWith('/timeline')) {
+    router.push(`/campaign/${campaignId.value}/events`)
+    return
+  }
   viewMode.value = m
   if (import.meta.client) localStorage.setItem(localKey, m)
   if (props.type !== 'location') return

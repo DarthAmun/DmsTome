@@ -1,0 +1,35 @@
+<template>
+    <LocationEditor
+        v-if="entryId"
+        :entity-id="entryId"
+        :campaign-id="campaignId"
+        @navigate="onNavigate"
+        @deleted="goToList"
+    />
+</template>
+
+<script setup lang="ts">
+import { useNotesStore } from "~/stores/notes";
+
+const route = useRoute();
+const router = useRouter();
+const store = useNotesStore();
+
+const campaignId = computed(() => Number(route.params.id));
+const entryId = computed(() => Number(route.params.entryId));
+
+const TYPE_PLURAL_ROUTE: Record<string, string> = {
+    npc: "npcs", location: "locations", faction: "factions",
+    quest: "quests", event: "events", session: "sessions", note: "notes",
+};
+
+function onNavigate(type: string, name: string) {
+    const entry = store.findByTypeAndName(type, name);
+    if (!entry) return;
+    router.push(`/campaign/${campaignId.value}/${TYPE_PLURAL_ROUTE[type] ?? type + "s"}/${entry.id}`);
+}
+
+function goToList() {
+    router.push(`/campaign/${campaignId.value}/locations`);
+}
+</script>

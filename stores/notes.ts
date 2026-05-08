@@ -116,6 +116,7 @@ export const useNotesStore = defineStore('notes', () => {
   async function deleteEntity(id: number) {
     try {
       await dbApi.snapshots.deleteByEntity(id)
+      await dbApi.connections.deleteByEntity(id)
       await dbApi.entities.delete(id)
       entities.value = entities.value.filter(e => e.id !== id)
       links.value = links.value.filter(l => l.sourceId !== id)
