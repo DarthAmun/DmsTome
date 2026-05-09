@@ -88,6 +88,9 @@
 
         <!-- Vue Flow canvas -->
         <div class="graph-canvas-wrapper">
+            <Transition name="graph-fade">
+                <div v-if="graphLoading" class="graph-loading-cover" />
+            </Transition>
             <VueFlow
                 v-model:nodes="nodes"
                 v-model:edges="edges"
@@ -157,9 +160,20 @@ const emit = defineEmits<{ navigate: [type: string, name: string] }>();
 
 const store = useNotesStore();
 let flowApi: VueFlowStore | null = null;
+let pendingFit = false;
+const graphLoading = ref(true);
+
+function fitAndReveal() {
+    flowApi?.fitView({ padding: 0.1 });
+    graphLoading.value = false;
+}
 
 function onPaneReady(api: VueFlowStore) {
     flowApi = api;
+    if (pendingFit) {
+        pendingFit = false;
+        nextTick(fitAndReveal);
+    }
 }
 
 // ── Node type registration ────────────────────────────────────────────────────
@@ -251,7 +265,7 @@ async function getNodeImage(entity: Entity): Promise<string> {
     const imageSrc =
         (attrs as any).portraitSource || (attrs as any).imageSource;
     if (imageSrc) return imageSrc;
-    return makeInitialDataUrl(color, entity.name.charAt(0).toUpperCase());
+    return '';
 }
 
 function imageCacheKey(entity: Entity): string {
@@ -576,6 +590,8 @@ function fitGraph() {
 }
 
 async function loadGraph() {
+    pendingFit = false;
+    graphLoading.value = true;
     if (!store.entities.length) await store.loadAll(props.campaignId);
 
     const [layout, conns] = await Promise.all([
@@ -597,9 +613,11 @@ async function loadGraph() {
     }
 
     await rebuildGraph()
-    if (layout && flowApi) {
-        await nextTick()
-        flowApi.setViewport({ x: viewportX, y: viewportY, zoom: viewportZoom })
+    await nextTick()
+    if (flowApi) {
+        fitAndReveal()
+    } else {
+        pendingFit = true
     }
 }
 
@@ -766,6 +784,21 @@ onUnmounted(() => {
     min-height: 0;
     position: relative;
     overflow: hidden;
+}
+
+.graph-loading-cover {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.graph-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+.graph-fade-leave-to {
+    opacity: 0;
 }
 
 </style>

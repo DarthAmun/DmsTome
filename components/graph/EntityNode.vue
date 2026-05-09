@@ -59,8 +59,8 @@
 
         <!-- All other types: image on top, content below -->
         <div v-else class="en-inner">
-            <div class="en-image" :style="{ borderColor: data.color + '66' }">
-                <img v-if="data.imageUrl" :src="data.imageUrl" class="en-image-img" />
+            <div v-if="data.imageUrl" class="en-image" :style="{ borderColor: data.color + '66' }">
+                <img :src="data.imageUrl" class="en-image-img" />
             </div>
             <div class="en-body">
                 <div class="en-badge" :style="{ color: data.color, borderColor: data.color + '44', background: data.color + '11' }">{{ data.type }}</div>
@@ -157,7 +157,7 @@ function formatKey(key: string): string {
 }
 .en-inner--row {
     flex-direction: row;
-    height: 110px;
+    min-height: 110px;
 }
 
 /* ── NodeToolbar ── */
@@ -260,7 +260,6 @@ function formatKey(key: string): string {
     gap: 4px;
     flex: 1;
     min-width: 0;
-    overflow: hidden;
 }
 .en-badge {
     display: inline-block;

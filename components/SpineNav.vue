@@ -36,9 +36,9 @@
         :to="`/campaign/${ctx.campaignId.value}/graphs`"
         class="spine-tab spine-tab--l2"
         :class="{ active: route.path.includes('/graph') }"
-        title="Graph">
+        title="Graphs">
         <OhVueIcon name="gi-all-seeing-eye" scale="0.8" />
-        <span class="spine-label">Graph</span>
+        <span class="spine-label">Graphs</span>
       </NuxtLink>
       <NuxtLink
         :to="`/campaign/${ctx.campaignId.value}/encounters`"
