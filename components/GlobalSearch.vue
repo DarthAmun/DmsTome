@@ -149,6 +149,33 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Graphs -->
+              <div v-if="results.graphs.length" class="gs-group">
+                <div class="gs-group-label">Graphs</div>
+                <div
+                  v-for="(item, i) in results.graphs"
+                  :key="`g-${item.id}`"
+                  class="gs-result"
+                  :class="{ 'gs-result--active': flatIndex(4, i) === cursor }"
+                  @click="navigate(item)"
+                  @mouseenter="cursor = flatIndex(4, i)"
+                >
+                  <span class="gs-result-icon" style="color: #7cc44e">
+                    <OhVueIcon name="gi-all-seeing-eye" scale="0.8" />
+                  </span>
+                  <span class="gs-result-name">{{ item.name }}</span>
+                  <span class="gs-result-sub">Graph</span>
+                  <div class="gs-result-actions" @click.stop>
+                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                    </button>
+                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                      <OhVueIcon name="md-openinnew" scale="0.75" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </template>
           </div>
 
@@ -198,7 +225,7 @@ const resultsRef = ref<HTMLElement | null>(null)
 const isMac = import.meta.client && /Mac|iPhone|iPad/.test(navigator.platform)
 
 interface SearchResult {
-  kind: 'campaign' | 'entity' | 'record' | 'encounter'
+  kind: 'campaign' | 'entity' | 'record' | 'encounter' | 'graph'
   id: number
   name: string
   type?: string
@@ -209,24 +236,26 @@ interface SearchResult {
   entity?: Entity
 }
 
-const results = ref<{ campaigns: SearchResult[]; entities: SearchResult[]; records: SearchResult[]; encounters: SearchResult[] }>({
+const results = ref<{ campaigns: SearchResult[]; entities: SearchResult[]; records: SearchResult[]; encounters: SearchResult[]; graphs: SearchResult[] }>({
   campaigns: [],
   entities: [],
   records: [],
   encounters: [],
+  graphs: [],
 })
 
 const totalCount = computed(() =>
-  results.value.campaigns.length + results.value.entities.length + results.value.records.length + results.value.encounters.length
+  results.value.campaigns.length + results.value.entities.length + results.value.records.length + results.value.encounters.length + results.value.graphs.length
 )
 
 // Flat cursor index across all groups
-function flatIndex(group: 0 | 1 | 2 | 3, i: number): number {
+function flatIndex(group: 0 | 1 | 2 | 3 | 4, i: number): number {
   const offsets = [
     0,
     results.value.campaigns.length,
     results.value.campaigns.length + results.value.entities.length,
     results.value.campaigns.length + results.value.entities.length + results.value.records.length,
+    results.value.campaigns.length + results.value.entities.length + results.value.records.length + results.value.encounters.length,
   ]
   return offsets[group] + i
 }
@@ -236,6 +265,7 @@ const flatResults = computed((): SearchResult[] => [
   ...results.value.entities,
   ...results.value.records,
   ...results.value.encounters,
+  ...results.value.graphs,
 ])
 
 // Entity type helpers
@@ -266,7 +296,7 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(query, (val) => {
   if (searchTimer) clearTimeout(searchTimer)
-  if (!val.trim()) { results.value = { campaigns: [], entities: [], records: [], encounters: [] }; return }
+  if (!val.trim()) { results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }; return }
   loading.value = true
   searchTimer = setTimeout(() => runSearch(val.trim()), 150)
 })
@@ -328,7 +358,17 @@ async function runSearch(q: string) {
     _subtitle: `Campaign ${e.campaign_id}`,
   }))
 
-  results.value = { campaigns, entities, records, encounters }
+  // Graphs
+  const graphRows = await dbApi.graphLayout.searchAll(lq, 5)
+  const graphs: SearchResult[] = graphRows.map((g: any) => ({
+    kind: 'graph' as const,
+    id: g.id!,
+    name: g.name ?? 'Default',
+    campaignId: g.campaign_id,
+    _subtitle: `Campaign ${g.campaign_id}`,
+  }))
+
+  results.value = { campaigns, entities, records, encounters, graphs }
   cursor.value = 0
   loading.value = false
 }
@@ -348,6 +388,7 @@ function getRoute(item: SearchResult): string {
   }
   if (item.kind === 'record') return `/system/${item.systemId}/${item.entityTypeId}?record=${encodeURIComponent(item.name)}`
   if (item.kind === 'encounter') return `/encounter/${item.id}`
+  if (item.kind === 'graph') return `/campaign/${item.campaignId}/graphs?graph=${item.id}`
   return '/'
 }
 
@@ -375,6 +416,8 @@ function toggleResultBookmark(item: SearchResult) {
     bookmarkPage(`/campaign/${item.id}`, item.name, 'gi-broadsword', 'var(--blood)')
   } else if (item.kind === 'encounter') {
     bookmarkPage(`/encounter/${item.id}`, item.name, 'gi-broadsword', '#4ab8e8')
+  } else if (item.kind === 'graph') {
+    bookmarkPage(getRoute(item), item.name, 'gi-all-seeing-eye', '#7cc44e')
   }
 }
 
@@ -406,7 +449,7 @@ function scrollResultIntoView() {
 function close() {
   open.value = false
   query.value = ''
-  results.value = { campaigns: [], entities: [], records: [], encounters: [] }
+  results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }
   cursor.value = 0
 }
 

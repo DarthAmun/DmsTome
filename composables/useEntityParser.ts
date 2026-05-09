@@ -13,7 +13,7 @@ export interface ParsedLink {
   metadata: Record<string, string>
 }
 
-const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter']
+const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter', 'graph']
 
 // Allows apostrophes and other special chars in names — stops at @, |, or }
 // Groups: 1=type, 2=name, 3=snapshotLabel (@ sigil, optional), 4=meta (| sigil, optional)

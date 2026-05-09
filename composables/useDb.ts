@@ -161,7 +161,8 @@ export interface DbEntityConnection {
 
 export interface DbGraphLayout {
   id?: number
-  campaign_id: number      // one per campaign
+  campaign_id: number
+  name: string             // user-visible graph name
   positions: string        // JSON: Record<entityId, {x, y}>
   hidden_nodes: string     // JSON: number[]
   zoom: number
@@ -291,6 +292,25 @@ class DmForgeDb extends Dexie {
       entitySnapshots:    '++id, entity_id, event_id, created_at',
       entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
       graphLayouts:       '++id, campaign_id',
+    })
+    // v10: add name field to graphLayouts; migrate single layouts to named "Default"
+    this.version(10).stores({
+      campaigns:          '++id, updated_at, system_id',
+      encounters:         '++id, campaign_id, created_at',
+      tokens:             '++id, is_template, name',
+      encounterTokens:    '++id, encounter_id, token_id, linked_record_id',
+      entities:           '++id, campaign_id, type, name',
+      entityLinks:        '++id, source_id, target_type, target_name',
+      systems:            '++id, shortId, updatedAt',
+      records:            '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:     '++id, encounter_id',
+      entitySnapshots:    '++id, entity_id, event_id, created_at',
+      entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
+      graphLayouts:       '++id, campaign_id, name',
+    }).upgrade(async tx => {
+      await tx.table('graphLayouts').toCollection().modify((layout: any) => {
+        if (!layout.name) layout.name = 'Default'
+      })
     })
   }
 }
@@ -739,21 +759,42 @@ export const dbApi = {
     },
   },
 
-  // ── Graph layout (persisted positions + hidden nodes per campaign) ─────
+  // ── Graph layouts (multiple named graphs per campaign) ───────────────
   graphLayout: {
-    async get(campaignId: number): Promise<DbGraphLayout | undefined> {
-      return getDb().graphLayouts
-        .where('campaign_id').equals(campaignId).first()
+    async list(campaignId: number): Promise<DbGraphLayout[]> {
+      const all = await getDb().graphLayouts.where('campaign_id').equals(campaignId).toArray()
+      return all.map(g => ({ ...g, name: g.name ?? 'Default' }))
     },
-    async save(layout: Omit<DbGraphLayout, 'id'> & { id?: number }): Promise<void> {
-      const db = getDb()
-      const existing = await db.graphLayouts
-        .where('campaign_id').equals(layout.campaign_id).first()
-      if (existing?.id) {
-        await db.graphLayouts.update(existing.id, layout)
-      } else {
-        await db.graphLayouts.add(layout as DbGraphLayout)
-      }
+    async get(id: number): Promise<DbGraphLayout | undefined> {
+      return getDb().graphLayouts.get(id)
+    },
+    async create(campaignId: number, name: string): Promise<number> {
+      return getDb().graphLayouts.add({
+        campaign_id: campaignId,
+        name,
+        positions: '{}',
+        hidden_nodes: '[]',
+        zoom: 1,
+        pan_x: 0,
+        pan_y: 0,
+      } as DbGraphLayout) as Promise<number>
+    },
+    async save(id: number, data: Pick<DbGraphLayout, 'positions' | 'hidden_nodes' | 'zoom' | 'pan_x' | 'pan_y'>): Promise<void> {
+      await getDb().graphLayouts.update(id, data)
+    },
+    async rename(id: number, name: string): Promise<void> {
+      await getDb().graphLayouts.update(id, { name })
+    },
+    async delete(id: number): Promise<void> {
+      await getDb().graphLayouts.delete(id)
+    },
+    async searchAll(query: string, limit = 5): Promise<DbGraphLayout[]> {
+      const lq = query.toLowerCase()
+      const all = await getDb().graphLayouts.toArray()
+      return all
+        .filter(g => (g.name ?? 'Default').toLowerCase().includes(lq))
+        .slice(0, limit)
+        .map(g => ({ ...g, name: g.name ?? 'Default' }))
     },
   },
 

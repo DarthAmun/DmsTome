@@ -87,7 +87,7 @@
                     <span class="camp-chapter-arrow">›</span>
                 </NuxtLink>
 
-                <NuxtLink :to="`/campaign/${id}/graph`" class="camp-chapter">
+                <NuxtLink :to="`/campaign/${id}/graphs`" class="camp-chapter">
                     <span class="camp-chapter-icon" style="color: #7cc44e">⬡</span>
                     <div class="camp-chapter-body">
                         <div class="camp-chapter-name">Knowledge Graph</div>

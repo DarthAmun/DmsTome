@@ -58,6 +58,7 @@ import { useSystemsStore } from '~/stores/systems'
 import { useSettings } from '~/composables/useSettings'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
+import { dbApi } from '~/composables/useDb'
 
 const router = useRouter()
 const { settings, update: updateSettings } = useSettings()
@@ -86,6 +87,10 @@ const currentFullRoute = computed(() => {
   if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {
     return `${route.path}?map=${mapId}`
   }
+  const graphId = route.query.graph as string | undefined
+  if (graphId && route.path.match(/\/campaign\/\d+\/graphs$/)) {
+    return `${route.path}?graph=${graphId}`
+  }
   return route.path
 })
 
@@ -95,9 +100,11 @@ function isCurrentRoute(bmRoute: string): boolean {
   const bmRecord = bmParams.get('record')
   const bmSnap = bmParams.get('snap')
   const bmMap = bmParams.get('map')
+  const bmGraph = bmParams.get('graph')
   if (bmRecord) return route.path === bmPath && (route.query.record as string) === bmRecord
   if (bmSnap) return route.path === bmPath && (route.query.snap as string) === bmSnap
   if (bmMap) return route.path === bmPath && (route.query.map as string) === bmMap
+  if (bmGraph) return route.path === bmPath && (route.query.graph as string) === bmGraph
   return route.path === bmPath
 }
 
@@ -111,12 +118,21 @@ const currentEntity = computed(() => {
 
 const isCurrentPageBookmarked = computed(() => isBookmarked(currentFullRoute.value))
 
-function toggleCurrentPage() {
+async function toggleCurrentPage() {
   if (isCurrentPageBookmarked.value) {
     const bm = bookmarks.value.find(b => b.route === currentFullRoute.value)
     if (bm) removeBookmark(bm.id)
     return
   }
+  // Graph bookmark (?graph=graphId)
+  const graphId = route.query.graph as string | undefined
+  if (graphId && route.path.match(/\/campaign\/\d+\/graphs$/)) {
+    const layout = await dbApi.graphLayout.get(Number(graphId))
+    const graphName = layout?.name ?? 'Graph'
+    bookmarkPage(currentFullRoute.value, graphName, 'gi-all-seeing-eye', '#7cc44e')
+    return
+  }
+
   // Location map bookmark (?map=locationId)
   const mapId = route.query.map as string | undefined
   if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {

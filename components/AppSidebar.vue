@@ -58,9 +58,9 @@
               <OhVueIcon :name="et.icon" scale="0.75" :style="{ color: et.color }" />
             </NuxtLink>
             <NuxtLink
-              :to="`/campaign/${c.id}/graph`"
+              :to="`/campaign/${c.id}/graphs`"
               class="sb-icon-link"
-              :class="{ active: route.path === `/campaign/${c.id}/graph` }"
+              :class="{ active: route.path.startsWith(`/campaign/${c.id}/graph`) }"
               data-tip="Graph"
             >
               <OhVueIcon name="gi-all-seeing-eye" scale="0.75" style="color: #7cc44e" />
@@ -162,9 +162,9 @@
                 <span>Encounters</span>
               </NuxtLink>
               <NuxtLink
-                :to="`/campaign/${c.id}/graph`"
+                :to="`/campaign/${c.id}/graphs`"
                 class="sb-child-tool"
-                :class="{ active: route.path === `/campaign/${c.id}/graph` }"
+                :class="{ active: route.path.startsWith(`/campaign/${c.id}/graph`) }"
               >
                 <OhVueIcon name="gi-all-seeing-eye" scale="0.65" style="color:#7cc44e;width:14px;flex-shrink:0" />
                 <span>Graph</span>

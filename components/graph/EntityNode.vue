@@ -1,19 +1,19 @@
 <template>
+    <NodeToolbar :is-visible="isHovered" :position="Position.Top" class="en-toolbar"
+        @mouseenter="cancelHide" @mouseleave="scheduleHide">
+        <button class="en-tb-btn" @click="data.onOpen?.()">Open</button>
+        <button class="en-tb-btn" @click="data.onHide?.()">Hide</button>
+        <button class="en-tb-btn en-tb-btn--danger" @click="data.onRemove?.()">Remove</button>
+    </NodeToolbar>
+
     <div
         class="en-node"
         :class="[`en-node--${data.type}`, { 'en-node--hovered': isHovered }]"
-        @mouseenter="isHovered = true"
-        @mouseleave="isHovered = false"
+        @mouseenter="showToolbar"
+        @mouseleave="scheduleHide"
     >
         <Handle id="top" type="target" :position="Position.Top" class="en-handle" />
         <Handle id="bottom" type="source" :position="Position.Bottom" class="en-handle" />
-
-        <!-- Hover toolbar -->
-        <div v-if="isHovered" class="en-toolbar" @click.stop @mousedown.stop>
-            <button class="en-tb-btn" @click="data.onOpen?.()">Open</button>
-            <button class="en-tb-btn" @click="data.onHide?.()">Hide</button>
-            <button class="en-tb-btn en-tb-btn--danger" @click="data.onRemove?.()">Remove</button>
-        </div>
 
         <!-- NPC: portrait on left, content on right -->
         <div v-if="data.type === 'npc'" class="en-inner en-inner--row">
@@ -56,6 +56,7 @@
 
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
+import { NodeToolbar } from '@vue-flow/node-toolbar'
 
 const props = defineProps<{
     data: {
@@ -72,6 +73,20 @@ const props = defineProps<{
 }>()
 
 const isHovered = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToolbar() {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+    isHovered.value = true
+}
+function scheduleHide() {
+    hideTimer = setTimeout(() => { isHovered.value = false }, 80)
+}
+function cancelHide() {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+}
+
+onUnmounted(() => { if (hideTimer) clearTimeout(hideTimer) })
 
 const EXCLUDED_SUFFIXES = ['Source', 'source', 'Type', 'type', 'Content', 'content']
 
@@ -121,12 +136,8 @@ function formatKey(key: string): string {
     height: 110px;
 }
 
-/* ── Hover toolbar ── */
+/* ── NodeToolbar ── */
 .en-toolbar {
-    position: absolute;
-    top: -32px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
     gap: 2px;
     background: var(--surface);
@@ -134,7 +145,6 @@ function formatKey(key: string): string {
     border-radius: var(--r2);
     padding: 3px 6px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.28);
-    z-index: 20;
     white-space: nowrap;
 }
 .en-tb-btn {

@@ -161,7 +161,7 @@ import {
     GiBroadsword,
 } from "oh-vue-icons/icons/gi";
 
-const props = defineProps<{ campaignId: number }>();
+const props = defineProps<{ campaignId: number; graphId: number }>();
 const emit = defineEmits<{ navigate: [type: string, name: string] }>();
 
 const store = useNotesStore();
@@ -569,8 +569,7 @@ function scheduleLayoutSave() {
 }
 
 async function saveLayout() {
-    await dbApi.graphLayout.save({
-        campaign_id: props.campaignId,
+    await dbApi.graphLayout.save(props.graphId, {
         positions: JSON.stringify(positions.value),
         hidden_nodes: JSON.stringify([...hiddenNodes.value]),
         zoom: viewportZoom,
@@ -583,16 +582,18 @@ function fitGraph() {
     flowApi?.fitView({ padding: 0.1 })
 }
 
-// ── Mount ─────────────────────────────────────────────────────────────────────
-onMounted(async () => {
+async function loadGraph() {
     if (!store.entities.length) await store.loadAll(props.campaignId);
 
     const [layout, conns] = await Promise.all([
-        dbApi.graphLayout.get(props.campaignId),
+        dbApi.graphLayout.get(props.graphId),
         dbApi.connections.list(props.campaignId),
     ]);
 
     connections.value = conns;
+    positions.value = {}
+    hiddenNodes.value = new Set()
+    viewportZoom = 1; viewportX = 0; viewportY = 0
 
     if (layout) {
         positions.value = JSON.parse(layout.positions);
@@ -607,7 +608,12 @@ onMounted(async () => {
         await nextTick()
         flowApi.setViewport({ x: viewportX, y: viewportY, zoom: viewportZoom })
     }
-})
+}
+
+// ── Mount ─────────────────────────────────────────────────────────────────────
+onMounted(loadGraph)
+
+watch(() => props.graphId, loadGraph)
 
 // Watch for entity/link changes
 watch([() => store.entities.length, () => store.links.length], () => {

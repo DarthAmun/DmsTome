@@ -33,7 +33,7 @@
       </div>
 
       <NuxtLink
-        :to="`/campaign/${ctx.campaignId.value}/graph`"
+        :to="`/campaign/${ctx.campaignId.value}/graphs`"
         class="spine-tab spine-tab--l2"
         :class="{ active: route.path.includes('/graph') }"
         title="Graph">

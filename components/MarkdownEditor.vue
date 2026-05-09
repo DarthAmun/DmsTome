@@ -235,7 +235,7 @@ import { useNotesStore } from "~/stores/notes";
 import { useSystemsStore } from "~/stores/systems";
 import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
 import { useDiceRoll } from "~/composables/useDiceRoll";
-import { getDb } from "~/composables/useDb";
+import { getDb, dbApi } from "~/composables/useDb";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
 import type { EntityType } from "~/types/entities";
 
@@ -367,6 +367,7 @@ const typeColorMap: Record<string, string> = {
     ),
     encounter: ENCOUNTER_COLOR,
     snapshot: "var(--gold)",
+    graph: "#7cc44e",
 };
 
 // ── Post-processing ───────────────────────────────────────────────────────────
@@ -421,6 +422,9 @@ function entityLookup(type: string, name: string) {
                 : typeIconHtml("encounter", ENCOUNTER_COLOR),
             color: ENCOUNTER_COLOR,
         };
+    }
+    if (typeKey === "graph") {
+        return { color: "#7cc44e" };
     }
     const ent = store.findByTypeAndName(typeKey, name);
     if (ent) {
@@ -871,6 +875,17 @@ async function checkAutocomplete(
               )
               .map((e) => ({ type: "encounter", name: e.name, id: e.id }))
         : [];
+    let graphCandidates: { type: string; name: string; id: number }[] = [];
+    if ("graph".startsWith(partialType)) {
+        const graphs = await dbApi.graphLayout.list(props.campaignId);
+        graphCandidates = graphs
+            .filter(
+                (g) =>
+                    !partialName ||
+                    (g.name ?? "Default").toLowerCase().includes(partialName.toLowerCase()),
+            )
+            .map((g) => ({ type: "graph", name: g.name ?? "Default", id: g.id! }));
+    }
     let sysCandidates: { type: string; name: string; id: number }[] = [];
     if (campaignSystemId.value) {
         const matchingSysType = systemEntityTypes.value.find(
@@ -899,6 +914,7 @@ async function checkAutocomplete(
     const candidates = [
         ...campaignCandidates,
         ...encounterCandidates,
+        ...graphCandidates,
         ...sysCandidates,
     ].slice(0, 8);
     autocomplete.value = {
@@ -1055,6 +1071,12 @@ async function onPreviewClick(e: MouseEvent) {
             (e) => e.name.toLowerCase() === name.toLowerCase(),
         );
         if (enc) router.push(`/encounter/${enc.id}`);
+        return;
+    }
+    if (type === "graph") {
+        const graphs = await dbApi.graphLayout.list(props.campaignId);
+        const g = graphs.find((gr) => (gr.name ?? "Default").toLowerCase() === name.toLowerCase());
+        if (g?.id) router.push(`/campaign/${props.campaignId}/graphs?graph=${g.id}`);
         return;
     }
     const sysType = systemEntityTypes.value.find(
@@ -1588,6 +1610,10 @@ onMounted(() => {
 .entity-ref--encounter {
     color: #e8a87a;
     background: rgba(217, 141, 91, 0.15);
+}
+.entity-ref--graph {
+    color: #7cc44e;
+    background: rgba(100, 180, 60, 0.15);
 }
 .entity-ref-avatar {
     display: inline-block;
