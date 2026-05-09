@@ -164,15 +164,17 @@ let pendingFit = false;
 const graphLoading = ref(true);
 
 function fitAndReveal() {
-    flowApi?.fitView({ padding: 0.1 });
-    graphLoading.value = false;
+    setTimeout(() => {
+        flowApi?.fitView({ padding: 0.1 });
+        graphLoading.value = false;
+    }, 60);
 }
 
 function onPaneReady(api: VueFlowStore) {
     flowApi = api;
     if (pendingFit) {
         pendingFit = false;
-        nextTick(fitAndReveal);
+        fitAndReveal();
     }
 }
 
@@ -613,7 +615,6 @@ async function loadGraph() {
     }
 
     await rebuildGraph()
-    await nextTick()
     if (flowApi) {
         fitAndReveal()
     } else {
