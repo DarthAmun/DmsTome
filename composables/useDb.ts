@@ -156,6 +156,7 @@ export interface DbEntityConnection {
   label: string            // empty string = no label
   direction: 'one-way' | 'two-way' | 'none'
   color: string | null     // null = default edge color
+  edgeType?: 'default' | 'straight' | 'step' | 'smoothstep'
 }
 
 export interface DbGraphLayout {

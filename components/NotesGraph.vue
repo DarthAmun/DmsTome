@@ -1,5 +1,5 @@
 <template>
-    <div class="graph-container" @click="contextMenu.show = false">
+    <div class="graph-container">
         <!-- Toolbar -->
         <div class="graph-toolbar">
             <!-- Entity search -->
@@ -103,28 +103,13 @@
                 @node-drag-stop="onNodeDragStop"
                 @move-end="onMoveEnd"
                 @node-double-click="onNodeDoubleClick"
-                @node-context-menu="onNodeContextMenu"
                 @edge-context-menu="onEdgeContextMenu"
-                @pane-click="contextMenu.show = false"
                 :snap-to-grid="true"
                 :snap-grid="[10, 10]"
             >
                 <Background pattern-color="var(--text)" :gap="20" />
                 <Controls />
             </VueFlow>
-        </div>
-
-        <!-- Context menu -->
-        <div
-            v-if="contextMenu.show"
-            class="graph-context-menu"
-            :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-        >
-            <button class="ctx-item" @click="onContextOpen">Open</button>
-            <button class="ctx-item" @click="onContextHide">Hide</button>
-            <button class="ctx-item ctx-item--danger" @click="onContextRemove">
-                Remove from graph
-            </button>
         </div>
 
         <!-- Hidden nodes panel -->
@@ -162,6 +147,7 @@ import { useNotesStore, type Entity } from "~/stores/notes";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
 import { dbApi, type DbEntityConnection } from "~/composables/useDb";
 import EntityNode from "~/components/graph/EntityNode.vue";
+import { markRaw } from "vue";
 import {
     GiScrollUnfurled,
     GiBookAura,
@@ -186,7 +172,7 @@ function onPaneReady(api: VueFlowStore) {
 }
 
 // ── Node type registration ────────────────────────────────────────────────────
-const nodeTypes = { entity: EntityNode };
+const nodeTypes = { entity: markRaw(EntityNode) };
 
 // ── Reactive state ────────────────────────────────────────────────────────────
 const nodes = ref<Node[]>([]);
@@ -203,7 +189,6 @@ const searchQuery = ref("");
 const searchResults = ref<Entity[]>([]);
 const searchWrapRef = ref<HTMLElement | null>(null);
 
-const contextMenu = ref({ show: false, x: 0, y: 0, entityId: 0 });
 const connModal = ref({
     show: false,
     connection: null as DbEntityConnection | null,
@@ -294,25 +279,36 @@ const hiddenEntities = computed(() =>
 );
 
 // ── Build helpers ─────────────────────────────────────────────────────────────
-function buildNode(
-    entity: Entity,
-    position: { x: number; y: number },
-    imageUrl: string,
-): Node {
+function buildNode(entity: Entity, position: { x: number; y: number }, imageUrl: string): Node {
+    const entityId = entity.id!
     return {
-        id: String(entity.id),
-        type: "entity",
+        id: String(entityId),
+        type: 'entity',
         position,
         data: {
-            entityId: entity.id!,
+            entityId,
             name: entity.name,
             type: entity.type,
             color: typeColor(entity.type),
             imageUrl,
             attributes: entity.attributes ?? {},
+            onOpen: () => emit('navigate', entity.type, entity.name),
+            onHide: () => {
+                hiddenNodes.value = new Set([...hiddenNodes.value, entityId])
+                nodes.value = nodes.value.filter(n => Number(n.id) !== entityId)
+                edges.value = buildEdges()
+                scheduleLayoutSave()
+            },
+            onRemove: () => {
+                const { [entityId]: _dropped, ...rest } = positions.value
+                positions.value = rest
+                nodes.value = nodes.value.filter(n => Number(n.id) !== entityId)
+                edges.value = buildEdges()
+                scheduleLayoutSave()
+            },
         },
         hidden: !visibleTypes.value.has(entity.type),
-    };
+    }
 }
 
 function buildEdges(): Edge[] {
@@ -347,6 +343,7 @@ function buildEdges(): Edge[] {
 
         result.push({
             id: `conn-${conn.id}`,
+            type: conn.edgeType ?? 'smoothstep',
             source: String(conn.source_entity_id),
             target: String(conn.target_entity_id),
             label: conn.label || undefined,
@@ -507,16 +504,6 @@ function onNodeDoubleClick(event: { node: Node }) {
     if (entity) emit("navigate", entity.type, entity.name);
 }
 
-function onNodeContextMenu(event: { event: MouseEvent; node: Node }) {
-    event.event.preventDefault();
-    contextMenu.value = {
-        show: true,
-        x: event.event.clientX,
-        y: event.event.clientY,
-        entityId: Number(event.node.id),
-    };
-}
-
 function onEdgeContextMenu(event: { event: MouseEvent; edge: Edge }) {
     event.event.preventDefault();
     if (!event.edge.data?.isExplicit) return;
@@ -532,34 +519,6 @@ function onEdgeContextMenu(event: { event: MouseEvent; edge: Edge }) {
         sourceName: src?.name ?? "",
         targetName: tgt?.name ?? "",
     };
-}
-
-// ── Context menu actions ──────────────────────────────────────────────────────
-function onContextOpen() {
-    const entity = store.entities.find(
-        (e) => e.id === contextMenu.value.entityId,
-    );
-    if (entity) emit("navigate", entity.type, entity.name);
-    contextMenu.value.show = false;
-}
-
-function onContextHide() {
-    const entityId = contextMenu.value.entityId;
-    hiddenNodes.value = new Set([...hiddenNodes.value, entityId]);
-    nodes.value = nodes.value.filter((n) => Number(n.id) !== entityId);
-    edges.value = buildEdges();
-    contextMenu.value.show = false;
-    scheduleLayoutSave();
-}
-
-function onContextRemove() {
-    const entityId = contextMenu.value.entityId;
-    const { [entityId]: _, ...rest } = positions.value;
-    positions.value = rest;
-    nodes.value = nodes.value.filter((n) => Number(n.id) !== entityId);
-    edges.value = buildEdges();
-    contextMenu.value.show = false;
-    scheduleLayoutSave();
 }
 
 // ── Show hidden node ──────────────────────────────────────────────────────────
@@ -587,6 +546,7 @@ async function onConnectionSaved(updated: DbEntityConnection) {
         label: updated.label,
         direction: updated.direction,
         color: updated.color,
+        edgeType: updated.edgeType,
     });
     connections.value = connections.value.map((c) =>
         c.id === updated.id ? updated : c,
@@ -620,7 +580,7 @@ async function saveLayout() {
 }
 
 function fitGraph() {
-    fitView({ padding: 0.1 });
+    flowApi?.fitView({ padding: 0.1 })
 }
 
 // ── Mount ─────────────────────────────────────────────────────────────────────
@@ -642,8 +602,12 @@ onMounted(async () => {
         viewportY = layout.pan_y;
     }
 
-    await rebuildGraph();
-});
+    await rebuildGraph()
+    if (layout && flowApi) {
+        await nextTick()
+        flowApi.setViewport({ x: viewportX, y: viewportY, zoom: viewportZoom })
+    }
+})
 
 // Watch for entity/link changes
 watch([() => store.entities.length, () => store.links.length], () => {
@@ -805,36 +769,4 @@ onUnmounted(() => {
     overflow: hidden;
 }
 
-.graph-context-menu {
-    position: fixed;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r2);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
-    z-index: 200;
-    overflow: hidden;
-    min-width: 140px;
-}
-
-.ctx-item {
-    display: block;
-    width: 100%;
-    padding: 8px 14px;
-    text-align: left;
-    font-size: 12px;
-    color: var(--text);
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: background 0.1s;
-}
-.ctx-item:hover {
-    background: var(--surface-hi);
-}
-.ctx-item--danger {
-    color: var(--danger);
-}
-.ctx-item--danger:hover {
-    background: var(--danger-bg, #3a1a1a);
-}
 </style>

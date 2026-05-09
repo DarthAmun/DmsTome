@@ -242,6 +242,7 @@ const localKey = `dmstome.${props.type}.view`
 const viewMode = ref(
   hasViewToggle && import.meta.client ? (localStorage.getItem(localKey) || 'list') : 'list'
 )
+
 function setView(m: string) {
   if (m === 'log' && props.type === 'session') {
     router.push(`/campaign/${campaignId.value}/sessions/log`)
@@ -339,15 +340,24 @@ function formatSessionDate(dateStr: string): string {
 const mapRootId = computed(() =>
   props.type === 'location' && route.query.map ? Number(route.query.map) : null
 )
+
+// Auto-switch to map mode when ?map= is present in URL (e.g. navigating via bookmark)
+watch(mapRootId, (id) => {
+  if (id !== null && props.type === 'location' && viewMode.value !== 'map') {
+    viewMode.value = 'map'
+    if (import.meta.client) localStorage.setItem(localKey, 'map')
+  }
+}, { immediate: true })
+
 const mapStack = computed<number[]>(() => {
   const s = route.query.stack as string | undefined
   if (!s) return []
   return s.split(',').map(Number).filter(Boolean)
 })
 
-// In map mode the left list highlights the map root; in list mode it's the detail route param
+// In map mode highlight the map root; fall back to route param when no ?map= in URL
 const activeForList = computed(() =>
-  viewMode.value === 'map' && props.type === 'location'
+  viewMode.value === 'map' && props.type === 'location' && mapRootId.value !== null
     ? mapRootId.value
     : activeEntryId.value
 )

@@ -201,6 +201,25 @@ async function onDelete() {
     emit("deleted");
 }
 
+watch(() => route.query.snap, (snapId) => {
+    const id = snapId ? Number(snapId) : null
+    if (!id) {
+        if (viewingSnapshot.value) {
+            viewingSnapshot.value = null
+            draftContent.value = entity.value?.content ?? ''
+            draftAttributes.value = { ...(entity.value?.attributes ?? {}) }
+        }
+        return
+    }
+    if (viewingSnapshot.value?.id === id) return
+    const snap = store.snapshots.find(s => s.id === id)
+    if (snap) {
+        viewingSnapshot.value = snap
+        draftContent.value = snap.content
+        draftAttributes.value = { ...snap.attributes }
+    }
+})
+
 function onViewSnapshot(snap: EntitySnapshot) {
     viewingSnapshot.value = snap;
     draftContent.value = snap.content;

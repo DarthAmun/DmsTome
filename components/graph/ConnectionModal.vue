@@ -30,6 +30,16 @@
                     </div>
 
                     <div class="dlg-field">
+                        <label class="f-label">Edge style</label>
+                        <select v-model="draft.edgeType" class="f-input-box">
+                            <option value="smoothstep">Smooth step</option>
+                            <option value="default">Bezier</option>
+                            <option value="straight">Straight</option>
+                            <option value="step">Step</option>
+                        </select>
+                    </div>
+
+                    <div class="dlg-field">
                         <label class="f-label">Color</label>
                         <div class="cm-colors">
                             <button
@@ -88,6 +98,7 @@ const draft = ref({
     label: '',
     direction: 'one-way' as 'one-way' | 'two-way' | 'none',
     color: null as string | null,
+    edgeType: 'smoothstep' as 'default' | 'straight' | 'step' | 'smoothstep',
 })
 
 watch(() => props.connection, (conn) => {
@@ -96,9 +107,10 @@ watch(() => props.connection, (conn) => {
             label: conn.label,
             direction: conn.direction,
             color: conn.color,
+            edgeType: conn.edgeType ?? 'smoothstep',
         }
     } else {
-        draft.value = { label: '', direction: 'one-way', color: null }
+        draft.value = { label: '', direction: 'one-way', color: null, edgeType: 'smoothstep' }
     }
 }, { immediate: true })
 
@@ -109,6 +121,7 @@ function onSave() {
         label: draft.value.label,
         direction: draft.value.direction,
         color: draft.value.color,
+        edgeType: draft.value.edgeType,
     })
 }
 

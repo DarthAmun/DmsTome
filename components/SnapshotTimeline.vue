@@ -3,7 +3,7 @@
 
     <!-- History mode banner -->
     <div v-if="viewingSnapshot" class="snap-banner">
-      <OhVueIcon name="gi-time" scale="0.85" style="color:var(--gold)" />
+      <OhVueIcon name="gi-sands-of-time" scale="0.85" style="color:var(--gold)" />
       <span class="snap-banner-label">
         Viewing: <strong>{{ viewingSnapshot.label }}</strong>
       </span>
@@ -39,7 +39,7 @@
           @click="emit('view-snapshot', snap)"
         >
           <span v-if="snap.eventId" class="snap-marker-event">
-            <OhVueIcon name="gi-lightning" scale="0.55" />
+            <OhVueIcon name="gi-focused-lightning" scale="0.55" />
             {{ snap.eventName }}
           </span>
           <div class="snap-diamond" />

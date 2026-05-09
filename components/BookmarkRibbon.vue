@@ -72,7 +72,7 @@ const systemsStore = useSystemsStore()
 
 function navigate(bm: { route: string }) { router.push(bm.route) }
 
-// Full current route including ?record= for system records and ?snap= for history snapshots
+// Full current route including query params that represent distinct bookmark targets
 const currentFullRoute = computed(() => {
   const recordName = route.query.record as string | undefined
   if (recordName && route.path.match(/^\/system\/\d+\//)) {
@@ -82,6 +82,10 @@ const currentFullRoute = computed(() => {
   if (snapId && route.path.match(/\/campaign\/\d+\/\w+\/\d+$/)) {
     return `${route.path}?snap=${snapId}`
   }
+  const mapId = route.query.map as string | undefined
+  if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {
+    return `${route.path}?map=${mapId}`
+  }
   return route.path
 })
 
@@ -90,12 +94,10 @@ function isCurrentRoute(bmRoute: string): boolean {
   const bmParams = new URLSearchParams(bmQueryStr ?? '')
   const bmRecord = bmParams.get('record')
   const bmSnap = bmParams.get('snap')
-  if (bmRecord) {
-    return route.path === bmPath && (route.query.record as string) === bmRecord
-  }
-  if (bmSnap) {
-    return route.path === bmPath && (route.query.snap as string) === bmSnap
-  }
+  const bmMap = bmParams.get('map')
+  if (bmRecord) return route.path === bmPath && (route.query.record as string) === bmRecord
+  if (bmSnap) return route.path === bmPath && (route.query.snap as string) === bmSnap
+  if (bmMap) return route.path === bmPath && (route.query.map as string) === bmMap
   return route.path === bmPath
 }
 
@@ -115,6 +117,21 @@ function toggleCurrentPage() {
     if (bm) removeBookmark(bm.id)
     return
   }
+  // Location map bookmark (?map=locationId)
+  const mapId = route.query.map as string | undefined
+  if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {
+    const locationEntity = notesStore.entities.find(e => e.id === Number(mapId))
+    const label = locationEntity ? `${locationEntity.name} (Map)` : 'Map'
+    const config = ENTITY_TYPE_CONFIG['location' as EntityType]
+    bookmarkPage(
+      currentFullRoute.value,
+      label,
+      config?.defaultIcon ?? 'gi-castle',
+      config?.color ?? 'var(--ink-ghost)',
+    )
+    return
+  }
+
   const entity = currentEntity.value
   if (entity) {
     const snapId = Number(route.query.snap)
