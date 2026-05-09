@@ -107,7 +107,7 @@ useBookmarks()
 const route = useRoute()
 const router = useRouter()
 const isPlayerRoute = computed(() =>
-  route.path.endsWith('/player') || route.path.endsWith('/map-player')
+  route.path.endsWith('/player') || route.path.endsWith('/map-player') || route.path.endsWith('/graph-player')
 )
 
 const sidebarRef = ref<{ reload: () => void } | null>(null)

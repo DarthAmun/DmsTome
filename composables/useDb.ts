@@ -162,9 +162,10 @@ export interface DbEntityConnection {
 export interface DbGraphLayout {
   id?: number
   campaign_id: number
-  name: string             // user-visible graph name
-  positions: string        // JSON: Record<entityId, {x, y}>
-  hidden_nodes: string     // JSON: number[]
+  name: string              // user-visible graph name
+  positions: string         // JSON: Record<entityId, {x, y}>
+  hidden_nodes: string      // JSON: number[] (legacy, no longer used for GM)
+  player_hidden_nodes?: string // JSON: number[] — hidden from player view
   zoom: number
   pan_x: number
   pan_y: number
@@ -779,7 +780,7 @@ export const dbApi = {
         pan_y: 0,
       } as DbGraphLayout) as Promise<number>
     },
-    async save(id: number, data: Pick<DbGraphLayout, 'positions' | 'hidden_nodes' | 'zoom' | 'pan_x' | 'pan_y'>): Promise<void> {
+    async save(id: number, data: Pick<DbGraphLayout, 'positions' | 'hidden_nodes' | 'player_hidden_nodes' | 'zoom' | 'pan_x' | 'pan_y'>): Promise<void> {
       await getDb().graphLayouts.update(id, data)
     },
     async rename(id: number, name: string): Promise<void> {

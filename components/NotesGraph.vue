@@ -1,7 +1,7 @@
 <template>
     <div class="graph-container">
-        <!-- Toolbar -->
-        <div class="graph-toolbar">
+        <!-- Toolbar (hidden in player view) -->
+        <div v-if="!playerView" class="graph-toolbar">
             <!-- Entity search -->
             <div class="graph-search" ref="searchWrapRef">
                 <input
@@ -75,17 +75,13 @@
                     <OhVueIcon name="md-link" scale="0.8" />
                     Mentions
                 </button>
-                <button
-                    class="toolbar-btn"
-                    :class="{ active: showHiddenPanel }"
-                    @click="showHiddenPanel = !showHiddenPanel"
-                >
-                    <OhVueIcon name="md-visibilityoff" scale="0.8" />
-                    Hidden ({{ hiddenNodes.size }})
-                </button>
                 <button class="toolbar-btn" @click="fitGraph" title="Fit view">
                     <OhVueIcon name="md-fitscreen" scale="0.8" />
                     Fit
+                </button>
+                <button class="toolbar-btn" @click="openPlayerView" title="Open player view">
+                    <OhVueIcon name="fa-eye" scale="0.8" />
+                    Player View
                 </button>
             </div>
         </div>
@@ -98,6 +94,9 @@
                 :node-types="nodeTypes"
                 :default-edge-options="{ type: 'smoothstep', animated: false }"
                 :delete-key-code="null"
+                :nodes-draggable="!playerView"
+                :nodes-connectable="!playerView"
+                :elements-selectable="!playerView"
                 @pane-ready="onPaneReady"
                 @connect="onConnect"
                 @node-drag-stop="onNodeDragStop"
@@ -111,14 +110,6 @@
                 <Controls />
             </VueFlow>
         </div>
-
-        <!-- Hidden nodes panel -->
-        <HiddenNodesPanel
-            :open="showHiddenPanel"
-            :hidden-entities="hiddenEntities"
-            @close="showHiddenPanel = false"
-            @show-node="onShowNode"
-        />
 
         <!-- Connection modal -->
         <ConnectionModal
@@ -161,7 +152,7 @@ import {
     GiBroadsword,
 } from "oh-vue-icons/icons/gi";
 
-const props = defineProps<{ campaignId: number; graphId: number }>();
+const props = defineProps<{ campaignId: number; graphId: number; playerView?: boolean }>();
 const emit = defineEmits<{ navigate: [type: string, name: string] }>();
 
 const store = useNotesStore();
@@ -178,10 +169,9 @@ const nodeTypes = { entity: markRaw(EntityNode) };
 const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
 const positions = ref<Record<number, { x: number; y: number }>>({});
-const hiddenNodes = ref<Set<number>>(new Set());
+const playerHiddenNodes = ref<Set<number>>(new Set());
 const visibleTypes = ref<Set<string>>(new Set(Object.keys(ENTITY_TYPE_CONFIG)));
 const showMentions = ref(true);
-const showHiddenPanel = ref(false);
 const connections = ref<DbEntityConnection[]>([]);
 const imageCache = new Map<string, string>();
 
@@ -274,17 +264,17 @@ const canvasEntityIds = computed(
     () => new Set(Object.keys(positions.value).map(Number)),
 );
 
-const hiddenEntities = computed(() =>
-    store.entities.filter((e) => hiddenNodes.value.has(e.id!)),
-);
-
 // ── Build helpers ─────────────────────────────────────────────────────────────
 function buildNode(entity: Entity, position: { x: number; y: number }, imageUrl: string): Node {
     const entityId = entity.id!
+    const isPlayerHidden = playerHiddenNodes.value.has(entityId)
+    const attrs = entity.attributes as any ?? {}
+    const playerHiddenAttrs: string[] = attrs._playerHidden ?? []
     return {
         id: String(entityId),
         type: 'entity',
         position,
+        style: isPlayerHidden && !props.playerView ? { opacity: 0.35 } : undefined,
         data: {
             entityId,
             name: entity.name,
@@ -292,12 +282,27 @@ function buildNode(entity: Entity, position: { x: number; y: number }, imageUrl:
             color: typeColor(entity.type),
             imageUrl,
             attributes: entity.attributes ?? {},
+            playerHidden: isPlayerHidden,
+            playerHiddenAttrs,
+            playerView: props.playerView ?? false,
             onOpen: () => emit('navigate', entity.type, entity.name),
-            onHide: () => {
-                hiddenNodes.value = new Set([...hiddenNodes.value, entityId])
-                nodes.value = nodes.value.filter(n => Number(n.id) !== entityId)
-                edges.value = buildEdges()
+            onTogglePlayerHide: () => {
+                if (playerHiddenNodes.value.has(entityId)) {
+                    playerHiddenNodes.value = new Set([...playerHiddenNodes.value].filter(id => id !== entityId))
+                } else {
+                    playerHiddenNodes.value = new Set([...playerHiddenNodes.value, entityId])
+                }
+                rebuildGraph()
                 scheduleLayoutSave()
+            },
+            onToggleAttrHidden: async (key: string) => {
+                const current = store.entities.find(e => e.id === entityId)
+                if (!current) return
+                const a = { ...(current.attributes as any) }
+                const hidden: string[] = a._playerHidden ?? []
+                a._playerHidden = hidden.includes(key) ? hidden.filter((k: string) => k !== key) : [...hidden, key]
+                await store.updateEntity(entityId, { attributes: a })
+                await rebuildGraph()
             },
             onRemove: () => {
                 const { [entityId]: _dropped, ...rest } = positions.value
@@ -318,7 +323,7 @@ function buildEdges(): Edge[] {
             .filter(
                 (e) =>
                     canvasEntityIds.value.has(e.id!) &&
-                    !hiddenNodes.value.has(e.id!),
+                    (!props.playerView || !playerHiddenNodes.value.has(e.id!)),
             )
             .map((e) => e.id!),
     );
@@ -385,7 +390,8 @@ function buildEdges(): Edge[] {
 async function rebuildGraph() {
     const canvasEnts = store.entities.filter(
         (e) =>
-            canvasEntityIds.value.has(e.id!) && !hiddenNodes.value.has(e.id!),
+            canvasEntityIds.value.has(e.id!) &&
+            (!props.playerView || !playerHiddenNodes.value.has(e.id!)),
     );
     await Promise.all(
         canvasEnts.map(async (entity) => {
@@ -409,7 +415,6 @@ async function rebuildGraph() {
 async function addEntityToGraph(entity: Entity) {
     const entityId = entity.id!;
     if (canvasEntityIds.value.has(entityId)) return;
-    hiddenNodes.value.delete(entityId);
     positions.value = {
         ...positions.value,
         [entityId]: {
@@ -521,24 +526,6 @@ function onEdgeContextMenu(event: { event: MouseEvent; edge: Edge }) {
     };
 }
 
-// ── Show hidden node ──────────────────────────────────────────────────────────
-async function onShowNode(entityId: number) {
-    hiddenNodes.value = new Set(
-        [...hiddenNodes.value].filter((id) => id !== entityId),
-    );
-    if (!positions.value[entityId]) {
-        positions.value = {
-            ...positions.value,
-            [entityId]: {
-                x: Math.random() * 400 - 200,
-                y: Math.random() * 400 - 200,
-            },
-        };
-    }
-    await rebuildGraph();
-    scheduleLayoutSave();
-}
-
 // ── Connection modal ──────────────────────────────────────────────────────────
 async function onConnectionSaved(updated: DbEntityConnection) {
     if (!updated.id) return;
@@ -571,11 +558,17 @@ function scheduleLayoutSave() {
 async function saveLayout() {
     await dbApi.graphLayout.save(props.graphId, {
         positions: JSON.stringify(positions.value),
-        hidden_nodes: JSON.stringify([...hiddenNodes.value]),
+        hidden_nodes: '[]',
+        player_hidden_nodes: JSON.stringify([...playerHiddenNodes.value]),
         zoom: viewportZoom,
         pan_x: viewportX,
         pan_y: viewportY,
     });
+}
+
+function openPlayerView() {
+    const base = location.origin + location.pathname.replace(/\/+$/, '')
+    window.open(`${base}/#/campaign/${props.campaignId}/graph-player?graphId=${props.graphId}`, '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no')
 }
 
 function fitGraph() {
@@ -592,12 +585,12 @@ async function loadGraph() {
 
     connections.value = conns;
     positions.value = {}
-    hiddenNodes.value = new Set()
+    playerHiddenNodes.value = new Set()
     viewportZoom = 1; viewportX = 0; viewportY = 0
 
     if (layout) {
         positions.value = JSON.parse(layout.positions);
-        hiddenNodes.value = new Set(JSON.parse(layout.hidden_nodes));
+        playerHiddenNodes.value = new Set(JSON.parse(layout.player_hidden_nodes ?? '[]'));
         viewportZoom = layout.zoom;
         viewportX = layout.pan_x;
         viewportY = layout.pan_y;

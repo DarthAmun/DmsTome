@@ -1,12 +1,21 @@
 <template>
-    <NodeToolbar :is-visible="selected" :position="Position.Top">
+    <NodeToolbar :is-visible="selected && !data.playerView" :position="Position.Top">
         <div class="en-toolbar">
             <button class="en-tb-btn" @click="data.onOpen?.()">
                 <OhVueIcon name="md-openinnew" scale="0.7" />
                 Open
             </button>
             <div class="en-tb-sep" />
-            <button class="en-tb-btn" @click="data.onHide?.()">Hide</button>
+            <button
+                class="en-tb-btn"
+                :class="{ 'en-tb-btn--active': data.playerHidden }"
+                :title="data.playerHidden ? 'Show to players' : 'Hide from players'"
+                @click="data.onTogglePlayerHide?.()"
+            >
+                <OhVueIcon :name="data.playerHidden ? 'md-visibilityoff' : 'md-visibility'" scale="0.7" />
+                {{ data.playerHidden ? 'Hidden' : 'Players' }}
+            </button>
+            <div class="en-tb-sep" />
             <button class="en-tb-btn en-tb-btn--danger" @click="data.onRemove?.()">Remove</button>
         </div>
     </NodeToolbar>
@@ -34,6 +43,15 @@
                     <div v-for="[k, v] in keyAttrs" :key="k" class="en-attr">
                         <span class="en-attr-key">{{ formatKey(k) }}</span>
                         <span class="en-attr-val">{{ v }}</span>
+                        <button
+                            v-if="!data.playerView"
+                            class="en-attr-vis"
+                            :class="{ 'en-attr-vis--hidden': isAttrHidden(k) }"
+                            :title="isAttrHidden(k) ? 'Show to players' : 'Hide from players'"
+                            @click.stop="data.onToggleAttrHidden?.(k)"
+                        >
+                            <OhVueIcon :name="isAttrHidden(k) ? 'md-visibilityoff' : 'md-visibility'" scale="0.5" />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -51,6 +69,15 @@
                     <div v-for="[k, v] in keyAttrs" :key="k" class="en-attr">
                         <span class="en-attr-key">{{ formatKey(k) }}</span>
                         <span class="en-attr-val">{{ v }}</span>
+                        <button
+                            v-if="!data.playerView"
+                            class="en-attr-vis"
+                            :class="{ 'en-attr-vis--hidden': isAttrHidden(k) }"
+                            :title="isAttrHidden(k) ? 'Show to players' : 'Hide from players'"
+                            @click.stop="data.onToggleAttrHidden?.(k)"
+                        >
+                            <OhVueIcon :name="isAttrHidden(k) ? 'md-visibilityoff' : 'md-visibility'" scale="0.5" />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -71,8 +98,12 @@ const props = defineProps<{
         color: string
         imageUrl: string
         attributes: Record<string, any>
+        playerHidden: boolean
+        playerHiddenAttrs: string[]
+        playerView: boolean
         onOpen?: () => void
-        onHide?: () => void
+        onTogglePlayerHide?: () => void
+        onToggleAttrHidden?: (key: string) => void
         onRemove?: () => void
     }
 }>()
@@ -81,13 +112,20 @@ const EXCLUDED_SUFFIXES = ['Source', 'source', 'Type', 'type', 'Content', 'conte
 
 const keyAttrs = computed(() => {
     const attrs = props.data.attributes ?? {}
+    const hidden = props.data.playerHiddenAttrs ?? []
     return Object.entries(attrs)
         .filter(([k, v]) =>
+            k !== '_playerHidden' &&
             typeof v === 'string' && v.length > 0 &&
-            !EXCLUDED_SUFFIXES.some(s => k.endsWith(s))
+            !EXCLUDED_SUFFIXES.some(s => k.endsWith(s)) &&
+            (!props.data.playerView || !hidden.includes(k))
         )
         .slice(0, 4)
 })
+
+function isAttrHidden(key: string): boolean {
+    return (props.data.playerHiddenAttrs ?? []).includes(key)
+}
 
 function formatKey(key: string): string {
     return key
@@ -111,7 +149,6 @@ function formatKey(key: string): string {
 .en-node--npc { width: 240px; }
 .en-node--selected .en-handle { opacity: 1; }
 
-/* Inner wrapper clips content to rounded corners without clipping handles */
 .en-inner {
     border-radius: var(--r2);
     overflow: hidden;
@@ -158,6 +195,8 @@ function formatKey(key: string): string {
     letter-spacing: 0.01em;
 }
 .en-tb-btn:hover { background: var(--surface-hi); color: var(--text); }
+.en-tb-btn--active { color: var(--accent); }
+.en-tb-btn--active:hover { background: var(--accent-bg); }
 .en-tb-btn--danger:hover { color: var(--danger); background: var(--danger-bg, #3a1a1a); }
 
 /* ── Handles ── */
@@ -252,6 +291,7 @@ function formatKey(key: string): string {
 }
 .en-attr {
     display: flex;
+    align-items: center;
     gap: 5px;
     font-size: 10px;
     line-height: 1.3;
@@ -263,6 +303,25 @@ function formatKey(key: string): string {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
     min-width: 0;
 }
+
+/* ── Attribute visibility toggle ── */
+.en-attr-vis {
+    display: none;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 1px 2px;
+    cursor: pointer;
+    color: var(--text3);
+    border-radius: 3px;
+    line-height: 1;
+    transition: color 0.12s, background 0.12s;
+}
+.en-attr:hover .en-attr-vis { display: flex; align-items: center; }
+.en-attr-vis:hover { color: var(--text2); background: var(--surface-hi); }
+.en-attr-vis--hidden { display: flex !important; align-items: center; color: var(--accent); }
+.en-attr-vis--hidden:hover { color: var(--text2); }
 </style>
