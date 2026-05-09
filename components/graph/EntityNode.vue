@@ -1,16 +1,20 @@
 <template>
-    <NodeToolbar :is-visible="isHovered" :position="Position.Top" class="en-toolbar"
-        @mouseenter="cancelHide" @mouseleave="scheduleHide">
-        <button class="en-tb-btn" @click="data.onOpen?.()">Open</button>
-        <button class="en-tb-btn" @click="data.onHide?.()">Hide</button>
-        <button class="en-tb-btn en-tb-btn--danger" @click="data.onRemove?.()">Remove</button>
+    <NodeToolbar :is-visible="selected" :position="Position.Top">
+        <div class="en-toolbar">
+            <button class="en-tb-btn" @click="data.onOpen?.()">
+                <OhVueIcon name="md-openinnew" scale="0.7" />
+                Open
+            </button>
+            <div class="en-tb-sep" />
+            <button class="en-tb-btn" @click="data.onHide?.()">Hide</button>
+            <button class="en-tb-btn en-tb-btn--danger" @click="data.onRemove?.()">Remove</button>
+        </div>
     </NodeToolbar>
 
     <div
         class="en-node"
-        :class="[`en-node--${data.type}`, { 'en-node--hovered': isHovered }]"
-        @mouseenter="showToolbar"
-        @mouseleave="scheduleHide"
+        :class="[`en-node--${data.type}`, { 'en-node--selected': selected }]"
+        :style="selected ? { borderColor: data.color, boxShadow: `0 0 0 2px ${data.color}44` } : {}"
     >
         <Handle id="top" type="target" :position="Position.Top" class="en-handle" />
         <Handle id="bottom" type="source" :position="Position.Bottom" class="en-handle" />
@@ -59,6 +63,7 @@ import { Handle, Position } from '@vue-flow/core'
 import { NodeToolbar } from '@vue-flow/node-toolbar'
 
 const props = defineProps<{
+    selected: boolean
     data: {
         entityId: number
         name: string
@@ -71,22 +76,6 @@ const props = defineProps<{
         onRemove?: () => void
     }
 }>()
-
-const isHovered = ref(false)
-let hideTimer: ReturnType<typeof setTimeout> | null = null
-
-function showToolbar() {
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
-    isHovered.value = true
-}
-function scheduleHide() {
-    hideTimer = setTimeout(() => { isHovered.value = false }, 80)
-}
-function cancelHide() {
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
-}
-
-onUnmounted(() => { if (hideTimer) clearTimeout(hideTimer) })
 
 const EXCLUDED_SUFFIXES = ['Source', 'source', 'Type', 'type', 'Content', 'content']
 
@@ -112,17 +101,15 @@ function formatKey(key: string): string {
 .en-node {
     width: 200px;
     border-radius: var(--r2);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     background: var(--surface);
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     transition: border-color 0.15s, box-shadow 0.15s;
     position: relative;
+    cursor: pointer;
 }
 .en-node--npc { width: 240px; }
-.en-node--hovered {
-    border-color: var(--border-hi);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.28);
-}
+.en-node--selected .en-handle { opacity: 1; }
 
 /* Inner wrapper clips content to rounded corners without clipping handles */
 .en-inner {
@@ -139,24 +126,36 @@ function formatKey(key: string): string {
 /* ── NodeToolbar ── */
 .en-toolbar {
     display: flex;
-    gap: 2px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r2);
-    padding: 3px 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+    align-items: center;
+    gap: 3px;
+    background: var(--surface-solid, var(--bg));
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    padding: 5px 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 1px 4px rgba(0,0,0,0.2);
     white-space: nowrap;
 }
+.en-tb-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--border);
+    margin: 0 2px;
+    flex-shrink: 0;
+}
 .en-tb-btn {
-    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text2);
     background: none;
     border: none;
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: var(--r1);
+    padding: 4px 8px;
+    border-radius: 6px;
     transition: background 0.1s, color 0.1s;
+    letter-spacing: 0.01em;
 }
 .en-tb-btn:hover { background: var(--surface-hi); color: var(--text); }
 .en-tb-btn--danger:hover { color: var(--danger); background: var(--danger-bg, #3a1a1a); }
@@ -171,7 +170,6 @@ function formatKey(key: string): string {
     opacity: 0.35;
     transition: opacity 0.15s;
 }
-.en-node--hovered .en-handle { opacity: 1; }
 
 /* ── Image (top, non-NPC) ── */
 .en-image {
