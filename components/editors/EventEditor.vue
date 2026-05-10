@@ -31,6 +31,7 @@
             :entity-id="props.entityId"
             :campaign-id="props.campaignId"
             :content="draftContent"
+            show-tab-bar
             @update:content="onContentUpdate"
             @navigate="(t, n) => $emit('navigate', t, n)"
         >
