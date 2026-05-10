@@ -17,6 +17,7 @@
         </button>
       </div>
 
+
       <div class="settings-nav-group">
         <div class="settings-nav-label">Data</div>
         <button
@@ -55,18 +56,50 @@
 
       <!-- Appearance -->
       <section v-if="activeSection === 'appearance'" class="sett-section">
-        <div class="sett-section-title">Appearance</div>
+        <div class="sett-section-title">Theme</div>
         <div class="sett-group">
-          <div class="sett-row">
+          <div class="sett-row sett-row--wrap">
             <div class="sett-row-text">
-              <span class="sett-label">Theme</span>
-              <span class="sett-desc">Light or dark interface</span>
+              <span class="sett-label">Color Theme</span>
+              <span class="sett-desc">Overall color palette for the interface</span>
             </div>
-            <div class="sett-theme-pills">
-              <button class="sett-pill-btn" :class="{ active: settings.theme === 'dark' }"
-                @click="update('theme', 'dark')">Dark</button>
-              <button class="sett-pill-btn" :class="{ active: settings.theme === 'light' }"
-                @click="update('theme', 'light')">Light</button>
+            <div class="theme-grid">
+              <button
+                v-for="t in THEMES"
+                :key="t.id"
+                class="theme-card"
+                :class="{ active: settings.theme === t.id }"
+                :title="t.name"
+                @click="update('theme', t.id)"
+              >
+                <div class="theme-card-preview" :style="{ background: t.bg }">
+                  <div class="theme-card-surface" :style="{ background: t.surface }" />
+                </div>
+                <span class="theme-card-name">{{ t.name }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="sett-row sett-row--wrap">
+            <div class="sett-row-text">
+              <span class="sett-label">Accent Color</span>
+              <span class="sett-desc">Highlight color used throughout the interface</span>
+            </div>
+            <div class="accent-row">
+              <button
+                v-for="p in ACCENT_PRESETS"
+                :key="p.id"
+                class="accent-swatch"
+                :class="{ active: settings.accentPreset === p.id }"
+                :title="p.name"
+                :style="{ background: p.color }"
+                @click="update('accentPreset', p.id)"
+              />
+              <label class="accent-swatch accent-swatch--custom" :class="{ active: settings.accentPreset === 'custom' }" title="Custom">
+                <span v-if="settings.accentPreset !== 'custom'">+</span>
+                <div v-else class="accent-swatch-dot" :style="{ background: settings.accentCustom }" />
+                <input type="color" :value="settings.accentCustom" @input="onCustomAccent" style="display:none" />
+              </label>
             </div>
           </div>
 
@@ -78,7 +111,6 @@
             <button class="sett-toggle" :class="{ on: settings.pageAnimations }"
               @click="update('pageAnimations', !settings.pageAnimations)" />
           </div>
-
           <div class="sett-row">
             <div class="sett-row-text">
               <span class="sett-label">Arcane Sparks</span>
@@ -87,7 +119,6 @@
             <button class="sett-toggle" :class="{ on: settings.sparkEffects }"
               @click="update('sparkEffects', !settings.sparkEffects)" />
           </div>
-
           <div class="sett-row">
             <div class="sett-row-text">
               <span class="sett-label">Ink Write Effect</span>
@@ -95,6 +126,63 @@
             </div>
             <button class="sett-toggle" :class="{ on: settings.inkWrite }"
               @click="update('inkWrite', !settings.inkWrite)" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Typography -->
+      <section v-else-if="activeSection === 'typography'" class="sett-section">
+        <div class="sett-section-title">Typography</div>
+        <div class="sett-group">
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Interface Size</span>
+              <span class="sett-desc">Scale the entire UI up or down</span>
+            </div>
+            <div class="sett-theme-pills">
+              <button class="sett-pill-btn" :class="{ active: settings.fontSize === 'compact' }"
+                @click="update('fontSize', 'compact')">Compact</button>
+              <button class="sett-pill-btn" :class="{ active: settings.fontSize === 'normal' }"
+                @click="update('fontSize', 'normal')">Normal</button>
+              <button class="sett-pill-btn" :class="{ active: settings.fontSize === 'large' }"
+                @click="update('fontSize', 'large')">Large</button>
+            </div>
+          </div>
+
+          <div class="sett-row sett-row--wrap">
+            <div class="sett-row-text">
+              <span class="sett-label">UI Font</span>
+              <span class="sett-desc">Font used for the interface and notes</span>
+            </div>
+            <div class="font-cards">
+              <button
+                v-for="f in FONT_OPTIONS"
+                :key="f.id"
+                class="font-card"
+                :class="{ active: settings.uiFont === f.id }"
+                :style="{ fontFamily: f.family }"
+                @click="update('uiFont', f.id)"
+              >
+                <span class="font-card-sample">Aa</span>
+                <span class="font-card-name">{{ f.name }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shortcuts -->
+      <section v-else-if="activeSection === 'shortcuts'" class="sett-section">
+        <div class="sett-section-title">Keyboard Shortcuts</div>
+        <div class="sett-group">
+          <div v-for="group in SHORTCUT_GROUPS" :key="group.label" class="shortcut-group">
+            <div class="shortcut-group-label">{{ group.label }}</div>
+            <div v-for="s in group.shortcuts" :key="s.keys.join('')" class="shortcut-row">
+              <span class="shortcut-desc">{{ s.desc }}</span>
+              <div class="shortcut-keys">
+                <kbd v-for="k in s.keys" :key="k" class="kbd">{{ k }}</kbd>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -107,6 +195,7 @@
           <div v-if="stats" class="sett-stats-row">
             <span class="sett-stat">{{ stats.campaigns }} campaigns</span>
             <span class="sett-stat">{{ stats.entities }} notes</span>
+            <span class="sett-stat">{{ stats.graphs }} graphs</span>
             <span class="sett-stat">{{ stats.systems }} systems</span>
             <span class="sett-stat">{{ stats.records }} records</span>
             <span class="sett-stat">{{ stats.tokens }} tokens</span>
@@ -243,6 +332,7 @@
 <script setup lang="ts">
 import JSZip from 'jszip'
 import { getDb, dbApi } from '~/composables/useDb'
+import { THEMES, ACCENT_PRESETS } from '~/composables/useSettings'
 import type { ImportSection, EntityTypeRow, LogLine } from '../components/ImportModal.vue'
 
 const { public: { version } } = useRuntimeConfig()
@@ -250,7 +340,48 @@ const { settings, update } = useSettings()
 
 const NAV_SECTIONS = [
   { id: 'appearance', label: 'Appearance', icon: '◐' },
+  { id: 'typography', label: 'Typography',  icon: 'T' },
+  { id: 'shortcuts', label: 'Shortcuts',    icon: '⌘' },
 ]
+
+const FONT_OPTIONS = [
+  { id: 'dm-sans', name: 'DM Sans',       family: '"DM Sans", sans-serif' },
+  { id: 'im-fell', name: 'IM Fell',       family: '"IM Fell English", Georgia, serif' },
+  { id: 'system',  name: 'System',        family: 'system-ui, -apple-system, sans-serif' },
+] as const
+
+const isMac = import.meta.client && navigator.platform.toUpperCase().includes('MAC')
+const mod = isMac ? '⌘' : 'Ctrl'
+
+const SHORTCUT_GROUPS = [
+  {
+    label: 'Global',
+    shortcuts: [
+      { keys: [mod, 'K'], desc: 'Open search' },
+      { keys: ['Esc'],    desc: 'Close panel / search' },
+      { keys: ['B'],      desc: 'Toggle sidebar (when not typing)' },
+    ],
+  },
+  {
+    label: 'Markdown Editor',
+    shortcuts: [
+      { keys: [mod, 'B'], desc: 'Bold' },
+      { keys: [mod, 'I'], desc: 'Italic' },
+    ],
+  },
+  {
+    label: 'Encounter',
+    shortcuts: [
+      { keys: [mod, 'Z'], desc: 'Undo wall segment' },
+    ],
+  },
+]
+
+function onCustomAccent(e: Event) {
+  const hex = (e.target as HTMLInputElement).value
+  update('accentCustom', hex)
+  update('accentPreset', 'custom')
+}
 
 const activeSection = ref('appearance')
 
@@ -258,6 +389,7 @@ interface DbStats {
   campaigns: number; encounters: number; encounterTokens: number
   entities: number; entityLinks: number; tokens: number
   systems: number; records: number
+  graphs: number; entityConnections: number
 }
 
 const stats = ref<DbStats | null>(null)
@@ -271,12 +403,13 @@ async function loadCampaigns() {
 
 async function loadStats() {
   const db = getDb()
-  const [c, enc, et, ent, el, tok, sys, rec] = await Promise.all([
+  const [c, enc, et, ent, el, tok, sys, rec, gl, ec] = await Promise.all([
     db.campaigns.count(), db.encounters.count(), db.encounterTokens.count(),
     db.entities.count(), db.entityLinks.count(), db.tokens.count(),
     db.systems.count(), db.records.count(),
+    db.graphLayouts.count(), db.entityConnections.count(),
   ])
-  stats.value = { campaigns: c, encounters: enc, encounterTokens: et, entities: ent, entityLinks: el, tokens: tok, systems: sys, records: rec }
+  stats.value = { campaigns: c, encounters: enc, encounterTokens: et, entities: ent, entityLinks: el, tokens: tok, systems: sys, records: rec, graphs: gl, entityConnections: ec }
 }
 
 onMounted(() => { loadStats(); loadCampaigns() })
@@ -301,25 +434,30 @@ async function readJson(e: Event): Promise<any | null> {
 
 async function exportAll() {
   const db = getDb()
-  const [campaigns, encounters, encounterTokens, entities, entityLinks, tokens, systems, records] =
+  const [campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts, tokens, systems, records] =
     await Promise.all([
-      db.campaigns.toArray(), db.encounters.toArray(), db.encounterTokens.toArray(),
-      db.entities.toArray(), db.entityLinks.toArray(), db.tokens.toArray(),
-      db.systems.toArray(), db.records.toArray(),
+      db.campaigns.toArray(), db.encounters.toArray(), db.encounterTokens.toArray(), db.encounterWalls.toArray(),
+      db.entities.toArray(), db.entityLinks.toArray(), db.entitySnapshots.toArray(), db.entityConnections.toArray(), db.graphLayouts.toArray(),
+      db.tokens.toArray(), db.systems.toArray(), db.records.toArray(),
     ])
-  download({ version: 1, type: 'all', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, entities, entityLinks, tokens, systems, records }, `dmstome-all-${slug()}.json`)
+  download({ version: 1, type: 'all', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts, tokens, systems, records }, `dmstome-all-${slug()}.json`)
 }
 
 async function exportCampaigns() {
   const db = getDb()
   const campaigns = await db.campaigns.toArray()
+  const campIds = campaigns.map(c => c.id as number)
   const encounters = await db.encounters.toArray()
   const encIds = encounters.map(e => e.id as number)
   const encounterTokens = encIds.length ? await db.encounterTokens.where('encounter_id').anyOf(encIds).toArray() : []
+  const encounterWalls = encIds.length ? await db.encounterWalls.where('encounter_id').anyOf(encIds).toArray() : []
   const entities = await db.entities.toArray()
   const entIds = entities.map(e => e.id as number)
   const entityLinks = entIds.length ? await db.entityLinks.where('source_id').anyOf(entIds).toArray() : []
-  download({ version: 1, type: 'campaigns', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, entities, entityLinks }, `dmstome-campaigns-${slug()}.json`)
+  const entitySnapshots = entIds.length ? await db.entitySnapshots.where('entity_id').anyOf(entIds).toArray() : []
+  const entityConnections = campIds.length ? await db.entityConnections.where('campaign_id').anyOf(campIds).toArray() : []
+  const graphLayouts = campIds.length ? await db.graphLayouts.where('campaign_id').anyOf(campIds).toArray() : []
+  download({ version: 1, type: 'campaigns', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts }, `dmstome-campaigns-${slug()}.json`)
 }
 
 async function exportSystems(withRecords: boolean) {
@@ -403,8 +541,10 @@ function buildImportSections(payload: any) {
     if (arr && arr.length > 0) sections.push({ key, label, count: arr.length, enabled: true })
   }
   addSection('campaigns', 'Campaigns'); addSection('encounters', 'Encounters')
-  addSection('encounterTokens', 'Encounter Tokens'); addSection('entities', 'Notes & Entities')
-  addSection('entityLinks', 'Entity Links'); addSection('tokens', 'Tokens')
+  addSection('encounterTokens', 'Encounter Tokens'); addSection('encounterWalls', 'Encounter Walls')
+  addSection('entities', 'Notes & Entities'); addSection('entityLinks', 'Entity Links')
+  addSection('entitySnapshots', 'Entity Snapshots'); addSection('entityConnections', 'Entity Connections')
+  addSection('graphLayouts', 'Graphs'); addSection('tokens', 'Tokens')
   addSection('systems', 'System Schemas')
   importSections.value = sections
   const records: any[] = payload.records ?? []
@@ -452,8 +592,10 @@ async function runImport() {
     for (const row of (payload[key] ?? [])) work.push({ table, row })
   }
   queueSection('campaigns', db.campaigns); queueSection('encounters', db.encounters)
-  queueSection('encounterTokens', db.encounterTokens); queueSection('entities', db.entities)
-  queueSection('entityLinks', db.entityLinks); queueSection('tokens', db.tokens)
+  queueSection('encounterTokens', db.encounterTokens); queueSection('encounterWalls', db.encounterWalls)
+  queueSection('entities', db.entities); queueSection('entityLinks', db.entityLinks)
+  queueSection('entitySnapshots', db.entitySnapshots); queueSection('entityConnections', db.entityConnections)
+  queueSection('graphLayouts', db.graphLayouts); queueSection('tokens', db.tokens)
   const enabledTypeIds = new Set(entityTypeRows.value.filter(r => r.enabled).map(r => r.id))
   for (const row of (payload.records ?? [])) {
     if (!enabledTypeIds.has(row.entityTypeId)) continue
@@ -491,7 +633,11 @@ async function clearAll() {
   if (!confirm('Permanently delete ALL data — campaigns, systems, tokens, everything?')) return
   if (!confirm('Last chance: this cannot be undone. Continue?')) return
   const db = getDb()
-  await Promise.all([db.campaigns.clear(), db.encounters.clear(), db.encounterTokens.clear(), db.entities.clear(), db.entityLinks.clear(), db.tokens.clear(), db.systems.clear(), db.records.clear()])
+  await Promise.all([
+    db.campaigns.clear(), db.encounters.clear(), db.encounterTokens.clear(), db.encounterWalls.clear(),
+    db.entities.clear(), db.entityLinks.clear(), db.entitySnapshots.clear(), db.entityConnections.clear(), db.graphLayouts.clear(),
+    db.tokens.clear(), db.systems.clear(), db.records.clear(),
+  ])
   await loadStats()
   alert('All data has been wiped.')
 }
@@ -708,4 +854,167 @@ async function clearAll() {
 .sett-about-name { font-family: var(--fh); font-size: 16px; color: var(--text); margin-bottom: 3px; }
 .sett-about-version { font-family: var(--fm); font-size: 11px; color: var(--accent); margin-bottom: 6px; }
 .sett-about-desc { font-size: 12px; color: var(--text3); line-height: 1.5; }
+
+.sett-row--wrap { flex-wrap: wrap; gap: 10px; }
+
+/* ── Theme cards ── */
+.theme-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: var(--r2);
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.theme-card:hover { border-color: var(--border-hi); }
+.theme-card.active { border-color: var(--accent); }
+.theme-card-preview {
+  width: 52px;
+  height: 36px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px;
+}
+.theme-card-surface {
+  width: 100%;
+  height: 60%;
+  border-radius: 3px;
+  opacity: 0.9;
+}
+.theme-card-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+.theme-card.active .theme-card-name { color: var(--accent); }
+
+/* ── Accent swatches ── */
+.accent-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+.accent-swatch:hover { transform: scale(1.15); }
+.accent-swatch.active { border-color: var(--text); transform: scale(1.15); }
+.accent-swatch--custom {
+  background: var(--surface-hi);
+  border-color: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text3);
+  font-weight: 600;
+}
+.accent-swatch--custom.active { border-color: var(--text); }
+.accent-swatch-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+/* ── Font cards ── */
+.font-cards {
+  display: flex;
+  gap: 8px;
+}
+.font-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: var(--r2);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  min-width: 72px;
+}
+.font-card:hover { border-color: var(--border-hi); }
+.font-card.active { border-color: var(--accent); }
+.font-card-sample {
+  font-size: 22px;
+  color: var(--text);
+  line-height: 1;
+}
+.font-card-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  font-family: var(--fu);
+  letter-spacing: 0.04em;
+}
+.font-card.active .font-card-name { color: var(--accent); }
+
+/* ── Shortcuts ── */
+.shortcut-group {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.shortcut-group:last-child { border-bottom: none; }
+.shortcut-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  gap: 12px;
+}
+.shortcut-desc {
+  font-size: 13px;
+  color: var(--text2);
+}
+.shortcut-keys {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--surface-hi);
+  border: 1px solid var(--border-hi);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: var(--fm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
 </style>

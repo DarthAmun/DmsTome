@@ -142,6 +142,134 @@ html[data-theme="light"] {
     color-scheme: light;
 }
 
+/* ── Void theme (true black OLED) ──────────────────────────────────── */
+html[data-theme="void"] {
+    --bg: oklch(3% 0 0);
+    --bg2: oklch(6.5% 0 0);
+    --surface: oklch(9% 0 0 / 0.92);
+    --surface-solid: oklch(8% 0 0);
+    --surface-hi: oklch(14% 0 0 / 0.96);
+    --border: oklch(100% 0 0 / 0.08);
+    --border-hi: oklch(100% 0 0 / 0.15);
+    --text: oklch(95% 0.005 285);
+    --text2: oklch(64% 0.01 280);
+    --text3: oklch(42% 0.01 280);
+    --sh: 0 2px 12px oklch(0% 0 0/0.55), 0 1px 3px oklch(0% 0 0/0.4);
+    --sh-md: 0 6px 28px oklch(0% 0 0/0.7), 0 2px 8px oklch(0% 0 0/0.5);
+    --sh-lg: 0 20px 72px oklch(0% 0 0/0.85), 0 6px 24px oklch(0% 0 0/0.6);
+    --leather: oklch(3% 0 0);
+    --parch: oklch(8% 0 0);
+    --parch-dark: oklch(12% 0 0);
+    --parch-line: oklch(100% 0 0 / 0.08);
+    --ink: oklch(95% 0.005 285);
+    --ink-faded: oklch(64% 0.01 280);
+    --ink-ghost: oklch(42% 0.01 280);
+    --gold: var(--accent); --gold-l: var(--accent-l); --gold-pale: var(--accent-bg);
+    --blood: var(--accent); --blood-l: var(--accent-l); --blood-pale: var(--accent-bg);
+    --arcane: var(--accent-d); --arcane-l: var(--accent-l);
+    --ember: oklch(62% 0.18 75);
+    --void: oklch(0% 0 0);
+    --chrome: oklch(6.5% 0 0); --chrome-l: oklch(8% 0 0);
+    --rim: oklch(100% 0 0 / 0.08); --rim-l: oklch(100% 0 0 / 0.15);
+    --ink-ui: oklch(95% 0.005 285); --ink-ui-dim: oklch(64% 0.01 280);
+    --grass: oklch(58% 0.18 158);
+    color-scheme: dark;
+}
+
+/* ── Forest theme (dark green) ─────────────────────────────────────── */
+html[data-theme="forest"] {
+    --bg: oklch(11% 0.035 158);
+    --bg2: oklch(14.5% 0.038 155);
+    --surface: oklch(18.5% 0.03 158 / 0.85);
+    --surface-solid: oklch(17% 0.032 158);
+    --surface-hi: oklch(24% 0.032 158 / 0.96);
+    --border: oklch(100% 0 0 / 0.08);
+    --border-hi: oklch(100% 0 0 / 0.15);
+    --text: oklch(94% 0.012 145);
+    --text2: oklch(65% 0.02 150);
+    --text3: oklch(44% 0.016 155);
+    --sh: 0 2px 12px oklch(0% 0 0/0.42), 0 1px 3px oklch(0% 0 0/0.28);
+    --sh-md: 0 6px 28px oklch(0% 0 0/0.55), 0 2px 8px oklch(0% 0 0/0.36);
+    --sh-lg: 0 20px 72px oklch(0% 0 0/0.72), 0 6px 24px oklch(0% 0 0/0.48);
+    --leather: oklch(11% 0.035 158);
+    --parch: oklch(17% 0.032 158);
+    --parch-dark: oklch(21% 0.034 158);
+    --parch-line: oklch(100% 0 0 / 0.08);
+    --ink: oklch(94% 0.012 145);
+    --ink-faded: oklch(65% 0.02 150);
+    --ink-ghost: oklch(44% 0.016 155);
+    --gold: var(--accent); --gold-l: var(--accent-l); --gold-pale: var(--accent-bg);
+    --blood: var(--accent); --blood-l: var(--accent-l); --blood-pale: var(--accent-bg);
+    --arcane: var(--accent-d); --arcane-l: var(--accent-l);
+    --ember: oklch(62% 0.18 75);
+    --void: oklch(7% 0.028 158);
+    --chrome: oklch(14.5% 0.038 155); --chrome-l: oklch(17% 0.032 158);
+    --rim: oklch(100% 0 0 / 0.08); --rim-l: oklch(100% 0 0 / 0.15);
+    --ink-ui: oklch(94% 0.012 145); --ink-ui-dim: oklch(65% 0.02 150);
+    --grass: oklch(62% 0.18 158);
+    color-scheme: dark;
+}
+
+/* ── Parchment theme (warm sepia) ──────────────────────────────────── */
+html[data-theme="parchment"] {
+    --bg: oklch(92% 0.03 82);
+    --bg2: oklch(89% 0.034 80);
+    --surface: oklch(96% 0.022 84 / 0.9);
+    --surface-solid: oklch(96% 0.022 84);
+    --surface-hi: oklch(98.5% 0.012 84 / 0.96);
+    --border: oklch(0% 0 0 / 0.1);
+    --border-hi: oklch(0% 0 0 / 0.18);
+    --text: oklch(21% 0.03 75);
+    --text2: oklch(40% 0.04 75);
+    --text3: oklch(58% 0.028 80);
+    --sh: 0 2px 12px oklch(0% 0 0/0.08), 0 1px 3px oklch(0% 0 0/0.05);
+    --sh-md: 0 6px 28px oklch(0% 0 0/0.12), 0 2px 8px oklch(0% 0 0/0.07);
+    --sh-lg: 0 20px 72px oklch(0% 0 0/0.18), 0 6px 24px oklch(0% 0 0/0.1);
+    --leather: oklch(92% 0.03 82);
+    --parch: oklch(96% 0.022 84);
+    --parch-dark: oklch(89% 0.034 80);
+    --parch-line: oklch(0% 0 0 / 0.1);
+    --ink: oklch(21% 0.03 75);
+    --ink-faded: oklch(40% 0.04 75);
+    --ink-ghost: oklch(58% 0.028 80);
+    --gold: var(--accent); --gold-l: var(--accent-l); --gold-pale: var(--accent-bg);
+    --blood: var(--accent); --blood-l: var(--accent-l); --blood-pale: var(--accent-bg);
+    --arcane: var(--accent-d); --arcane-l: var(--accent-l);
+    --ember: oklch(56% 0.18 75);
+    --void: oklch(89% 0.034 80);
+    --chrome: oklch(95% 0.022 84); --chrome-l: oklch(98.5% 0.012 84);
+    --rim: oklch(0% 0 0 / 0.1); --rim-l: oklch(0% 0 0 / 0.18);
+    --ink-ui: oklch(21% 0.03 75); --ink-ui-dim: oklch(40% 0.04 75);
+    --grass: oklch(46% 0.18 158);
+    color-scheme: light;
+}
+
+/* ── Font size scale ────────────────────────────────────────────────── */
+/* Zoom is applied to #app-root with compensated dimensions so the element
+   always fills exactly the viewport regardless of scale factor.           */
+html[data-font-size="compact"] #app-root {
+    zoom: 0.875;
+    width:  calc(100vw / 0.875);
+    height: calc(100vh / 0.875);
+}
+html[data-font-size="large"] #app-root {
+    zoom: 1.125;
+    width:  calc(100vw / 1.125);
+    height: calc(100vh / 1.125);
+}
+
+/* ── UI font choice ─────────────────────────────────────────────────── */
+html[data-ui-font="im-fell"] {
+    --fu: "IM Fell English", Georgia, serif;
+    --font-ui: "IM Fell English", Georgia, serif;
+    --font-body: "IM Fell English", Georgia, serif;
+}
+html[data-ui-font="system"] {
+    --fu: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    BASE
 ═══════════════════════════════════════════════════════════════════════ */

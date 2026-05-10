@@ -10,179 +10,236 @@
     <!-- Modal -->
     <Transition name="gs-fade">
       <div v-if="open" class="pv-dialog-mask" @click.self="close">
-        <div class="pv-dialog gs-dialog">
-          <!-- Search input -->
-          <div class="gs-input-row">
-            <OhVueIcon name="fa-search" scale="0.85" class="gs-input-icon" />
+        <div class="pv-dialog gs-dialog" :class="{ 'gs-dialog--cmd': inCommandMode }">
+          <!-- Input row -->
+          <div class="gs-input-row" :class="{ 'gs-input-row--cmd': inCommandMode }">
+            <span class="gs-input-icon gs-input-icon--cmd" v-if="inCommandMode">›_</span>
+            <OhVueIcon v-else name="fa-search" scale="0.85" class="gs-input-icon" />
+
+            <!-- Context pills -->
+            <span v-if="ctx.campaign" class="gs-ctx-pill gs-ctx-pill--campaign" @click="clearCtx('campaign')" title="Click to unset campaign context">
+              {{ ctx.campaign.name }} ✕
+            </span>
+            <span v-if="ctx.system" class="gs-ctx-pill gs-ctx-pill--system" @click="clearCtx('system')" title="Click to unset system context">
+              {{ ctx.system.name }} ✕
+            </span>
+
             <input
               ref="inputRef"
               v-model="query"
               class="gs-input"
-              placeholder="Search campaigns, entities, records…"
+              :placeholder="inCommandMode ? 'Type a command — goto, add, find, set, theme…' : 'Search campaigns, entities, records… or type > for commands'"
               autocomplete="off"
               @keydown="onKeydown"
             />
             <kbd class="gs-esc-hint" @click="close">Esc</kbd>
           </div>
 
-          <!-- Results -->
-          <div v-if="query.trim()" class="gs-results" ref="resultsRef">
-            <template v-if="loading">
-              <div class="gs-empty">Searching…</div>
-            </template>
-            <template v-else-if="totalCount === 0">
-              <div class="gs-empty">No results for "{{ query }}"</div>
+          <!-- Command Mode Results -->
+          <div v-if="inCommandMode" class="gs-results" ref="resultsRef">
+            <template v-if="cmdLoading">
+              <div class="gs-empty">Running…</div>
             </template>
             <template v-else>
-              <!-- Campaigns -->
-              <div v-if="results.campaigns.length" class="gs-group">
-                <div class="gs-group-label">Campaigns</div>
-                <div
-                  v-for="(item, i) in results.campaigns"
-                  :key="`c-${item.id}`"
-                  class="gs-result"
-                  :class="{ 'gs-result--active': flatIndex(0, i) === cursor }"
-                  @click="navigate(item)"
-                  @mouseenter="cursor = flatIndex(0, i)"
-                >
-                  <span class="gs-result-icon" style="color: var(--blood)">
-                    <OhVueIcon name="gi-broadsword" scale="0.8" />
-                  </span>
-                  <span class="gs-result-name">{{ item.name }}</span>
-                  <span class="gs-result-sub">Campaign</span>
-                  <div class="gs-result-actions" @click.stop>
-                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
-                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
-                    </button>
-                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
-                      <OhVueIcon name="md-openinnew" scale="0.75" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <template v-for="item in cmdItems" :key="'id' in item ? item.id : item.label">
+                <!-- Section header -->
+                <div v-if="item.kind === 'section'" class="gs-cmd-section">{{ item.label }}</div>
 
-              <!-- Entities -->
-              <div v-if="results.entities.length" class="gs-group">
-                <div class="gs-group-label">Entities</div>
+                <!-- Cmd item -->
                 <div
-                  v-for="(item, i) in results.entities"
-                  :key="`e-${item.id}`"
-                  class="gs-result gs-entity-result"
-                  :class="{ 'gs-result--active': flatIndex(1, i) === cursor }"
-                  @mouseenter="cursor = flatIndex(1, i)"
+                  v-else-if="item.kind === 'cmd'"
+                  class="gs-result gs-cmd-row"
+                  :class="{
+                    'gs-result--active': isCmdActive(item.id),
+                    'gs-cmd-row--disabled': !item.canExecute,
+                  }"
+                  @click="execCmdItem(item)"
+                  @mouseenter="setCmdCursor(item.id)"
                 >
-                  <component
-                    v-if="item.entity && ENTRY_COMPONENTS[item.type as EntityType]"
-                    :is="ENTRY_COMPONENTS[item.type as EntityType]"
-                    :entry="item.entity"
-                    :deletable="false"
-                    @open="navigate(item)"
-                  />
-                  <template v-else>
-                    <span class="gs-result-icon" :style="{ color: entityColor(item.type) }">
-                      <OhVueIcon :name="entityIcon(item.type)" scale="0.8" />
-                    </span>
-                    <span class="gs-result-name">{{ item.name }}</span>
-                    <span class="gs-result-sub">{{ entityLabel(item.type) }}</span>
-                  </template>
-                  <div class="gs-result-actions" @click.stop>
-                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
-                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
-                    </button>
-                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
-                      <OhVueIcon name="md-openinnew" scale="0.75" />
-                    </button>
-                  </div>
+                  <span class="gs-cmd-icon">{{ item.icon }}</span>
+                  <span class="gs-result-name">{{ item.label }}</span>
+                  <span v-if="item.warning" class="gs-cmd-warning">{{ item.warning }}</span>
+                  <span v-else-if="item.hint" class="gs-result-sub">{{ item.hint }}</span>
                 </div>
-              </div>
 
-              <!-- Records -->
-              <div v-if="results.records.length" class="gs-group">
-                <div class="gs-group-label">Records</div>
+                <!-- Pick item -->
                 <div
-                  v-for="(item, i) in results.records"
-                  :key="`r-${item.id}`"
-                  class="gs-result"
-                  :class="{ 'gs-result--active': flatIndex(2, i) === cursor }"
-                  @click="navigate(item)"
-                  @mouseenter="cursor = flatIndex(2, i)"
+                  v-else-if="item.kind === 'pick'"
+                  class="gs-result gs-pick-row"
+                  :class="{ 'gs-result--active': isCmdActive(item.id) }"
+                  @click="execPickItem(item)"
+                  @mouseenter="setCmdCursor(item.id)"
                 >
-                  <span class="gs-result-icon" :style="{ color: recordColor(item) }">
-                    <OhVueIcon :name="recordIcon(item)" scale="0.8" />
-                  </span>
-                  <span class="gs-result-name">{{ item.name }}</span>
-                  <span class="gs-result-sub">{{ item._subtitle }}</span>
-                  <div class="gs-result-actions" @click.stop>
-                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
-                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
-                    </button>
-                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
-                      <OhVueIcon name="md-openinnew" scale="0.75" />
-                    </button>
-                  </div>
+                  <span class="gs-cmd-icon">{{ item.icon }}</span>
+                  <span class="gs-result-name">{{ item.label }}</span>
+                  <span v-if="item.hint" class="gs-result-sub">{{ item.hint }}</span>
                 </div>
-              </div>
+              </template>
 
-              <!-- Encounters -->
-              <div v-if="results.encounters.length" class="gs-group">
-                <div class="gs-group-label">Encounters</div>
-                <div
-                  v-for="(item, i) in results.encounters"
-                  :key="`enc-${item.id}`"
-                  class="gs-result"
-                  :class="{ 'gs-result--active': flatIndex(3, i) === cursor }"
-                  @click="navigate(item)"
-                  @mouseenter="cursor = flatIndex(3, i)"
-                >
-                  <span class="gs-result-icon" style="color: #4ab8e8">
-                    <OhVueIcon name="gi-broadsword" scale="0.8" />
-                  </span>
-                  <span class="gs-result-name">{{ item.name }}</span>
-                  <span class="gs-result-sub">Encounter</span>
-                  <div class="gs-result-actions" @click.stop>
-                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
-                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
-                    </button>
-                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
-                      <OhVueIcon name="md-openinnew" scale="0.75" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Graphs -->
-              <div v-if="results.graphs.length" class="gs-group">
-                <div class="gs-group-label">Graphs</div>
-                <div
-                  v-for="(item, i) in results.graphs"
-                  :key="`g-${item.id}`"
-                  class="gs-result"
-                  :class="{ 'gs-result--active': flatIndex(4, i) === cursor }"
-                  @click="navigate(item)"
-                  @mouseenter="cursor = flatIndex(4, i)"
-                >
-                  <span class="gs-result-icon" style="color: #7cc44e">
-                    <OhVueIcon name="gi-all-seeing-eye" scale="0.8" />
-                  </span>
-                  <span class="gs-result-name">{{ item.name }}</span>
-                  <span class="gs-result-sub">Graph</span>
-                  <div class="gs-result-actions" @click.stop>
-                    <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
-                      <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
-                    </button>
-                    <button class="gs-popout" title="Open in new window" @click="popout(item)">
-                      <OhVueIcon name="md-openinnew" scale="0.75" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <div v-if="!cmdItems.length" class="gs-empty">No suggestions</div>
             </template>
           </div>
 
-          <!-- Empty state before typing -->
-          <div v-else class="gs-hint">
-            Type to search across your entire tome
-          </div>
+          <!-- Normal Search Results -->
+          <template v-else>
+            <div v-if="query.trim()" class="gs-results" ref="resultsRef">
+              <template v-if="loading">
+                <div class="gs-empty">Searching…</div>
+              </template>
+              <template v-else-if="totalCount === 0">
+                <div class="gs-empty">No results for "{{ query }}"</div>
+              </template>
+              <template v-else>
+                <!-- Campaigns -->
+                <div v-if="results.campaigns.length" class="gs-group">
+                  <div class="gs-group-label">Campaigns</div>
+                  <div
+                    v-for="(item, i) in results.campaigns"
+                    :key="`c-${item.id}`"
+                    class="gs-result"
+                    :class="{ 'gs-result--active': flatIndex(0, i) === cursor }"
+                    @click="navigate(item)"
+                    @mouseenter="cursor = flatIndex(0, i)"
+                  >
+                    <span class="gs-result-icon" style="color: var(--blood)">
+                      <OhVueIcon name="gi-broadsword" scale="0.8" />
+                    </span>
+                    <span class="gs-result-name">{{ item.name }}</span>
+                    <span class="gs-result-sub">Campaign</span>
+                    <div class="gs-result-actions" @click.stop>
+                      <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                        <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                      </button>
+                      <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                        <OhVueIcon name="md-openinnew" scale="0.75" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Entities -->
+                <div v-if="results.entities.length" class="gs-group">
+                  <div class="gs-group-label">Entities</div>
+                  <div
+                    v-for="(item, i) in results.entities"
+                    :key="`e-${item.id}`"
+                    class="gs-result gs-entity-result"
+                    :class="{ 'gs-result--active': flatIndex(1, i) === cursor }"
+                    @mouseenter="cursor = flatIndex(1, i)"
+                  >
+                    <component
+                      v-if="item.entity && ENTRY_COMPONENTS[item.type as EntityType]"
+                      :is="ENTRY_COMPONENTS[item.type as EntityType]"
+                      :entry="item.entity"
+                      :deletable="false"
+                      @open="navigate(item)"
+                    />
+                    <template v-else>
+                      <span class="gs-result-icon" :style="{ color: entityColor(item.type) }">
+                        <OhVueIcon :name="entityIcon(item.type)" scale="0.8" />
+                      </span>
+                      <span class="gs-result-name">{{ item.name }}</span>
+                      <span class="gs-result-sub">{{ entityLabel(item.type) }}</span>
+                    </template>
+                    <div class="gs-result-actions" @click.stop>
+                      <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                        <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                      </button>
+                      <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                        <OhVueIcon name="md-openinnew" scale="0.75" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Records -->
+                <div v-if="results.records.length" class="gs-group">
+                  <div class="gs-group-label">Records</div>
+                  <div
+                    v-for="(item, i) in results.records"
+                    :key="`r-${item.id}`"
+                    class="gs-result"
+                    :class="{ 'gs-result--active': flatIndex(2, i) === cursor }"
+                    @click="navigate(item)"
+                    @mouseenter="cursor = flatIndex(2, i)"
+                  >
+                    <span class="gs-result-icon" :style="{ color: recordColor(item) }">
+                      <OhVueIcon :name="recordIcon(item)" scale="0.8" />
+                    </span>
+                    <span class="gs-result-name">{{ item.name }}</span>
+                    <span class="gs-result-sub">{{ item._subtitle }}</span>
+                    <div class="gs-result-actions" @click.stop>
+                      <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                        <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                      </button>
+                      <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                        <OhVueIcon name="md-openinnew" scale="0.75" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Encounters -->
+                <div v-if="results.encounters.length" class="gs-group">
+                  <div class="gs-group-label">Encounters</div>
+                  <div
+                    v-for="(item, i) in results.encounters"
+                    :key="`enc-${item.id}`"
+                    class="gs-result"
+                    :class="{ 'gs-result--active': flatIndex(3, i) === cursor }"
+                    @click="navigate(item)"
+                    @mouseenter="cursor = flatIndex(3, i)"
+                  >
+                    <span class="gs-result-icon" style="color: #4ab8e8">
+                      <OhVueIcon name="gi-broadsword" scale="0.8" />
+                    </span>
+                    <span class="gs-result-name">{{ item.name }}</span>
+                    <span class="gs-result-sub">Encounter</span>
+                    <div class="gs-result-actions" @click.stop>
+                      <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                        <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                      </button>
+                      <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                        <OhVueIcon name="md-openinnew" scale="0.75" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Graphs -->
+                <div v-if="results.graphs.length" class="gs-group">
+                  <div class="gs-group-label">Graphs</div>
+                  <div
+                    v-for="(item, i) in results.graphs"
+                    :key="`g-${item.id}`"
+                    class="gs-result"
+                    :class="{ 'gs-result--active': flatIndex(4, i) === cursor }"
+                    @click="navigate(item)"
+                    @mouseenter="cursor = flatIndex(4, i)"
+                  >
+                    <span class="gs-result-icon" style="color: #7cc44e">
+                      <OhVueIcon name="gi-all-seeing-eye" scale="0.8" />
+                    </span>
+                    <span class="gs-result-name">{{ item.name }}</span>
+                    <span class="gs-result-sub">Graph</span>
+                    <div class="gs-result-actions" @click.stop>
+                      <button class="gs-bm-btn" :class="{ 'gs-bm-btn--active': isBookmarked(getRoute(item)) }" :title="isBookmarked(getRoute(item)) ? 'Remove bookmark' : 'Bookmark'" @click="toggleResultBookmark(item)">
+                        <OhVueIcon :name="isBookmarked(getRoute(item)) ? 'md-bookmarkadded' : 'md-bookmarkborder'" scale="0.75" />
+                      </button>
+                      <button class="gs-popout" title="Open in new window" @click="popout(item)">
+                        <OhVueIcon name="md-openinnew" scale="0.75" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Empty state before typing -->
+            <div v-else class="gs-hint">
+              Type to search, or <span class="gs-cmd-hint-trigger" @click="activateCommandMode">›_ type a command</span>
+            </div>
+          </template>
         </div>
       </div>
     </Transition>
@@ -197,6 +254,9 @@ import { useNotesStore } from '~/stores/notes'
 import type { Entity } from '~/stores/notes'
 import { useSystemsStore } from '~/stores/systems'
 import { useBookmarks } from '~/composables/useBookmarks'
+import { useCommandPalette } from '~/composables/useCommandPalette'
+import type { CmdItem } from '~/composables/useCommandPalette'
+import { useSettings } from '~/composables/useSettings'
 import NpcEntry      from '~/components/notes/NpcEntry.vue'
 import LocationEntry from '~/components/notes/LocationEntry.vue'
 import FactionEntry  from '~/components/notes/FactionEntry.vue'
@@ -214,6 +274,8 @@ const router = useRouter()
 const notesStore = useNotesStore()
 const systemsStore = useSystemsStore()
 const { isBookmarked, bookmarkEntity, bookmarkRecord, bookmarkPage, removeBookmark, bookmarks } = useBookmarks()
+const { ctx, clearCtx, isCommandMode, getSuggestions } = useCommandPalette()
+const { update: updateSettings } = useSettings()
 
 const { open } = useGlobalSearch()
 const query = ref('')
@@ -223,6 +285,75 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const resultsRef = ref<HTMLElement | null>(null)
 
 const isMac = import.meta.client && /Mac|iPhone|iPad/.test(navigator.platform)
+
+// ── Command palette state ─────────────────────────────────────────────────────
+
+const cmdItems = ref<CmdItem[]>([])
+const cmdLoading = ref(false)
+const cmdCursorId = ref<string | null>(null)
+
+const inCommandMode = computed(() => isCommandMode(query.value))
+
+// Interactive items (navigable with arrow keys)
+const cmdInteractive = computed(() =>
+  cmdItems.value.filter(item =>
+    (item.kind === 'pick') || (item.kind === 'cmd' && item.canExecute)
+  ) as Array<Extract<CmdItem, { kind: 'cmd'; canExecute: true }> | Extract<CmdItem, { kind: 'pick' }>>
+)
+
+function isCmdActive(id: string): boolean {
+  return cmdCursorId.value === id
+}
+
+function setCmdCursor(id: string) {
+  cmdCursorId.value = id
+}
+
+function activateCommandMode() {
+  query.value = '>'
+  nextTick(() => inputRef.value?.focus())
+}
+
+let cmdTimer: ReturnType<typeof setTimeout> | null = null
+
+async function runCommandSuggestions(q: string) {
+  cmdLoading.value = true
+  const allCampaigns = await dbApi.campaigns.list()
+  const campaigns = allCampaigns.map((c: any) => ({ id: c.id, name: c.name }))
+  const systems = systemsStore.systems.map((s: any) => ({ id: s.id, name: s.name }))
+
+  const items = await getSuggestions(q, {
+    campaigns,
+    systems,
+    router,
+    updateSettings,
+    close,
+  })
+  cmdItems.value = items
+  // Set cursor to first interactive item
+  const first = items.find(i => i.kind === 'pick' || (i.kind === 'cmd' && i.canExecute))
+  cmdCursorId.value = first && 'id' in first ? first.id : null
+  cmdLoading.value = false
+}
+
+function execCmdItem(item: Extract<CmdItem, { kind: 'cmd' }>) {
+  if (item.canExecute && item.execute) {
+    item.execute()
+    query.value = ''
+  }
+}
+
+function execPickItem(item: Extract<CmdItem, { kind: 'pick' }>) {
+  if (item.fill) {
+    query.value = item.fill
+    nextTick(() => inputRef.value?.focus())
+    return
+  }
+  item.execute()
+  query.value = ''
+}
+
+// ── Normal search state ───────────────────────────────────────────────────────
 
 interface SearchResult {
   kind: 'campaign' | 'entity' | 'record' | 'encounter' | 'graph'
@@ -248,7 +379,6 @@ const totalCount = computed(() =>
   results.value.campaigns.length + results.value.entities.length + results.value.records.length + results.value.encounters.length + results.value.graphs.length
 )
 
-// Flat cursor index across all groups
 function flatIndex(group: 0 | 1 | 2 | 3 | 4, i: number): number {
   const offsets = [
     0,
@@ -268,50 +398,49 @@ const flatResults = computed((): SearchResult[] => [
   ...results.value.graphs,
 ])
 
-// Entity type helpers
-function entityIcon(type: string): string {
-  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.defaultIcon ?? 'gi-scroll-unfurled'
-}
-function entityColor(type: string): string {
-  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.color ?? 'var(--ink-ghost)'
-}
-function entityLabel(type: string): string {
-  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.label ?? type
-}
+// ── Watchers ──────────────────────────────────────────────────────────────────
 
-// Record type helpers — look up entity type from loaded systems
-function recordIcon(item: SearchResult): string {
-  const sys = systemsStore.getSystem(item.systemId!)
-  const et = sys?.entityTypes?.find((t: any) => t.id === item.entityTypeId)
-  return et?.icon ?? 'gi-scroll-unfurled'
-}
-function recordColor(item: SearchResult): string {
-  const sys = systemsStore.getSystem(item.systemId!)
-  const et = sys?.entityTypes?.find((t: any) => t.id === item.entityTypeId)
-  return et?.color ?? 'var(--ink-ghost)'
-}
-
-// Debounced search
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(query, (val) => {
-  if (searchTimer) clearTimeout(searchTimer)
-  if (!val.trim()) { results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }; return }
-  loading.value = true
-  searchTimer = setTimeout(() => runSearch(val.trim()), 150)
+  if (inCommandMode.value) {
+    // Command mode
+    if (searchTimer) clearTimeout(searchTimer)
+    if (cmdTimer) clearTimeout(cmdTimer)
+    cmdTimer = setTimeout(() => runCommandSuggestions(val), 120)
+  } else {
+    // Normal search mode
+    if (cmdTimer) clearTimeout(cmdTimer)
+    if (searchTimer) clearTimeout(searchTimer)
+    cmdItems.value = []
+    if (!val.trim()) {
+      results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }
+      return
+    }
+    loading.value = true
+    searchTimer = setTimeout(() => runSearch(val.trim()), 150)
+  }
 })
+
+// When switching to command mode mid-query, trigger suggestions immediately
+watch(inCommandMode, (val) => {
+  if (val) {
+    if (cmdTimer) clearTimeout(cmdTimer)
+    cmdTimer = setTimeout(() => runCommandSuggestions(query.value), 120)
+  }
+})
+
+// ── Search ────────────────────────────────────────────────────────────────────
 
 async function runSearch(q: string) {
   const lq = q.toLowerCase()
 
-  // Campaigns
   const allCampaigns = await dbApi.campaigns.list()
   const campaigns: SearchResult[] = allCampaigns
     .filter((c: any) => c.name.toLowerCase().includes(lq))
     .slice(0, 5)
     .map((c: any) => ({ kind: 'campaign', id: c.id, name: c.name }))
 
-  // Entities — always search the DB so results are available from any route
   const entityDbRows = await dbApi.entities.search(lq, 5)
   const entities: SearchResult[] = entityDbRows.map((r: any) => ({
     kind: 'entity',
@@ -331,7 +460,6 @@ async function runSearch(q: string) {
     },
   }))
 
-  // Records — search across all systems
   const allRecords = await dbApi.records.search(lq, 5)
   const records: SearchResult[] = await Promise.all(
     allRecords.map(async (r) => {
@@ -348,7 +476,6 @@ async function runSearch(q: string) {
     })
   )
 
-  // Encounters
   const encounterRows = await dbApi.encounters.search(lq, 5)
   const encounters: SearchResult[] = encounterRows.map((e: any) => ({
     kind: 'encounter' as const,
@@ -358,7 +485,6 @@ async function runSearch(q: string) {
     _subtitle: `Campaign ${e.campaign_id}`,
   }))
 
-  // Graphs
   const graphRows = await dbApi.graphLayout.searchAll(lq, 5)
   const graphs: SearchResult[] = graphRows.map((g: any) => ({
     kind: 'graph' as const,
@@ -373,6 +499,30 @@ async function runSearch(q: string) {
   loading.value = false
 }
 
+// ── Entity helpers ────────────────────────────────────────────────────────────
+
+function entityIcon(type: string): string {
+  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.defaultIcon ?? 'gi-scroll-unfurled'
+}
+function entityColor(type: string): string {
+  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.color ?? 'var(--ink-ghost)'
+}
+function entityLabel(type: string): string {
+  return ENTITY_TYPE_CONFIG[type as keyof typeof ENTITY_TYPE_CONFIG]?.label ?? type
+}
+
+function recordIcon(item: SearchResult): string {
+  const sys = systemsStore.getSystem(item.systemId!)
+  const et = sys?.entityTypes?.find((t: any) => t.id === item.entityTypeId)
+  return et?.icon ?? 'gi-scroll-unfurled'
+}
+function recordColor(item: SearchResult): string {
+  const sys = systemsStore.getSystem(item.systemId!)
+  const et = sys?.entityTypes?.find((t: any) => t.id === item.entityTypeId)
+  return et?.color ?? 'var(--ink-ghost)'
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
   npc: 'npcs', location: 'locations',
@@ -421,7 +571,41 @@ function toggleResultBookmark(item: SearchResult) {
   }
 }
 
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+
 function onKeydown(e: KeyboardEvent) {
+  if (inCommandMode.value) {
+    handleCmdKeydown(e)
+  } else {
+    handleSearchKeydown(e)
+  }
+}
+
+function handleCmdKeydown(e: KeyboardEvent) {
+  const interactive = cmdInteractive.value
+  const currentIdx = interactive.findIndex(item => item.id === cmdCursorId.value)
+
+  if (e.key === 'ArrowDown' || e.key === 'Tab') {
+    e.preventDefault()
+    const next = (currentIdx + 1) % interactive.length
+    cmdCursorId.value = interactive[next]?.id ?? null
+    scrollResultIntoView()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    const prev = (currentIdx - 1 + interactive.length) % interactive.length
+    cmdCursorId.value = interactive[prev]?.id ?? null
+    scrollResultIntoView()
+  } else if (e.key === 'Enter') {
+    const item = interactive[currentIdx === -1 ? 0 : currentIdx]
+    if (!item) return
+    if (item.kind === 'pick') execPickItem(item)
+    else if (item.kind === 'cmd' && item.canExecute) execCmdItem(item)
+  } else if (e.key === 'Escape') {
+    close()
+  }
+}
+
+function handleSearchKeydown(e: KeyboardEvent) {
   const total = totalCount.value
   if (e.key === 'ArrowDown') {
     e.preventDefault()
@@ -450,12 +634,16 @@ function close() {
   open.value = false
   query.value = ''
   results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }
+  cmdItems.value = []
   cursor.value = 0
+  cmdCursorId.value = null
 }
 
-// Focus input when opening
+// Focus input when opening; trigger command suggestions if context is set and query empty
 watch(open, (val) => {
-  if (val) nextTick(() => inputRef.value?.focus())
+  if (val) {
+    nextTick(() => inputRef.value?.focus())
+  }
 })
 
 // Global keyboard shortcut
@@ -471,7 +659,7 @@ if (import.meta.client) {
 </script>
 
 <style scoped>
-/* ── Pill trigger (fixed bottom-right, above dice roller) ── */
+/* ── Pill trigger ── */
 .gs-pill-trigger {
   position: fixed;
   bottom: 20px;
@@ -505,27 +693,44 @@ if (import.meta.client) {
   margin-left: 2px;
 }
 
-/* Dialog sizing override */
+/* Dialog */
 .gs-dialog {
   width: 560px;
   max-width: 94vw;
   padding: 0;
+}
+.gs-dialog--cmd {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--sh-md);
 }
 
 /* Input row */
 .gs-input-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--parch-line);
+  flex-wrap: wrap;
+}
+.gs-input-row--cmd {
+  border-bottom-color: var(--accent);
 }
 .gs-input-icon {
   color: var(--ink-ghost);
   flex-shrink: 0;
 }
+.gs-input-icon--cmd {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--fm);
+  color: var(--accent);
+  flex-shrink: 0;
+  letter-spacing: -1px;
+}
 .gs-input {
   flex: 1;
+  min-width: 120px;
   font-family: var(--font-body);
   font-size: 16px;
   color: var(--ink);
@@ -547,6 +752,31 @@ if (import.meta.client) {
 }
 .gs-esc-hint:hover { color: var(--ink); border-color: var(--ink-ghost); }
 
+/* Context pills */
+.gs-ctx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.gs-ctx-pill:hover { opacity: 0.75; }
+.gs-ctx-pill--campaign {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  color: var(--accent-l);
+}
+.gs-ctx-pill--system {
+  background: oklch(58% 0.15 220 / 0.12);
+  border: 1px solid oklch(58% 0.15 220 / 0.5);
+  color: oklch(72% 0.12 220);
+}
+
 /* Results pane */
 .gs-results {
   max-height: 380px;
@@ -567,6 +797,19 @@ if (import.meta.client) {
   padding: 6px 16px 3px;
 }
 
+/* Command section header */
+.gs-cmd-section {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 8px 16px 3px;
+  opacity: 0.8;
+}
+
+/* Result rows */
 .gs-result {
   display: flex;
   align-items: center;
@@ -587,6 +830,41 @@ if (import.meta.client) {
 .gs-result--active {
   border-left: 2px solid var(--gold);
   padding-left: 14px;
+}
+
+/* Command rows use accent highlight */
+.gs-cmd-row.gs-result--active,
+.gs-pick-row.gs-result--active {
+  background: var(--accent-bg);
+  border-left-color: var(--accent);
+}
+
+.gs-cmd-row--disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Command icon */
+.gs-cmd-icon {
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--accent-l);
+}
+
+/* Warning badge */
+.gs-cmd-warning {
+  font-size: 10px;
+  font-family: var(--fm);
+  color: var(--blood);
+  background: oklch(54% 0.24 22 / 0.1);
+  border: 1px solid oklch(54% 0.24 22 / 0.3);
+  border-radius: 3px;
+  padding: 1px 6px;
+  flex-shrink: 0;
 }
 
 .gs-result-icon {
@@ -615,7 +893,7 @@ if (import.meta.client) {
   flex-shrink: 0;
 }
 
-/* Result action buttons (bookmark + popout) */
+/* Result action buttons */
 .gs-result-actions {
   position: absolute;
   right: 10px;
@@ -648,15 +926,13 @@ if (import.meta.client) {
   display: flex !important;
 }
 
-/* Keep bookmarked button visible even without hover */
 .gs-result .gs-bm-btn--active { display: flex; }
 .gs-result:not(:hover) .gs-result-actions:has(.gs-bm-btn--active) { display: flex; }
 .gs-result:not(:hover) .gs-result-actions:has(.gs-bm-btn--active) .gs-popout { display: none; }
 
-/* Shift subtitle left on hover to avoid overlap */
 .gs-result:hover .gs-result-sub { margin-right: 72px; }
 
-/* Entity results — strip the global .entry padding/border/hover arrow */
+/* Entity results */
 .gs-entity-result :deep(.entry) {
   padding: 0;
   border-bottom: none;
@@ -674,6 +950,19 @@ if (import.meta.client) {
   font-style: italic;
   text-align: center;
 }
+
+.gs-cmd-hint-trigger {
+  font-style: normal;
+  color: var(--accent-l);
+  cursor: pointer;
+  font-family: var(--fm);
+  font-size: 12px;
+  border: 1px solid var(--accent);
+  padding: 1px 7px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.gs-cmd-hint-trigger:hover { background: var(--accent-bg); }
 
 /* Transition */
 .gs-fade-enter-active,
