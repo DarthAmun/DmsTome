@@ -216,6 +216,7 @@
               >
                 <OhVueIcon :name="et.icon" scale="0.7" :style="{ color: et.color, flexShrink: 0, width: '14px' }" />
                 <span class="sb-child-label">{{ et.name }}</span>
+                <span class="sb-child-count">{{ recordCounts[sys.id!]?.[et.id] ?? '' }}</span>
               </NuxtLink>
               <div v-if="!sys.entityTypes?.length" class="sb-empty" style="font-size:11px;padding:4px 12px">No entity types</div>
               <div class="sb-child-sep" />
@@ -249,7 +250,7 @@
 </template>
 
 <script setup lang="ts">
-import { dbApi } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
 import { useSystemsStore } from '~/stores/systems'
 import { useNotesStore } from '~/stores/notes'
 import { useAppDialogs } from '~/composables/useAppDialogs'
@@ -449,7 +450,7 @@ function isChildActive(campaignId: number, segment: string): boolean {
   return activeCampaignId.value === campaignId && route.path.includes(`/${segment}`)
 }
 
-// ── Entity counts ──────────────────────────────────────────────────────────
+// ── Entity counts (campaign) ───────────────────────────────────────────────
 const entityCounts = computed(() => {
   const result: Record<number, Record<string, number>> = {}
   for (const e of notesStore.entities) {
@@ -458,6 +459,23 @@ const entityCounts = computed(() => {
   }
   return result
 })
+
+// ── Record counts (system) ─────────────────────────────────────────────────
+const recordCounts = ref<Record<number, Record<string, number>>>({})
+
+async function loadRecordCounts() {
+  const all = await getDb().records.toArray()
+  const result: Record<number, Record<string, number>> = {}
+  for (const r of all) {
+    if (!result[r.systemId]) result[r.systemId] = {}
+    result[r.systemId][r.entityTypeId] = (result[r.systemId][r.entityTypeId] ?? 0) + 1
+  }
+  recordCounts.value = result
+}
+
+onMounted(loadRecordCounts)
+
+watch(expandedSystems, loadRecordCounts)
 
 // ── Campaign color ─────────────────────────────────────────────────────────
 const CAMPAIGN_COLORS = [

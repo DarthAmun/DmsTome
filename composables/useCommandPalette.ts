@@ -9,7 +9,7 @@ export interface CmdContext {
 }
 
 export type CmdItem =
-  | { kind: 'cmd';     id: string; icon: string; label: string; hint: string; canExecute: boolean; warning?: string; execute?: () => Promise<void> | void }
+  | { kind: 'cmd';     id: string; icon: string; label: string; hint: string; canExecute: boolean; warning?: string; keepOpen?: boolean; execute?: () => Promise<void> | void }
   | { kind: 'section'; label: string }
   | { kind: 'pick';    id: string; icon: string; label: string; hint: string; execute: () => void; fill?: string }
 
@@ -60,6 +60,10 @@ const COMMAND_VERBS = [
   'goto', 'go', 'navigate', 'nav',
   'add', 'create', 'new',
   'find', 'search', 'open', 'show',
+  'delete', 'del', 'remove',
+  'edit', 'update',
+  'append', 'write',
+  'rename',
   'set', 'use',
   'unset', 'clear',
   'theme',
@@ -412,6 +416,598 @@ async function findSuggestions(
   return items
 }
 
+// ── Pipe parser ──────────────────────────────────────────────────────────────
+// " |" (or " | ") separates the name part from the command payload.
+// Trailing space after the pipe is optional so users don't have to type it.
+function parsePipe(str: string): [string, string | null] {
+  const idx = str.indexOf(' |')
+  if (idx === -1) return [str.trim(), null]
+  const after = str.slice(idx + 2) // everything after " |"
+  return [str.slice(0, idx).trim(), after.startsWith(' ') ? after.slice(1) : after]
+}
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+async function deleteSuggestions(
+  typeWord: string,
+  nameStr: string,
+  ctx: CmdContext,
+  campaigns: { id: number; name: string }[],
+  sysEts: EntityTypeSchema[],
+  close: () => void,
+): Promise<CmdItem[]> {
+  const items: CmdItem[] = []
+  const { dbApi } = await import('~/composables/useDb')
+  const eType = matchEntityType(typeWord)
+  const sysEt = !eType ? matchSystemEntityType(typeWord, sysEts) : null
+
+  if (!typeWord || (!eType && !sysEt)) {
+    for (const t of ENTITY_TYPES_CMD) {
+      items.push({ kind: 'pick', id: `del-type-${t.type}`, icon: '✕', label: `delete ${t.label.toLowerCase()} …`, hint: `Delete a ${t.label}`, execute: () => {}, fill: `> delete ${t.label.toLowerCase()} ` })
+    }
+    if (ctx.system && sysEts.length) {
+      items.push({ kind: 'section', label: `${ctx.system.name} types` })
+      for (const et of sysEts) {
+        items.push({ kind: 'pick', id: `del-sys-type-${et.id}`, icon: '✕', label: `delete ${et.name.toLowerCase()} …`, hint: `Delete a ${et.name}`, execute: () => {}, fill: `> delete ${et.id} ` })
+      }
+    }
+    return items
+  }
+
+  if (sysEt) {
+    if (!ctx.system) {
+      items.push({ kind: 'cmd', id: 'del-sys-nosys', icon: '✕', label: `delete ${sysEt.name.toLowerCase()} "${nameStr || '…'}"`, hint: '', canExecute: false, warning: 'set a system context' })
+      return items
+    }
+    if (!nameStr.trim()) {
+      items.push({ kind: 'cmd', id: 'del-sys-noname', icon: '✕', label: `delete ${sysEt.name.toLowerCase()} …`, hint: `Search ${sysEt.plural} in ${ctx.system.name}`, canExecute: false, warning: 'type a name' })
+      return items
+    }
+    const rows = await dbApi.records.search(nameStr.toLowerCase(), 8)
+    const matches = rows.filter((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+    if (!matches.length) { items.push({ kind: 'cmd', id: 'del-sys-none', icon: '✕', label: `No ${sysEt.plural} matching "${nameStr}"`, hint: '', canExecute: false }); return items }
+    const exact = matches.find((r: any) => r.name.toLowerCase() === nameStr.toLowerCase())
+    if (exact) {
+      items.push({ kind: 'cmd', id: 'del-sys-warn', icon: '⚠', label: `Delete ${sysEt.name.toLowerCase()} "${exact.name}"?`, hint: ctx.system.name, canExecute: false })
+      items.push({ kind: 'section', label: 'Confirm deletion' })
+      items.push({ kind: 'pick', id: 'del-sys-yes', icon: '✓', label: 'Yes, delete it', hint: 'This cannot be undone', execute: async () => { await dbApi.records.delete(exact.id); close() } })
+      items.push({ kind: 'pick', id: 'del-sys-no', icon: '✕', label: 'No, cancel', hint: '', execute: () => {}, fill: '' })
+    } else {
+      for (const r of matches) {
+        items.push({ kind: 'pick', id: `del-sys-pick-${r.id}`, icon: '✕', label: r.name, hint: `Delete this ${sysEt.name}`, execute: () => {}, fill: `> delete ${typeWord} ${r.name}` })
+      }
+    }
+    return items
+  }
+
+  if (!nameStr.trim()) {
+    items.push({ kind: 'cmd', id: 'del-noname', icon: '✕', label: `delete ${eType!.label.toLowerCase()} …`, hint: `Search ${eType!.plural}`, canExecute: false, warning: 'type a name' })
+    return items
+  }
+  const notesStore = useNotesStore()
+  const allRows = await dbApi.entities.search(nameStr.toLowerCase(), 8)
+  const byType = allRows.filter((r: any) => r.type === eType!.type)
+  // Prefer campaign-context matches; fall back to all campaigns
+  const rows = ctx.campaign ? (byType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length ? byType.filter((r: any) => r.campaign_id === ctx.campaign!.id) : byType) : byType
+  if (!rows.length) { items.push({ kind: 'cmd', id: 'del-none', icon: '✕', label: `No ${eType!.plural} matching "${nameStr}"`, hint: '', canExecute: false }); return items }
+  const exact = rows.find((r: any) => r.name.toLowerCase() === nameStr.toLowerCase())
+  if (exact) {
+    const campaignHint = exact.campaign_id ? `Campaign ${exact.campaign_id}` : ''
+    items.push({ kind: 'cmd', id: 'del-warn', icon: '⚠', label: `Delete ${eType!.label.toLowerCase()} "${exact.name}"?`, hint: campaignHint, canExecute: false })
+    items.push({ kind: 'section', label: 'Confirm deletion' })
+    items.push({ kind: 'pick', id: 'del-yes', icon: '✓', label: 'Yes, delete it', hint: 'This cannot be undone', execute: async () => { await notesStore.deleteEntity(exact.id); close() } })
+    items.push({ kind: 'pick', id: 'del-no', icon: '✕', label: 'No, cancel', hint: '', execute: () => {}, fill: '' })
+  } else {
+    for (const r of rows) {
+      items.push({ kind: 'pick', id: `del-pick-${r.id}`, icon: '✕', label: r.name, hint: `Delete this ${eType!.label}`, execute: () => {}, fill: `> delete ${typeWord} ${r.name}` })
+    }
+  }
+  return items
+}
+
+// ── Edit attribute ────────────────────────────────────────────────────────────
+// Syntax: > edit [type] [name] | [key] [value…]
+// Before pipe → fuzzy search fills the name. After pipe → key then value.
+async function editSuggestions(
+  typeWord: string,
+  nameStr: string,
+  ctx: CmdContext,
+  campaigns: { id: number; name: string }[],
+  sysEts: EntityTypeSchema[],
+  close: () => void,
+): Promise<CmdItem[]> {
+  const items: CmdItem[] = []
+  const { dbApi } = await import('~/composables/useDb')
+  const eType = matchEntityType(typeWord)
+  const sysEt = !eType ? matchSystemEntityType(typeWord, sysEts) : null
+
+  if (!typeWord || (!eType && !sysEt)) {
+    for (const t of ENTITY_TYPES_CMD) {
+      items.push({ kind: 'pick', id: `edit-type-${t.type}`, icon: '✎', label: `edit ${t.label.toLowerCase()} …`, hint: `Set an attribute`, execute: () => {}, fill: `> edit ${t.label.toLowerCase()} ` })
+    }
+    if (ctx.system && sysEts.length) {
+      items.push({ kind: 'section', label: `${ctx.system.name} types` })
+      for (const et of sysEts) {
+        items.push({ kind: 'pick', id: `edit-sys-type-${et.id}`, icon: '✎', label: `edit ${et.name.toLowerCase()} …`, hint: `Set a field`, execute: () => {}, fill: `> edit ${et.id} ` })
+      }
+    }
+    return items
+  }
+
+  const [namePart, afterPipe] = parsePipe(nameStr)
+
+  if (sysEt) {
+    if (!ctx.system) {
+      items.push({ kind: 'cmd', id: 'edit-sys-nosys', icon: '✎', label: `edit ${sysEt.name.toLowerCase()} …`, hint: '', canExecute: false, warning: 'set a system context' })
+      return items
+    }
+    if (afterPipe === null) {
+      if (!namePart) {
+        items.push({ kind: 'cmd', id: 'edit-sys-noname', icon: '✎', label: `edit ${sysEt.name.toLowerCase()} …`, hint: `Search ${sysEt.plural}`, canExecute: false, warning: 'type a name' })
+        return items
+      }
+      const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+      const matches = rows.filter((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+      if (!matches.length) items.push({ kind: 'cmd', id: 'edit-sys-none', icon: '✎', label: `No ${sysEt.plural} matching "${namePart}"`, hint: '', canExecute: false })
+      for (const r of matches) {
+        items.push({ kind: 'pick', id: `edit-sys-pick-${r.id}`, icon: '✎', label: r.name, hint: `Edit ${sysEt.name} · type field and value after |`, execute: () => {}, fill: `> edit ${typeWord} ${r.name} | ` })
+      }
+      return items
+    }
+    const attrWords = afterPipe.trim().split(/\s+/).filter(Boolean)
+    const key = attrWords[0] ?? ''
+    const value = attrWords.slice(1).join(' ')
+    const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+    const rec = rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id && r.name.toLowerCase() === namePart.toLowerCase())
+      ?? rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+    // No key yet — show editable fields from the schema with current values
+    if (!key && rec) {
+      const data = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+      const editableFields = sysEt.fields.filter(f => f.component !== 'textarea')
+      if (editableFields.length) {
+        items.push({ kind: 'section', label: `${rec.name} — pick a field` })
+        for (const f of editableFields) {
+          const cur = data[f.key] ?? ''
+          items.push({ kind: 'pick', id: `edit-sys-field-${f.key}`, icon: '✎', label: `${f.label}${cur ? `: ${cur}` : ''}`, hint: cur ? 'Current value · type new value after |' : 'Empty · type value after |', execute: () => {}, fill: `> edit ${typeWord} ${namePart} | ${f.key} ` })
+        }
+        return items
+      }
+    }
+    // Key typed — find matched field (case-insensitive) and surface its value options
+    const matchedField = key ? sysEt.fields.find(f => f.key.toLowerCase() === key.toLowerCase()) : null
+    const actualKey = matchedField?.key ?? key
+    if (key && rec && matchedField) {
+      const rawOpts: string[] =
+        matchedField.config.options?.length ? matchedField.config.options :
+        matchedField.config.checklistItems?.length ? matchedField.config.checklistItems : []
+      const filtered = rawOpts.filter(o => !value || o.toLowerCase().includes(value.toLowerCase()))
+      if (filtered.length) {
+        items.push({ kind: 'section', label: `Options for ${matchedField.label}` })
+        for (const opt of filtered) {
+          items.push({
+            kind: 'pick', id: `edit-sys-val-${opt}`, icon: '◉', label: opt,
+            hint: 'Select this value',
+            execute: async () => {
+              if (!rec) return
+              const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+              await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [actualKey]: opt }) })
+              close()
+            },
+          })
+        }
+      }
+    }
+    items.push({
+      kind: 'cmd', id: 'edit-sys-exec', icon: '✎',
+      label: `edit "${namePart}" · ${key || '…'} → "${value || '…'}"`,
+      hint: rec ? ctx.system!.name : `No match for "${namePart}"`,
+      canExecute: !!(rec && key && value),
+      warning: !rec ? `no match for "${namePart}"` : !key ? 'type a field key' : !value ? 'type a value' : undefined,
+      execute: async () => {
+        if (!rec || !key || !value) return
+        const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+        await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [actualKey]: value }) })
+        close()
+      },
+    })
+    return items
+  }
+
+  if (!ctx.campaign) {
+    items.push({ kind: 'cmd', id: 'edit-nocamp', icon: '✎', label: `edit ${eType!.label.toLowerCase()} …`, hint: '', canExecute: false, warning: 'select a campaign' })
+    if (campaigns.length) {
+      items.push({ kind: 'section', label: 'Select campaign' })
+      for (const c of campaigns) items.push({ kind: 'pick', id: `pick-edit-${c.id}`, icon: '📋', label: c.name, hint: 'Set context', execute: () => { _ctx.value.campaign = c; _saveCtx() } })
+    }
+    return items
+  }
+  if (afterPipe === null) {
+    if (!namePart) {
+      items.push({ kind: 'cmd', id: 'edit-noname', icon: '✎', label: `edit ${eType!.label.toLowerCase()} …`, hint: `Search ${eType!.plural}`, canExecute: false, warning: 'type a name' })
+      return items
+    }
+    const allRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+    const byType = allRows.filter((r: any) => r.type === eType!.type)
+    const matches = ctx.campaign
+      ? (byType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+          ? byType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+          : byType)
+      : byType
+    if (!matches.length) items.push({ kind: 'cmd', id: 'edit-none', icon: '✎', label: `No ${eType!.plural} matching "${namePart}"`, hint: '', canExecute: false })
+    for (const r of matches) {
+      items.push({ kind: 'pick', id: `edit-pick-${r.id}`, icon: '✎', label: r.name, hint: `Edit ${eType!.label} · type key and value after |`, execute: () => {}, fill: `> edit ${typeWord} ${r.name} | ` })
+    }
+    return items
+  }
+  const attrWords = afterPipe.trim().split(/\s+/).filter(Boolean)
+  const key = attrWords[0] ?? ''
+  const value = attrWords.slice(1).join(' ')
+  const notesStore = useNotesStore()
+  const allEntityRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+  const byEntityType = allEntityRows.filter((r: any) => r.type === eType!.type)
+  const preferredRows = ctx.campaign
+    ? (byEntityType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+        ? byEntityType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+        : byEntityType)
+    : byEntityType
+  const entityRow = preferredRows.find((r: any) => r.name.toLowerCase() === namePart.toLowerCase())
+    ?? preferredRows[0] ?? null
+  const entityAttrs: Record<string, any> = entityRow
+    ? (typeof entityRow.attributes === 'string' ? JSON.parse(entityRow.attributes || '{}') : (entityRow.attributes ?? {}))
+    : {}
+  const entityCampaignHint = entityRow?.campaign_id
+    ? (campaigns.find(c => c.id === entityRow.campaign_id)?.name ?? `Campaign ${entityRow.campaign_id}`)
+    : ''
+  // No key yet — show existing attributes as picks
+  if (!key && entityRow) {
+    const keys = Object.keys(entityAttrs)
+    if (keys.length) {
+      items.push({ kind: 'section', label: `${entityRow.name} — pick an attribute` })
+      for (const k of keys) {
+        const v = entityAttrs[k]
+        const display = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+        items.push({ kind: 'pick', id: `edit-attr-${k}`, icon: '✎', label: `${k}${display ? `: ${display}` : ''}`, hint: display ? 'Current value · type new value after |' : 'Empty · type value after |', execute: () => {}, fill: `> edit ${typeWord} ${namePart} | ${k} ` })
+      }
+      return items
+    }
+    items.push({ kind: 'cmd', id: 'edit-no-attrs', icon: '✎', label: 'No attributes yet — type a new key', hint: `e.g. > edit ${typeWord} ${namePart} | strength 18`, canExecute: false })
+    return items
+  }
+  // Key typed — find the actual attribute key (case-insensitive) and collect unique values
+  const actualKey = key
+    ? (Object.keys(entityAttrs).find(k => k.toLowerCase() === key.toLowerCase()) ?? key)
+    : key
+  if (key && entityRow) {
+    const seen = new Set<string>()
+    for (const e of notesStore.entities) {
+      if (e.type !== eType!.type) continue
+      const attrs = e.attributes as Record<string, any>
+      const matchKey = Object.keys(attrs).find(k => k.toLowerCase() === key.toLowerCase())
+      if (!matchKey) continue
+      const raw = attrs[matchKey]
+      const display = typeof raw === 'object' ? JSON.stringify(raw) : String(raw ?? '').trim()
+      if (display) seen.add(display)
+    }
+    const filtered = [...seen].filter(v => !value || v.toLowerCase().includes(value.toLowerCase()))
+    if (filtered.length) {
+      items.push({ kind: 'section', label: `Existing values for "${actualKey}"` })
+      for (const v of filtered) {
+        items.push({
+          kind: 'pick', id: `edit-val-${v}`, icon: '◉', label: v,
+          hint: 'Select this value',
+          execute: async () => {
+            if (!entityRow) return
+            await notesStore.updateEntity(entityRow.id, { attributes: { ...entityAttrs, [actualKey]: v } })
+            close()
+          },
+        })
+      }
+    }
+  }
+  items.push({
+    kind: 'cmd', id: 'edit-exec', icon: '✎',
+    label: `edit "${namePart}" · ${key || '…'} → "${value || '…'}"`,
+    hint: entityRow ? entityCampaignHint : `No match for "${namePart}"`,
+    canExecute: !!(entityRow && key && value),
+    warning: !entityRow ? `no match for "${namePart}"` : !key ? 'type a key' : !value ? 'type a value' : undefined,
+    execute: async () => {
+      if (!entityRow || !key || !value) return
+      await notesStore.updateEntity(entityRow.id, { attributes: { ...entityAttrs, [actualKey]: value } })
+      close()
+    },
+  })
+  return items
+}
+
+// ── Append paragraph ──────────────────────────────────────────────────────────
+// Syntax: > append [type] [name] | [paragraph text…]
+// Campaign entities: appends to entity.content.
+// System records: appends to the first textarea field found in the schema.
+async function appendSuggestions(
+  typeWord: string,
+  nameStr: string,
+  ctx: CmdContext,
+  campaigns: { id: number; name: string }[],
+  sysEts: EntityTypeSchema[],
+  close: () => void,
+): Promise<CmdItem[]> {
+  const items: CmdItem[] = []
+  const { dbApi } = await import('~/composables/useDb')
+  const eType = matchEntityType(typeWord)
+  const sysEt = !eType ? matchSystemEntityType(typeWord, sysEts) : null
+
+  if (!typeWord || (!eType && !sysEt)) {
+    for (const t of ENTITY_TYPES_CMD) {
+      items.push({ kind: 'pick', id: `app-type-${t.type}`, icon: '¶', label: `append to ${t.label.toLowerCase()} …`, hint: `Add a paragraph`, execute: () => {}, fill: `> append ${t.label.toLowerCase()} ` })
+    }
+    if (ctx.system && sysEts.length) {
+      items.push({ kind: 'section', label: `${ctx.system.name} types` })
+      for (const et of sysEts) {
+        const hasText = et.fields.some(f => f.component === 'textarea')
+        if (hasText) items.push({ kind: 'pick', id: `app-sys-type-${et.id}`, icon: '¶', label: `append to ${et.name.toLowerCase()} …`, hint: `Add a paragraph`, execute: () => {}, fill: `> append ${et.id} ` })
+      }
+    }
+    return items
+  }
+
+  const [namePart, afterPipe] = parsePipe(nameStr)
+
+  if (sysEt) {
+    const textField = sysEt.fields.find(f => f.component === 'textarea')
+    if (!textField) {
+      items.push({ kind: 'cmd', id: 'app-sys-nofield', icon: '¶', label: `${sysEt.name} has no text field`, hint: '', canExecute: false })
+      return items
+    }
+    if (!ctx.system) {
+      items.push({ kind: 'cmd', id: 'app-sys-nosys', icon: '¶', label: `append to ${sysEt.name.toLowerCase()} …`, hint: '', canExecute: false, warning: 'set a system context' })
+      return items
+    }
+    if (afterPipe === null) {
+      if (!namePart) {
+        items.push({ kind: 'cmd', id: 'app-sys-noname', icon: '¶', label: `append to ${sysEt.name.toLowerCase()} …`, hint: `Search ${sysEt.plural}`, canExecute: false, warning: 'type a name' })
+        return items
+      }
+      const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+      const matches = rows.filter((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+      if (!matches.length) items.push({ kind: 'cmd', id: 'app-sys-none', icon: '¶', label: `No ${sysEt.plural} matching "${namePart}"`, hint: '', canExecute: false })
+      for (const r of matches) {
+        items.push({ kind: 'pick', id: `app-sys-pick-${r.id}`, icon: '¶', label: r.name, hint: `Append to "${textField.label}" · type text after |`, execute: () => {}, fill: `> append ${typeWord} ${r.name} | ` })
+      }
+      return items
+    }
+    const text = afterPipe.trim()
+    const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+    const rec = rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id && r.name.toLowerCase() === namePart.toLowerCase())
+      ?? rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+    items.push({
+      kind: 'cmd', id: 'app-sys-exec', icon: '¶',
+      label: `append to "${namePart}" · "${text || '…'}"`,
+      hint: rec ? `→ ${textField.label} · ${ctx.system.name}` : `No match for "${namePart}"`,
+      canExecute: !!(rec && text),
+      warning: !rec ? `no match for "${namePart}"` : !text ? 'type the paragraph text' : undefined,
+      execute: async () => {
+        if (!rec || !text) return
+        const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+        const current = existing[textField.key] ?? ''
+        await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [textField.key]: current ? `${current}\n\n${text}` : text }) })
+        close()
+      },
+    })
+    return items
+  }
+
+  if (!ctx.campaign) {
+    items.push({ kind: 'cmd', id: 'app-nocamp', icon: '¶', label: `append to ${eType!.label.toLowerCase()} …`, hint: '', canExecute: false, warning: 'select a campaign' })
+    if (campaigns.length) {
+      items.push({ kind: 'section', label: 'Select campaign' })
+      for (const c of campaigns) items.push({ kind: 'pick', id: `pick-app-${c.id}`, icon: '📋', label: c.name, hint: 'Set context', execute: () => { _ctx.value.campaign = c; _saveCtx() } })
+    }
+    return items
+  }
+  if (afterPipe === null) {
+    if (!namePart) {
+      items.push({ kind: 'cmd', id: 'app-noname', icon: '¶', label: `append to ${eType!.label.toLowerCase()} …`, hint: `Search ${eType!.plural}`, canExecute: false, warning: 'type a name' })
+      return items
+    }
+    const allRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+    const byType = allRows.filter((r: any) => r.type === eType!.type)
+    const matches = ctx.campaign
+      ? (byType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+          ? byType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+          : byType)
+      : byType
+    if (!matches.length) items.push({ kind: 'cmd', id: 'app-none', icon: '¶', label: `No ${eType!.plural} matching "${namePart}"`, hint: '', canExecute: false })
+    for (const r of matches) {
+      items.push({ kind: 'pick', id: `app-pick-${r.id}`, icon: '¶', label: r.name, hint: `Append paragraph · type text after |`, execute: () => {}, fill: `> append ${typeWord} ${r.name} | ` })
+    }
+    return items
+  }
+  const text = afterPipe.trim()
+  const notesStore = useNotesStore()
+  const allAppRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+  const byAppType = allAppRows.filter((r: any) => r.type === eType!.type)
+  const preferredAppRows = ctx.campaign
+    ? (byAppType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+        ? byAppType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+        : byAppType)
+    : byAppType
+  const appEntityRow = preferredAppRows.find((r: any) => r.name.toLowerCase() === namePart.toLowerCase())
+    ?? preferredAppRows[0] ?? null
+  const appCampaignHint = appEntityRow?.campaign_id
+    ? (campaigns.find(c => c.id === appEntityRow.campaign_id)?.name ?? `Campaign ${appEntityRow.campaign_id}`)
+    : ''
+  items.push({
+    kind: 'cmd', id: 'app-exec', icon: '¶',
+    label: `append to "${namePart}" · "${text || '…'}"`,
+    hint: appEntityRow ? appCampaignHint : `No match for "${namePart}"`,
+    canExecute: !!(appEntityRow && text),
+    warning: !appEntityRow ? `no match for "${namePart}"` : !text ? 'type the paragraph text' : undefined,
+    execute: async () => {
+      if (!appEntityRow || !text) return
+      const current = (typeof appEntityRow.content === 'string' ? appEntityRow.content : '') || ''
+      await notesStore.updateEntity(appEntityRow.id, { content: current ? `${current}\n\n${text}` : text })
+      close()
+    },
+  })
+  return items
+}
+
+// ── Rename ────────────────────────────────────────────────────────────────────
+// Syntax: > rename [type] [name] | [new name]
+async function renameSuggestions(
+  typeWord: string,
+  nameStr: string,
+  ctx: CmdContext,
+  campaigns: { id: number; name: string }[],
+  sysEts: EntityTypeSchema[],
+  close: () => void,
+): Promise<CmdItem[]> {
+  const items: CmdItem[] = []
+  const { dbApi } = await import('~/composables/useDb')
+  const eType = matchEntityType(typeWord)
+  const sysEt = !eType ? matchSystemEntityType(typeWord, sysEts) : null
+
+  if (!typeWord || (!eType && !sysEt)) {
+    for (const t of ENTITY_TYPES_CMD) {
+      items.push({ kind: 'pick', id: `ren-type-${t.type}`, icon: '↩', label: `rename ${t.label.toLowerCase()} …`, hint: `Rename a ${t.label}`, execute: () => {}, fill: `> rename ${t.label.toLowerCase()} ` })
+    }
+    if (ctx.system && sysEts.length) {
+      items.push({ kind: 'section', label: `${ctx.system.name} types` })
+      for (const et of sysEts) {
+        items.push({ kind: 'pick', id: `ren-sys-type-${et.id}`, icon: '↩', label: `rename ${et.name.toLowerCase()} …`, hint: `Rename a ${et.name}`, execute: () => {}, fill: `> rename ${et.id} ` })
+      }
+    }
+    return items
+  }
+
+  const [namePart, afterPipe] = parsePipe(nameStr)
+
+  if (sysEt) {
+    if (!ctx.system) {
+      items.push({ kind: 'cmd', id: 'ren-sys-nosys', icon: '↩', label: `rename ${sysEt.name.toLowerCase()} …`, hint: '', canExecute: false, warning: 'set a system context' })
+      return items
+    }
+    if (afterPipe === null) {
+      if (!namePart) {
+        items.push({ kind: 'cmd', id: 'ren-sys-noname', icon: '↩', label: `rename ${sysEt.name.toLowerCase()} …`, hint: `Search ${sysEt.plural}`, canExecute: false, warning: 'type the current name' })
+        return items
+      }
+      const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+      const matches = rows.filter((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+      if (!matches.length) items.push({ kind: 'cmd', id: 'ren-sys-none', icon: '↩', label: `No ${sysEt.plural} matching "${namePart}"`, hint: '', canExecute: false })
+      for (const r of matches) {
+        items.push({ kind: 'pick', id: `ren-sys-pick-${r.id}`, icon: '↩', label: r.name, hint: `Rename · type new name after |`, execute: () => {}, fill: `> rename ${typeWord} ${r.name} | ` })
+      }
+      return items
+    }
+    const newName = afterPipe.trim()
+    const rows = await dbApi.records.search(namePart.toLowerCase(), 8)
+    const rec = rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id && r.name.toLowerCase() === namePart.toLowerCase())
+      ?? rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
+    items.push({
+      kind: 'cmd', id: 'ren-sys-exec', icon: '↩',
+      label: `rename "${namePart}" → "${newName || '…'}"`,
+      hint: rec ? ctx.system.name : `No match for "${namePart}"`,
+      canExecute: !!(rec && newName),
+      warning: !rec ? `no match for "${namePart}"` : !newName ? 'type the new name' : undefined,
+      execute: async () => {
+        if (!rec || !newName) return
+        await dbApi.records.update(rec.id, { name: newName } as any)
+        close()
+      },
+    })
+    return items
+  }
+
+  if (!ctx.campaign) {
+    items.push({ kind: 'cmd', id: 'ren-nocamp', icon: '↩', label: `rename ${eType!.label.toLowerCase()} …`, hint: '', canExecute: false, warning: 'select a campaign' })
+    if (campaigns.length) {
+      items.push({ kind: 'section', label: 'Select campaign' })
+      for (const c of campaigns) items.push({ kind: 'pick', id: `pick-ren-${c.id}`, icon: '📋', label: c.name, hint: 'Set context', execute: () => { _ctx.value.campaign = c; _saveCtx() } })
+    }
+    return items
+  }
+  if (afterPipe === null) {
+    if (!namePart) {
+      items.push({ kind: 'cmd', id: 'ren-noname', icon: '↩', label: `rename ${eType!.label.toLowerCase()} …`, hint: `Search ${eType!.plural}`, canExecute: false, warning: 'type the current name' })
+      return items
+    }
+    const allRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+    const byType = allRows.filter((r: any) => r.type === eType!.type)
+    const matches = ctx.campaign
+      ? (byType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+          ? byType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+          : byType)
+      : byType
+    if (!matches.length) items.push({ kind: 'cmd', id: 'ren-none', icon: '↩', label: `No ${eType!.plural} matching "${namePart}"`, hint: '', canExecute: false })
+    for (const r of matches) {
+      items.push({ kind: 'pick', id: `ren-pick-${r.id}`, icon: '↩', label: r.name, hint: `Rename · type new name after |`, execute: () => {}, fill: `> rename ${typeWord} ${r.name} | ` })
+    }
+    return items
+  }
+  const newName = afterPipe.trim()
+  const notesStore = useNotesStore()
+  const allRenRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
+  const byRenType = allRenRows.filter((r: any) => r.type === eType!.type)
+  const preferredRenRows = ctx.campaign
+    ? (byRenType.filter((r: any) => r.campaign_id === ctx.campaign!.id).length
+        ? byRenType.filter((r: any) => r.campaign_id === ctx.campaign!.id)
+        : byRenType)
+    : byRenType
+  const renEntityRow = preferredRenRows.find((r: any) => r.name.toLowerCase() === namePart.toLowerCase())
+    ?? preferredRenRows[0] ?? null
+  const renCampaignHint = renEntityRow?.campaign_id
+    ? (campaigns.find(c => c.id === renEntityRow.campaign_id)?.name ?? `Campaign ${renEntityRow.campaign_id}`)
+    : ''
+  items.push({
+    kind: 'cmd', id: 'ren-exec', icon: '↩',
+    label: `rename "${namePart}" → "${newName || '…'}"`,
+    hint: renEntityRow ? renCampaignHint : `No match for "${namePart}"`,
+    canExecute: !!(renEntityRow && newName),
+    warning: !renEntityRow ? `no match for "${namePart}"` : !newName ? 'type the new name' : undefined,
+    execute: async () => {
+      if (!renEntityRow || !newName) return
+      await notesStore.updateEntity(renEntityRow.id, { name: newName })
+      close()
+    },
+  })
+  return items
+}
+
+// ── Dice roller ───────────────────────────────────────────────────────────────
+function rollDice(expr: string): { total: number; breakdown: string } | null {
+  const parts = expr.toLowerCase().trim().split(/([+-])/)
+  let total = 0
+  const breakdown: string[] = []
+  let sign = 1
+  for (const part of parts) {
+    if (part === '+') { sign = 1; continue }
+    if (part === '-') { sign = -1; continue }
+    const m = part.match(/^(\d*)d(\d+)$/)
+    if (m) {
+      const count = Math.min(parseInt(m[1] || '1'), 100)
+      const sides = Math.min(parseInt(m[2]), 10000)
+      const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1)
+      const sub = rolls.reduce((a, b) => a + b, 0)
+      total += sign * sub
+      breakdown.push(`${sign < 0 ? '-' : ''}[${rolls.join('+')}]`)
+    } else if (/^\d+$/.test(part.trim())) {
+      const v = parseInt(part)
+      total += sign * v
+      breakdown.push(`${sign < 0 ? '-' : ''}${v}`)
+    } else if (part.trim()) {
+      return null
+    }
+  }
+  return { total, breakdown: breakdown.join(' ') }
+}
+
+function rollSuggestions(expr: string): CmdItem[] {
+  if (!expr.trim()) return [{ kind: 'cmd', id: 'roll-hint', icon: '⚄', label: 'roll [expression]', hint: 'e.g. 2d6+3, d20, 4d6', canExecute: false }]
+  const result = rollDice(expr)
+  if (!result) return [{ kind: 'cmd', id: 'roll-invalid', icon: '⚄', label: `Invalid expression "${expr}"`, hint: '', canExecute: false }]
+  return [{ kind: 'cmd', id: 'roll-result', icon: '⚄', label: `${result.total}`, hint: `${expr} → ${result.breakdown} · Enter to reroll`, canExecute: true, keepOpen: true, execute: () => {} }]
+}
+
 function setSuggestions(
   nameRest: string,
   campaigns: { id: number; name: string }[],
@@ -486,12 +1082,17 @@ function themeSuggestions(rest: string, updateSettings: (k: string, v: any) => v
 
 function defaultSuggestions(partialVerb?: string): CmdItem[] {
   const hints = [
-    { icon: '→', label: 'goto [section]',      hint: 'Navigate to a section — npcs, graphs, settings…' },
-    { icon: '＋', label: 'add [type] [name]',   hint: 'Create a new entity — npc, location, quest…' },
-    { icon: '⌕', label: 'find [type] [name]',  hint: 'Find and open an existing entity or record' },
-    { icon: '◎', label: 'set [name]',           hint: 'Set campaign or system context' },
-    { icon: '✕', label: 'unset',                hint: 'Clear current context' },
-    { icon: '◐', label: 'theme [name]',         hint: 'Switch color theme — dark, void, forest, light, parchment' },
+    { icon: '→', label: 'goto [section]',              hint: 'Navigate to a section — npcs, graphs, settings…' },
+    { icon: '＋', label: 'add [type] [name]',           hint: 'Create a new entity — npc, location, quest…' },
+    { icon: '⌕', label: 'find [type] [name]',          hint: 'Find and open an existing entity or record' },
+    { icon: '✕', label: 'delete [type] [name]',        hint: 'Delete a campaign entity or system record' },
+    { icon: '✎', label: 'edit [type] [name] | [key] [value]', hint: 'Set an attribute on an entity or a field on a record' },
+    { icon: '¶', label: 'append [type] [name] | [text]', hint: 'Add a paragraph to an entity\'s content or a record\'s text field' },
+    { icon: '↩', label: 'rename [type] [name] | [new name]', hint: 'Rename a campaign entity or system record' },
+    { icon: '◎', label: 'set [name]',                  hint: 'Set campaign or system context' },
+    { icon: '✕', label: 'unset',                       hint: 'Clear current context' },
+    { icon: '◐', label: 'theme [name]',                hint: 'Switch color theme — dark, void, forest, light, parchment' },
+    { icon: '⚄', label: 'roll [expression]',           hint: 'Roll dice — 2d6+3, d20, 4d6' },
   ]
   const filtered = partialVerb
     ? hints.filter(h => h.label.startsWith(partialVerb) || h.label.includes(partialVerb))
@@ -627,6 +1228,26 @@ export function useCommandPalette() {
       return findSuggestions(typeWord ?? '', nameStr, ctx.value, campaigns, systems, sysEts, router, close)
     }
 
+    // Delete
+    if (['delete', 'del', 'remove'].includes(verbWord)) {
+      return deleteSuggestions(typeWord ?? '', nameStr, ctx.value, campaigns, sysEts, close)
+    }
+
+    // Edit attribute
+    if (['edit', 'update'].includes(verbWord)) {
+      return editSuggestions(typeWord ?? '', nameStr, ctx.value, campaigns, sysEts, close)
+    }
+
+    // Append paragraph
+    if (['append', 'write'].includes(verbWord)) {
+      return appendSuggestions(typeWord ?? '', nameStr, ctx.value, campaigns, sysEts, close)
+    }
+
+    // Rename
+    if (verbWord === 'rename') {
+      return renameSuggestions(typeWord ?? '', nameStr, ctx.value, campaigns, sysEts, close)
+    }
+
     // Set
     if (['set', 'use'].includes(verbWord)) {
       return setSuggestions(restStr, campaigns, systems, close)
@@ -640,6 +1261,11 @@ export function useCommandPalette() {
     // Theme
     if (verbWord === 'theme') {
       return themeSuggestions(restStr, updateSettings, close)
+    }
+
+    // Roll
+    if (['roll', 'dice'].includes(verbWord)) {
+      return rollSuggestions(restStr)
     }
 
     // No match — show hints filtered by what they're typing

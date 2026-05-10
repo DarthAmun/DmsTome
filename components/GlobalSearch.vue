@@ -339,7 +339,13 @@ async function runCommandSuggestions(q: string) {
 function execCmdItem(item: Extract<CmdItem, { kind: 'cmd' }>) {
   if (item.canExecute && item.execute) {
     item.execute()
-    query.value = ''
+    if (item.keepOpen) {
+      // Trigger fresh suggestions (e.g. reroll dice) without clearing the input
+      if (cmdTimer) clearTimeout(cmdTimer)
+      cmdTimer = setTimeout(() => runCommandSuggestions(query.value), 0)
+    } else {
+      query.value = ''
+    }
   }
 }
 
@@ -777,9 +783,9 @@ if (import.meta.client) {
   color: oklch(72% 0.12 220);
 }
 
-/* Results pane */
+/* Results pane — fixed height so the modal never shifts position */
 .gs-results {
-  max-height: 380px;
+  height: 340px;
   overflow-y: auto;
   padding: 6px 0 8px;
 }
@@ -940,10 +946,15 @@ if (import.meta.client) {
 .gs-entity-result :deep(.entry:hover) { padding-left: 0; }
 .gs-entity-result :deep(.entry:hover::before) { display: none; }
 
-/* Hint / empty states */
+/* Hint / empty states — same fixed height as .gs-results */
 .gs-hint,
 .gs-empty {
-  padding: 20px 16px;
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-ghost);
