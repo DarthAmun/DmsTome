@@ -207,7 +207,16 @@
             <div class="sys-entity-field-group">
               <div class="sys-entity-field-label">Component Type</div>
               <div class="bldr-component-grid">
-                <button v-for="opt in FIELD_COMPONENT_OPTIONS" :key="opt.value"
+                <button v-for="opt in genericFieldOptions" :key="opt.value"
+                  class="bldr-component-opt" :class="{ active: activeField.component === opt.value }"
+                  @click="patchField(fieldConfigIdx!, { component: opt.value })">
+                  <OhVueIcon :name="opt.icon" scale="0.85" />
+                  {{ opt.label }}
+                </button>
+              </div>
+              <div class="bldr-section-sep">PF2e</div>
+              <div class="bldr-component-grid">
+                <button v-for="opt in pf2eFieldOptions" :key="opt.value"
                   class="bldr-component-opt" :class="{ active: activeField.component === opt.value }"
                   @click="patchField(fieldConfigIdx!, { component: opt.value })">
                   <OhVueIcon :name="opt.icon" scale="0.85" />
@@ -416,6 +425,9 @@
 <script setup lang="ts">
 import { useSystemsStore } from '~/stores/systems'
 import { FIELD_COMPONENT_OPTIONS, SECTION_STYLE_OPTIONS, labelToKey } from '~/types/entities'
+
+const genericFieldOptions = FIELD_COMPONENT_OPTIONS.filter(o => !o.section)
+const pf2eFieldOptions = FIELD_COMPONENT_OPTIONS.filter(o => o.section === 'PF2e')
 import type { FieldSchema, EntityTypeSchema, SectionDef, SectionStyle } from '~/types/entities'
 import { GI_ICON_NAMES } from '~/plugins/oh-vue-icons.client'
 
@@ -873,6 +885,25 @@ function sampleValue(f: FieldSchema): string {
 }
 .bldr-component-opt.active { background: var(--accent-bg); border-color: oklch(58% 0.24 295/0.4); color: var(--accent); }
 .bldr-component-opt:hover:not(.active) { color: var(--text2); border-color: var(--border-hi); }
+
+.bldr-section-sep {
+  margin: 6px 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bldr-section-sep::before,
+.bldr-section-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
 
 /* Section list */
 .bldr-section-list {

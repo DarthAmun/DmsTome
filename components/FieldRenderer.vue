@@ -31,6 +31,13 @@ import FieldConditions from '~/components/fields/FieldConditions.vue'
 import FieldAttack from '~/components/fields/FieldAttack.vue'
 import FieldSpeed from '~/components/fields/FieldSpeed.vue'
 import FieldEntityLink from '~/components/fields/FieldEntityLink.vue'
+import FieldDamageFormula from '~/components/fields/FieldDamageFormula.vue'
+import FieldTraitPicker from '~/components/fields/FieldTraitPicker.vue'
+import FieldScaling from '~/components/fields/FieldScaling.vue'
+import FieldCurrency from '~/components/fields/FieldCurrency.vue'
+import FieldProficiency from '~/components/fields/FieldProficiency.vue'
+import FieldActionCost from '~/components/fields/FieldActionCost.vue'
+import FieldAttackBlock from '~/components/fields/FieldAttackBlock.vue'
 
 const props = defineProps<{
   field: FieldSchema
@@ -59,10 +66,17 @@ const fieldComponent = computed(() => {
     case 'abilities':   return FieldAbilities
     case 'spellslots':  return FieldSpellSlots
     case 'conditions':  return FieldConditions
-    case 'attack':      return FieldAttack
-    case 'speed':         return FieldSpeed
-    case 'entity-link':   return FieldEntityLink
-    default:              return FieldText
+    case 'attack':          return FieldAttack
+    case 'speed':           return FieldSpeed
+    case 'entity-link':     return FieldEntityLink
+    case 'damage-formula':  return FieldDamageFormula
+    case 'trait-picker':    return FieldTraitPicker
+    case 'scaling':         return FieldScaling
+    case 'currency':        return FieldCurrency
+    case 'proficiency':     return FieldProficiency
+    case 'action-cost':     return FieldActionCost
+    case 'attack-block':    return FieldAttackBlock
+    default:                return FieldText
   }
 })
 </script>

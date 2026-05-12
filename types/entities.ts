@@ -131,6 +131,15 @@ export type FieldComponentType =
   | 'attack'
   | 'speed'
   | 'entity-link'
+  // Generic structured fields
+  | 'damage-formula'
+  | 'trait-picker'
+  | 'scaling'
+  | 'currency'
+  // PF2e-specific fields
+  | 'proficiency'
+  | 'action-cost'
+  | 'attack-block'
 
 export interface FieldSchema {
   key: string
@@ -165,6 +174,10 @@ export interface FieldSchema {
     slotLevelNames?: string[]   // labels for each level
     // entity-link
     entityTypeId?: string       // which entity type this field links to
+    // currency
+    denominationOptions?: string[]  // e.g. ['cp','sp','gp','pp']
+    // scaling
+    scalingType?: 'level' | 'heighten' | 'both'
   }
   required: boolean
   showInCard: boolean           // show on summary card
@@ -218,25 +231,34 @@ export function labelToKey(label: string): string {
     .replace(/^(.)/, c => c.toLowerCase())
 }
 
-export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string; icon: string }[] = [
-  { value: 'text',        label: 'Text',        icon: 'md-editnote' },
-  { value: 'textarea',    label: 'Markdown',    icon: 'gi-book-aura' },
-  { value: 'number',      label: 'Number',      icon: 'gi-coins' },
-  { value: 'select',      label: 'Select',      icon: 'md-arrowdropdown' },
-  { value: 'multiselect', label: 'Tags (fixed)', icon: 'gi-all-seeing-eye' },
-  { value: 'toggle',      label: 'Toggle',      icon: 'gi-health-potion' },
-  { value: 'image',       label: 'Image',       icon: 'gi-person' },
-  { value: 'tracker',     label: 'Tracker',     icon: 'gi-sands-of-time' },
-  { value: 'dice',        label: 'Dice Roll',   icon: 'gi-dice-six' },
-  { value: 'clock',       label: 'Clock',       icon: 'gi-hourglass' },
-  { value: 'rating',      label: 'Rating',      icon: 'gi-three-coins' },
-  { value: 'tags',        label: 'Tags (free)', icon: 'gi-labels' },
-  { value: 'checklist',   label: 'Checklist',    icon: 'gi-check-mark' },
-  { value: 'statblock',   label: 'Stat Block',   icon: 'gi-muscle-up' },
-  { value: 'abilities',   label: 'Abilities',    icon: 'gi-lightning-bolt' },
-  { value: 'spellslots',  label: 'Spell Slots',  icon: 'gi-sparkles' },
-  { value: 'conditions',  label: 'Conditions',   icon: 'gi-poison' },
-  { value: 'attack',      label: 'Attack',       icon: 'gi-crossed-swords' },
-  { value: 'speed',       label: 'Speed',        icon: 'gi-boot-stomp' },
-  { value: 'entity-link', label: 'Entity Link',  icon: 'gi-linked-rings' },
+export const FIELD_COMPONENT_OPTIONS: { value: FieldComponentType; label: string; icon: string; section?: string }[] = [
+  // ── Generic ──────────────────────────────────────────────────────────────
+  { value: 'text',           label: 'Text',           icon: 'md-editnote' },
+  { value: 'textarea',       label: 'Markdown',       icon: 'gi-book-aura' },
+  { value: 'number',         label: 'Number',         icon: 'gi-coins' },
+  { value: 'select',         label: 'Select',         icon: 'md-arrowdropdown' },
+  { value: 'multiselect',    label: 'Tags (fixed)',   icon: 'gi-all-seeing-eye' },
+  { value: 'toggle',         label: 'Toggle',         icon: 'gi-health-potion' },
+  { value: 'image',          label: 'Image',          icon: 'gi-person' },
+  { value: 'tracker',        label: 'Tracker',        icon: 'gi-sands-of-time' },
+  { value: 'dice',           label: 'Dice Roll',      icon: 'gi-dice-six' },
+  { value: 'clock',          label: 'Clock',          icon: 'gi-hourglass' },
+  { value: 'rating',         label: 'Rating',         icon: 'gi-three-coins' },
+  { value: 'tags',           label: 'Tags (free)',    icon: 'gi-labels' },
+  { value: 'checklist',      label: 'Checklist',      icon: 'gi-check-mark' },
+  { value: 'statblock',      label: 'Stat Block',     icon: 'gi-muscle-up' },
+  { value: 'abilities',      label: 'Abilities',      icon: 'gi-lightning-bolt' },
+  { value: 'spellslots',     label: 'Spell Slots',    icon: 'gi-sparkles' },
+  { value: 'conditions',     label: 'Conditions',     icon: 'gi-poison' },
+  { value: 'attack',         label: 'Attack',         icon: 'gi-crossed-swords' },
+  { value: 'speed',          label: 'Speed',          icon: 'gi-boot-stomp' },
+  { value: 'entity-link',    label: 'Entity Link',    icon: 'gi-linked-rings' },
+  { value: 'damage-formula', label: 'Damage Formula', icon: 'gi-crossed-swords' },
+  { value: 'trait-picker',   label: 'Trait Picker',   icon: 'gi-labels' },
+  { value: 'scaling',        label: 'Level Scaling',  icon: 'gi-sands-of-time' },
+  { value: 'currency',       label: 'Currency',       icon: 'gi-three-coins' },
+  // ── PF2e ─────────────────────────────────────────────────────────────────
+  { value: 'proficiency',    label: 'Proficiency',    icon: 'gi-muscle-up',      section: 'PF2e' },
+  { value: 'action-cost',    label: 'Action Cost',    icon: 'gi-lightning-bolt', section: 'PF2e' },
+  { value: 'attack-block',   label: 'Attack Block',   icon: 'gi-crossed-swords', section: 'PF2e' },
 ]
