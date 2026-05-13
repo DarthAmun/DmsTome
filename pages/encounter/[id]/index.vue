@@ -317,6 +317,9 @@
                     <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
                   </div>
                   <span class="token-lib-name">{{ token.name }}</span>
+                  <button class="icon-btn-sq" @click.stop="openEditLibraryToken(token)">
+                    <OhVueIcon name="md-edit" scale="0.75" />
+                  </button>
                   <button class="icon-btn-sq icon-btn-sq--danger" @click.stop="removeFromLibrary(token.id)">
                     <OhVueIcon name="md-close" scale="0.75" />
                   </button>
@@ -655,6 +658,49 @@
                 >Cancel</Button
               >
               <Button @click="confirmAddToken">Add Token</Button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- ── Edit Library Token Modal ─────────────────────────────────────── -->
+      <Teleport to="body">
+        <div
+          v-if="showEditLibraryToken"
+          class="modal-overlay"
+          @click.self="showEditLibraryToken = false"
+        >
+          <div class="modal-box">
+            <div class="modal-title">Edit Token</div>
+            <div class="space-y-3">
+              <div>
+                <label class="f-label">Name</label>
+                <InputText
+                  v-model="editLibraryTokenForm.name"
+                  placeholder="Goblin, Wizard, etc."
+                  autofocus
+                />
+              </div>
+              <div>
+                <label class="f-label">Image</label>
+                <div class="enc-add-condition">
+                  <InputText
+                    v-model="editLibraryTokenForm.imageSource"
+                    placeholder="URL or file path"
+                    class="flex-1"
+                  />
+                  <Button class="icon-btn-sq" @click="browseEditTokenImage">
+                    <OhVueIcon name="fa-folder-open" scale="0.9" />
+                  </Button>
+                </div>
+                <div v-if="editLibraryTokenForm.imageSource" class="mt-2" style="text-align:center">
+                  <img :src="editLibraryTokenForm.imageSource" style="max-height:80px;border-radius:6px;object-fit:contain" />
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+              <Button severity="secondary" @click="showEditLibraryToken = false">Cancel</Button>
+              <Button @click="confirmEditLibraryToken">Save</Button>
             </div>
           </div>
         </div>
@@ -1124,6 +1170,9 @@ async function doClearLog() {
 }
 
 const showAddToken = ref(false);
+const showEditLibraryToken = ref(false);
+const editLibraryTokenId = ref<number | null>(null);
+const editLibraryTokenForm = ref({ name: '', imageSource: '', imageType: 'file' as 'file' | 'url' });
 const showTokenPicker = ref(false);
 const tokenPickerSearch = ref("");
 const filteredPickerTokens = computed(() =>
@@ -1324,6 +1373,32 @@ async function browseTokenImage() {
     newToken.value.imageSource = dataUrl;
     newToken.value.imageType = "file";
   }
+}
+
+function openEditLibraryToken(token: any) {
+  editLibraryTokenId.value = token.id;
+  editLibraryTokenForm.value = {
+    name: token.name,
+    imageSource: token.imageSource ?? '',
+    imageType: token.imageType ?? 'file',
+  };
+  showEditLibraryToken.value = true;
+}
+
+async function browseEditTokenImage() {
+  const dataUrl = await dbApi.system.openFileDialog();
+  if (dataUrl) {
+    editLibraryTokenForm.value.imageSource = dataUrl;
+    editLibraryTokenForm.value.imageType = 'file';
+  }
+}
+
+async function confirmEditLibraryToken() {
+  if (!editLibraryTokenId.value || !editLibraryTokenForm.value.name.trim()) return;
+  const { name, imageSource } = editLibraryTokenForm.value;
+  const imageType = imageSource.startsWith('http') ? 'url' : 'file';
+  await store.updateLibraryToken(editLibraryTokenId.value, name, imageSource || null, imageType);
+  showEditLibraryToken.value = false;
 }
 
 async function confirmAddToken() {

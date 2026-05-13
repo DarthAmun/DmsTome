@@ -430,6 +430,14 @@ export const dbApi = {
       const id = await db.tokens.add({ name: data.name, image_source: data.imageSource ?? null, image_type: (data.imageType ?? 'file') as any, is_template: 1, created_at: now() })
       return db.tokens.get(id)
     },
+    async update(id: number, data: { name?: string; imageSource?: string | null; imageType?: 'file' | 'url' }) {
+      const db = getDb()
+      const changes: Record<string, any> = {}
+      if (data.name !== undefined) changes.name = data.name
+      if (data.imageSource !== undefined) changes.image_source = data.imageSource
+      if (data.imageType !== undefined) changes.image_type = data.imageType
+      await db.tokens.update(id, changes)
+    },
     async delete(id: number) {
       const db = getDb()
       await db.tokens.delete(id)
@@ -588,7 +596,8 @@ export const dbApi = {
       return Promise.resolve()
     },
     syncEncounter(data: any): void {
-      this._getChannel().postMessage({ type: 'sync', data })
+      // JSON round-trip strips Vue reactive Proxies, which postMessage cannot clone
+      this._getChannel().postMessage({ type: 'sync', data: JSON.parse(JSON.stringify(data)) })
     },
     onPlayerClosed(cb: () => void): void {
       const ch = this._getChannel()

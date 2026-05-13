@@ -322,6 +322,16 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
+  async function updateLibraryToken(id: number, name: string, imageSource: string | null, imageType: 'file' | 'url') {
+    try {
+      await dbApi.tokens.update(id, { name, imageSource, imageType })
+      const token = tokenLibrary.value.find(t => t.id === id)
+      if (token) Object.assign(token, { name, imageSource, imageType })
+    } catch (err) {
+      console.error('[EncounterStore] updateLibraryToken:', err)
+    }
+  }
+
   async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url') {
     try {
       const token = await dbApi.tokens.create({ name, imageSource, imageType })
@@ -473,6 +483,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     const wall = walls.value.find(w => w.id === id)
     if (!wall || wall.coverType !== 'door') return
     await updateWall(id, { isOpen: !wall.isOpen })
+    syncToPlayer()
   }
 
   async function setFovEnabled(enabled: boolean): Promise<void> {
@@ -525,7 +536,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     setFogCell, hideAllFog, clearAllFog,
     addWall, undoLastWall, updateWall, deleteWall, toggleDoor,
     setFovEnabled,
-    addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary,
+    addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
     addLogNote, clearCombatLog,

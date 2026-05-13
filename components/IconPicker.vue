@@ -1,68 +1,70 @@
 <template>
   <div class="icon-picker">
     <!-- Trigger -->
-    <button class="icon-trigger" :style="{ borderColor: color + '55' }" @click.stop="open = !open">
+    <button ref="triggerEl" class="icon-trigger" :style="{ borderColor: color + '55' }" @click.stop="toggle">
       <OhVueIcon :name="modelValue || 'gi-scroll-unfurled'" scale="1.2" :style="{ color }" />
       <span class="icon-trigger-name">{{ modelValue || 'choose icon' }}</span>
       <OhVueIcon name="md-arrowdropdown" scale="0.9" style="color:var(--ink-ghost);margin-left:auto" />
     </button>
 
-    <!-- Dropdown -->
-    <div v-if="open" class="icon-dropdown" @click.stop>
+    <!-- Dropdown (teleported to body to escape overflow clipping) -->
+    <Teleport to="body">
+      <div v-if="open" class="icon-dropdown" :style="dropStyle" @click.stop>
 
-      <!-- Search -->
-      <div class="icon-search-wrap">
-        <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
-        <input ref="searchEl" v-model="query" class="icon-search" placeholder="Search the codex…" />
-        <button v-if="query" class="icon-clear" @click="query = ''">
-          <OhVueIcon name="md-close" scale="0.8" />
-        </button>
-      </div>
-
-      <!-- Category tabs (hidden while searching) -->
-      <div v-if="!query" class="icon-cats">
-        <button
-          v-for="cat in CATEGORIES" :key="cat.id"
-          class="icon-cat" :class="{ active: activeCat === cat.id }"
-          @click="activeCat = cat.id"
-        >
-          <OhVueIcon :name="cat.icon" scale="0.85" />
-          <span>{{ cat.label }}</span>
-        </button>
-      </div>
-
-      <!-- Chapter divider -->
-      <div class="icon-chapter">
-        <span class="icon-chapter-rule" />
-        <span class="icon-chapter-label">
-          {{ query ? `Results for "${query}"` : currentCat.label }}
-        </span>
-        <span class="icon-chapter-rule" />
-      </div>
-
-      <!-- Grid -->
-      <div class="icon-grid">
-        <button
-          v-for="name in visible" :key="name"
-          class="icon-cell"
-          :class="{ selected: modelValue === name }"
-          :style="modelValue === name ? { background: color + '1a', borderColor: color + '99' } : {}"
-          :title="name.replace('gi-', '').replace(/-/g, ' ')"
-          @click="select(name)"
-        >
-          <OhVueIcon :name="name" scale="1.3" :style="{ color: modelValue === name ? color : '' }" />
-          <span class="icon-cell-label">{{ name.replace('gi-', '').replace(/-/g, ' ') }}</span>
-        </button>
-        <div v-if="visible.length === 0" class="icon-empty">
-          <OhVueIcon name="gi-scroll-unfurled" scale="2" style="opacity:0.1;margin-bottom:8px" />
-          <em>Nothing found in the codex.</em>
+        <!-- Search -->
+        <div class="icon-search-wrap">
+          <OhVueIcon name="fa-search" scale="0.75" style="color:var(--ink-ghost)" />
+          <input ref="searchEl" v-model="query" class="icon-search" placeholder="Search the codex…" />
+          <button v-if="query" class="icon-clear" @click="query = ''">
+            <OhVueIcon name="md-close" scale="0.8" />
+          </button>
         </div>
+
+        <!-- Category tabs (hidden while searching) -->
+        <div v-if="!query" class="icon-cats">
+          <button
+            v-for="cat in CATEGORIES" :key="cat.id"
+            class="icon-cat" :class="{ active: activeCat === cat.id }"
+            @click="activeCat = cat.id"
+          >
+            <OhVueIcon :name="cat.icon" scale="0.85" />
+            <span>{{ cat.label }}</span>
+          </button>
+        </div>
+
+        <!-- Chapter divider -->
+        <div class="icon-chapter">
+          <span class="icon-chapter-rule" />
+          <span class="icon-chapter-label">
+            {{ query ? `Results for "${query}"` : currentCat.label }}
+          </span>
+          <span class="icon-chapter-rule" />
+        </div>
+
+        <!-- Grid -->
+        <div class="icon-grid">
+          <button
+            v-for="name in visible" :key="name"
+            class="icon-cell"
+            :class="{ selected: modelValue === name }"
+            :style="modelValue === name ? { background: color + '1a', borderColor: color + '99' } : {}"
+            :title="name.replace('gi-', '').replace(/-/g, ' ')"
+            @click="select(name)"
+          >
+            <OhVueIcon :name="name" scale="1.3" :style="{ color: modelValue === name ? color : '' }" />
+            <span class="icon-cell-label">{{ name.replace('gi-', '').replace(/-/g, ' ') }}</span>
+          </button>
+          <div v-if="visible.length === 0" class="icon-empty">
+            <OhVueIcon name="gi-scroll-unfurled" scale="2" style="opacity:0.1;margin-bottom:8px" />
+            <em>Nothing found in the codex.</em>
+          </div>
+        </div>
+
       </div>
 
-    </div>
-
-    <!-- Backdrop -->
-    <div v-if="open" class="icon-backdrop" @click="open = false" />
+      <!-- Backdrop -->
+      <div v-if="open" class="icon-backdrop" @click="open = false" />
+    </Teleport>
   </div>
 </template>
 
@@ -173,8 +175,16 @@ const open = ref(false)
 const query = ref('')
 const activeCat = ref('combat')
 const searchEl = ref<HTMLInputElement | null>(null)
+const triggerEl = ref<HTMLElement | null>(null)
+const dropPos = ref({ top: 0, left: 0 })
 
 const currentCat = computed(() => CATEGORIES.find(c => c.id === activeCat.value) ?? CATEGORIES[0])
+
+const dropStyle = computed(() => ({
+  position: 'fixed' as const,
+  top: dropPos.value.top + 'px',
+  left: dropPos.value.left + 'px',
+}))
 
 const visible = computed(() => {
   const q = query.value.toLowerCase().trim()
@@ -185,6 +195,17 @@ const visible = computed(() => {
 watch(open, v => {
   if (v) nextTick(() => searchEl.value?.focus())
 })
+
+function toggle() {
+  if (!open.value) {
+    const rect = triggerEl.value?.getBoundingClientRect()
+    if (rect) {
+      const left = Math.min(rect.left, window.innerWidth - 476)
+      dropPos.value = { top: rect.bottom + 6, left: Math.max(0, left) }
+    }
+  }
+  open.value = !open.value
+}
 
 function select(name: string) {
   emit('update:modelValue', name)
@@ -209,7 +230,7 @@ function select(name: string) {
 
 /* ── Dropdown ── */
 .icon-dropdown {
-  position: absolute; top: calc(100% + 6px); left: 0;
+  position: fixed;
   width: 470px; max-height: 480px;
   background-color: var(--parch); background-image: var(--paper); background-blend-mode: multiply; border: 1px solid var(--ink-ghost);
   border-radius: 3px;
