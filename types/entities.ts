@@ -44,6 +44,8 @@ export interface FactionAttributes {
 export interface QuestAttributes {
   status?: 'active' | 'completed' | 'failed' | 'dormant'
   questGiver?: string
+  questGiverId?: number
+  questGiverType?: 'npc' | 'faction'
   reward?: string
 }
 

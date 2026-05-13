@@ -150,8 +150,39 @@
       <div class="field-row">
         <div class="field">
           <label class="f-label">Quest Giver</label>
-          <InputText :model-value="attrs.questGiver || ''" placeholder="Who gave this quest…"
-            @update:model-value="v => set('questGiver', v)" />
+          <!-- Linked entity chip -->
+          <div v-if="attrs.questGiverId" class="giver-chip">
+            <span class="giver-type-badge" :style="{ color: giverTypeColor, borderColor: giverTypeColor + '55' }">
+              {{ attrs.questGiverType === 'npc' ? 'NPC' : 'FACTION' }}
+            </span>
+            <span class="giver-name">{{ attrs.questGiver }}</span>
+            <button class="giver-clear" @click="clearQuestGiver">×</button>
+          </div>
+          <!-- Search + free-text picker -->
+          <div ref="giverAnchorRef" v-else class="giver-picker">
+            <input
+              v-model="giverSearch"
+              class="giver-input"
+              placeholder="Search NPC or Faction…"
+              @focus="openGiverPicker"
+              @blur="onGiverBlur"
+            />
+            <Teleport to="body">
+              <div v-if="giverOpen && filteredGivers.length" class="giver-dropdown" :style="giverDropdownStyle">
+                <button
+                  v-for="ent in filteredGivers"
+                  :key="ent.id"
+                  class="giver-item"
+                  @mousedown.prevent="selectGiver(ent)"
+                >
+                  <span class="giver-type-badge" :style="{ color: ent.type === 'npc' ? '#7cc44e' : '#e05555', borderColor: (ent.type === 'npc' ? '#7cc44e' : '#e05555') + '55' }">
+                    {{ ent.type === 'npc' ? 'NPC' : 'FACTION' }}
+                  </span>
+                  {{ ent.name }}
+                </button>
+              </div>
+            </Teleport>
+          </div>
         </div>
         <div class="field">
           <label class="f-label">Reward</label>
@@ -191,6 +222,7 @@
 <script setup lang="ts">
 import type { EntityType, EntityAttributes } from '~/types/entities'
 import { NOTE_ICONS } from '~/types/entities'
+import { useNotesStore } from '~/stores/notes'
 
 const props = defineProps<{ type: EntityType; modelValue: EntityAttributes }>()
 const emit = defineEmits<{ 'update:modelValue': [EntityAttributes] }>()
@@ -198,6 +230,47 @@ const emit = defineEmits<{ 'update:modelValue': [EntityAttributes] }>()
 const noteIcons = NOTE_ICONS
 const newTag = ref('')
 const attrs = computed(() => props.modelValue as any)
+
+// ── Quest giver entity picker ─────────────────────────────────────────────────
+const notesStore = useNotesStore()
+const giverSearch = ref((props.modelValue as any).questGiverId ? '' : ((props.modelValue as any).questGiver || ''))
+const giverOpen = ref(false)
+
+watch(() => (props.modelValue as any).questGiverId, (id) => {
+  giverSearch.value = id ? '' : ((props.modelValue as any).questGiver || '')
+})
+
+const filteredGivers = computed(() => {
+  const q = giverSearch.value.toLowerCase()
+  return notesStore.entities
+    .filter(e => (e.type === 'npc' || e.type === 'faction') && (!q || e.name.toLowerCase().includes(q)))
+    .slice(0, 15)
+})
+
+const giverTypeColor = computed(() =>
+  (props.modelValue as any).questGiverType === 'npc' ? '#7cc44e' : '#e05555'
+)
+
+function selectGiver(ent: any) {
+  emit('update:modelValue', { ...props.modelValue, questGiver: ent.name, questGiverId: ent.id, questGiverType: ent.type })
+  giverSearch.value = ''
+  giverOpen.value = false
+}
+
+function clearQuestGiver() {
+  emit('update:modelValue', { ...props.modelValue, questGiver: undefined, questGiverId: undefined, questGiverType: undefined })
+  giverSearch.value = ''
+}
+
+function onGiverBlur() {
+  setTimeout(() => {
+    giverOpen.value = false
+    const current = (props.modelValue as any).questGiver || ''
+    if (giverSearch.value !== current) {
+      emit('update:modelValue', { ...props.modelValue, questGiver: giverSearch.value || undefined, questGiverId: undefined, questGiverType: undefined })
+    }
+  }, 150)
+}
 const currentTags = computed(() => (attrs.value.tags ?? []) as string[])
 
 const locationTypes = [{ label: 'City', value: 'city' }, { label: 'Dungeon', value: 'dungeon' }, { label: 'Wilderness', value: 'wilderness' }, { label: 'Building', value: 'building' }, { label: 'Region', value: 'region' }, { label: 'Other', value: 'other' }]
@@ -391,4 +464,101 @@ async function browseImage(sourceKey: string, typeKey: string) {
   min-width: 80px;
   flex: 1;
 }
+
+/* ── Quest giver picker ───────────────────────────────────────────────────── */
+.giver-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  border-radius: 8px;
+  min-height: 38px;
+}
+
+.giver-type-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.giver-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.giver-clear {
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.giver-clear:hover { color: var(--blood); }
+
+.giver-picker { position: relative; }
+
+.giver-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  background: var(--parch-dark);
+  border: 1px solid var(--parch-line);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.giver-input:focus { border-color: var(--gold); }
+.giver-input::placeholder { color: var(--ink-ghost); }
+
+.giver-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--parch);
+  border: 1px solid var(--parch-line);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.giver-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--parch-line);
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.giver-item:last-child { border-bottom: none; }
+.giver-item:hover { background: var(--parch-dark); }
 </style>

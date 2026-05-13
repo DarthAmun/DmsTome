@@ -14,6 +14,7 @@
           <button v-if="type === 'session'" class="elist-vbtn" :class="{ active: route.path.endsWith('/log') }" @click="setView('log')">Log</button>
           <button v-if="type === 'location'" class="elist-vbtn" :class="{ active: viewMode === 'map' }" @click="setView('map')">Map</button>
         </div>
+        <button class="elist-export-btn" title="Export as JSON" @click="exportEntries">↓ JSON</button>
         <button class="btn-accent-sm" @click="createEntry">+ New</button>
       </div>
 
@@ -462,10 +463,43 @@ function eventColor(e: Entity): string {
   return 'var(--text3)'
 }
 
+function exportEntries() {
+  const data = {
+    version: 1,
+    type: props.type,
+    campaignId: campaignId.value,
+    exportedAt: new Date().toISOString(),
+    entries: entries.value,
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `dmstome-${props.type}s-${campaignId.value}-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(() => ensureLoaded())
 </script>
 
 <style scoped>
+/* ── Export button ───────────────────────────────────────────────────────── */
+.elist-export-btn {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.elist-export-btn:hover { color: var(--text2); border-color: var(--border-hi); }
+
 /* ── View toggle in list head ────────────────────────────────────────────── */
 .elist-vtabs {
   display: flex;
