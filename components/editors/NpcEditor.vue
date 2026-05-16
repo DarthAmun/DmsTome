@@ -90,8 +90,8 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from "~/stores/notes";
-import type { EntitySnapshot } from "~/stores/notes";
+import { useEntities } from "~/composables/useEntities";
+import type { EntitySnapshot } from "~/composables/useEntities";
 import type { EntityAttributes } from "~/types/entities";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
 
@@ -101,7 +101,7 @@ const emit = defineEmits<{
     deleted: [];
 }>();
 
-const store = useNotesStore();
+const store = useEntities();
 const router = useRouter();
 const route = useRoute();
 
@@ -254,6 +254,8 @@ function onSnapshotDeleted(id: number) {
 }
 
 function onSnapshotSaved() {}
+
+onUnmounted(() => { if (attrSaveTimer) clearTimeout(attrSaveTimer) })
 </script>
 
 <style scoped>

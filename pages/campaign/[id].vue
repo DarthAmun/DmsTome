@@ -3,9 +3,9 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 const route = useRoute()
-const notesStore = useNotesStore()
+const notesStore = useEntities()
 
 // Pre-load entities for this campaign so sidebar counts work
 onMounted(async () => {

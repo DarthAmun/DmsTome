@@ -1,26 +1,23 @@
-import { useNotesStore } from '~/stores/notes'
-import type { Entity } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
+import type { Entity } from '~/composables/useEntities'
 import type { EntityType } from '~/types/entities'
-import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from '~/types/entities'
 import { useFormatters } from '~/composables/useFormatters'
 
-const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations',
-  faction: 'factions', quest: 'quests', event: 'events',
-  session: 'sessions', note: 'notes',
-}
-
 function typeRoute(t: string) {
-  return TYPE_PLURAL_ROUTE[t] ?? t + 's'
+  return ENTITY_TYPE_ROUTE[t as EntityType] ?? t + 's'
 }
 
 export function useCampaignEntity(type: EntityType) {
   const route = useRoute()
   const router = useRouter()
-  const store = useNotesStore()
+  const store = useEntities()
   const { formatDateShort } = useFormatters()
 
-  const campaignId = computed(() => Number(route.params.id))
+  const campaignId = computed(() => {
+    const n = Number(route.params.id)
+    return Number.isFinite(n) ? n : 0
+  })
   const typeConfig = computed(() => ENTITY_TYPE_CONFIG[type])
 
   // ── List ────────────────────────────────────────────────────

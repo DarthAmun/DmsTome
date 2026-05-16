@@ -250,9 +250,9 @@
 import { dbApi } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
-import { useNotesStore } from '~/stores/notes'
-import type { Entity } from '~/stores/notes'
-import { useSystemsStore } from '~/stores/systems'
+import { useEntities } from '~/composables/useEntities'
+import type { Entity } from '~/composables/useEntities'
+import { useSystems } from '~/composables/useSystems'
 import { useBookmarks } from '~/composables/useBookmarks'
 import { useCommandPalette } from '~/composables/useCommandPalette'
 import type { CmdItem } from '~/composables/useCommandPalette'
@@ -271,8 +271,8 @@ const ENTRY_COMPONENTS: Record<EntityType, any> = {
 }
 
 const router = useRouter()
-const notesStore = useNotesStore()
-const systemsStore = useSystemsStore()
+const notesStore = useEntities()
+const systemsStore = useSystems()
 const { isBookmarked, bookmarkEntity, bookmarkRecord, bookmarkPage, removeBookmark, bookmarks } = useBookmarks()
 const { ctx, clearCtx, isCommandMode, getSuggestions } = useCommandPalette()
 const { update: updateSettings } = useSettings()
@@ -654,13 +654,15 @@ watch(open, (val) => {
 
 // Global keyboard shortcut
 if (import.meta.client) {
-  window.addEventListener('keydown', (e) => {
+  const onGlobalKeydown = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault()
       if (open.value) close()
       else open.value = true
     }
-  })
+  }
+  onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+  onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
 }
 </script>
 

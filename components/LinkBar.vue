@@ -185,8 +185,8 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from "~/stores/notes";
-import { useSystemsStore } from "~/stores/systems";
+import { useEntities } from "~/composables/useEntities";
+import { useSystems } from "~/composables/useSystems";
 import { extractLinks } from "~/composables/useEntityParser";
 import { getDb } from "~/composables/useDb";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
@@ -202,8 +202,8 @@ const emit = defineEmits<{
     navigate: [type: string, name: string];
 }>();
 
-const store = useNotesStore();
-const systemsStore = useSystemsStore();
+const store = useEntities();
+const systemsStore = useSystems();
 const router = useRouter();
 
 const entity = computed(

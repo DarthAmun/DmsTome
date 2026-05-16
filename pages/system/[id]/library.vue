@@ -61,12 +61,12 @@
 </template>
 
 <script setup lang="ts">
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { getDb } from '~/composables/useDb'
 
 const route = useRoute()
 const router = useRouter()
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 const systemId = Number(route.params.id)
 const recordCounts = ref<Record<string, number>>({})
 

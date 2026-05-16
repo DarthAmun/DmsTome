@@ -16,10 +16,10 @@
 
 <script setup lang="ts">
 // window.dmstome used for file dialog / IPC only
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 
 const route = useRoute()
-const store = useNotesStore()
+const store = useEntities()
 
 const campaignId = Number(route.params.id)
 const locationId = ref<number | null>(

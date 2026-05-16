@@ -589,7 +589,12 @@ async function runImport() {
     if (key === 'systems') return
     const sec = importSections.value.find(s => s.key === key)
     if (!sec?.enabled) return
-    for (const row of (payload[key] ?? [])) work.push({ table, row })
+    for (const row of (payload[key] ?? [])) {
+      if (key === 'entities' && typeof row.attributes !== 'string') {
+        row.attributes = JSON.stringify(row.attributes ?? {})
+      }
+      work.push({ table, row })
+    }
   }
   queueSection('campaigns', db.campaigns); queueSection('encounters', db.encounters)
   queueSection('encounterTokens', db.encounterTokens); queueSection('encounterWalls', db.encounterWalls)

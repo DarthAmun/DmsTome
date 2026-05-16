@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from "~/stores/notes";
+import { useEntities } from "~/composables/useEntities";
 import type { EntityAttributes } from "~/types/entities";
 
 const props = defineProps<{ entityId: number; campaignId: number }>();
@@ -83,7 +83,7 @@ const emit = defineEmits<{
     deleted: [];
 }>();
 
-const store = useNotesStore();
+const store = useEntities();
 
 const entity = computed(
     () => store.entities.find((e) => e.id === props.entityId) ?? store.currentEntity,
@@ -139,6 +139,8 @@ async function onDelete() {
     await store.deleteEntity(props.entityId);
     emit("deleted");
 }
+
+onUnmounted(() => { if (attrSaveTimer) clearTimeout(attrSaveTimer) })
 </script>
 
 <style scoped>

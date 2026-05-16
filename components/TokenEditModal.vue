@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import type { EncounterToken, TokenCondition } from '~/stores/encounter'
 import { getDb } from '~/composables/useDb'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
 
 const { extractStatsFromData } = useStatBlockLinker()

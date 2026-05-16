@@ -13,6 +13,18 @@
         <input v-model="search" class="elist-search-input" placeholder="Search encounters…" />
       </div>
 
+      <!-- Quick-filter pills by status -->
+      <div v-if="qfStatuses.length" class="elist-qf">
+        <span class="elist-qf-label">Status</span>
+        <button
+          v-for="val in qfStatuses"
+          :key="val"
+          class="elist-qf-pill"
+          :class="{ active: activeQF === val }"
+          @click="activeQF = activeQF === val ? null : val"
+        >{{ val }}</button>
+      </div>
+
       <div class="elist-body">
         <div v-if="!filtered.length" class="elist-empty">
           <div style="font-size:28px;opacity:0.15">⚔</div>
@@ -119,10 +131,24 @@ const encounters = ref<any[]>([])
 const search = ref('')
 const activeId = ref<number | null>(null)
 
+const activeQF = ref<string | null>(null)
+
+const qfStatuses = computed(() => {
+  const seen = new Set<string>()
+  for (const e of encounters.value) {
+    if (e.status) seen.add(e.status)
+  }
+  return Array.from(seen).sort()
+})
+
 const filtered = computed(() => {
-  if (!search.value) return encounters.value
-  const q = search.value.toLowerCase()
-  return encounters.value.filter(e => e.name.toLowerCase().includes(q))
+  let result = encounters.value
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(e => e.name.toLowerCase().includes(q))
+  }
+  if (activeQF.value) result = result.filter(e => e.status === activeQF.value)
+  return result
 })
 
 const selectedEncounter = computed(() =>

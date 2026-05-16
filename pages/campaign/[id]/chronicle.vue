@@ -55,7 +55,7 @@
 
 
 <script setup lang="ts">
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
 import { dbApi } from '~/composables/useDb'
@@ -68,7 +68,7 @@ const TYPE_PLURAL_ROUTE: Record<string, string> = {
 
 const route = useRoute()
 const router = useRouter()
-const store = useNotesStore()
+const store = useEntities()
 
 const campaignId = Number(route.params.id)
 const campaignName = ref('')

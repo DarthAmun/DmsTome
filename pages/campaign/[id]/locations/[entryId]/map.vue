@@ -32,11 +32,11 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from "~/stores/notes";
+import { useEntities } from "~/composables/useEntities";
 
 const route = useRoute();
 const router = useRouter();
-const store = useNotesStore();
+const store = useEntities();
 
 const campaignId = computed(() => Number(route.params.id));
 const entryId = computed(() => Number(route.params.entryId));

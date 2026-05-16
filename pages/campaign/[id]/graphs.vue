@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import { dbApi } from '~/composables/useDb'
 import type { DbGraphLayout } from '~/composables/useDb'
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 
 const TYPE_PLURAL_ROUTE: Record<string, string> = {
   npc: 'npcs', location: 'locations', faction: 'factions',
@@ -77,7 +77,7 @@ const TYPE_PLURAL_ROUTE: Record<string, string> = {
 
 const route = useRoute()
 const router = useRouter()
-const store = useNotesStore()
+const store = useEntities()
 const campaignId = Number(route.params.id)
 
 const graphs = ref<DbGraphLayout[]>([])

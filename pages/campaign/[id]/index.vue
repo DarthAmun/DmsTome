@@ -132,11 +132,11 @@
 
 <script setup lang="ts">
 import { dbApi, fileToDataUrl } from "~/composables/useDb";
-import { useNotesStore } from "~/stores/notes";
+import { useEntities } from "~/composables/useEntities";
 
 const route = useRoute();
 const id = Number(route.params.id);
-const notesStore = useNotesStore();
+const notesStore = useEntities();
 
 const name = ref("");
 const desc = ref("");

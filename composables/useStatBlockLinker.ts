@@ -4,7 +4,7 @@
  * TokenEditModal.
  */
 import { dbApi } from '~/composables/useDb'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 
 const HP_RE = /\b(hp|health|hit.?point|hpmax|hp.?max)\b/i
 const AC_RE = /\b(ac|armou?r.?class|armor)\b/i
@@ -17,7 +17,7 @@ export interface ExtractedStats {
 }
 
 export function useStatBlockLinker() {
-  const systemsStore = useSystemsStore()
+  const systemsStore = useSystems()
 
   /** Generic single-stat extractor used by both HP and AC paths. Checks
    *  object shapes ({max, current, value}) before plain number coercion. */

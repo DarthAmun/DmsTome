@@ -423,7 +423,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { FIELD_COMPONENT_OPTIONS, SECTION_STYLE_OPTIONS, labelToKey } from '~/types/entities'
 
 const genericFieldOptions = FIELD_COMPONENT_OPTIONS.filter(o => !o.section)
@@ -438,7 +438,7 @@ function safeIcon(name: string | undefined): string {
 }
 
 const route = useRoute()
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 const systemId = Number(route.params.id)
 
 const activeTypeId = ref<string | null>(null)

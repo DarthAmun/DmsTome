@@ -60,6 +60,7 @@
 
 <script setup lang="ts">
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
+import { ENTITY_TYPE_ROUTE } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
 
 const props = defineProps<{ type: EntityType }>()
@@ -70,16 +71,10 @@ const campaignId = Number(route.params.id)
 
 const { currentEntry, goToList, ensureLoaded, store } = useCampaignEntity(props.type)
 
-const TYPE_PLURAL_ROUTE: Record<string, string> = {
-  npc: 'npcs', location: 'locations',
-  faction: 'factions', quest: 'quests', event: 'events',
-  session: 'sessions', note: 'notes',
-}
-
 function onNavigate(type: string, name: string) {
   const entry = store.findByTypeAndName(type, name)
   if (!entry) return
-  router.push(`/campaign/${campaignId}/${TYPE_PLURAL_ROUTE[type] ?? type + 's'}/${entry.id}`)
+  router.push(`/campaign/${campaignId}/${ENTITY_TYPE_ROUTE[type as keyof typeof ENTITY_TYPE_ROUTE] ?? type + 's'}/${entry.id}`)
 }
 
 onMounted(() => ensureLoaded())

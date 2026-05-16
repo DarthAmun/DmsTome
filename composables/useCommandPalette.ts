@@ -1,6 +1,6 @@
 import { getDb } from '~/composables/useDb'
-import { useNotesStore } from '~/stores/notes'
-import { useSystemsStore } from '~/stores/systems'
+import { useEntities } from '~/composables/useEntities'
+import { useSystems } from '~/composables/useSystems'
 import type { EntityTypeSchema } from '~/types/entities'
 
 export interface CmdContext {
@@ -313,7 +313,7 @@ async function addSuggestions(
     warning: name ? undefined : 'type a name',
     execute: async () => {
       if (!ctx.campaign || !name) return
-      const notesStore = useNotesStore()
+      const notesStore = useEntities()
       const entity = await notesStore.createEntity(ctx.campaign.id, eType!.type as any, name)
       if (entity) router.push(`/campaign/${ctx.campaign.id}/${eType!.segment}/${entity.id}`)
       close()
@@ -483,7 +483,7 @@ async function deleteSuggestions(
     items.push({ kind: 'cmd', id: 'del-noname', icon: '✕', label: `delete ${eType!.label.toLowerCase()} …`, hint: `Search ${eType!.plural}`, canExecute: false, warning: 'type a name' })
     return items
   }
-  const notesStore = useNotesStore()
+  const notesStore = useEntities()
   const allRows = await dbApi.entities.search(nameStr.toLowerCase(), 8)
   const byType = allRows.filter((r: any) => r.type === eType!.type)
   // Prefer campaign-context matches; fall back to all campaigns
@@ -641,7 +641,7 @@ async function editSuggestions(
   const attrWords = afterPipe.trim().split(/\s+/).filter(Boolean)
   const key = attrWords[0] ?? ''
   const value = attrWords.slice(1).join(' ')
-  const notesStore = useNotesStore()
+  const notesStore = useEntities()
   const allEntityRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
   const byEntityType = allEntityRows.filter((r: any) => r.type === eType!.type)
   const preferredRows = ctx.campaign
@@ -822,7 +822,7 @@ async function appendSuggestions(
     return items
   }
   const text = afterPipe.trim()
-  const notesStore = useNotesStore()
+  const notesStore = useEntities()
   const allAppRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
   const byAppType = allAppRows.filter((r: any) => r.type === eType!.type)
   const preferredAppRows = ctx.campaign
@@ -945,7 +945,7 @@ async function renameSuggestions(
     return items
   }
   const newName = afterPipe.trim()
-  const notesStore = useNotesStore()
+  const notesStore = useEntities()
   const allRenRows = await dbApi.entities.search(namePart.toLowerCase(), 8)
   const byRenType = allRenRows.filter((r: any) => r.type === eType!.type)
   const preferredRenRows = ctx.campaign
@@ -1145,7 +1145,7 @@ export function useCommandPalette() {
     const { campaigns, systems, router, updateSettings, close } = opts
 
     // Resolve system entity types from active context
-    const systemsStore = useSystemsStore()
+    const systemsStore = useSystems()
     const sysEts: EntityTypeSchema[] = ctx.value.system
       ? (systemsStore.getSystem(ctx.value.system.id)?.entityTypes ?? [])
       : []

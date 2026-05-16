@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { getDb } from '~/composables/useDb'
 import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
 import type { FieldSchema } from '~/types/entities'
@@ -26,7 +26,7 @@ const props = defineProps<{
 defineEmits<{ update: [any] }>()
 
 const router = useRouter()
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 const { renderMarkdown } = useEntityMarkdown()
 
 const system = computed(() => props.systemId ? systemsStore.getSystem(props.systemId) : null)

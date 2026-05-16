@@ -276,7 +276,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   // ── Actions — Combat Log ──────────────────────────────────────────────────
-  function appendLogEntry(partial: Omit<CombatLogEntry, 'id' | 'round' | 'timestamp'>) {
+  async function appendLogEntry(partial: Omit<CombatLogEntry, 'id' | 'round' | 'timestamp'>) {
     if (!current.value) return
     const log = current.value.combatLog
     const entry: CombatLogEntry = {
@@ -286,7 +286,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       ...partial,
     }
     log.push(entry)
-    persistCombatLog()
+    await persistCombatLog()
   }
 
   async function addLogNote(tokenId: number, note: string) {

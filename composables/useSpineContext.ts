@@ -1,11 +1,11 @@
-import { useSystemsStore } from '~/stores/systems'
-import { useNotesStore } from '~/stores/notes'
+import { useSystems } from '~/composables/useSystems'
+import { useEntities } from '~/composables/useEntities'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 
 export function useSpineContext() {
   const route = useRoute()
-  const systemsStore = useSystemsStore()
-  const notesStore = useNotesStore()
+  const systemsStore = useSystems()
+  const notesStore = useEntities()
 
   // ── Which Level 1 is active ──────────────────────────────────
   const activeLevelOne = computed<'campaigns' | 'systems' | null>(() => {

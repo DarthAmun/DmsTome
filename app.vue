@@ -98,7 +98,7 @@
 import { useSettings } from '~/composables/useSettings'
 import { useBookmarks } from '~/composables/useBookmarks'
 import { useAppDialogs } from '~/composables/useAppDialogs'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { dbApi } from '~/composables/useDb'
 
 const { settings } = useSettings()
@@ -114,7 +114,7 @@ const sidebarRef = ref<{ reload: () => void } | null>(null)
 const { showNewCampaign, showNewSystem } = useAppDialogs()
 
 // ── New Campaign ─────────────────────────────────────────────────
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 const systems = computed(() => systemsStore.systems)
 onMounted(() => { if (!systems.value.length) systemsStore.loadAll() })
 
@@ -184,12 +184,15 @@ function inkWritePage() {
 const installPrompt = ref<Event | null>(null)
 
 if (import.meta.client) {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
-    installPrompt.value = e
+  const onBeforeInstall = (e: Event) => { e.preventDefault(); installPrompt.value = e }
+  const onAppInstalled = () => { installPrompt.value = null }
+  onMounted(() => {
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    window.addEventListener('appinstalled', onAppInstalled)
   })
-  window.addEventListener('appinstalled', () => {
-    installPrompt.value = null
+  onUnmounted(() => {
+    window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+    window.removeEventListener('appinstalled', onAppInstalled)
   })
 }
 

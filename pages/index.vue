@@ -405,7 +405,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSystemsStore } from "~/stores/systems";
+import { useSystems } from "~/composables/useSystems";
 import { dbApi } from "~/composables/useDb";
 import { useFormatters } from "~/composables/useFormatters";
 import { useAppDialogs } from "~/composables/useAppDialogs";
@@ -415,7 +415,7 @@ import type { EntityType } from "~/types/entities";
 const { showNewCampaign, showNewSystem } = useAppDialogs();
 const { formatDate } = useFormatters();
 const router = useRouter();
-const store = useSystemsStore();
+const store = useSystems();
 const systems = computed(() => store.systems);
 
 const campaigns = ref<any[]>([]);

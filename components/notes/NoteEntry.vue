@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { useFormatters } from '~/composables/useFormatters'
-import type { Entity } from '~/stores/notes'
+import type { Entity } from '~/composables/useEntities'
 import type { NoteAttributes } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()

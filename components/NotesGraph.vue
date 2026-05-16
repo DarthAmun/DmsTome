@@ -137,7 +137,7 @@ import {
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
-import { useNotesStore, type Entity } from "~/stores/notes";
+import { useEntities, type Entity } from "~/composables/useEntities";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
 import { dbApi, type DbEntityConnection } from "~/composables/useDb";
 import EntityNode from "~/components/graph/EntityNode.vue";
@@ -158,7 +158,7 @@ import {
 const props = defineProps<{ campaignId: number; graphId: number; playerView?: boolean }>();
 const emit = defineEmits<{ navigate: [type: string, name: string] }>();
 
-const store = useNotesStore();
+const store = useEntities();
 let flowApi: VueFlowStore | null = null;
 let pendingFit = false;
 const graphLoading = ref(true);

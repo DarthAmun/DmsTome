@@ -251,8 +251,8 @@
 
 <script setup lang="ts">
 import { dbApi, getDb } from '~/composables/useDb'
-import { useSystemsStore } from '~/stores/systems'
-import { useNotesStore } from '~/stores/notes'
+import { useSystems } from '~/composables/useSystems'
+import { useEntities } from '~/composables/useEntities'
 import { useAppDialogs } from '~/composables/useAppDialogs'
 import type { DbCampaign } from '~/composables/useDb'
 
@@ -260,8 +260,8 @@ const { showNewCampaign, showNewSystem } = useAppDialogs()
 
 const route = useRoute()
 const router = useRouter()
-const systemsStore = useSystemsStore()
-const notesStore = useNotesStore()
+const systemsStore = useSystems()
+const notesStore = useEntities()
 
 // ── Collapse state ─────────────────────────────────────────────────────────
 const collapsed = ref(false)

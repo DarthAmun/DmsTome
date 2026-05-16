@@ -222,7 +222,7 @@
 <script setup lang="ts">
 import type { EntityType, EntityAttributes } from '~/types/entities'
 import { NOTE_ICONS } from '~/types/entities'
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 
 const props = defineProps<{ type: EntityType; modelValue: EntityAttributes }>()
 const emit = defineEmits<{ 'update:modelValue': [EntityAttributes] }>()
@@ -232,7 +232,7 @@ const newTag = ref('')
 const attrs = computed(() => props.modelValue as any)
 
 // ── Quest giver entity picker ─────────────────────────────────────────────────
-const notesStore = useNotesStore()
+const notesStore = useEntities()
 const giverSearch = ref((props.modelValue as any).questGiverId ? '' : ((props.modelValue as any).questGiver || ''))
 const giverOpen = ref(false)
 
@@ -255,6 +255,7 @@ function selectGiver(ent: any) {
   emit('update:modelValue', { ...props.modelValue, questGiver: ent.name, questGiverId: ent.id, questGiverType: ent.type })
   giverSearch.value = ''
   giverOpen.value = false
+  giverDropdownStyle.value = {}
 }
 
 function clearQuestGiver() {
@@ -265,6 +266,7 @@ function clearQuestGiver() {
 function onGiverBlur() {
   setTimeout(() => {
     giverOpen.value = false
+    giverDropdownStyle.value = {}
     const current = (props.modelValue as any).questGiver || ''
     if (giverSearch.value !== current) {
       emit('update:modelValue', { ...props.modelValue, questGiver: giverSearch.value || undefined, questGiverId: undefined, questGiverType: undefined })

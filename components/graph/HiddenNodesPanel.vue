@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
-import type { Entity } from '~/stores/notes'
+import type { Entity } from '~/composables/useEntities'
 
 defineProps<{
     open: boolean

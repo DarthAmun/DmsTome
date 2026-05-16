@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 
 const props = defineProps<{
   open: boolean
@@ -90,7 +90,7 @@ const emit = defineEmits<{
   created: [snapshotId: number]
 }>()
 
-const store = useNotesStore()
+const store = useEntities()
 
 const label = ref('')
 const note = ref('')

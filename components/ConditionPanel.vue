@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { getDb } from '~/composables/useDb'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 
 const props = defineProps<{
   conditionName: string
@@ -44,7 +44,7 @@ const props = defineProps<{
 
 defineEmits<{ close: [] }>()
 
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 const loading = ref(false)
 const record = ref<{ name: string; data: Record<string, any> } | null>(null)
 const entityType = ref<any | null>(null)

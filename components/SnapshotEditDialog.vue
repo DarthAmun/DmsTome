@@ -64,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { useNotesStore } from '~/stores/notes'
-import type { EntitySnapshot } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
+import type { EntitySnapshot } from '~/composables/useEntities'
 
 const props = defineProps<{
   open: boolean
@@ -79,7 +79,7 @@ const emit = defineEmits<{
   saved: []
 }>()
 
-const store = useNotesStore()
+const store = useEntities()
 
 const draftLabel = ref('')
 const draftNote = ref('')

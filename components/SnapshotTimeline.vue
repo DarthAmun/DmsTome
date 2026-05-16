@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import type { EntitySnapshot } from '~/stores/notes'
+import type { EntitySnapshot } from '~/composables/useEntities'
 
 const props = defineProps<{
   snapshots: EntitySnapshot[]

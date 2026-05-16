@@ -52,9 +52,9 @@
 
 <script setup lang="ts">
 import { useBookmarks } from '~/composables/useBookmarks'
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 import { useEncounterStore } from '~/stores/encounter'
-import { useSystemsStore } from '~/stores/systems'
+import { useSystems } from '~/composables/useSystems'
 import { useSettings } from '~/composables/useSettings'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
@@ -67,9 +67,9 @@ function toggleTheme() { updateSettings('theme', isDark.value ? 'light' : 'dark'
 
 const route = useRoute()
 const { bookmarks, removeBookmark, reorder, isBookmarked, bookmarkPage, bookmarkEntity, bookmarkRecord } = useBookmarks()
-const notesStore = useNotesStore()
+const notesStore = useEntities()
 const encounterStore = useEncounterStore()
-const systemsStore = useSystemsStore()
+const systemsStore = useSystems()
 
 function navigate(bm: { route: string }) { router.push(bm.route) }
 

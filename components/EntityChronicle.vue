@@ -25,6 +25,37 @@
           class="elist-search-input"
           :placeholder="`Search ${typeConfig?.plural?.toLowerCase() ?? ''}…`"
         />
+        <button v-if="qfConfigs.length" class="elist-filter-btn" :class="{ active: activeQFCount > 0 }" @click="showFilters = !showFilters">
+          <span v-if="activeQFCount" class="elist-filter-badge">{{ activeQFCount }}</span>
+          ⊕
+        </button>
+      </div>
+
+      <!-- Active filter chips -->
+      <div v-if="activeQFCount > 0" class="elist-qf-chips">
+        <span v-for="[key, val] in activeQFEntries" :key="key" class="elist-qf-chip">
+          {{ qfChipLabel(key, val) }}
+          <button class="elist-chip-x" @click="toggleQF(key, val)">×</button>
+        </span>
+        <button class="elist-chip-clear" @click="clearQF">Clear</button>
+      </div>
+
+      <!-- Collapsible filter panel -->
+      <div v-if="showFilters && qfConfigs.length" class="elist-filter-panel">
+        <template v-for="cfg in qfConfigs" :key="cfg.key">
+          <div v-if="qfValuesFor(cfg.key).length" class="elist-fp-row">
+            <span class="elist-fp-label">{{ cfg.label }}</span>
+            <div class="elist-fp-pills">
+              <button
+                v-for="val in qfValuesFor(cfg.key)"
+                :key="val"
+                class="elist-qf-pill"
+                :class="{ active: activeQF[cfg.key] === val }"
+                @click="toggleQF(cfg.key, val)"
+              >{{ val }}</button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div class="elist-body">
@@ -211,9 +242,9 @@
 <script setup lang="ts">
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
 import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 import type { EntityType } from '~/types/entities'
-import type { Entity } from '~/stores/notes'
+import type { Entity } from '~/composables/useEntities'
 
 const props = defineProps<{ type: EntityType }>()
 
@@ -227,10 +258,60 @@ const campaignId = computed(() => Number(route.params.id))
 
 const search = ref('')
 
+// ── Quick filters ─────────────────────────────────────────────────────────────
+interface QFConfig { key: string; label: string }
+
+const QF_FIELDS: Partial<Record<string, QFConfig[]>> = {
+  npc:      [{ key: 'status', label: 'Status' }, { key: 'race', label: 'Race' }, { key: 'role', label: 'Class' }, { key: 'level', label: 'Level' }],
+  quest:    [{ key: 'status', label: 'Status' }],
+  session:  [{ key: 'mode', label: 'Mode' }],
+  location: [{ key: 'status', label: 'Status' }],
+  event:    [{ key: 'significance', label: 'Significance' }],
+  faction:  [{ key: 'factionType', label: 'Type' }, { key: 'size', label: 'Size' }],
+}
+
+const activeQF = ref<Record<string, string | null>>({})
+const showFilters = ref(false)
+
+const qfConfigs = computed(() => QF_FIELDS[props.type] ?? [])
+const activeQFCount = computed(() => Object.values(activeQF.value).filter(v => v !== null).length)
+const activeQFEntries = computed(() =>
+  Object.entries(activeQF.value).filter((e): e is [string, string] => e[1] !== null)
+)
+
+function qfValuesFor(key: string): string[] {
+  const seen = new Set<string>()
+  for (const e of entries.value) {
+    const v = (e.attributes as any)?.[key]
+    if (v !== undefined && v !== null && v !== '') seen.add(String(v))
+  }
+  const arr = Array.from(seen)
+  const allNum = arr.every(v => !Number.isNaN(Number(v)))
+  return allNum ? arr.sort((a, b) => Number(a) - Number(b)) : arr.sort()
+}
+
+function toggleQF(key: string, val: string) {
+  activeQF.value = { ...activeQF.value, [key]: activeQF.value[key] === val ? null : val }
+}
+
+function clearQF() { activeQF.value = {} }
+
+function qfChipLabel(key: string, val: string): string {
+  const cfg = qfConfigs.value.find(c => c.key === key)
+  return `${cfg?.label ?? key}: ${val}`
+}
+
 const filteredEntries = computed(() => {
-  if (!search.value) return entries.value
-  const q = search.value.toLowerCase()
-  return entries.value.filter(e => e.name.toLowerCase().includes(q))
+  let result = entries.value
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(e => e.name.toLowerCase().includes(q))
+  }
+  for (const [key, val] of Object.entries(activeQF.value)) {
+    if (!val) continue
+    result = result.filter(e => String((e.attributes as any)?.[key] ?? '') === val)
+  }
+  return result
 })
 
 const activeEntryId = computed(() =>
@@ -290,7 +371,7 @@ function sigNodeColor(sig: string | undefined): string {
 // ── Session log ───────────────────────────────────────────────────────────────
 const expandedIds = ref<Set<number>>(new Set())
 const { renderMarkdown } = useEntityMarkdown()
-const notesStore = useNotesStore()
+const notesStore = useEntities()
 const SESSION_TYPE_COLORS: Record<string, string> = {
   npc: '#7cc44e', location: '#a87de8', faction: '#e05555',
   quest: '#e8924a', event: '#4ab8e8', note: '#6b9fe8', session: '#b87de8',

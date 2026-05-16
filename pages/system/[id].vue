@@ -3,8 +3,8 @@
 </template>
 
 <script setup lang="ts">
-import { useSystemsStore } from '~/stores/systems'
-const systemsStore = useSystemsStore()
+import { useSystems } from '~/composables/useSystems'
+const systemsStore = useSystems()
 const route = useRoute()
 const router = useRouter()
 

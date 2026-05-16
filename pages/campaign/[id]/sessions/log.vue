@@ -37,16 +37,16 @@
 
 <script setup lang="ts">
 import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 
 const route = useRoute()
 const router = useRouter()
-const store = useNotesStore()
+const store = useEntities()
 
 const campaignId = computed(() => Number(route.params.id))
 
 const { renderMarkdown } = useEntityMarkdown()
-const notesStore = useNotesStore()
+const notesStore = useEntities()
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
     npc: '#7cc44e', location: '#a87de8', faction: '#e05555',

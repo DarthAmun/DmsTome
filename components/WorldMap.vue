@@ -195,7 +195,7 @@
 
 <script setup lang="ts">
 // window.dmstome used for file dialog / IPC only
-import { useNotesStore } from '~/stores/notes'
+import { useEntities } from '~/composables/useEntities'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import { extractLinks } from '~/composables/useEntityParser'
 import type { MapPin } from '~/types/entities'
@@ -215,7 +215,7 @@ const emit = defineEmits<{
   'navigate-crumb': [index: number]
 }>()
 
-const store = useNotesStore()
+const store = useEntities()
 
 // Breadcrumb is derived from locationStack prop
 const breadcrumb = computed<{ id: number; name: string; icon: string }[]>(() => {

@@ -231,8 +231,8 @@
 
 <script setup lang="ts">
 import * as GiIcons from "oh-vue-icons/icons/gi";
-import { useNotesStore } from "~/stores/notes";
-import { useSystemsStore } from "~/stores/systems";
+import { useEntities } from "~/composables/useEntities";
+import { useSystems } from "~/composables/useSystems";
 import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
 import { useDiceRoll } from "~/composables/useDiceRoll";
 import { getDb, dbApi } from "~/composables/useDb";
@@ -256,8 +256,8 @@ const emit = defineEmits<{
     navigate: [type: string, name: string];
 }>();
 
-const store = useNotesStore();
-const systemsStore = useSystemsStore();
+const store = useEntities();
+const systemsStore = useSystems();
 const router = useRouter();
 
 // ── Icon helpers ──────────────────────────────────────────────────────────────
@@ -1106,6 +1106,8 @@ function onMixedPreviewClick(e: MouseEvent, i: number) {
 onMounted(() => {
     if (viewMode.value === "mixed") syncBlocks();
 });
+
+onUnmounted(() => { if (saveTimer) clearTimeout(saveTimer) });
 </script>
 
 <style scoped>

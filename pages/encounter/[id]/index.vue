@@ -757,7 +757,7 @@ import { useEncounterStore } from "~/stores/encounter";
 import type { EncounterToken } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
 import { dbApi } from "~/composables/useDb";
-import { useSystemsStore } from "~/stores/systems";
+import { useSystems } from "~/composables/useSystems";
 import { useConditionPanel } from "~/composables/useConditionPanel";
 import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
 
@@ -765,7 +765,7 @@ const { extractStatsFromData, getCombatantTypes } = useStatBlockLinker();
 
 const route = useRoute();
 const store = useEncounterStore();
-const systemsStore = useSystemsStore();
+const systemsStore = useSystems();
 const canvasContainer = ref<HTMLElement | null>(null);
 
 const activeTool = ref<"select" | "fog" | "measure" | "shapes" | "wall">("select");

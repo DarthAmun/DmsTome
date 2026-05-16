@@ -81,6 +81,16 @@ export interface PinnedLocation {
 
 export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes
 
+export const ENTITY_TYPE_ROUTE: Record<EntityType, string> = {
+  session:  'sessions',
+  note:     'notes',
+  npc:      'npcs',
+  location: 'locations',
+  faction:  'factions',
+  quest:    'quests',
+  event:    'events',
+}
+
 export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   label: string
   plural: string
