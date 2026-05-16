@@ -635,7 +635,7 @@ watch(
 type ViewMode = "edit" | "mixed" | "preview";
 const VM_KEY = "dmstome.editor.viewmode";
 const viewMode = ref<ViewMode>(props.initialViewMode ?? "mixed");
-if (import.meta.client) {
+if (import.meta.client && props.showTabBar !== false) {
     const s = localStorage.getItem(VM_KEY);
     if (s === "edit" || s === "mixed" || s === "preview") viewMode.value = s;
 }

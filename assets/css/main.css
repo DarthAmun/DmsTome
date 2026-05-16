@@ -4003,3 +4003,40 @@ html[data-theme="dark"] .bldr-field-row:hover {
     border-color: var(--accent);
     color: var(--accent);
 }
+
+/* ── Widget markdown body (DM screen dark theme) ───────────────────────────── */
+.wm-body { font-size: 12.5px; line-height: 1.65; }
+.wm-body > *:first-child { margin-top: 0; }
+.wm-body > *:last-child  { margin-bottom: 0; }
+.wm-body p  { margin: 0 0 0.45em; }
+.wm-body h1, .wm-body h2, .wm-body h3 { font-weight: 700; margin: 0.7em 0 0.25em; color: oklch(88% 0.014 295); }
+.wm-body h1 { font-size: 15px; }
+.wm-body h2 { font-size: 13.5px; }
+.wm-body h3 { font-size: 12.5px; }
+.wm-body ul, .wm-body ol { padding-left: 1.35em; margin: 0.25em 0; }
+.wm-body li { margin: 0.1em 0; }
+.wm-body strong { font-weight: 700; color: oklch(93% 0.007 280); }
+.wm-body em { font-style: italic; }
+.wm-body code { font-family: monospace; font-size: 11px; background: oklch(100% 0 0/0.08); padding: 1px 5px; border-radius: 3px; }
+.wm-body blockquote { border-left: 2px solid oklch(58% 0.24 295/0.45); margin: 0.4em 0; padding-left: 0.8em; color: oklch(60% 0.012 280); font-style: italic; }
+.wm-body hr { border: none; border-top: 1px solid oklch(100% 0 0/0.10); margin: 0.6em 0; }
+
+/* ── Entity refs (global — needed on DM screen where MarkdownEditor isn't mounted) */
+.entity-ref {
+  cursor: pointer; border-radius: 3px; padding: 1px 4px;
+  font-weight: 600; transition: background 0.12s; display: inline;
+}
+.entity-ref:hover { filter: brightness(1.2); }
+.entity-ref em { font-size: 0.85em; font-style: normal; opacity: 0.75; margin-left: 3px; }
+.entity-ref-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: middle; margin-top: -2px; }
+.entity-ref-avatar { display: inline-block; width: 14px; height: 14px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 3px; margin-top: -2px; border: 1px solid oklch(100% 0 0/0.2); }
+.entity-ref--note     { color: #7ba8e8; background: rgba(91,141,217,0.15); }
+.entity-ref--npc      { color: #7dd89a; background: rgba(93,184,122,0.15); }
+.entity-ref--location { color: #b98ee8; background: rgba(155,109,217,0.15); }
+.entity-ref--faction  { color: #e87a7a; background: rgba(217,91,91,0.15); }
+.entity-ref--quest    { color: #e8b87a; background: rgba(217,150,91,0.15); }
+.entity-ref--event    { color: #7ad4e8; background: rgba(91,186,217,0.15); }
+.entity-ref--session  { color: #7ba8e8; background: rgba(91,141,217,0.15); }
+.entity-ref--encounter { color: #e8a87a; background: rgba(217,141,91,0.15); }
+.entity-ref--graph    { color: #7cc44e; background: rgba(100,180,60,0.15); }
+.roll-ref { cursor: pointer; color: oklch(78% 0.16 75); font-family: monospace; font-size: 0.9em; }

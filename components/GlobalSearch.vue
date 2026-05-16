@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <!-- Pill trigger -->
-    <button class="gs-pill-trigger" @click="open = true">
+    <button v-if="!hideTrigger" class="gs-pill-trigger" @click="open = true">
       <span class="gs-pill-icon">⌕</span>
       <span>Search</span>
       <span class="gs-pill-shortcut">{{ isMac ? '⌘K' : 'Ctrl+K' }}</span>
@@ -269,6 +269,8 @@ const ENTRY_COMPONENTS: Record<EntityType, any> = {
   npc: NpcEntry, location: LocationEntry, faction: FactionEntry,
   quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
 }
+
+const props = defineProps<{ hideTrigger?: boolean }>()
 
 const router = useRouter()
 const notesStore = useEntities()

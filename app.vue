@@ -13,8 +13,8 @@
       <NuxtPage />
     </template>
 
-    <GlobalSearch v-if="!isPlayerRoute" />
-    <DiceRoller v-if="!isPlayerRoute" />
+    <GlobalSearch v-if="!isPlayerRoute" :hide-trigger="isDmScreenRoute" />
+    <DiceRoller v-if="!isPlayerRoute && !isDmScreenRoute" />
     <div id="spark-layer" aria-hidden="true" />
 
     <!-- New Campaign dialog -->
@@ -109,6 +109,7 @@ const router = useRouter()
 const isPlayerRoute = computed(() =>
   route.path.endsWith('/player') || route.path.endsWith('/map-player') || route.path.endsWith('/graph-player')
 )
+const isDmScreenRoute = computed(() => route.path.endsWith('/dm-screen'))
 
 const sidebarRef = ref<{ reload: () => void } | null>(null)
 const { showNewCampaign, showNewSystem } = useAppDialogs()

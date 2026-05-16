@@ -1,7 +1,8 @@
 <template>
-  <Teleport to="body">
-    <!-- Pill trigger -->
+  <Teleport to="body" :disabled="inline">
+    <!-- Pill trigger (floating mode only) -->
     <button
+      v-if="!inline"
       class="dice-fab"
       :class="{ 'dice-fab--open': panelOpen }"
       @click="panelOpen = !panelOpen"
@@ -11,12 +12,12 @@
     </button>
 
     <!-- Panel -->
-    <Transition name="dp">
-      <div v-if="panelOpen" class="dice-panel" @mousedown.stop @keydown.escape="panelOpen = false">
+    <Transition :name="inline ? '' : 'dp'">
+      <div v-if="inline || panelOpen" class="dice-panel" :class="{ 'dice-panel--inline': inline }" @mousedown.stop @keydown.escape="panelOpen = false">
         <!-- Header -->
         <div class="dp-header">
           <span class="dp-title">Dice Roller</span>
-          <button class="dp-close" @click="panelOpen = false">✕</button>
+          <button v-if="!inline" class="dp-close" @click="panelOpen = false">✕</button>
         </div>
 
         <!-- Dice grid: 4+3 layout, d100 spans 2 cols -->
@@ -106,6 +107,8 @@ const DIE_SHAPES: Record<number, string | null> = {
 const DIE_ICON: Record<number, string> = {
   20: 'fa-dice-d20',
 }
+
+const props = defineProps<{ inline?: boolean }>()
 
 const panelOpen = ref(false)
 
@@ -260,6 +263,13 @@ function rollDice() {
   border: 1px solid rgba(184,134,11,0.3);
   border-radius: 12px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(184,134,11,0.08);
+}
+.dice-panel--inline {
+  position: relative;
+  bottom: auto; right: auto; z-index: auto;
+  width: 100%; height: 100%; max-height: none;
+  border-radius: 0; border: none; box-shadow: none;
+  overflow-y: auto;
 }
 
 .dp-header {
