@@ -68,6 +68,7 @@ export interface Encounter {
   tokens: EncounterToken[]
   combatLog: CombatLogEntry[]
   fovEnabled: boolean
+  soundPlaylistId?: number
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
@@ -118,6 +119,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         mapType: data.map_type,
         campaignId: data.campaign_id,
         fovEnabled: data.fov_enabled ?? false,
+        soundPlaylistId: data.sound_playlist_id ?? undefined,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
       currentTurnIndex.value = data.current_turn_index ?? 0
@@ -492,6 +494,12 @@ export const useEncounterStore = defineStore('encounter', () => {
     await dbApi.encounters.update({ id: current.value.id, fov_enabled: enabled })
   }
 
+  async function setSoundPlaylistId(id: number | null): Promise<void> {
+    if (!current.value) return
+    current.value.soundPlaylistId = id ?? undefined
+    await dbApi.encounters.update({ id: current.value.id, sound_playlist_id: id })
+  }
+
   async function updateName(name: string) {
     if (!current.value) return
     current.value.name = name
@@ -536,6 +544,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     setFogCell, hideAllFog, clearAllFog,
     addWall, undoLastWall, updateWall, deleteWall, toggleDoor,
     setFovEnabled,
+    setSoundPlaylistId,
     addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,

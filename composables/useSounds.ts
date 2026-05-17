@@ -64,6 +64,10 @@ function trackCount(pl: DbSoundPlaylist): number {
   return (JSON.parse(pl.trackIds) as number[]).length
 }
 
+function getPlaylistById(id: number): DbSoundPlaylist | null {
+  return playlists.value.find(p => p.id === id) ?? null
+}
+
 function getPlaylistTracks(pl: DbSoundPlaylist): DbSoundTrack[] {
   const ids: number[] = JSON.parse(pl.trackIds)
   return ids.map(id => tracks.value.find(t => t.id === id)).filter(Boolean) as DbSoundTrack[]
@@ -101,6 +105,7 @@ export function useSounds() {
     addTrack,
     deleteTrack,
     trackCount,
+    getPlaylistById,
     getPlaylistTracks,
     addTrackToPlaylist,
     removeTrackFromPlaylist,

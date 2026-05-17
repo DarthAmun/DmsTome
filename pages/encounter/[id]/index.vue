@@ -139,6 +139,22 @@
             </label>
             <p class="enc-hint">Draw walls to block line of sight for players.</p>
           </div>
+
+          <!-- Music -->
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <span class="f-label">Music</span>
+            </div>
+            <select
+              class="enc-playlist-select"
+              :value="encounter?.soundPlaylistId ?? ''"
+              @change="onPlaylistLinkChange"
+            >
+              <option value="">— none —</option>
+              <option v-for="pl in soundPlaylists" :key="pl.id" :value="pl.id">{{ pl.name }}</option>
+            </select>
+            <p class="enc-hint">Link a playlist to prompt auto-play when this encounter starts.</p>
+          </div>
         </aside>
 
         <!-- Centre: PixiJS Canvas -->
@@ -760,6 +776,7 @@ import { dbApi } from "~/composables/useDb";
 import { useSystems } from "~/composables/useSystems";
 import { useConditionPanel } from "~/composables/useConditionPanel";
 import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
+import { useSounds } from "~/composables/useSounds";
 
 const { extractStatsFromData, getCombatantTypes } = useStatBlockLinker();
 
@@ -1193,6 +1210,14 @@ function toggleTool(tool: "fog" | "measure" | "shapes" | "wall") {
 
 const encounter = computed(() => store.current);
 const encounterTokens = computed(() => store.allTokens);
+
+// ── Music ──────────────────────────────────────────────────────────────────
+const { playlists: soundPlaylists, load: loadSounds } = useSounds();
+
+async function onPlaylistLinkChange(e: Event) {
+  const val = (e.target as HTMLSelectElement).value;
+  await store.setSoundPlaylistId(val ? Number(val) : null);
+}
 const sortedEncounterTokens = computed(() =>
   store.allTokens.sort((a, b) => {
     // Tokens with initiative set come first, sorted descending
@@ -1218,8 +1243,7 @@ const currentTurnTokenId = computed(
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 onMounted(async () => {
   const id = Number(route.params.id);
-  await store.loadEncounter(id);
-  await store.loadTokenLibrary();
+  await Promise.all([store.loadEncounter(id), store.loadTokenLibrary(), loadSounds()]);
 
   mode.value = (localStorage.getItem(MODE_KEY.value) as any) ?? 'prepare';
 
@@ -2778,6 +2802,20 @@ function getImageUrl(token: any): string {
   margin-bottom: 4px;
 }
 .fov-enable-check { accent-color: var(--gold); cursor: pointer; }
+
+/* ── Music sidebar ── */
+.enc-playlist-select {
+  width: 100%;
+  background: var(--surface-hi);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  padding: 5px 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+}
+.enc-playlist-select:focus { outline: none; border-color: var(--accent-l); }
 
 /* ── Shape tool submenu ── */
 .wall-submenu {

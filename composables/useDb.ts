@@ -52,6 +52,7 @@ export interface DbEncounter {
   current_turn_index?: number
   round_number?: number
   fov_enabled?: boolean
+  sound_playlist_id?: number | null
   created_at: string
   updated_at: string
 }

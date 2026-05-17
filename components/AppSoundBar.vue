@@ -1,21 +1,29 @@
 <template>
   <Teleport to="body" :disabled="inline">
 
-    <!-- ── FAB trigger (floating mode only) ───────────────────── -->
-    <button
-      v-if="!inline"
-      class="sp-fab"
-      :class="{ 'sp-fab--open': panelOpen, 'sp-fab--playing': isPlaying }"
-      @click="panelOpen = !panelOpen"
-    >
-      <span class="sp-fab-icon">
-        <span v-if="isPlaying" class="sp-eq">
-          <span class="sp-eq-bar" /><span class="sp-eq-bar" /><span class="sp-eq-bar" />
+    <!-- ── FAB + encounter music notification ──────────────────── -->
+    <div v-if="!inline" class="sp-fab-group">
+      <Transition name="sp-notif">
+        <div v-if="linkedPlaylistNotif" class="sp-notif">
+          <span class="sp-notif-name">♫ {{ linkedPlaylistNotif.name }}</span>
+          <button class="sp-notif-play" @click="playLinkedPlaylist">Play</button>
+          <button class="sp-notif-dismiss" @click="dismissNotif">×</button>
+        </div>
+      </Transition>
+      <button
+        class="sp-fab"
+        :class="{ 'sp-fab--open': panelOpen, 'sp-fab--playing': isPlaying }"
+        @click="panelOpen = !panelOpen"
+      >
+        <span class="sp-fab-icon">
+          <span v-if="isPlaying" class="sp-eq">
+            <span class="sp-eq-bar" /><span class="sp-eq-bar" /><span class="sp-eq-bar" />
+          </span>
+          <span v-else>♫</span>
         </span>
-        <span v-else>♫</span>
-      </span>
-      <span class="sp-fab-label">{{ currentTrack ? currentTrack.name : 'Music' }}</span>
-    </button>
+        <span class="sp-fab-label">{{ currentTrack ? currentTrack.name : 'Music' }}</span>
+      </button>
+    </div>
 
     <!-- ── Panel ───────────────────────────────────────────────── -->
     <Transition :name="inline ? '' : 'sp-panel'">
@@ -169,6 +177,7 @@
 <script setup lang="ts">
 import { useSoundPlayer } from '~/composables/useSoundPlayer'
 import { useSounds } from '~/composables/useSounds'
+import { useEncounterStore } from '~/stores/encounter'
 import type { DbSoundPlaylist } from '~/composables/useDb'
 import { fmtSeconds } from '~/utils/time'
 
@@ -185,7 +194,7 @@ const {
   toggleShuffle, toggleLoop,
 } = useSoundPlayer()
 
-const { playlists, trackCount, getPlaylistTracks } = useSounds()
+const { playlists, trackCount, getPlaylistById, getPlaylistTracks } = useSounds()
 
 const panelOpen = ref(false)
 
@@ -194,6 +203,34 @@ function closePanel() { if (!props.inline) panelOpen.value = false }
 function startPlaylist(pl: DbSoundPlaylist) {
   const tracks = getPlaylistTracks(pl)
   if (tracks.length) playPlaylist(pl, tracks)
+}
+
+// ── Encounter-linked playlist notification ─────────────────────────────────
+const encounterStore = useEncounterStore()
+const notifDismissedId = ref<number | null>(null)
+
+const linkedPlaylistNotif = computed(() => {
+  const id = encounterStore.current?.soundPlaylistId
+  if (!id || notifDismissedId.value === id) return null
+  if (currentPlaylist.value?.id === id) return null
+  return getPlaylistById(id)
+})
+
+watch(() => encounterStore.current?.soundPlaylistId, () => {
+  notifDismissedId.value = null
+})
+
+function dismissNotif() {
+  notifDismissedId.value = linkedPlaylistNotif.value!.id!
+}
+
+async function playLinkedPlaylist() {
+  const pl = linkedPlaylistNotif.value
+  if (!pl) return
+  const tracks = getPlaylistTracks(pl)
+  await playPlaylist(pl, tracks)
+  notifDismissedId.value = pl.id
+  panelOpen.value = false
 }
 
 // ── Device picker ──────────────────────────────────────────────────────────
@@ -224,12 +261,20 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
 </script>
 
 <style scoped>
-/* ── FAB trigger ────────────────────────────────────────────── */
-.sp-fab {
+/* ── FAB group (positions both FAB and notification) ─────────── */
+.sp-fab-group {
   position: fixed;
   bottom: 68px;
   right: 20px;
   z-index: 199;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row;
+}
+
+/* ── FAB trigger ────────────────────────────────────────────── */
+.sp-fab {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -259,6 +304,60 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
 
 .sp-fab-icon { font-size: 15px; line-height: 1; flex-shrink: 0; }
 .sp-fab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Encounter music notification chip ───────────────────────── */
+.sp-notif {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 99px;
+  background: var(--surface-solid, var(--bg2));
+  border: 1px solid color-mix(in oklch, var(--accent) 50%, var(--border));
+  box-shadow: var(--sh-md);
+  font-size: 12px;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  max-width: 260px;
+}
+.sp-notif-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.sp-notif-play {
+  background: var(--accent-l, var(--accent));
+  color: var(--bg, #fff);
+  border: none;
+  border-radius: 99px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.sp-notif-play:hover { filter: brightness(1.1); }
+.sp-notif-dismiss {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sp-notif-dismiss:hover { color: var(--text); }
+
+/* Notification slide-in transition */
+.sp-notif-enter-active { transition: opacity 0.2s, transform 0.2s; }
+.sp-notif-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.sp-notif-enter-from  { opacity: 0; transform: translateX(12px); }
+.sp-notif-leave-to    { opacity: 0; transform: translateX(12px); }
 
 /* Equaliser bars */
 .sp-eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
