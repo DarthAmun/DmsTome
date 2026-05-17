@@ -1,5 +1,9 @@
 <template>
   <div class="wf-body">
+    <div v-if="bannerSrc" class="wf-banner">
+      <img :src="bannerSrc" :alt="entity.name" class="wf-banner-img" />
+      <div class="wf-banner-name">{{ entity.name }}</div>
+    </div>
     <div v-if="fields.length" class="wf-fields">
       <div v-for="f in fields" :key="f.label" class="wf-field">
         <div class="wf-field-label">{{ f.label }}</div>
@@ -23,6 +27,7 @@ const props = defineProps<{ entity: Entity }>()
 const store = useEntities()
 
 const attrs = computed(() => props.entity.attributes as any)
+const bannerSrc = computed(() => attrs.value?.imageSource || null)
 const notes = computed(() => props.entity.content ?? '')
 
 function saveContent(value: string) {
@@ -40,6 +45,18 @@ const fields = computed(() => {
 
 <style scoped>
 .wf-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.wf-banner { position: relative; flex-shrink: 0; height: 72px; overflow: hidden; }
+.wf-banner-img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.wf-banner-name {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 16px 10px 6px;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
+  font-size: 13px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  line-height: 1.2;
+}
+
 .wf-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 5px; padding: 10px 12px 0; flex-shrink: 0; margin-bottom: 4px; }
 .wf-field { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; }
 .wf-field-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 2px; font-family: var(--fm); }

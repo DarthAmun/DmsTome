@@ -37,7 +37,7 @@ const store = useEntities()
 const view = ref<'text' | 'map'>('text')
 const attrs = computed(() => props.entity.attributes as any)
 const notes = computed(() => props.entity.content ?? '')
-const mapSource = computed(() => attrs.value?.mapSource ?? attrs.value?.map_source ?? null)
+const mapSource = computed(() => attrs.value?.imageSource || null)
 const hasMap = computed(() => !!mapSource.value)
 
 function saveContent(value: string) {

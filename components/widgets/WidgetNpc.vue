@@ -1,7 +1,10 @@
 <template>
   <div class="wn-body">
     <div class="wn-head">
-      <div class="wn-portrait" :style="{ background: avatarGrad }">{{ initials }}</div>
+      <div v-if="portraitSrc" class="wn-portrait wn-portrait--img">
+        <img :src="portraitSrc" :alt="entity.name" class="wn-portrait-img" />
+      </div>
+      <div v-else class="wn-portrait" :style="{ background: avatarGrad }">{{ initials }}</div>
       <div class="wn-info">
         <div class="wn-name">{{ entity.name }}</div>
         <div class="wn-sub">{{ subLine }}</div>
@@ -38,6 +41,7 @@ const initials = computed(() =>
   props.entity.name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
 )
 const attrs = computed(() => props.entity.attributes as any)
+const portraitSrc = computed(() => attrs.value?.portraitSource || attrs.value?.imageSource || null)
 const status = computed(() => attrs.value?.status ?? null)
 const subLine = computed(() => {
   const parts = [attrs.value?.race, attrs.value?.role].filter(Boolean)
@@ -57,8 +61,10 @@ function saveContent(value: string) {
   width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.92);
-  box-shadow: var(--sh);
+  box-shadow: var(--sh); overflow: hidden;
 }
+.wn-portrait--img { background: var(--surface); }
+.wn-portrait-img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
 .wn-info { flex: 1; min-width: 0; }
 .wn-name { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.2; margin-bottom: 2px; }
 .wn-sub { font-size: 10.5px; color: var(--text3); font-family: var(--fm); }

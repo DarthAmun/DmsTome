@@ -14,12 +14,6 @@
     <!-- Panel -->
     <Transition :name="inline ? '' : 'dp'">
       <div v-if="inline || panelOpen" class="dice-panel" :class="{ 'dice-panel--inline': inline }" @mousedown.stop @keydown.escape="panelOpen = false">
-        <!-- Header -->
-        <div class="dp-header">
-          <span class="dp-title">Dice Roller</span>
-          <button v-if="!inline" class="dp-close" @click="panelOpen = false">✕</button>
-        </div>
-
         <!-- Dice grid: 4+3 layout, d100 spans 2 cols -->
         <div class="dp-dice-grid">
           <button
@@ -263,6 +257,43 @@ function rollDice() {
   border: 1px solid rgba(184,134,11,0.3);
   border-radius: 12px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(184,134,11,0.08);
+
+  --dp-die-bg:          rgba(255,255,255,0.02);
+  --dp-die-border:      rgba(184,134,11,0.2);
+  --dp-die-fg:          #9a8a72;
+  --dp-die-hover-bg:    rgba(184,134,11,0.1);
+  --dp-die-hover-bd:    rgba(184,134,11,0.38);
+  --dp-die-hover-fg:    var(--gold, #c9973a);
+  --dp-active-bg:       rgba(184,134,11,0.1);
+  --dp-active-border:   rgba(184,134,11,0.45);
+  --dp-active-fg:       var(--gold, #c9973a);
+  --dp-muted:           #7a6a56;
+  --dp-input-border:    rgba(184,134,11,0.22);
+  --dp-input-border-hi: rgba(184,134,11,0.55);
+  --dp-input-fg:        var(--ink, #d4c5a9);
+  --dp-zero-fg:         #8a7a65;
+  --dp-roll-bg:         rgba(184,134,11,0.1);
+  --dp-roll-border:     rgba(184,134,11,0.45);
+  --dp-roll-fg:         var(--gold, #c9973a);
+  --dp-roll-hover-bg:   rgba(184,134,11,0.2);
+  --dp-roll-hover-bd:   var(--gold, #c9973a);
+  --dp-roll-hover-sh:   0 0 14px rgba(184,134,11,0.2);
+  --dp-mod-hover-bg:    rgba(184,134,11,0.1);
+  --dp-mod-hover-bd:    var(--gold, #c9973a);
+  --dp-mod-hover-fg:    var(--gold, #c9973a);
+  --dp-result-bg:       rgba(60,45,25,0.55);
+  --dp-result-border:   rgba(184,134,11,0.22);
+  --dp-crit-border:     rgba(184,134,11,0.6);
+  --dp-crit-bg:         rgba(184,134,11,0.07);
+  --dp-crit-shadow:     0 0 24px rgba(184,134,11,0.12);
+  --dp-fail-border:     rgba(180,40,40,0.4);
+  --dp-fail-bg:         rgba(180,40,40,0.06);
+  --dp-breakdown-fg:    #c8b896;
+  --dp-hist-border:     rgba(184,134,11,0.1);
+  --dp-hist-head:       #7a6a56;
+  --dp-hist-dice:       #9a8a72;
+  --dp-hist-total:      var(--ink, #d4c5a9);
+  --dp-row-border:      rgba(255,255,255,0.03);
 }
 .dice-panel--inline {
   position: relative;
@@ -270,35 +301,45 @@ function rollDice() {
   width: 100%; height: 100%; max-height: none;
   border-radius: 0; border: none; box-shadow: none;
   overflow-y: auto;
-}
+  background: transparent;
 
-.dp-header {
-  display: flex;
-  align-items: center;
-  padding: 11px 14px;
-  border-bottom: 1px solid rgba(184,134,11,0.13);
-  background: rgba(0,0,0,0.22);
+  --dp-die-bg:          var(--surface);
+  --dp-die-border:      var(--border);
+  --dp-die-fg:          var(--text3);
+  --dp-die-hover-bg:    var(--surface-hi);
+  --dp-die-hover-bd:    var(--border-hi);
+  --dp-die-hover-fg:    var(--text);
+  --dp-active-bg:       var(--accent-bg);
+  --dp-active-border:   color-mix(in oklch, var(--accent) 45%, transparent);
+  --dp-active-fg:       var(--accent-l);
+  --dp-muted:           var(--text3);
+  --dp-input-border:    var(--border);
+  --dp-input-border-hi: var(--border-hi);
+  --dp-input-fg:        var(--text);
+  --dp-zero-fg:         var(--text3);
+  --dp-roll-bg:         var(--accent-bg);
+  --dp-roll-border:     color-mix(in oklch, var(--accent) 45%, transparent);
+  --dp-roll-fg:         var(--accent-l);
+  --dp-roll-hover-bg:   color-mix(in oklch, var(--accent) 15%, transparent);
+  --dp-roll-hover-bd:   var(--accent);
+  --dp-roll-hover-sh:   none;
+  --dp-mod-hover-bg:    var(--surface-hi);
+  --dp-mod-hover-bd:    var(--border-hi);
+  --dp-mod-hover-fg:    var(--text);
+  --dp-result-bg:       var(--surface);
+  --dp-result-border:   var(--border);
+  --dp-crit-border:     color-mix(in oklch, var(--accent) 50%, transparent);
+  --dp-crit-bg:         var(--accent-bg);
+  --dp-crit-shadow:     none;
+  --dp-fail-border:     color-mix(in oklch, var(--danger, #c03030) 40%, transparent);
+  --dp-fail-bg:         color-mix(in oklch, var(--danger, #c03030) 6%, transparent);
+  --dp-breakdown-fg:    var(--text2);
+  --dp-hist-border:     var(--border);
+  --dp-hist-head:       var(--text3);
+  --dp-hist-dice:       var(--text3);
+  --dp-hist-total:      var(--text);
+  --dp-row-border:      var(--border);
 }
-.dp-title {
-  flex: 1;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold, #c9973a);
-}
-.dp-close {
-  background: none;
-  border: none;
-  color: rgba(200,185,165,0.65);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: color 0.15s;
-  line-height: 1;
-}
-.dp-close:hover { color: var(--ink, #d4c5a9); }
 
 /* ── Dice grid ───────────────────────────────────────────────── */
 .dp-dice-grid {
@@ -314,23 +355,23 @@ function rollDice() {
   align-items: center;
   gap: 4px;
   padding: 10px 4px 8px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(184,134,11,0.2);
+  background: var(--dp-die-bg);
+  border: 1px solid var(--dp-die-border);
   border-radius: 8px;
   cursor: pointer;
-  color: #9a8a72;
+  color: var(--dp-die-fg);
   transition: all 0.15s;
 }
 .dp-die-btn--wide { grid-column: span 2; }
 .dp-die-btn:hover {
-  background: rgba(184,134,11,0.1);
-  border-color: rgba(184,134,11,0.38);
-  color: var(--gold, #c9973a);
+  background: var(--dp-die-hover-bg);
+  border-color: var(--dp-die-hover-bd);
+  color: var(--dp-die-hover-fg);
 }
 .dp-die-btn--active {
-  background: rgba(184,134,11,0.1);
-  border-color: rgba(184,134,11,0.45);
-  color: var(--gold, #c9973a);
+  background: var(--dp-active-bg);
+  border-color: var(--dp-active-border);
+  color: var(--dp-active-fg);
 }
 
 .die-svg {
@@ -390,7 +431,7 @@ function rollDice() {
 }
 .dp-pool-hint {
   font-size: 10px;
-  color: #7a6a56;
+  color: var(--dp-muted);
   font-style: italic;
 }
 .dp-modifier-row {

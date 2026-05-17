@@ -104,7 +104,7 @@
                         v-if="
                             autocomplete.show && autocomplete.source === 'edit'
                         "
-                        class="autocomplete-dropdown"
+                        class="autocomplete-dropdown autocomplete-dropdown--abs"
                     >
                         <button
                             v-for="(item, idx) in autocomplete.items"
@@ -170,39 +170,6 @@
                             @blur="onBlockBlur"
                             @keydown="onMixedBlockKeydown($event, i)"
                         />
-                        <div
-                            v-if="
-                                autocomplete.show &&
-                                autocomplete.source === 'mixed-notes' &&
-                                autocomplete.mixedIdx === i
-                            "
-                            class="autocomplete-dropdown autocomplete-dropdown--mixed"
-                        >
-                            <button
-                                v-for="(item, idx) in autocomplete.items"
-                                :key="`${item.type}:${item.name}`"
-                                class="autocomplete-item"
-                                :class="{
-                                    'autocomplete-item--active':
-                                        autocomplete.cursorIdx === idx,
-                                }"
-                                @mousedown.prevent="applyAutocomplete(item)"
-                            >
-                                <span
-                                    class="autocomplete-dot"
-                                    :style="{
-                                        background:
-                                            typeColorMap[item.type] ?? '#888',
-                                    }"
-                                />
-                                <span class="autocomplete-name">{{
-                                    item.name
-                                }}</span>
-                                <span class="autocomplete-type">{{
-                                    item.type
-                                }}</span>
-                            </button>
-                        </div>
                     </template>
                     <div
                         v-else
@@ -226,6 +193,34 @@
         </div>
 
         <slot name="below-content" />
+
+        <!-- Mixed-mode autocomplete teleported to body to escape overflow:hidden parents -->
+        <Teleport to="body">
+            <div
+                v-if="autocomplete.show && autocomplete.source === 'mixed-notes' && dropdownPos"
+                class="autocomplete-dropdown autocomplete-dropdown--fixed"
+                :style="{
+                    top: dropdownPos.top + 'px',
+                    left: dropdownPos.left + 'px',
+                    transform: dropdownPos.above ? 'translateY(-100%)' : 'none',
+                }"
+            >
+                <button
+                    v-for="(item, idx) in autocomplete.items"
+                    :key="`${item.type}:${item.name}`"
+                    class="autocomplete-item"
+                    :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
+                    @mousedown.prevent="applyAutocomplete(item)"
+                >
+                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                    <span class="autocomplete-name">{{ item.name }}</span>
+                    <span class="autocomplete-type">{{ item.type }}</span>
+                </button>
+                <p v-if="!autocomplete.items.length" class="autocomplete-empty">
+                    No matches — will link on save
+                </p>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -654,6 +649,8 @@ function syncBlocks() {
     const blocks = draftContent.value.split(/\n\n+/);
     editableBlocks.value = blocks.length > 0 ? blocks : [""];
     activeBlock.value = null;
+    const len = editableBlocks.value.length;
+    Object.keys(mixedRefs).forEach(k => { if (Number(k) >= len) delete mixedRefs[Number(k)] });
 }
 
 function activateBlock(i: number) {
@@ -795,6 +792,23 @@ const autocomplete = ref({
     cursorIdx: 0,
     mode: "entity" as "entity" | "snapshot",
 });
+
+const dropdownPos = ref<{ top: number; left: number; above: boolean } | null>(null);
+
+watch(
+    () => autocomplete.value.show && autocomplete.value.source === "mixed-notes"
+        ? autocomplete.value.mixedIdx
+        : null,
+    (idx) => {
+        if (idx === null) { dropdownPos.value = null; return; }
+        const el = mixedRefs[idx];
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const above = window.innerHeight - rect.bottom < 180;
+        dropdownPos.value = { top: above ? rect.top - 4 : rect.bottom + 4, left: rect.left, above };
+    },
+    { flush: "post" },
+);
 
 async function checkAutocomplete(
     el: HTMLTextAreaElement | null,
@@ -1107,7 +1121,10 @@ onMounted(() => {
     if (viewMode.value === "mixed") syncBlocks();
 });
 
-onUnmounted(() => { if (saveTimer) clearTimeout(saveTimer) });
+onUnmounted(() => {
+    if (saveTimer) clearTimeout(saveTimer);
+    Object.keys(mixedRefs).forEach(k => delete mixedRefs[Number(k)]);
+});
 </script>
 
 <style scoped>
@@ -1256,10 +1273,6 @@ onUnmounted(() => { if (saveTimer) clearTimeout(saveTimer) });
 
 /* ── Autocomplete ────────────────────────────────────────────────────────── */
 .autocomplete-dropdown {
-    position: absolute;
-    bottom: 8px;
-    left: 22px;
-    z-index: var(--z-sidebar);
     background: var(--surface-solid);
     border: 1px solid var(--border-hi);
     border-radius: var(--r2);
@@ -1267,10 +1280,15 @@ onUnmounted(() => { if (saveTimer) clearTimeout(saveTimer) });
     overflow: hidden;
     box-shadow: var(--sh-md);
 }
-.autocomplete-dropdown--mixed {
-    bottom: auto;
-    top: calc(100% + 2px);
-    left: 0;
+.autocomplete-dropdown--abs {
+    position: absolute;
+    bottom: 8px;
+    left: 22px;
+    z-index: var(--z-sidebar);
+}
+.autocomplete-dropdown--fixed {
+    position: fixed;
+    z-index: var(--z-top);
 }
 .autocomplete-item {
     display: flex;
