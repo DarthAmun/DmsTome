@@ -24,18 +24,20 @@ interface GotoTarget {
 }
 
 const GOTO_TARGETS: GotoTarget[] = [
-  { aliases: ['npcs', 'npc', 'characters', 'character'],          label: 'NPCs',        segment: 'npcs',       needsCampaign: true  },
-  { aliases: ['locations', 'location', 'places', 'place'],        label: 'Locations',   segment: 'locations',  needsCampaign: true  },
-  { aliases: ['factions', 'faction', 'guilds', 'guild'],          label: 'Factions',    segment: 'factions',   needsCampaign: true  },
-  { aliases: ['quests', 'quest', 'missions', 'mission'],          label: 'Quests',      segment: 'quests',     needsCampaign: true  },
-  { aliases: ['events', 'event'],                                  label: 'Events',      segment: 'events',     needsCampaign: true  },
-  { aliases: ['sessions', 'session'],                              label: 'Sessions',    segment: 'sessions',   needsCampaign: true  },
-  { aliases: ['notes', 'note'],                                    label: 'Notes',       segment: 'notes',      needsCampaign: true  },
-  { aliases: ['encounters', 'encounter', 'battle', 'combat'],     label: 'Encounters',  segment: 'encounters', needsCampaign: true  },
-  { aliases: ['graphs', 'graph'],                                  label: 'Graphs',      segment: 'graphs',     needsCampaign: true  },
-  { aliases: ['chronicle', 'timeline', 'history'],                label: 'Chronicle',   segment: 'chronicle',  needsCampaign: true  },
-  { aliases: ['dashboard', 'home', 'overview', 'index'],          label: 'Dashboard',   segment: '',           needsCampaign: true  },
-  { aliases: ['settings', 'preferences', 'config'],               label: 'Settings',    segment: 'settings',   absolute: '/settings', needsCampaign: false },
+  { aliases: ['npcs', 'npc', 'characters', 'character'],                         label: 'NPCs',          segment: 'npcs',           needsCampaign: true  },
+  { aliases: ['locations', 'location', 'places', 'place'],                       label: 'Locations',     segment: 'locations',      needsCampaign: true  },
+  { aliases: ['factions', 'faction', 'guilds', 'guild'],                         label: 'Factions',      segment: 'factions',       needsCampaign: true  },
+  { aliases: ['quests', 'quest', 'missions', 'mission'],                         label: 'Quests',        segment: 'quests',         needsCampaign: true  },
+  { aliases: ['events', 'event'],                                                 label: 'Events',        segment: 'events',         needsCampaign: true  },
+  { aliases: ['sessions', 'session'],                                             label: 'Sessions',      segment: 'sessions',       needsCampaign: true  },
+  { aliases: ['notes', 'note'],                                                   label: 'Notes',         segment: 'notes',          needsCampaign: true  },
+  { aliases: ['random-tables', 'random-table', 'tables', 'table', 'randomtable'],label: 'Random Tables', segment: 'random-tables',  needsCampaign: true  },
+  { aliases: ['rumors', 'rumor', 'gossip'],                                       label: 'Rumors',        segment: 'rumors',         needsCampaign: true  },
+  { aliases: ['encounters', 'encounter', 'battle', 'combat'],                    label: 'Encounters',    segment: 'encounters',     needsCampaign: true  },
+  { aliases: ['graphs', 'graph'],                                                 label: 'Graphs',        segment: 'graphs',         needsCampaign: true  },
+  { aliases: ['chronicle', 'timeline', 'history'],                               label: 'Chronicle',     segment: 'chronicle',      needsCampaign: true  },
+  { aliases: ['dashboard', 'home', 'overview', 'index'],                         label: 'Dashboard',     segment: '',               needsCampaign: true  },
+  { aliases: ['settings', 'preferences', 'config'],                              label: 'Settings',      segment: 'settings',       absolute: '/settings', needsCampaign: false },
 ]
 
 interface EntityTypeCmd {
@@ -47,13 +49,15 @@ interface EntityTypeCmd {
 }
 
 const ENTITY_TYPES_CMD: EntityTypeCmd[] = [
-  { aliases: ['npc', 'npcs', 'character', 'characters'],   type: 'npc',      label: 'NPC',      plural: 'NPCs',      segment: 'npcs' },
-  { aliases: ['location', 'locations', 'place', 'places'], type: 'location', label: 'Location', plural: 'Locations', segment: 'locations' },
-  { aliases: ['faction', 'factions'],                       type: 'faction',  label: 'Faction',  plural: 'Factions',  segment: 'factions' },
-  { aliases: ['quest', 'quests'],                           type: 'quest',    label: 'Quest',    plural: 'Quests',    segment: 'quests' },
-  { aliases: ['event', 'events'],                           type: 'event',    label: 'Event',    plural: 'Events',    segment: 'events' },
-  { aliases: ['session', 'sessions'],                       type: 'session',  label: 'Session',  plural: 'Sessions',  segment: 'sessions' },
-  { aliases: ['note', 'notes'],                             type: 'note',     label: 'Note',     plural: 'Notes',     segment: 'notes' },
+  { aliases: ['npc', 'npcs', 'character', 'characters'],               type: 'npc',          label: 'NPC',          plural: 'NPCs',          segment: 'npcs' },
+  { aliases: ['location', 'locations', 'place', 'places'],             type: 'location',     label: 'Location',     plural: 'Locations',     segment: 'locations' },
+  { aliases: ['faction', 'factions'],                                   type: 'faction',      label: 'Faction',      plural: 'Factions',      segment: 'factions' },
+  { aliases: ['quest', 'quests'],                                       type: 'quest',        label: 'Quest',        plural: 'Quests',        segment: 'quests' },
+  { aliases: ['event', 'events'],                                       type: 'event',        label: 'Event',        plural: 'Events',        segment: 'events' },
+  { aliases: ['session', 'sessions'],                                   type: 'session',      label: 'Session',      plural: 'Sessions',      segment: 'sessions' },
+  { aliases: ['note', 'notes'],                                         type: 'note',         label: 'Note',         plural: 'Notes',         segment: 'notes' },
+  { aliases: ['random-table', 'table', 'tables', 'randomtable'],       type: 'random-table', label: 'Random Table', plural: 'Random Tables', segment: 'random-tables' },
+  { aliases: ['rumor', 'rumors', 'gossip'],                             type: 'rumor',        label: 'Rumor',        plural: 'Rumors',        segment: 'rumors' },
 ]
 
 const COMMAND_VERBS = [

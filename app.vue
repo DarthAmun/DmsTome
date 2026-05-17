@@ -13,8 +13,9 @@
       <NuxtPage />
     </template>
 
-    <GlobalSearch v-if="!isPlayerRoute" :hide-trigger="isDmScreenRoute" />
-    <DiceRoller v-if="!isPlayerRoute && !isDmScreenRoute" />
+    <GlobalSearch v-if="!isPlayerRoute" />
+    <DiceRoller v-if="!isPlayerRoute" />
+    <AppSoundBar v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
 
     <!-- New Campaign dialog -->
@@ -100,7 +101,6 @@ import { useBookmarks } from '~/composables/useBookmarks'
 import { useAppDialogs } from '~/composables/useAppDialogs'
 import { useSystems } from '~/composables/useSystems'
 import { dbApi } from '~/composables/useDb'
-
 const { settings } = useSettings()
 useBookmarks()
 
@@ -109,7 +109,6 @@ const router = useRouter()
 const isPlayerRoute = computed(() =>
   route.path.endsWith('/player') || route.path.endsWith('/map-player') || route.path.endsWith('/graph-player')
 )
-const isDmScreenRoute = computed(() => route.path.endsWith('/dm-screen'))
 
 const sidebarRef = ref<{ reload: () => void } | null>(null)
 const { showNewCampaign, showNewSystem } = useAppDialogs()
@@ -259,4 +258,5 @@ function onMagicClick(e: MouseEvent) {
   z-index: var(--z-top);
   overflow: hidden;
 }
+
 </style>

@@ -1,5 +1,6 @@
 <template>
   <div class="wcg-body">
+    <div class="wcg-scroll">
     <div v-if="loading" class="wcg-loading">
       <OhVueIcon name="md-autorenew" scale="1.1" class="wcg-spin" />
     </div>
@@ -21,6 +22,8 @@
         <span class="wcg-empty-hint">Create a "condition" entity type in your system to populate this widget.</span>
       </div>
     </template>
+
+    </div><!-- wcg-scroll -->
 
     <!-- Condition detail panel -->
     <ConditionPanel
@@ -121,7 +124,8 @@ watch(() => props.systemId, load)
 </script>
 
 <style scoped>
-.wcg-body { padding: 8px 10px; overflow-y: auto; flex: 1; }
+.wcg-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wcg-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; }
 
 .wcg-loading {
   display: flex; align-items: center; justify-content: center;

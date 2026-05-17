@@ -195,9 +195,11 @@
             <WidgetNote       v-else-if="(w.kind === 'note' || w.kind === 'event') && getEntity(w)" :entity="getEntity(w)!" class="dms-w-fill" />
             <WidgetEncounterLink v-else-if="w.kind === 'encounter-link'" :campaign-id="id" :encounter-id="w.encounterId" class="dms-w-fill" @update:encounter-id="setEncounterId(w.id, $event)" />
             <WidgetConditionsGrid v-else-if="w.kind === 'conditions-grid'" :system-id="linkedSystemId" class="dms-w-fill" />
-            <WidgetDice   v-else-if="w.kind === 'dice'"   class="dms-w-fill" />
-            <WidgetSearch v-else-if="w.kind === 'search'" class="dms-w-fill" />
-            <WidgetScratchpad v-else-if="w.kind === 'scratchpad'" v-model="scratchpad" class="dms-w-fill" />
+            <WidgetTimer       v-else-if="w.kind === 'timer'"        class="dms-w-fill" />
+            <WidgetRulesLookup v-else-if="w.kind === 'rules-lookup'" :system-id="linkedSystemId" class="dms-w-fill" />
+            <WidgetRandomTable v-else-if="w.kind === 'random-table' && getEntity(w)" :entity="getEntity(w)!" class="dms-w-fill" />
+            <WidgetRumor       v-else-if="w.kind === 'rumor'       && getEntity(w)" :entity="getEntity(w)!" class="dms-w-fill" />
+            <WidgetScratchpad  v-else-if="w.kind === 'scratchpad'"   v-model="scratchpad" class="dms-w-fill" />
             <WidgetSystemEntity v-else-if="w.kind === 'system-entity' && w.recordId" :record-id="w.recordId" class="dms-w-fill" />
             <div v-else class="dms-w-missing">Entity removed or not found.</div>
 
@@ -289,7 +291,8 @@ async function loadSystemGroups(sysId: number) {
 // ── Widget state ───────────────────────────────────────────────────────────
 type WidgetKind =
   | 'session' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'note'
-  | 'encounter-link' | 'conditions-grid' | 'dice' | 'search' | 'scratchpad' | 'system-entity'
+  | 'encounter-link' | 'conditions-grid' | 'scratchpad' | 'system-entity'
+  | 'timer' | 'rules-lookup' | 'random-table' | 'rumor'
 
 interface DmWidget {
   id: string
@@ -307,7 +310,9 @@ const DEFAULT_COLS_ROWS: Record<WidgetKind, [number, number]> = {
   session: [6, 2], npc: [3, 1], location: [3, 2], faction: [3, 1],
   quest: [3, 1], event: [3, 1], note: [3, 2],
   'encounter-link': [3, 2], 'conditions-grid': [3, 2],
-  dice: [3, 3], search: [2, 1], scratchpad: [6, 1], 'system-entity': [3, 2],
+  scratchpad: [6, 1], 'system-entity': [3, 2],
+  timer: [3, 2], 'rules-lookup': [4, 3],
+  'random-table': [3, 2], rumor: [3, 1],
 }
 
 const LEGACY_SIZE_MAP: Record<string, [number, number]> = {
@@ -371,9 +376,10 @@ if (import.meta.client) {
             const { size: _s, ...rest } = w
             return { ...rest, cols, rows }
           })()
-          if (migrated.kind === 'dice-search') return { ...migrated, kind: 'dice' }
+          if (migrated.kind === 'dice-search' || migrated.kind === 'dice') return null
+          if (migrated.kind === 'search') return null
           return migrated
-        })
+        }).filter(Boolean)
         // Migrate widgets that lack explicit col/row
         if (ws.some((w: any) => w.col == null || w.row == null)) ws = autopack(ws)
         widgets.value = ws
@@ -405,7 +411,6 @@ function buildDefaultLayout(): DmWidget[] {
   const lastSession = byType('session').at(-1)
   if (lastSession) partial.push({ id: `w-s-${lastSession.id}`, kind: 'session', entityId: lastSession.id, cols: 6, rows: 2 })
 
-  partial.push({ id: 'w-dice', kind: 'dice', cols: 3, rows: 3 })
   partial.push({ id: 'w-enc', kind: 'encounter-link', cols: 3, rows: 2 })
 
   byType('npc').slice(0, 2).forEach(n => partial.push({ id: `w-n-${n.id}`, kind: 'npc', entityId: n.id, cols: 3, rows: 1 }))
@@ -437,7 +442,7 @@ function getEntity(w: DmWidget) {
   return entitiesStore.entities.find(e => e.id === w.entityId && e.campaignId === id) ?? null
 }
 
-const SINGLETONS: WidgetKind[] = ['encounter-link', 'conditions-grid', 'dice', 'search', 'scratchpad']
+const SINGLETONS: WidgetKind[] = ['encounter-link', 'conditions-grid', 'scratchpad', 'timer', 'rules-lookup']
 
 function canAdd(kind: WidgetKind, entityId?: number, recordId?: number): boolean {
   if (SINGLETONS.includes(kind) && widgets.value.some(w => w.kind === kind)) return false
@@ -533,9 +538,9 @@ function isRecordPinned(recordId: number) {
 function widgetTitle(w: DmWidget): string {
   if (w.kind === 'encounter-link')   return 'Encounter'
   if (w.kind === 'conditions-grid')  return 'Conditions'
-  if (w.kind === 'dice')             return 'Dice Roller'
-  if (w.kind === 'search')           return 'Search'
-  if (w.kind === 'scratchpad')       return 'Scratchpad'
+  if (w.kind === 'timer')        return 'Timer'
+  if (w.kind === 'rules-lookup') return 'Rules Lookup'
+  if (w.kind === 'scratchpad')   return 'Scratchpad'
   if (w.kind === 'system-entity' && w.recordId) {
     const grp = systemGroups.value.flatMap(g => g.records).find(r => r.id === w.recordId)
     return grp?.name ?? 'Record'
@@ -547,9 +552,11 @@ function widgetTitle(w: DmWidget): string {
 function widgetKindLabel(w: DmWidget): string {
   const MAP: Partial<Record<WidgetKind, string>> = {
     'encounter-link': 'Encounter', 'conditions-grid': 'Conditions',
-    dice: 'Dice', search: 'Search', scratchpad: 'Notes', 'system-entity': 'System',
+    scratchpad: 'Notes', 'system-entity': 'System',
+    timer: 'Timer', 'rules-lookup': 'Rules',
     session: 'Session', npc: 'NPC', location: 'Location',
     faction: 'Faction', quest: 'Quest', event: 'Event', note: 'Note',
+    'random-table': 'Table', rumor: 'Rumor',
   }
   return MAP[w.kind] ?? w.kind
 }
@@ -560,10 +567,13 @@ function widgetColor(w: DmWidget): string {
     'conditions-grid': 'oklch(72% 0.20 22)',
     dice:              'oklch(72% 0.18 145)',
     search:            'oklch(72% 0.18 145)',
-    scratchpad:        'oklch(76% 0.10 215)',
-    'system-entity':   'oklch(76% 0.14 85)',
+    scratchpad:      'oklch(76% 0.10 215)',
+    'system-entity': 'oklch(76% 0.14 85)',
+    timer:           'oklch(72% 0.18 200)',
+    'rules-lookup':  'oklch(72% 0.16 260)',
     session:           '#6b9fe8', npc: '#5db870', location: '#a87de8',
     faction:           '#e05555', quest: '#e8924a', event: '#4ab8e8', note: '#7eaacc',
+    'random-table':    '#e8c44a', rumor: '#c86fa8',
   }
   return MAP[w.kind] ?? 'var(--accent)'
 }
@@ -581,26 +591,29 @@ const palCollapsed = ref(false)
 const paletteQuery = ref('')
 
 const ENTITY_TYPES = [
-  { key: 'session',  label: 'Sessions',  color: '#6b9fe8' },
-  { key: 'npc',      label: 'NPCs',      color: '#5db870' },
-  { key: 'location', label: 'Locations', color: '#a87de8' },
-  { key: 'faction',  label: 'Factions',  color: '#e05555' },
-  { key: 'quest',    label: 'Quests',    color: '#e8924a' },
-  { key: 'event',    label: 'Events',    color: '#4ab8e8' },
-  { key: 'note',     label: 'Notes',     color: '#7eaacc' },
+  { key: 'session',      label: 'Sessions',      color: '#6b9fe8' },
+  { key: 'npc',          label: 'NPCs',          color: '#5db870' },
+  { key: 'location',     label: 'Locations',     color: '#a87de8' },
+  { key: 'faction',      label: 'Factions',      color: '#e05555' },
+  { key: 'quest',        label: 'Quests',        color: '#e8924a' },
+  { key: 'event',        label: 'Events',        color: '#4ab8e8' },
+  { key: 'note',         label: 'Notes',         color: '#7eaacc' },
+  { key: 'random-table', label: 'Random Tables', color: '#e8c44a' },
+  { key: 'rumor',        label: 'Rumors',        color: '#c86fa8' },
 ]
 
 const QUICK_WIDGETS = [
   { kind: 'encounter-link'  as WidgetKind, label: 'Encounter',       icon: '⚔' },
   { kind: 'conditions-grid' as WidgetKind, label: 'Conditions Grid', icon: '☣' },
-  { kind: 'dice'            as WidgetKind, label: 'Dice Roller',     icon: '⚀' },
-  { kind: 'search'          as WidgetKind, label: 'Search',          icon: '⌕' },
+  { kind: 'timer'           as WidgetKind, label: 'Timer',           icon: '⏱' },
+  { kind: 'rules-lookup'    as WidgetKind, label: 'Rules Lookup',    icon: '⊞' },
   { kind: 'scratchpad'      as WidgetKind, label: 'Scratchpad',      icon: '✎' },
 ]
 
 const openGroups = reactive<Record<string, boolean>>({
   session: true, npc: true, location: false, faction: false,
-  quest: false, event: false, note: false, quick: true,
+  quest: false, event: false, note: false,
+  'random-table': false, rumor: false, quick: true,
 })
 
 const palGroups = computed(() =>

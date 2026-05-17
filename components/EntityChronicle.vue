@@ -121,6 +121,16 @@
             <OhVueIcon :name="(e.attributes as any)?.icon || 'gi-scroll-unfurled'" scale="0.75" />
           </div>
 
+          <!-- Random Table: die badge -->
+          <div v-else-if="type === 'random-table'" class="erow-die-badge" :style="{ color: typeConfig?.color, borderColor: (typeConfig?.color ?? '#888') + '55', background: (typeConfig?.color ?? '#888') + '11' }">
+            {{ (e.attributes as any)?.die || 'd?' }}
+          </div>
+
+          <!-- Rumor: speak icon -->
+          <div v-else-if="type === 'rumor'" class="erow-icon-badge" :style="{ color: typeConfig?.color }">
+            <OhVueIcon name="gi-speaker" scale="0.75" />
+          </div>
+
           <!-- Fallback dot -->
           <div v-else class="erow-dot" :style="{ background: activeEntryId === e.id ? typeConfig?.color : 'var(--border-hi)' }" />
 
@@ -262,12 +272,14 @@ const search = ref('')
 interface QFConfig { key: string; label: string }
 
 const QF_FIELDS: Partial<Record<string, QFConfig[]>> = {
-  npc:      [{ key: 'status', label: 'Status' }, { key: 'race', label: 'Race' }, { key: 'role', label: 'Class' }, { key: 'level', label: 'Level' }],
-  quest:    [{ key: 'status', label: 'Status' }],
-  session:  [{ key: 'mode', label: 'Mode' }],
-  location: [{ key: 'status', label: 'Status' }],
-  event:    [{ key: 'significance', label: 'Significance' }],
-  faction:  [{ key: 'factionType', label: 'Type' }, { key: 'size', label: 'Size' }],
+  npc:            [{ key: 'status', label: 'Status' }, { key: 'race', label: 'Race' }, { key: 'role', label: 'Class' }, { key: 'level', label: 'Level' }],
+  quest:          [{ key: 'status', label: 'Status' }],
+  session:        [{ key: 'mode', label: 'Mode' }],
+  location:       [{ key: 'status', label: 'Status' }],
+  event:          [{ key: 'significance', label: 'Significance' }],
+  faction:        [{ key: 'factionType', label: 'Type' }, { key: 'size', label: 'Size' }],
+  'random-table': [{ key: 'die', label: 'Die' }],
+  rumor:          [{ key: 'statuses', label: 'Status' }],
 }
 
 const activeQF = ref<Record<string, string | null>>({})
@@ -283,6 +295,7 @@ function qfValuesFor(key: string): string[] {
   const seen = new Set<string>()
   for (const e of entries.value) {
     const v = (e.attributes as any)?.[key]
+    if (Array.isArray(v)) { v.forEach((item: string) => seen.add(item)); continue }
     if (v !== undefined && v !== null && v !== '') seen.add(String(v))
   }
   const arr = Array.from(seen)
@@ -309,7 +322,10 @@ const filteredEntries = computed(() => {
   }
   for (const [key, val] of Object.entries(activeQF.value)) {
     if (!val) continue
-    result = result.filter(e => String((e.attributes as any)?.[key] ?? '') === val)
+    result = result.filter(e => {
+      const v = (e.attributes as any)?.[key]
+      return Array.isArray(v) ? v.includes(val) : String(v ?? '') === val
+    })
   }
   return result
 })
@@ -375,6 +391,7 @@ const notesStore = useEntities()
 const SESSION_TYPE_COLORS: Record<string, string> = {
   npc: '#7cc44e', location: '#a87de8', faction: '#e05555',
   quest: '#e8924a', event: '#4ab8e8', note: '#6b9fe8', session: '#b87de8',
+  'random-table': '#e8c44a', rumor: '#c86fa8',
 }
 function sessionEntityLookup(type: string, name: string) {
   const ent = notesStore.findByTypeAndName(type, name)
@@ -448,6 +465,7 @@ const TYPE_PLURAL_ROUTE: Record<string, string> = {
   npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
+  'random-table': 'random-tables', rumor: 'rumors',
 }
 
 function selectMapLocation(e: Entity) {
@@ -502,10 +520,12 @@ function rowSub(e: Entity): string | null {
   const a = e.attributes as any
   if (props.type === 'npc') return [a?.title, a?.race].filter(Boolean).join(' · ') || null
   if (props.type === 'location') return a?.locationType || null
-if (props.type === 'faction') return [a?.factionType, a?.size].filter(Boolean).join(' · ') || null
+  if (props.type === 'faction') return [a?.factionType, a?.size].filter(Boolean).join(' · ') || null
   if (props.type === 'quest') return a?.questGiver ? `from ${a.questGiver}` : null
   if (props.type === 'event') return [a?.location, a?.significance].filter(Boolean).join(' · ') || null
   if (props.type === 'note') { const tags = a?.tags as string[] | undefined; return tags?.length ? tags.slice(0, 2).join(', ') : null }
+  if (props.type === 'random-table') { const rows = a?.rows?.length; return rows ? `${rows} row${rows !== 1 ? 's' : ''}` : null }
+  if (props.type === 'rumor') return a?.source ? `from ${a.source}` : null
   return null
 }
 
@@ -522,7 +542,8 @@ function rowTag(e: Entity): string | null {
   if (props.type === 'session') return a?.mode || null
   if (props.type === 'quest') return a?.status || null
   if (props.type === 'location') return a?.status || null
-return null
+  if (props.type === 'rumor') return a?.statuses?.[0] ?? null
+  return null
 }
 
 const TAG_COLORS: Record<string, string> = {

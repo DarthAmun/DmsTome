@@ -171,6 +171,29 @@ export interface DbGraphLayout {
   pan_y: number
 }
 
+export interface DbSoundTrack {
+  id?: number
+  name: string
+  type: 'file' | 'url' | 'spotify'
+  src: string           // URL for 'url'/'spotify'; empty for 'file'
+  fileHandle?: any      // FileSystemFileHandle, stored as IDB structured clone
+  duration?: number     // seconds, for display
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DbSoundPlaylist {
+  id?: number
+  name: string
+  description?: string
+  color?: string        // theme color hex
+  trackIds: string      // JSON: number[]
+  loop: number          // 0 | 1
+  shuffle: number       // 0 | 1
+  createdAt: string
+  updatedAt: string
+}
+
 // ── Database class ─────────────────────────────────────────────────────────
 class DmForgeDb extends Dexie {
   campaigns!:         Table<DbCampaign>
@@ -185,6 +208,8 @@ class DmForgeDb extends Dexie {
   entitySnapshots!:   Table<DbEntitySnapshot>
   entityConnections!: Table<DbEntityConnection>
   graphLayouts!:      Table<DbGraphLayout>
+  soundTracks!:       Table<DbSoundTrack>
+  soundPlaylists!:    Table<DbSoundPlaylist>
 
   constructor() {
     super('dmforge')
@@ -312,6 +337,23 @@ class DmForgeDb extends Dexie {
       await tx.table('graphLayouts').toCollection().modify((layout: any) => {
         if (!layout.name) layout.name = 'Default'
       })
+    })
+    // v11: add global sound library — tracks + playlists
+    this.version(11).stores({
+      campaigns:          '++id, updated_at, system_id',
+      encounters:         '++id, campaign_id, created_at',
+      tokens:             '++id, is_template, name',
+      encounterTokens:    '++id, encounter_id, token_id, linked_record_id',
+      entities:           '++id, campaign_id, type, name',
+      entityLinks:        '++id, source_id, target_type, target_name',
+      systems:            '++id, shortId, updatedAt',
+      records:            '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:     '++id, encounter_id',
+      entitySnapshots:    '++id, entity_id, event_id, created_at',
+      entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
+      graphLayouts:       '++id, campaign_id, name',
+      soundTracks:        '++id, name, type',
+      soundPlaylists:     '++id, name',
     })
   }
 }

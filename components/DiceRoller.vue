@@ -217,7 +217,7 @@ function rollDice() {
 /* ── Pill trigger ────────────────────────────────────────────── */
 .dice-fab {
   position: fixed;
-  bottom: 68px;
+  bottom: 116px;
   right: 20px;
   z-index: 199;
   display: flex;
@@ -247,61 +247,16 @@ function rollDice() {
 /* ── Panel ───────────────────────────────────────────────────── */
 .dice-panel {
   position: fixed;
-  bottom: 116px;
+  bottom: 164px;
   right: 20px;
   z-index: 198;
   width: 300px;
   max-height: calc(100vh - 140px);
   overflow-y: auto;
-  background: var(--parch-dark, #1c140e);
-  border: 1px solid rgba(184,134,11,0.3);
-  border-radius: 12px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(184,134,11,0.08);
-
-  --dp-die-bg:          rgba(255,255,255,0.02);
-  --dp-die-border:      rgba(184,134,11,0.2);
-  --dp-die-fg:          #9a8a72;
-  --dp-die-hover-bg:    rgba(184,134,11,0.1);
-  --dp-die-hover-bd:    rgba(184,134,11,0.38);
-  --dp-die-hover-fg:    var(--gold, #c9973a);
-  --dp-active-bg:       rgba(184,134,11,0.1);
-  --dp-active-border:   rgba(184,134,11,0.45);
-  --dp-active-fg:       var(--gold, #c9973a);
-  --dp-muted:           #7a6a56;
-  --dp-input-border:    rgba(184,134,11,0.22);
-  --dp-input-border-hi: rgba(184,134,11,0.55);
-  --dp-input-fg:        var(--ink, #d4c5a9);
-  --dp-zero-fg:         #8a7a65;
-  --dp-roll-bg:         rgba(184,134,11,0.1);
-  --dp-roll-border:     rgba(184,134,11,0.45);
-  --dp-roll-fg:         var(--gold, #c9973a);
-  --dp-roll-hover-bg:   rgba(184,134,11,0.2);
-  --dp-roll-hover-bd:   var(--gold, #c9973a);
-  --dp-roll-hover-sh:   0 0 14px rgba(184,134,11,0.2);
-  --dp-mod-hover-bg:    rgba(184,134,11,0.1);
-  --dp-mod-hover-bd:    var(--gold, #c9973a);
-  --dp-mod-hover-fg:    var(--gold, #c9973a);
-  --dp-result-bg:       rgba(60,45,25,0.55);
-  --dp-result-border:   rgba(184,134,11,0.22);
-  --dp-crit-border:     rgba(184,134,11,0.6);
-  --dp-crit-bg:         rgba(184,134,11,0.07);
-  --dp-crit-shadow:     0 0 24px rgba(184,134,11,0.12);
-  --dp-fail-border:     rgba(180,40,40,0.4);
-  --dp-fail-bg:         rgba(180,40,40,0.06);
-  --dp-breakdown-fg:    #c8b896;
-  --dp-hist-border:     rgba(184,134,11,0.1);
-  --dp-hist-head:       #7a6a56;
-  --dp-hist-dice:       #9a8a72;
-  --dp-hist-total:      var(--ink, #d4c5a9);
-  --dp-row-border:      rgba(255,255,255,0.03);
-}
-.dice-panel--inline {
-  position: relative;
-  bottom: auto; right: auto; z-index: auto;
-  width: 100%; height: 100%; max-height: none;
-  border-radius: 0; border: none; box-shadow: none;
-  overflow-y: auto;
-  background: transparent;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  box-shadow: var(--sh-lg);
 
   --dp-die-bg:          var(--surface);
   --dp-die-border:      var(--border);
@@ -331,14 +286,22 @@ function rollDice() {
   --dp-crit-border:     color-mix(in oklch, var(--accent) 50%, transparent);
   --dp-crit-bg:         var(--accent-bg);
   --dp-crit-shadow:     none;
-  --dp-fail-border:     color-mix(in oklch, var(--danger, #c03030) 40%, transparent);
-  --dp-fail-bg:         color-mix(in oklch, var(--danger, #c03030) 6%, transparent);
+  --dp-fail-border:     color-mix(in oklch, var(--danger) 40%, transparent);
+  --dp-fail-bg:         color-mix(in oklch, var(--danger) 6%, transparent);
   --dp-breakdown-fg:    var(--text2);
   --dp-hist-border:     var(--border);
   --dp-hist-head:       var(--text3);
   --dp-hist-dice:       var(--text3);
   --dp-hist-total:      var(--text);
   --dp-row-border:      var(--border);
+}
+.dice-panel--inline {
+  position: relative;
+  bottom: auto; right: auto; z-index: auto;
+  width: 100%; height: 100%; max-height: none;
+  border-radius: 0; border: none; box-shadow: none;
+  overflow-y: auto;
+  background: transparent;
 }
 
 /* ── Dice grid ───────────────────────────────────────────────── */
@@ -403,8 +366,8 @@ function rollDice() {
   position: absolute;
   top: 3px;
   right: 3px;
-  background: var(--gold, #c9973a);
-  color: #1a0f00;
+  background: var(--accent-l);
+  color: var(--bg);
   font-size: 9px;
   font-weight: 800;
   width: 15px;
@@ -425,7 +388,7 @@ function rollDice() {
 .dp-pool-row { min-height: 18px; }
 .dp-pool-text {
   font-size: 12px;
-  color: var(--gold, #c9973a);
+  color: var(--accent-l);
   font-family: monospace;
   letter-spacing: 0.02em;
 }
@@ -444,32 +407,32 @@ function rollDice() {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #7a6a56;
+  color: var(--text3);
   flex: 1;
 }
 .dp-mod-btn {
   width: 24px; height: 24px;
   border-radius: 50%;
-  border: 1px solid rgba(184,134,11,0.28);
+  border: 1px solid var(--border);
   background: transparent;
-  color: #9a8a72;
+  color: var(--text3);
   font-size: 16px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   line-height: 1;
   transition: all 0.12s;
 }
-.dp-mod-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(184,134,11,0.1); }
+.dp-mod-btn:hover { border-color: var(--border-hi); color: var(--text); background: var(--surface-hi); }
 .dp-mod-val {
   font-size: 14px;
   font-weight: 700;
   font-family: monospace;
   width: 48px;
   text-align: center;
-  color: var(--ink, #d4c5a9);
+  color: var(--text);
   background: transparent;
-  border: 1px solid rgba(184,134,11,0.22);
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
   padding: 2px 4px;
   outline: none;
   -moz-appearance: textfield;
@@ -478,12 +441,10 @@ function rollDice() {
 .dp-mod-val::-webkit-inner-spin-button {
   -webkit-appearance: none;
 }
-.dp-mod-val:focus {
-  border-color: rgba(184,134,11,0.55);
-}
-.dp-mod--pos { color: #7dd89a; }
-.dp-mod--neg { color: var(--blood, #c03030); }
-.dp-mod--zero { color: #8a7a65; }
+.dp-mod-val:focus { border-color: var(--border-hi); }
+.dp-mod--pos { color: var(--success); }
+.dp-mod--neg { color: var(--danger); }
+.dp-mod--zero { color: var(--text3); }
 
 /* ── Actions ─────────────────────────────────────────────────── */
 .dp-actions {
@@ -494,10 +455,10 @@ function rollDice() {
 .dp-btn-clear {
   flex: 1;
   padding: 8px;
-  border: 1px solid rgba(184,134,11,0.22);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
   background: transparent;
-  color: #8a7a65;
+  color: var(--text3);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -505,14 +466,14 @@ function rollDice() {
   cursor: pointer;
   transition: all 0.15s;
 }
-.dp-btn-clear:hover { background: rgba(255,255,255,0.04); color: var(--ink, #d4c5a9); }
+.dp-btn-clear:hover { background: var(--surface-hi); color: var(--text); }
 .dp-btn-roll {
   flex: 2;
   padding: 8px;
-  border: 1px solid rgba(184,134,11,0.45);
-  border-radius: 6px;
-  background: rgba(184,134,11,0.1);
-  color: var(--gold, #c9973a);
+  border: 1px solid var(--dp-roll-border);
+  border-radius: var(--r1);
+  background: var(--dp-roll-bg);
+  color: var(--dp-roll-fg);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -521,9 +482,9 @@ function rollDice() {
   transition: all 0.15s;
 }
 .dp-btn-roll:hover:not(:disabled) {
-  background: rgba(184,134,11,0.2);
-  border-color: var(--gold, #c9973a);
-  box-shadow: 0 0 14px rgba(184,134,11,0.2);
+  background: var(--dp-roll-hover-bg);
+  border-color: var(--dp-roll-hover-bd);
+  box-shadow: var(--dp-roll-hover-sh);
 }
 .dp-btn-roll:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -531,19 +492,19 @@ function rollDice() {
 .dp-result {
   margin: 0 12px 10px;
   padding: 14px 12px 12px;
-  background: rgba(60,45,25,0.55);
-  border: 1px solid rgba(184,134,11,0.22);
-  border-radius: 8px;
+  background: var(--dp-result-bg);
+  border: 1px solid var(--dp-result-border);
+  border-radius: var(--r2);
   text-align: center;
 }
 .dp-result--crit {
-  border-color: rgba(184,134,11,0.6);
-  background: rgba(184,134,11,0.07);
-  box-shadow: 0 0 24px rgba(184,134,11,0.12);
+  border-color: var(--dp-crit-border);
+  background: var(--dp-crit-bg);
+  box-shadow: var(--dp-crit-shadow);
 }
 .dp-result--fail {
-  border-color: rgba(180,40,40,0.4);
-  background: rgba(180,40,40,0.06);
+  border-color: var(--dp-fail-border);
+  background: var(--dp-fail-bg);
 }
 .dp-result-badge {
   font-size: 9px;
@@ -552,20 +513,20 @@ function rollDice() {
   text-transform: uppercase;
   margin-bottom: 4px;
 }
-.dp-result-badge--crit { color: var(--gold, #c9973a); }
-.dp-result-badge--fail { color: var(--blood, #c03030); }
+.dp-result-badge--crit { color: var(--accent-l); }
+.dp-result-badge--fail { color: var(--danger); }
 .dp-result-total {
   font-size: 48px;
   font-weight: 700;
   font-family: var(--font-head, serif);
-  color: var(--gold, #c9973a);
+  color: var(--accent-l);
   line-height: 1;
   margin-bottom: 6px;
 }
-.dp-result--fail .dp-result-total { color: var(--blood, #c03030); }
+.dp-result--fail .dp-result-total { color: var(--danger); }
 .dp-result-breakdown {
   font-size: 11px;
-  color: #c8b896;
+  color: var(--dp-breakdown-fg);
   font-family: monospace;
   line-height: 1.5;
   word-break: break-all;
@@ -573,7 +534,7 @@ function rollDice() {
 
 /* ── History ─────────────────────────────────────────────────── */
 .dp-history {
-  border-top: 1px solid rgba(184,134,11,0.1);
+  border-top: 1px solid var(--dp-hist-border);
   padding: 8px 12px 12px;
 }
 .dp-history-head {
@@ -581,7 +542,7 @@ function rollDice() {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #7a6a56;
+  color: var(--dp-hist-head);
   margin-bottom: 6px;
 }
 .dp-history-row {
@@ -589,14 +550,14 @@ function rollDice() {
   justify-content: space-between;
   align-items: baseline;
   padding: 3px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--dp-row-border);
   font-size: 11px;
 }
 .dp-history-row:last-child { border-bottom: none; }
-.dp-history-dice { color: #9a8a72; font-family: monospace; }
-.dp-history-total { font-weight: 700; color: var(--ink, #d4c5a9); }
-.dp-his--crit { color: var(--gold, #c9973a); }
-.dp-his--fail { color: var(--blood, #c03030); }
+.dp-history-dice { color: var(--dp-hist-dice); font-family: monospace; }
+.dp-history-total { font-weight: 700; color: var(--dp-hist-total); }
+.dp-his--crit { color: var(--accent-l); }
+.dp-his--fail { color: var(--danger); }
 
 /* ── Transitions ─────────────────────────────────────────────── */
 .dp-enter-active { transition: opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1); transform-origin: bottom right; }

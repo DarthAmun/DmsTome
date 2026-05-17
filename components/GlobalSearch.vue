@@ -257,17 +257,20 @@ import { useBookmarks } from '~/composables/useBookmarks'
 import { useCommandPalette } from '~/composables/useCommandPalette'
 import type { CmdItem } from '~/composables/useCommandPalette'
 import { useSettings } from '~/composables/useSettings'
-import NpcEntry      from '~/components/notes/NpcEntry.vue'
-import LocationEntry from '~/components/notes/LocationEntry.vue'
-import FactionEntry  from '~/components/notes/FactionEntry.vue'
-import QuestEntry    from '~/components/notes/QuestEntry.vue'
-import EventEntry    from '~/components/notes/EventEntry.vue'
-import SessionEntry  from '~/components/notes/SessionEntry.vue'
-import NoteEntry     from '~/components/notes/NoteEntry.vue'
+import NpcEntry         from '~/components/notes/NpcEntry.vue'
+import LocationEntry    from '~/components/notes/LocationEntry.vue'
+import FactionEntry     from '~/components/notes/FactionEntry.vue'
+import QuestEntry       from '~/components/notes/QuestEntry.vue'
+import EventEntry       from '~/components/notes/EventEntry.vue'
+import SessionEntry     from '~/components/notes/SessionEntry.vue'
+import NoteEntry        from '~/components/notes/NoteEntry.vue'
+import RandomTableEntry from '~/components/notes/RandomTableEntry.vue'
+import RumorEntry       from '~/components/notes/RumorEntry.vue'
 
 const ENTRY_COMPONENTS: Record<EntityType, any> = {
   npc: NpcEntry, location: LocationEntry, faction: FactionEntry,
   quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
+  'random-table': RandomTableEntry, rumor: RumorEntry,
 }
 
 const props = defineProps<{ hideTrigger?: boolean }>()
@@ -536,6 +539,7 @@ const TYPE_PLURAL_ROUTE: Record<string, string> = {
   npc: 'npcs', location: 'locations',
   faction: 'factions', quest: 'quests', event: 'events',
   session: 'sessions', note: 'notes',
+  'random-table': 'random-tables', rumor: 'rumors',
 }
 
 function getRoute(item: SearchResult): string {

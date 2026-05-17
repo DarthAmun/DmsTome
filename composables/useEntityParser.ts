@@ -13,11 +13,21 @@ export interface ParsedLink {
   metadata: Record<string, string>
 }
 
-const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter', 'graph']
+const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'event', 'session', 'encounter', 'graph', 'random-table', 'rumor']
+
+// Alias → canonical type. Allows short names like {{table: ...}} → random-table
+const ENTITY_TYPE_ALIASES: Record<string, string> = {
+  'table': 'random-table',
+}
 
 // Allows apostrophes and other special chars in names — stops at @, |, or }
 // Groups: 1=type, 2=name, 3=snapshotLabel (@ sigil, optional), 4=meta (| sigil, optional)
-const ENTITY_REGEX = /\{\{(\w+):\s*([^@|}\n]+?)\s*(?:@\s*([^|}\n]+?)\s*)?(?:\|\s*([^}]*))?\}\}/g
+const ENTITY_REGEX = /\{\{([\w-]+):\s*([^@|}\n]+?)\s*(?:@\s*([^|}\n]+?)\s*)?(?:\|\s*([^}]*))?\}\}/g
+
+function resolveType(raw: string): string {
+  const lower = raw.toLowerCase()
+  return ENTITY_TYPE_ALIASES[lower] ?? lower
+}
 
 function parseMeta(metaStr: string): Record<string, string> {
   const metadata: Record<string, string> = {}
@@ -38,10 +48,11 @@ export function parseEntityRefs(content: string): EntityRef[] {
   let match: RegExpExecArray | null
   ENTITY_REGEX.lastIndex = 0
   while ((match = ENTITY_REGEX.exec(content)) !== null) {
-    const [raw, type, name, _snapLabel, metaStr] = match
-    if (!ENTITY_TYPES.includes(type.toLowerCase())) continue
+    const [raw, rawType, name, _snapLabel, metaStr] = match
+    const type = resolveType(rawType)
+    if (!ENTITY_TYPES.includes(type)) continue
     refs.push({
-      type: type.toLowerCase(),
+      type,
       name: name.trim(),
       metadata: parseMeta(metaStr ?? ''),
       raw,
@@ -60,18 +71,19 @@ export function renderEntityRefs(
   snapshotRenderer?: (type: string, name: string, snapshotLabel: string, attrKey?: string) => string | null
 ): string {
   const allTypes = extraTypes?.length ? [...ENTITY_TYPES, ...extraTypes.map(t => t.toLowerCase())] : ENTITY_TYPES
-  return html.replace(ENTITY_REGEX, (raw, type, name, snapLabel, metaStr) => {
-    if (type.toLowerCase() === 'roll') {
+  return html.replace(ENTITY_REGEX, (raw, rawType, name, snapLabel, metaStr) => {
+    const type = resolveType(rawType)
+    if (type === 'roll') {
       const expr = name.trim()
       return `<span class="roll-ref" data-roll="${expr}">🎲 ${expr}</span>`
     }
-    if (!allTypes.includes(type.toLowerCase())) return raw
+    if (!allTypes.includes(type)) return raw
 
     // Snapshot rendering: {{npc: Lira @ Before Ascension}} or {{npc: Lira @ Before Ascension | portraitSource}}
     const snapLabelTrimmed = (snapLabel ?? '').trim()
     if (snapshotRenderer && snapLabelTrimmed) {
       const attrKey = (metaStr ?? '').trim() || undefined
-      const rendered = snapshotRenderer(type.toLowerCase(), name.trim(), snapLabelTrimmed, attrKey)
+      const rendered = snapshotRenderer(type, name.trim(), snapLabelTrimmed, attrKey)
       if (rendered !== null) return rendered
     }
 
@@ -79,14 +91,14 @@ export function renderEntityRefs(
     const trimmedMeta = (metaStr ?? '').trim()
     if (entryRenderer && (trimmedMeta === 'entry' || trimmedMeta.startsWith('entry:'))) {
       const attrKey = trimmedMeta.startsWith('entry:') ? trimmedMeta.slice(6).trim() : undefined
-      const rendered = entryRenderer(type.toLowerCase(), name.trim(), attrKey)
+      const rendered = entryRenderer(type, name.trim(), attrKey)
       if (rendered !== null) return rendered
     }
 
     const metadata = parseMeta(metaStr ?? '')
     const metaLabel = Object.entries(metadata).map(([k, v]) => `${k}: ${v}`).join(', ')
     const tooltip = metaLabel ? ` (${metaLabel})` : ''
-    const extra = entityLookup ? entityLookup(type.toLowerCase(), name.trim()) : null
+    const extra = entityLookup ? entityLookup(type, name.trim()) : null
     const avatarHtml = extra?.imageUrl
       ? `<img class="entity-ref-avatar" src="${extra.imageUrl}" />`
       : extra?.iconHtml
@@ -94,7 +106,7 @@ export function renderEntityRefs(
         : extra
           ? `<span class="entity-ref-dot" style="background:${extra.color ?? '#888'}"></span>`
           : ''
-    return `<span class="entity-ref entity-ref--${type.toLowerCase()}" data-entity-type="${type.toLowerCase()}" data-entity-name="${name.trim()}" title="${name.trim()}${tooltip}">${avatarHtml}${name.trim()}${metaLabel ? ` <em>${metaLabel}</em>` : ''}</span>`
+    return `<span class="entity-ref entity-ref--${type}" data-entity-type="${type}" data-entity-name="${name.trim()}" title="${name.trim()}${tooltip}">${avatarHtml}${name.trim()}${metaLabel ? ` <em>${metaLabel}</em>` : ''}</span>`
   })
 }
 

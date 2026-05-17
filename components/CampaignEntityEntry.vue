@@ -42,6 +42,20 @@
       @navigate="onNavigate"
       @deleted="goToList()"
     />
+    <RandomTableEditor
+      v-else-if="props.type === 'random-table'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
+    <RumorEditor
+      v-else-if="props.type === 'rumor'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
     <NoteEditorSimple
       v-else
       :entity-id="currentEntry.id"

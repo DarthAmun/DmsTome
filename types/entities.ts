@@ -1,4 +1,4 @@
-export type EntityType = 'session' | 'note' | 'npc' | 'location' | 'faction' | 'quest' | 'event'
+export type EntityType = 'session' | 'note' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'random-table' | 'rumor'
 
 // Shape reference — used via EntityAttributes union
 export interface NpcAttributes {
@@ -71,6 +71,33 @@ export interface NoteAttributes {
   tags?: string[]
 }
 
+export interface RandomTableRow {
+  min: number
+  max: number
+  result: string
+}
+
+// Shape reference — used via EntityAttributes union
+export interface RandomTableAttributes {
+  die?: 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100'
+  rows?: RandomTableRow[]
+  tags?: string[]
+}
+
+// Shape reference — used via EntityAttributes union
+export interface RumorAttributes {
+  statuses?: string[]
+  source?: string
+  tags?: string[]
+}
+
+export const RUMOR_STATUS_COLORS: Record<string, string> = {
+  unheard:  'var(--text3)',
+  heard:    '#6b9fe8',
+  revealed: 'var(--success)',
+  false:    'var(--danger)',
+}
+
 // Shape reference — used via EntityAttributes union
 export interface PinnedLocation {
   locationEntityId: number
@@ -79,16 +106,18 @@ export interface PinnedLocation {
   y: number
 }
 
-export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes
+export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes | RandomTableAttributes | RumorAttributes
 
 export const ENTITY_TYPE_ROUTE: Record<EntityType, string> = {
-  session:  'sessions',
-  note:     'notes',
-  npc:      'npcs',
-  location: 'locations',
-  faction:  'factions',
-  quest:    'quests',
-  event:    'events',
+  session:        'sessions',
+  note:           'notes',
+  npc:            'npcs',
+  location:       'locations',
+  faction:        'factions',
+  quest:          'quests',
+  event:          'events',
+  'random-table': 'random-tables',
+  rumor:          'rumors',
 }
 
 export const ENTITY_TYPE_CONFIG: Record<EntityType, {
@@ -97,14 +126,16 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   color: string
   defaultIcon: string
 }> = {
-  session:  { label: 'Session',  plural: 'Sessions',  color: '#b87de8', defaultIcon: 'gi-book-aura' },
-  note:     { label: 'Note',     plural: 'Notes',     color: '#6b9fe8', defaultIcon: 'gi-scroll-unfurled' },
-  npc:      { label: 'NPC',      plural: 'NPCs',      color: '#7cc44e', defaultIcon: 'gi-person' },
-  location: { label: 'Location', plural: 'Locations', color: '#a87de8', defaultIcon: 'gi-castle' },
-  faction:  { label: 'Faction',  plural: 'Factions',  color: '#e05555', defaultIcon: 'gi-american-shield' },
-  quest:    { label: 'Quest',    plural: 'Quests',    color: '#e8924a', defaultIcon: 'gi-holy-grail' },
-  event:    { label: 'Event',    plural: 'Events',    color: '#4ab8e8', defaultIcon: 'gi-sands-of-time' },
- }
+  session:        { label: 'Session',      plural: 'Sessions',      color: '#b87de8', defaultIcon: 'gi-book-aura' },
+  note:           { label: 'Note',         plural: 'Notes',         color: '#6b9fe8', defaultIcon: 'gi-scroll-unfurled' },
+  npc:            { label: 'NPC',          plural: 'NPCs',          color: '#7cc44e', defaultIcon: 'gi-person' },
+  location:       { label: 'Location',     plural: 'Locations',     color: '#a87de8', defaultIcon: 'gi-castle' },
+  faction:        { label: 'Faction',      plural: 'Factions',      color: '#e05555', defaultIcon: 'gi-american-shield' },
+  quest:          { label: 'Quest',        plural: 'Quests',        color: '#e8924a', defaultIcon: 'gi-holy-grail' },
+  event:          { label: 'Event',        plural: 'Events',        color: '#4ab8e8', defaultIcon: 'gi-sands-of-time' },
+  'random-table': { label: 'Random Table', plural: 'Random Tables', color: '#e8c44a', defaultIcon: 'gi-dice-six-faces-six' },
+  rumor:          { label: 'Rumor',        plural: 'Rumors',        color: '#c86fa8', defaultIcon: 'gi-speaker' },
+}
 
 // Note icon picker — all verified to exist
 export const NOTE_ICONS = [

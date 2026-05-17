@@ -104,8 +104,11 @@
         </div>
       </div>
 
-      <!-- Collapsed bottom: settings only -->
+      <!-- Collapsed bottom: sounds + settings -->
       <div class="sb-footer-collapsed">
+        <NuxtLink to="/sounds" class="sb-bottom-row" :class="{ active: route.path.startsWith('/sounds') }" data-tip="Sounds">
+          <span class="sb-bottom-icon">♫</span>
+        </NuxtLink>
         <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }" data-tip="Settings">
           <span class="sb-bottom-icon">⚙</span>
         </NuxtLink>
@@ -255,6 +258,10 @@
       <!-- Bottom nav (expanded) -->
       <div class="sb-footer">
         <div class="sb-divider" style="margin:0" />
+        <NuxtLink to="/sounds" class="sb-bottom-row" :class="{ active: route.path.startsWith('/sounds') }">
+          <span class="sb-bottom-icon">♫</span>
+          <span class="sb-bottom-label">Sounds</span>
+        </NuxtLink>
         <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }">
           <span class="sb-bottom-icon">⚙</span>
           <span class="sb-bottom-label">Settings</span>
@@ -453,13 +460,15 @@ function campaignHeaderStyle(c: DbCampaign): Record<string, string> {
 
 // ── Entity types list ──────────────────────────────────────────────────────
 const ENTITY_TYPES = [
-  { key: 'session',   label: 'Sessions',  segment: 'sessions',  color: '#b87de8', icon: 'gi-book-aura' },
-  { key: 'npc',       label: 'NPCs',      segment: 'npcs',      color: '#7cc44e', icon: 'gi-person' },
-  { key: 'location',  label: 'Locations', segment: 'locations', color: '#a87de8', icon: 'gi-castle' },
-{ key: 'faction',   label: 'Factions',  segment: 'factions',  color: '#e05555', icon: 'gi-american-shield' },
-  { key: 'quest',     label: 'Quests',    segment: 'quests',    color: '#e8924a', icon: 'gi-holy-grail' },
-  { key: 'event',     label: 'Events',    segment: 'events',    color: '#4ab8e8', icon: 'gi-sands-of-time' },
-  { key: 'note',      label: 'Notes',     segment: 'notes',     color: '#6b9fe8', icon: 'gi-scroll-unfurled' },
+  { key: 'session',      label: 'Sessions',      segment: 'sessions',      color: '#b87de8', icon: 'gi-book-aura' },
+  { key: 'npc',          label: 'NPCs',          segment: 'npcs',          color: '#7cc44e', icon: 'gi-person' },
+  { key: 'location',     label: 'Locations',     segment: 'locations',     color: '#a87de8', icon: 'gi-castle' },
+  { key: 'faction',      label: 'Factions',      segment: 'factions',      color: '#e05555', icon: 'gi-american-shield' },
+  { key: 'quest',        label: 'Quests',        segment: 'quests',        color: '#e8924a', icon: 'gi-holy-grail' },
+  { key: 'event',        label: 'Events',        segment: 'events',        color: '#4ab8e8', icon: 'gi-sands-of-time' },
+  { key: 'note',         label: 'Notes',         segment: 'notes',         color: '#6b9fe8', icon: 'gi-scroll-unfurled' },
+  { key: 'random-table', label: 'Random Tables', segment: 'random-tables', color: '#e8c44a', icon: 'gi-dice-six-faces-six' },
+  { key: 'rumor',        label: 'Rumors',        segment: 'rumors',        color: '#c86fa8', icon: 'gi-speaker' },
 ]
 
 function isChildActive(campaignId: number, segment: string): boolean {

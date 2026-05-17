@@ -3114,6 +3114,23 @@ html[data-theme="dark"] .erow:hover {
     opacity: 0.85;
 }
 
+/* Die badge (random-table) */
+.erow-die-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r1);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--fm);
+    font-size: 9px;
+    font-weight: 700;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 /* Session number badge */
 .erow-num-badge {
     width: 28px;
