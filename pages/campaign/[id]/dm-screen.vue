@@ -175,9 +175,7 @@
 
             <!-- Widget header -->
             <div class="dms-w-head"
-              draggable="true"
-              @dragstart="onWidgetDragStart($event, w)"
-              @dragend="onDragEnd">
+              @pointerdown.prevent.stop="onWidgetPointerDown($event, w)">
               <span class="dms-w-head-dot" :style="{ background: widgetColor(w), color: widgetColor(w) }" />
               <span class="dms-w-head-kind">{{ widgetKindLabel(w) }}</span>
               <span class="dms-w-head-title">{{ widgetTitle(w) }}</span>
@@ -650,9 +648,35 @@ function onPalDragStart(e: DragEvent, kind: WidgetKind, entityId?: number, recor
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
 }
 
-function onWidgetDragStart(e: DragEvent, w: DmWidget) {
+function onWidgetPointerDown(e: PointerEvent, w: DmWidget) {
+  if (e.button > 0) return
   dragState.value = { kind: w.kind, entityId: w.entityId, recordId: w.recordId, cols: w.cols, rows: w.rows, from: { widgetId: w.id, col: w.col, row: w.row } }
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+
+  const el = e.currentTarget as HTMLElement
+  el.setPointerCapture(e.pointerId)
+
+  function onMove(ev: PointerEvent) {
+    if (!dragState.value) return
+    const { cols, from } = dragState.value
+    const cell = getDropCellXY(ev.clientX, ev.clientY)
+    if (!cell) return
+    if (lastDragCell.value?.col === cell.col && lastDragCell.value?.row === cell.row) return
+    lastDragCell.value = cell
+    if (!isOccupied(cell.col, cell.row, cols, dragState.value.rows, from?.widgetId, from?.col, from?.row)) {
+      dragPreview.value = { col: cell.col, row: cell.row, cols, rows: dragState.value.rows }
+    }
+  }
+
+  function onUp() {
+    el.removeEventListener('pointermove', onMove)
+    el.removeEventListener('pointerup', onUp)
+    el.removeEventListener('pointercancel', onUp)
+    onCanvasDrop()
+  }
+
+  el.addEventListener('pointermove', onMove)
+  el.addEventListener('pointerup', onUp)
+  el.addEventListener('pointercancel', onUp)
 }
 
 function isOccupied(col: number, row: number, cols: number, rows: number, excludeId?: string, excludeCol?: number, excludeRow?: number): boolean {
@@ -667,19 +691,23 @@ function isOccupied(col: number, row: number, cols: number, rows: number, exclud
   return false
 }
 
-function getDropCell(e: DragEvent): { col: number; row: number } | null {
+function getDropCellXY(clientX: number, clientY: number): { col: number; row: number } | null {
   const grid = gridRef.value
   if (!grid || !dragState.value) return null
   const gap = density.value === 'compact' ? 8 : density.value === 'loose' ? 16 : 12
   const rowH = density.value === 'compact' ? 88 : density.value === 'loose' ? 140 : 110
   const rect = grid.getBoundingClientRect()
   const cellW = (rect.width - 11 * gap) / 12
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
+  const x = clientX - rect.left
+  const y = clientY - rect.top
   const { cols, rows } = dragState.value
   const col = Math.max(1, Math.min(13 - cols, Math.floor(x / (cellW + gap)) + 1))
   const row = Math.max(1, Math.floor(y / (rowH + gap)) + 1)
   return { col, row }
+}
+
+function getDropCell(e: DragEvent): { col: number; row: number } | null {
+  return getDropCellXY(e.clientX, e.clientY)
 }
 
 function onCanvasDragOver(e: DragEvent) {
@@ -982,7 +1010,7 @@ function onDragEnd() {
   padding: 7px 10px; flex-shrink: 0;
   background: var(--surface-hi);
   border-bottom: 1px solid var(--border);
-  cursor: grab; user-select: none;
+  cursor: grab; user-select: none; touch-action: none;
 }
 .dms-w-head:active { cursor: grabbing; }
 .dms-w-head-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }

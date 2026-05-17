@@ -1,8 +1,6 @@
 import { getDb } from '~/composables/useDb'
 import type { DbSoundTrack, DbSoundPlaylist } from '~/composables/useDb'
 
-export type { DbSoundTrack, DbSoundPlaylist }
-
 const tracks   = ref<DbSoundTrack[]>([])
 const playlists = ref<DbSoundPlaylist[]>([])
 const loaded   = ref(false)
