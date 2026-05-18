@@ -120,7 +120,7 @@
                                 class="autocomplete-dot"
                                 :style="{
                                     background:
-                                        typeColorMap[item.type] ?? '#888',
+                                        localTypeColorMap[item.type] ?? '#888',
                                 }"
                             />
                             <span class="autocomplete-name">{{
@@ -212,7 +212,7 @@
                     :class="{ 'autocomplete-item--active': autocomplete.cursorIdx === idx }"
                     @mousedown.prevent="applyAutocomplete(item)"
                 >
-                    <span class="autocomplete-dot" :style="{ background: typeColorMap[item.type] ?? '#888' }" />
+                    <span class="autocomplete-dot" :style="{ background: localTypeColorMap[item.type] ?? '#888' }" />
                     <span class="autocomplete-name">{{ item.name }}</span>
                     <span class="autocomplete-type">{{ item.type }}</span>
                 </button>
@@ -225,10 +225,9 @@
 </template>
 
 <script setup lang="ts">
-import * as GiIcons from "oh-vue-icons/icons/gi";
 import { useEntities } from "~/composables/useEntities";
-import { useSystems } from "~/composables/useSystems";
 import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
+import { useEntityRendering, typeColorMap, typeIconHtml, giIconByName, iconToSvg, ENCOUNTER_COLOR } from "~/composables/useEntityRendering";
 import { useDiceRoll } from "~/composables/useDiceRoll";
 import { getDb, dbApi } from "~/composables/useDb";
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
@@ -252,102 +251,11 @@ const emit = defineEmits<{
 }>();
 
 const store = useEntities();
-const systemsStore = useSystems();
 const router = useRouter();
+const { entityLookup, extraTypes: systemExtraTypes, campaignSystemId, systemEntityTypes, campaignEncounters } = useEntityRendering(() => props.campaignId);
 
-// ── Icon helpers ──────────────────────────────────────────────────────────────
-function giNameToExport(name: string): string {
-    const body = name.replace(/^gi-/, "");
-    return (
-        "Gi" +
-        body.charAt(0).toUpperCase() +
-        body.slice(1).replace(/-([a-z])/g, (_, l) => l.toUpperCase())
-    );
-}
-function iconToSvg(icon: any, color: string): string {
-    const vb = `${icon.minX ?? 0} ${icon.minY ?? 0} ${icon.width} ${icon.height}`;
-    return `<svg viewBox="${vb}" fill="${color}" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:3px;margin-top:-2px;flex-shrink:0">${icon.raw}</svg>`;
-}
-function typeIconHtml(type: string, color: string): string {
-    const ICONS: Record<string, string> = {
-        note: "gi-scroll-unfurled",
-        npc: "gi-person",
-        location: "gi-castle",
-        faction: "gi-american-shield",
-        quest: "gi-holy-grail",
-        event: "gi-sands-of-time",
-        session: "gi-book-aura",
-        encounter: "gi-broadsword",
-    };
-    const icon = (GiIcons as any)[giNameToExport(ICONS[type] ?? "")];
-    return icon ? iconToSvg(icon, color) : "";
-}
-function giIconByName(name: string): any | null {
-    return (GiIcons as any)[giNameToExport(name)] ?? null;
-}
-
-// ── Campaign-level data ───────────────────────────────────────────────────────
-const campaignEncounters = ref<
-    { id: number; name: string; mapSource?: string }[]
->([]);
-const campaignSystemId = ref<number | null>(null);
-const systemEntityTypes = ref<
-    { id: string; name: string; color: string; icon: string }[]
->([]);
-const systemRecordCache = ref<Map<string, { color: string }>>(new Map());
-
-watch(
-    () => props.campaignId,
-    async (id) => {
-        if (!id) return;
-        campaignEncounters.value = await getDb()
-            .encounters.where("campaign_id")
-            .equals(id)
-            .toArray()
-            .then((rows) =>
-                rows.map((r) => ({
-                    id: r.id!,
-                    name: r.name,
-                    mapSource: r.map_source ?? undefined,
-                })),
-            );
-        const campaign = await getDb().campaigns.get(id);
-        const sysId = campaign?.system_id ?? null;
-        campaignSystemId.value = sysId;
-        if (!sysId) {
-            systemEntityTypes.value = [];
-            return;
-        }
-        const sys = systemsStore.getSystem(sysId);
-        if (!sys) {
-            systemEntityTypes.value = [];
-            return;
-        }
-        systemEntityTypes.value = sys.entityTypes.map((t) => ({
-            id: t.id,
-            name: t.name,
-            color: t.color,
-            icon: t.icon,
-        }));
-        const records = await getDb()
-            .records.where("systemId")
-            .equals(sysId)
-            .toArray();
-        const cache = new Map<string, { color: string }>();
-        for (const rec of records) {
-            const et = sys.entityTypes.find((t) => t.id === rec.entityTypeId);
-            if (et)
-                cache.set(`${rec.entityTypeId}:${rec.name.toLowerCase()}`, {
-                    color: et.color,
-                });
-        }
-        systemRecordCache.value = cache;
-    },
-    { immediate: true },
-);
 
 // ── Entity types (for toolbar) ────────────────────────────────────────────────
-const ENCOUNTER_COLOR = "#e8a87a";
 const entityTypes = [
     ...Object.entries(ENTITY_TYPE_CONFIG).map(([type, cfg]) => ({
         type,
@@ -356,14 +264,8 @@ const entityTypes = [
     })),
     { type: "encounter", label: "Encounters", color: ENCOUNTER_COLOR },
 ];
-const typeColorMap: Record<string, string> = {
-    ...Object.fromEntries(
-        Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]),
-    ),
-    encounter: ENCOUNTER_COLOR,
-    snapshot: "var(--gold)",
-    graph: "#7cc44e",
-};
+// typeColorMap is imported from useEntityRendering; extend locally for snapshot
+const localTypeColorMap: Record<string, string> = { ...typeColorMap, snapshot: "var(--gold)" };
 
 // ── Post-processing ───────────────────────────────────────────────────────────
 const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
@@ -401,57 +303,6 @@ ${body ? `<div class="callout-body">${body}</div>` : ""}
         },
     );
     return out;
-}
-
-// ── Entity lookup ─────────────────────────────────────────────────────────────
-function entityLookup(type: string, name: string) {
-    const typeKey = type.toLowerCase();
-    if (typeKey === "encounter") {
-        const enc = campaignEncounters.value.find(
-            (e) => e.name.toLowerCase() === name.toLowerCase(),
-        );
-        return {
-            imageUrl: enc?.mapSource,
-            iconHtml: enc?.mapSource
-                ? undefined
-                : typeIconHtml("encounter", ENCOUNTER_COLOR),
-            color: ENCOUNTER_COLOR,
-        };
-    }
-    if (typeKey === "graph") {
-        return { color: "#7cc44e" };
-    }
-    const ent = store.findByTypeAndName(typeKey, name);
-    if (ent) {
-        const attrs = ent.attributes as any;
-        const imageUrl =
-            attrs.portraitSource ||
-            attrs.logoSource ||
-            attrs.imageSource ||
-            undefined;
-        const color = typeColorMap[ent.type] ?? "#888";
-        return {
-            imageUrl,
-            iconHtml: imageUrl ? undefined : typeIconHtml(ent.type, color),
-            color,
-        };
-    }
-    const sysType = systemEntityTypes.value.find(
-        (t) => t.id.toLowerCase() === typeKey,
-    );
-    if (sysType) {
-        const cached = systemRecordCache.value.get(
-            `${sysType.id}:${name.toLowerCase()}`,
-        );
-        const icon = giIconByName(sysType.icon);
-        return {
-            iconHtml: icon
-                ? iconToSvg(icon, cached?.color ?? sysType.color)
-                : undefined,
-            color: cached?.color ?? sysType.color,
-        };
-    }
-    return null;
 }
 
 // ── Inline entry renderer ──────────────────────────────────────────────────────
@@ -596,7 +447,7 @@ const mdOpts = computed(() => ({
     rich: true,
     postProcess: postProcessHtml,
     entityLookup,
-    extraTypes: systemEntityTypes.value.map((t) => t.id),
+    extraTypes: systemExtraTypes.value,
     allowTaskLists: true,
     allowLocalFileUris: true,
     entryRenderer: buildEntryHtml,

@@ -6,16 +6,16 @@
       <button class="wrt-roll-btn" :disabled="!canRoll" @click="roll">🎲 Roll</button>
     </div>
 
-    <div v-if="rollResult !== null" class="wrt-result">
+    <div v-if="rollResult !== null" class="wrt-result" @click="onEntityClick">
       <span class="wrt-result-num">{{ rollResult.n }}</span>
-      <span class="wrt-result-text">{{ rollResult.text }}</span>
+      <span class="wrt-result-text" v-html="renderedResult" />
     </div>
 
-    <div class="wrt-rows">
+    <div class="wrt-rows" @click="onEntityClick">
       <div v-if="!rows.length" class="wrt-empty">No rows defined.</div>
       <div v-for="(row, i) in rows" :key="i" :class="['wrt-row', { 'wrt-row--hit': rollResult && rollResult.n >= row.min && rollResult.n <= row.max }]">
         <span class="wrt-range">{{ row.min === row.max ? row.min : `${row.min}–${row.max}` }}</span>
-        <span class="wrt-text">{{ row.result }}</span>
+        <span class="wrt-text" v-html="renderedRows[i]" />
       </div>
     </div>
   </div>
@@ -24,14 +24,44 @@
 <script setup lang="ts">
 import type { Entity } from '~/composables/useEntities'
 import type { RandomTableAttributes, RandomTableRow } from '~/types/entities'
+import { ENTITY_TYPE_ROUTE } from '~/types/entities'
+import { useEntities } from '~/composables/useEntities'
+import { useEntityMarkdown } from '~/composables/useEntityMarkdown'
+import { useEntityRendering } from '~/composables/useEntityRendering'
 
 const props = defineProps<{ entity: Entity }>()
+
+const store = useEntities()
+const { renderInline } = useEntityMarkdown()
+const { entityLookup, extraTypes, campaignSystemId, systemEntityTypes } = useEntityRendering(() => props.entity.campaignId)
+const router = useRouter()
+
+function onEntityClick(e: MouseEvent) {
+  const el = (e.target as HTMLElement).closest('[data-entity-type]') as HTMLElement | null
+  if (!el) return
+  const type = el.dataset.entityType!
+  const name = el.dataset.entityName!
+  const ent = store.findByTypeAndName(type, name)
+  if (ent) {
+    const segment = ENTITY_TYPE_ROUTE[ent.type as keyof typeof ENTITY_TYPE_ROUTE]
+    if (segment) router.push(`/campaign/${ent.campaignId}/${segment}/${ent.id}`)
+    return
+  }
+  const sysType = systemEntityTypes.value.find(t => t.id.toLowerCase() === type.toLowerCase())
+  if (sysType && campaignSystemId.value) {
+    router.push(`/system/${campaignSystemId.value}/${sysType.id}?open=${encodeURIComponent(name)}`)
+  }
+}
 
 const attrs = computed(() => (props.entity.attributes ?? {}) as RandomTableAttributes)
 const rows = computed(() => attrs.value.rows ?? [] as RandomTableRow[])
 const canRoll = computed(() => rows.value.length > 0)
 
 const rollResult = ref<{ n: number; text: string } | null>(null)
+
+const renderOpts = computed(() => ({ entityLookup, extraTypes: extraTypes.value }))
+const renderedRows = computed(() => rows.value.map(r => renderInline(r.result, renderOpts.value)))
+const renderedResult = computed(() => rollResult.value ? renderInline(rollResult.value.text, renderOpts.value) : '')
 
 function roll() {
   const die = attrs.value.die ?? 'd20'
@@ -77,4 +107,5 @@ function roll() {
 .wrt-text { font-size: 11.5px; color: var(--text2); }
 .wrt-row--hit .wrt-range { color: #e8c44a; }
 .wrt-row--hit .wrt-text { color: var(--text); font-weight: 600; }
+:deep(.entity-ref) { cursor: pointer; }
 </style>

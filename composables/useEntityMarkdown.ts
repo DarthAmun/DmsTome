@@ -104,5 +104,16 @@ export function useEntityMarkdown() {
     return DOMPurify.sanitize(html, sanitizeCfg)
   }
 
-  return { renderMarkdown }
+  function renderInline(text: string, options: Pick<RenderMarkdownOptions, 'entityLookup' | 'extraTypes'> = {}): string {
+    if (!text) return ''
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+    const html = renderEntityRefs(escaped, options.entityLookup, options.extraTypes)
+    return DOMPurify.sanitize(html, { ADD_ATTR: ['data-entity-type', 'data-entity-name', 'style', 'class'] })
+  }
+
+  return { renderMarkdown, renderInline }
 }
