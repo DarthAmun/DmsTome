@@ -22,11 +22,11 @@ function load(): Promise<void> {
 }
 
 async function createPlaylist(name: string, color?: string) {
-  const id = await getDb().soundPlaylists.add({
-    name, color, trackIds: '[]', loop: 0, shuffle: 0, createdAt: ts(), updatedAt: ts(),
-  })
-  await load()
-  return playlists.value.find(p => p.id === id)!
+  const now = ts()
+  const pl = { name, color, trackIds: '[]', loop: 0, shuffle: 0, createdAt: now, updatedAt: now } as DbSoundPlaylist
+  pl.id = await getDb().soundPlaylists.add(pl)
+  playlists.value.push(pl)
+  return pl
 }
 
 async function updatePlaylist(id: number, data: Partial<DbSoundPlaylist>) {

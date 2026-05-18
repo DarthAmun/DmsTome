@@ -180,7 +180,8 @@
               <span class="dms-w-head-kind">{{ widgetKindLabel(w) }}</span>
               <span class="dms-w-head-title">{{ widgetTitle(w) }}</span>
               <div class="dms-w-head-actions">
-                <button class="dms-w-act del" @click="removeWidget(w.id)" title="Remove widget">✕</button>
+                <button v-if="w.kind === 'npc-generator'" class="dms-w-act" title="Configure" @pointerdown.stop @click.stop="npcGenRef?.openConfig()">⚙</button>
+                <button class="dms-w-act del" title="Remove widget" @pointerdown.stop @click="removeWidget(w.id)">✕</button>
               </div>
             </div>
 
@@ -197,7 +198,8 @@
             <WidgetRulesLookup v-else-if="w.kind === 'rules-lookup'" :system-id="linkedSystemId" class="dms-w-fill" />
             <WidgetRandomTable v-else-if="w.kind === 'random-table' && getEntity(w)" :entity="getEntity(w)!" class="dms-w-fill" />
             <WidgetRumor       v-else-if="w.kind === 'rumor'       && getEntity(w)" :entity="getEntity(w)!" class="dms-w-fill" />
-            <WidgetScratchpad  v-else-if="w.kind === 'scratchpad'"   v-model="scratchpad" class="dms-w-fill" />
+            <WidgetScratchpad    v-else-if="w.kind === 'scratchpad'"     v-model="scratchpad" class="dms-w-fill" />
+            <WidgetNpcGenerator v-else-if="w.kind === 'npc-generator'" :ref="(el: any) => { npcGenRef = el }" :campaign-id="id" :system-id="linkedSystemId" class="dms-w-fill" />
             <WidgetSystemEntity v-else-if="w.kind === 'system-entity' && w.recordId" :record-id="w.recordId" class="dms-w-fill" />
             <div v-else class="dms-w-missing">Entity removed or not found.</div>
 
@@ -286,11 +288,14 @@ async function loadSystemGroups(sysId: number) {
   systemGroups.value = groups
 }
 
+// ── NPC Generator ref (singleton widget) ──────────────────────────────────
+const npcGenRef = ref<{ openConfig: () => void } | null>(null)
+
 // ── Widget state ───────────────────────────────────────────────────────────
 type WidgetKind =
   | 'session' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'note'
   | 'encounter-link' | 'conditions-grid' | 'scratchpad' | 'system-entity'
-  | 'timer' | 'rules-lookup' | 'random-table' | 'rumor'
+  | 'timer' | 'rules-lookup' | 'random-table' | 'rumor' | 'npc-generator'
 
 interface DmWidget {
   id: string
@@ -310,7 +315,7 @@ const DEFAULT_COLS_ROWS: Record<WidgetKind, [number, number]> = {
   'encounter-link': [3, 2], 'conditions-grid': [3, 2],
   scratchpad: [6, 1], 'system-entity': [3, 2],
   timer: [3, 2], 'rules-lookup': [4, 3],
-  'random-table': [3, 2], rumor: [3, 1],
+  'random-table': [3, 2], rumor: [3, 1], 'npc-generator': [3, 3],
 }
 
 const LEGACY_SIZE_MAP: Record<string, [number, number]> = {
@@ -440,7 +445,7 @@ function getEntity(w: DmWidget) {
   return entitiesStore.entities.find(e => e.id === w.entityId && e.campaignId === id) ?? null
 }
 
-const SINGLETONS: WidgetKind[] = ['encounter-link', 'conditions-grid', 'scratchpad', 'timer', 'rules-lookup']
+const SINGLETONS: WidgetKind[] = ['encounter-link', 'conditions-grid', 'scratchpad', 'timer', 'rules-lookup', 'npc-generator']
 
 function canAdd(kind: WidgetKind, entityId?: number, recordId?: number): boolean {
   if (SINGLETONS.includes(kind) && widgets.value.some(w => w.kind === kind)) return false
@@ -554,7 +559,7 @@ function widgetKindLabel(w: DmWidget): string {
     timer: 'Timer', 'rules-lookup': 'Rules',
     session: 'Session', npc: 'NPC', location: 'Location',
     faction: 'Faction', quest: 'Quest', event: 'Event', note: 'Note',
-    'random-table': 'Table', rumor: 'Rumor',
+    'random-table': 'Table', rumor: 'Rumor', 'npc-generator': 'NPC Gen',
   }
   return MAP[w.kind] ?? w.kind
 }
@@ -569,6 +574,7 @@ function widgetColor(w: DmWidget): string {
     'system-entity': 'oklch(76% 0.14 85)',
     timer:           'oklch(72% 0.18 200)',
     'rules-lookup':  'oklch(72% 0.16 260)',
+    'npc-generator': 'oklch(76% 0.18 80)',
     session:           '#6b9fe8', npc: '#5db870', location: '#a87de8',
     faction:           '#e05555', quest: '#e8924a', event: '#4ab8e8', note: '#7eaacc',
     'random-table':    '#e8c44a', rumor: '#c86fa8',
@@ -606,6 +612,7 @@ const QUICK_WIDGETS = [
   { kind: 'timer'           as WidgetKind, label: 'Timer',           icon: '⏱' },
   { kind: 'rules-lookup'    as WidgetKind, label: 'Rules Lookup',    icon: '⊞' },
   { kind: 'scratchpad'      as WidgetKind, label: 'Scratchpad',      icon: '✎' },
+  { kind: 'npc-generator'   as WidgetKind, label: 'NPC Generator',   icon: '🎲' },
 ]
 
 const openGroups = reactive<Record<string, boolean>>({
