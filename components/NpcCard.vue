@@ -33,6 +33,7 @@
                     >{{ name }}</span
                 >
                 <div class="npc-card-top-right">
+                    <span v-if="attrs.isPlayerCharacter" class="npc-card-pc-badge">PC</span>
                     <span
                         v-if="attrs.level"
                         class="npc-card-level"
@@ -222,6 +223,18 @@ const hasTags = computed(() => {
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
+}
+
+.npc-card-pc-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: var(--r4);
+    border: 1px solid rgba(100, 160, 255, 0.5);
+    color: #6aa0ff;
+    background: rgba(100, 160, 255, 0.1);
 }
 
 .npc-card-level {

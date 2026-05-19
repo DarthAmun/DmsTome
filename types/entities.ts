@@ -9,6 +9,7 @@ export interface NpcAttributes {
   race?: string
   role?: string
   isAlive?: boolean
+  isPlayerCharacter?: boolean
   status?: string
 }
 

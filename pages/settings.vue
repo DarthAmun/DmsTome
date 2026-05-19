@@ -279,6 +279,20 @@
               {{ mdExporting ? 'Exporting…' : '↓ Export' }}
             </button>
           </div>
+
+          <div class="sett-row">
+            <div class="sett-row-text">
+              <span class="sett-label">Export for Claude</span>
+              <span class="sett-desc">Single Markdown file optimised for uploading to a Claude project as reference knowledge</span>
+              <select v-if="campaigns.length" v-model="claudeExportCampaignId" class="sett-md-select">
+                <option :value="null">— choose campaign —</option>
+                <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <button class="sett-btn sett-btn--claude" :disabled="!claudeExportCampaignId || claudeExporting" @click="exportCampaignForClaude">
+              {{ claudeExporting ? 'Building…' : '↓ Export' }}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -333,6 +347,8 @@
 import JSZip from 'jszip'
 import { getDb, dbApi } from '~/composables/useDb'
 import { THEMES, ACCENT_PRESETS } from '~/composables/useSettings'
+import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
 import type { ImportSection, EntityTypeRow, LogLine } from '../components/ImportModal.vue'
 
 const { public: { version } } = useRuntimeConfig()
@@ -396,6 +412,8 @@ const stats = ref<DbStats | null>(null)
 const campaigns = ref<{ id: number; name: string }[]>([])
 const mdExportCampaignId = ref<number | null>(null)
 const mdExporting = ref(false)
+const claudeExportCampaignId = ref<number | null>(null)
+const claudeExporting = ref(false)
 
 async function loadCampaigns() {
   campaigns.value = (await dbApi.campaigns.list()).map((c: any) => ({ id: c.id, name: c.name }))
@@ -423,6 +441,13 @@ function download(data: object, filename: string) {
 }
 
 function slug() { return new Date().toISOString().slice(0, 10) }
+function safeFilename(s: string) { return s.replace(/[/\\:*?"<>|]/g, '_') }
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
 
 async function readJson(e: Event): Promise<any | null> {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -491,29 +516,185 @@ async function exportCampaignMarkdown() {
   try {
     const db = getDb()
     const campaignId = mdExportCampaignId.value
-    const campaign = (await dbApi.campaigns.list()).find((c: any) => c.id === campaignId)
+    const campaign = await db.campaigns.get(campaignId)
     if (!campaign) { alert('Campaign not found.'); return }
     const entities = (await dbApi.entities.list(campaignId)) as any[]
     const encounters = await db.encounters.where('campaign_id').equals(campaignId).toArray()
     const zip = new JSZip()
-    const root = zip.folder(campaign.name.replace(/[/\\:*?"<>|]/g, '_'))!
+    const root = zip.folder(safeFilename(campaign.name))!
     root.file('_index.md', [`---`, `name: "${campaign.name.replace(/"/g, '\\"')}"`, `---`, ``, `# ${campaign.name}`, ``, campaign.description ? wikilinkify(campaign.description) : '_No description._'].join('\n'))
     const notesFolder = root.folder('notes')!
     for (const e of entities) {
-      const folder = notesFolder.folder((e.type ?? 'misc').replace(/[/\\:*?"<>|]/g, '_'))!
-      const safeName = (e.name ?? 'Unnamed').replace(/[/\\:*?"<>|]/g, '_')
-      folder.file(`${safeName}.md`, [entityFrontmatter(e), '', `# ${e.name ?? 'Unnamed'}`, '', wikilinkify(e.content ?? e.notes ?? '') || '_No content._'].join('\n'))
+      const folder = notesFolder.folder(safeFilename(e.type ?? 'misc'))!
+      folder.file(`${safeFilename(e.name ?? 'Unnamed')}.md`, [entityFrontmatter(e), '', `# ${e.name ?? 'Unnamed'}`, '', wikilinkify(e.content ?? e.notes ?? '') || '_No content._'].join('\n'))
     }
     if (encounters.length) {
       const encFolder = root.folder('encounters')!
       encFolder.file('_index.md', [`# Encounters — ${campaign.name}`, '', ...encounters.map(enc => `- **${enc.name ?? 'Unnamed'}**`)].join('\n'))
     }
     const blob = await zip.generateAsync({ type: 'blob' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `${campaign.name.replace(/[/\\:*?"<>|]/g, '_')}-${slug()}.zip`; a.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(blob, `${safeFilename(campaign.name)}-${slug()}.zip`)
   } finally { mdExporting.value = false }
+}
+
+// ── Claude export ─────────────────────────────────────────────────────────────
+
+const CLAUDE_TYPE_ORDER: EntityType[] = ['npc', 'location', 'faction', 'quest', 'event', 'session', 'note', 'rumor', 'random-table']
+
+type MetaField = { key: string; label: string; transform?: (v: any) => string | false; alwaysEmit?: boolean }
+
+function buildMeta(a: Record<string, any>, fields: MetaField[]): string {
+  const parts: string[] = []
+  for (const { key, label, transform, alwaysEmit } of fields) {
+    const v = a[key]
+    if (!alwaysEmit && (v === undefined || v === null || v === '')) continue
+    const text = transform ? transform(v) : String(v)
+    if (text !== false) parts.push(`**${label}:** ${text}`)
+  }
+  return parts.join(' | ')
+}
+
+const META_FIELDS: Partial<Record<EntityType, MetaField[]>> = {
+  npc: [
+    { key: 'isPlayerCharacter', label: 'PC',    transform: v => v ? 'Yes' : false },
+    { key: 'title',  label: 'Title' },
+    { key: 'race',   label: 'Race' },
+    { key: 'role',   label: 'Role' },
+    { key: 'level',  label: 'Level' },
+    { key: 'isAlive', label: 'Vital', transform: v => v === false ? 'Dead' : 'Alive', alwaysEmit: true },
+    { key: 'status', label: 'Status' },
+  ],
+  location: [
+    { key: 'locationType', label: 'Type' },
+    { key: 'status',       label: 'Status' },
+  ],
+  faction: [
+    { key: 'factionType',     label: 'Type' },
+    { key: 'size',            label: 'Size' },
+    { key: 'isSecret',        label: 'Secret',  transform: v => v ? 'Yes' : false },
+    { key: 'headquartersName', label: 'HQ' },
+  ],
+  quest: [
+    { key: 'status',     label: 'Status' },
+    { key: 'questGiver', label: 'Quest Giver' },
+    { key: 'reward',     label: 'Reward' },
+  ],
+  event: [
+    { key: 'date',     label: 'Date' },
+    { key: 'location', label: 'Location' },
+  ],
+  session: [
+    { key: 'mode', label: 'Status' },
+    { key: 'date', label: 'Date' },
+  ],
+}
+
+function entityMeta(type: string, attrs: any): string {
+  if (!attrs || typeof attrs !== 'object') return ''
+  const fields = META_FIELDS[type as EntityType]
+  return fields ? buildMeta(attrs, fields) : ''
+}
+
+function renderLinks(linksByEntity: Map<number, any[]>, entityId: number, entityIndex: Map<number, string>): string {
+  const entityLinks = linksByEntity.get(entityId)
+  if (!entityLinks?.length) return ''
+  const names: string[] = []
+  for (const l of entityLinks) {
+    const otherId = l.source_id === entityId ? l.target_id : l.source_id
+    const name = entityIndex.get(otherId)
+    if (name) names.push(name)
+  }
+  if (!names.length) return ''
+  return `\n**Related:** ${names.map(n => `[[${n}]]`).join(', ')}`
+}
+
+async function exportCampaignForClaude() {
+  if (!claudeExportCampaignId.value) return
+  claudeExporting.value = true
+  try {
+    const db = getDb()
+    const campaignId = claudeExportCampaignId.value
+    const campaign = await db.campaigns.get(campaignId)
+    if (!campaign) { alert('Campaign not found.'); return }
+
+    const rawEntities = (await dbApi.entities.list(campaignId)) as any[]
+    const entIds = rawEntities.map(e => e.id as number)
+    const rawLinks = entIds.length ? await db.entityLinks.where('source_id').anyOf(entIds).toArray() : []
+
+    const entityIndex = new Map<number, string>()
+    for (const e of rawEntities) entityIndex.set(e.id, e.name ?? 'Unnamed')
+
+    // attributes can arrive as a serialised JSON string from the DB
+    const entities = rawEntities.map(e => {
+      let attrs: any = e.attributes ?? {}
+      if (typeof attrs === 'string') { try { attrs = JSON.parse(attrs) } catch { attrs = {} } }
+      return { ...e, attributes: attrs }
+    })
+
+    const linksByEntity = new Map<number, any[]>()
+    for (const l of rawLinks) {
+      for (const id of [l.source_id, l.target_id]) {
+        if (!linksByEntity.has(id)) linksByEntity.set(id, [])
+        linksByEntity.get(id)!.push(l)
+      }
+    }
+
+    const byType = new Map<string, typeof entities>()
+    for (const e of entities) {
+      const t = e.type ?? 'note'
+      if (!byType.has(t)) byType.set(t, [])
+      byType.get(t)!.push(e)
+    }
+
+    const lines: string[] = []
+    const exportDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    lines.push(`# ${campaign.name} — Campaign Knowledge Base`)
+    lines.push(`*Exported from DM's Tome · ${exportDate}*`)
+    if (campaign.description) {
+      lines.push('')
+      lines.push('## Campaign Overview')
+      lines.push('')
+      lines.push(wikilinkify(campaign.description))
+    }
+
+    const orderedTypes = [
+      ...CLAUDE_TYPE_ORDER.filter(t => byType.has(t)),
+      ...[...byType.keys()].filter(t => !CLAUDE_TYPE_ORDER.includes(t as EntityType)),
+    ]
+
+    for (const type of orderedTypes) {
+      const entries = byType.get(type)!
+      const label = ENTITY_TYPE_CONFIG[type as EntityType]?.plural ?? type
+      lines.push('')
+      lines.push(`---`)
+      lines.push('')
+      lines.push(`## ${label} (${entries.length})`)
+
+      for (const e of entries) {
+        lines.push('')
+        lines.push(`### ${e.name ?? 'Unnamed'}`)
+
+        const meta = entityMeta(type, e.attributes)
+        if (meta) lines.push(meta)
+
+        const relatedLine = renderLinks(linksByEntity, e.id, entityIndex)
+        if (relatedLine) lines.push(relatedLine)
+
+        const body = wikilinkify(e.content ?? e.notes ?? '')
+        if (body.trim()) {
+          lines.push('')
+          lines.push(body.trim())
+        }
+      }
+    }
+
+    lines.push('')
+    lines.push('---')
+    lines.push(`*${entities.length} entries across ${orderedTypes.length} categories*`)
+
+    downloadBlob(new Blob([lines.join('\n')], { type: 'text/markdown' }), `${safeFilename(campaign.name)}-claude-${slug()}.md`)
+  } finally { claudeExporting.value = false }
 }
 
 const modalOpen    = ref(false)
@@ -836,6 +1017,8 @@ async function clearAll() {
 .sett-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .sett-btn--danger { color: var(--danger); border-color: oklch(54% 0.22 22 / 0.3); }
 .sett-btn--danger:hover { background: var(--danger-bg); border-color: var(--danger); }
+.sett-btn--claude { color: #d97706; border-color: rgba(217, 119, 6, 0.35); }
+.sett-btn--claude:not(:disabled):hover { background: rgba(217, 119, 6, 0.1); border-color: #d97706; color: #b45309; }
 
 .sett-btn-pair { display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px; }
 
