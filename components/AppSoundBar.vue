@@ -136,12 +136,28 @@
               @click="toggleLoop"
             >↺ Loop</button>
 
+            <!-- Remote playback (Cast / AirPlay) -->
+            <button
+              v-if="remoteSupported"
+              class="sp-btn sp-btn--sm"
+              :class="{
+                active: remoteState !== 'disconnected',
+                'sp-btn--cast-available': remoteAvailable,
+              }"
+              :title="remoteAvailable ? 'Cast to a network speaker or TV' : 'No cast devices found'"
+              @click="promptRemotePlayback"
+            >
+              <span v-if="remoteState === 'connecting'" class="sp-spin">↻</span>
+              <span v-else>⊕</span>
+              {{ remoteState === 'connected' ? 'Connected' : 'Cast' }}
+            </button>
+
             <!-- Output device -->
             <div class="sp-dev-wrap" ref="devWrapRef">
               <button
                 class="sp-btn sp-btn--sm"
                 :class="{ active: selectedDeviceId }"
-                title="Audio output device"
+                title="Local audio output device"
                 @click="toggleDevicePicker"
               >⇥ Output</button>
 
@@ -161,7 +177,7 @@
                   <span class="sp-dev-check">{{ selectedDeviceId === d.deviceId ? '✓' : '' }}</span>
                   {{ d.label || `Device ${d.deviceId.slice(0, 8)}` }}
                 </button>
-                <div class="sp-dev-note">Network speakers (Sonos, AirPlay) are not accessible from the browser.</div>
+                <div class="sp-dev-note">Routes audio to a local output (sound card, USB DAC). Use Cast for network speakers.</div>
               </div>
             </div>
           </div>
@@ -189,6 +205,7 @@ const {
   volume, currentTime, duration,
   outputDevices, selectedDeviceId,
   loadOutputDevices, setOutputDevice,
+  remoteAvailable, remoteSupported, remoteState, promptRemotePlayback,
   togglePlay, nextTrack, prevTrack, playPlaylist,
   seek, setVolume, stopPlayback,
   toggleShuffle, toggleLoop,
@@ -456,6 +473,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
 .sp-btn--sm { font-size: 11px; color: var(--text3); }
 .sp-btn--sm:hover { color: var(--text); }
 .sp-btn--sm.active { color: var(--accent-l, var(--accent)); }
+.sp-btn--cast-available { color: var(--text2); }
 .sp-spin { display: inline-block; animation: sp-spin 0.8s linear infinite; }
 @keyframes sp-spin { to { transform: rotate(360deg); } }
 

@@ -179,6 +179,7 @@ export interface DbSoundTrack {
   src: string           // URL for 'url'/'spotify'; empty for 'file'
   fileHandle?: any      // FileSystemFileHandle, stored as IDB structured clone
   duration?: number     // seconds, for display
+  tags?: string         // JSON: string[]
   createdAt: string
   updatedAt: string
 }

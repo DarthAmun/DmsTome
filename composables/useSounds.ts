@@ -8,6 +8,11 @@ let   loadPromise: Promise<void> | null = null
 
 function ts() { return new Date().toISOString() }
 
+export function parseTags(raw?: string): string[] {
+  if (!raw) return []
+  try { return JSON.parse(raw) } catch { return [] }
+}
+
 function load(): Promise<void> {
   if (loadPromise) return loadPromise
   loadPromise = (async () => {
@@ -46,6 +51,13 @@ async function addTrack(data: Omit<DbSoundTrack, 'id' | 'createdAt' | 'updatedAt
   const track = await getDb().soundTracks.get(id)
   if (track) tracks.value.push(track)
   return track!
+}
+
+async function updateTrack(id: number, data: Partial<DbSoundTrack>) {
+  const now = ts()
+  await getDb().soundTracks.update(id, { ...data, updatedAt: now })
+  const i = tracks.value.findIndex(t => t.id === id)
+  if (i >= 0) tracks.value[i] = { ...tracks.value[i], ...data, updatedAt: now }
 }
 
 async function deleteTrack(id: number) {
@@ -90,6 +102,18 @@ async function reorderPlaylistTracks(playlistId: number, newIds: number[]) {
   await updatePlaylist(playlistId, { trackIds: JSON.stringify(newIds) })
 }
 
+const allTags = computed<string[]>(() => {
+  const tagSet = new Set<string>()
+  for (const t of tracks.value) {
+    for (const tag of parseTags(t.tags)) tagSet.add(tag)
+  }
+  return [...tagSet].sort()
+})
+
+function getTracksByTag(tag: string): DbSoundTrack[] {
+  return tracks.value.filter(t => parseTags(t.tags).includes(tag))
+}
+
 export function useSounds() {
   if (!loaded.value && import.meta.client) load()
   return {
@@ -97,10 +121,14 @@ export function useSounds() {
     playlists,
     loaded,
     load,
+    allTags,
+    parseTags,
+    getTracksByTag,
     createPlaylist,
     updatePlaylist,
     deletePlaylist,
     addTrack,
+    updateTrack,
     deleteTrack,
     trackCount,
     getPlaylistById,

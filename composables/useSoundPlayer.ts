@@ -36,6 +36,7 @@ function getAudio(): HTMLAudioElement {
       const err = audio?.error
       playerError.value = err ? `Audio error (${err.code}): ${err.message || 'failed to load'}` : 'Failed to load audio'
     })
+    setupRemotePlayback(audio)
   }
   return audio
 }
@@ -61,12 +62,53 @@ function revokeObjectUrl() {
 }
 
 // ── Output device selection ────────────────────────────────────────────────
-const outputDevices   = ref<MediaDeviceInfo[]>([])
+const outputDevices    = ref<MediaDeviceInfo[]>([])
 const selectedDeviceId = ref<string>('')
+
+// ── Remote Playback API ────────────────────────────────────────────────────
+const remoteAvailable  = ref(false)
+const remoteSupported  = ref(false)
+const remoteState      = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
+
+function setupRemotePlayback(el: HTMLAudioElement) {
+  const remote = (el as any).remote
+  if (!remote) return
+  remote.watchAvailability((available: boolean) => {
+    remoteAvailable.value = available
+  }).then(() => {
+    remoteSupported.value = true
+  }).catch(() => {})
+  remote.addEventListener('connecting', () => { remoteState.value = 'connecting' })
+  remote.addEventListener('connect',    () => { remoteState.value = 'connected' })
+  remote.addEventListener('disconnect', () => { remoteState.value = 'disconnected' })
+}
+
+async function promptRemotePlayback() {
+  const remote = (audio as any)?.remote
+  if (!remote) {
+    playerError.value = 'Remote playback is not supported in this browser'
+    return
+  }
+  try {
+    await remote.prompt()
+  } catch (e: any) {
+    if (e?.name === 'NotFoundError') {
+      playerError.value = 'No cast devices found nearby'
+    } else if (e?.name !== 'AbortError') {
+      // AbortError = user dismissed the picker, not an error worth showing
+      playerError.value = `Cast error: ${e?.message ?? e}`
+    }
+  }
+}
 
 async function loadOutputDevices() {
   if (!import.meta.client || !navigator.mediaDevices?.enumerateDevices) return
-  await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => s.getTracks().forEach(t => t.stop())).catch(() => {})
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach(t => t.stop())
+  } catch {
+    // No mic permission — device labels will be empty strings
+  }
   const all = await navigator.mediaDevices.enumerateDevices()
   outputDevices.value = all.filter(d => d.kind === 'audiooutput')
 }
@@ -244,6 +286,10 @@ export function useSoundPlayer() {
     selectedDeviceId,
     loadOutputDevices,
     setOutputDevice,
+    remoteAvailable,
+    remoteSupported,
+    remoteState,
+    promptRemotePlayback,
     playTrack,
     playPlaylist,
     nextTrack,

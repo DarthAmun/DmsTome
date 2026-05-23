@@ -83,10 +83,7 @@ const currentFullRoute = computed(() => {
   if (snapId && route.path.match(/\/campaign\/\d+\/\w+\/\d+$/)) {
     return `${route.path}?snap=${snapId}`
   }
-  const mapId = route.query.map as string | undefined
-  if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {
-    return `${route.path}?map=${mapId}`
-  }
+
   const graphId = route.query.graph as string | undefined
   if (graphId && route.path.match(/\/campaign\/\d+\/graphs$/)) {
     return `${route.path}?graph=${graphId}`
@@ -108,10 +105,10 @@ function isCurrentRoute(bmRoute: string): boolean {
   return route.path === bmPath
 }
 
-const ENTITY_SEGMENTS = new Set(['npcs', 'locations', 'factions', 'quests', 'events', 'sessions', 'notes'])
+const ENTITY_SEGMENTS = new Set(['npcs', 'locations', 'factions', 'quests', 'events', 'sessions', 'notes', 'rumors', 'random-tables'])
 
 const currentEntity = computed(() => {
-  const m = route.path.match(/\/campaign\/\d+\/(\w+)\/(\d+)$/)
+  const m = route.path.match(/\/campaign\/\d+\/([\w-]+)\/(\d+)$/)
   if (!m || !ENTITY_SEGMENTS.has(m[1])) return null
   return notesStore.entities.find(e => e.id === Number(m[2])) ?? null
 })
@@ -133,18 +130,14 @@ async function toggleCurrentPage() {
     return
   }
 
-  // Location map bookmark (?map=locationId)
-  const mapId = route.query.map as string | undefined
-  if (mapId && route.path.match(/\/campaign\/\d+\/locations$/)) {
-    const locationEntity = notesStore.entities.find(e => e.id === Number(mapId))
+  // Location map bookmark (/locations/{id}/map)
+  const mapRouteMatch = route.path.match(/\/campaign\/\d+\/locations\/(\d+)\/map$/)
+  if (mapRouteMatch) {
+    const locationId = Number(mapRouteMatch[1])
+    const locationEntity = notesStore.entities.find(e => e.id === locationId)
     const label = locationEntity ? `${locationEntity.name} (Map)` : 'Map'
     const config = ENTITY_TYPE_CONFIG['location' as EntityType]
-    bookmarkPage(
-      currentFullRoute.value,
-      label,
-      config?.defaultIcon ?? 'gi-castle',
-      config?.color ?? 'var(--ink-ghost)',
-    )
+    bookmarkPage(currentFullRoute.value, label, config?.defaultIcon ?? 'gi-castle', config?.color ?? 'var(--ink-ghost)')
     return
   }
 
