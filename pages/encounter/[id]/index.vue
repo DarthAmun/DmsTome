@@ -313,16 +313,45 @@
 
           <!-- ══ PREPARE: Token Library ══ -->
           <template v-if="mode === 'prepare'">
+            <!-- Tab toggle -->
+            <div class="lib-tab-bar">
+              <button class="lib-tab" :class="{ 'lib-tab--active': libSidebarTab === 'tokens' }" @click="libSidebarTab = 'tokens'">Tokens</button>
+              <button class="lib-tab" :class="{ 'lib-tab--active': libSidebarTab === 'creatures' }" @click="libSidebarTab = 'creatures'">Creatures</button>
+            </div>
+
+            <!-- ── Tokens tab ── -->
+            <template v-if="libSidebarTab === 'tokens'">
             <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
-              <div class="sidebar-header">
-                <span class="f-label">Token Library</span>
-              </div>
               <div class="token-search">
                 <InputText v-model="tokenSearch" placeholder="Search tokens…" />
               </div>
               <div class="token-list" style="flex:1;overflow-y:auto">
+                <!-- PC separator -->
+                <template v-if="filteredLibrary.some(t => t.isPlayerCharacter)">
+                  <div class="tok-section-label">Player Characters</div>
+                  <div
+                    v-for="token in filteredLibrary.filter(t => t.isPlayerCharacter)"
+                    :key="token.id"
+                    class="token-chip token-chip--pc"
+                    draggable="true"
+                    @dragstart="onTokenDragStart($event, token)"
+                  >
+                    <div class="token-thumb">
+                      <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
+                      <span v-else class="enc-token-initial">{{ token.name.charAt(0) }}</span>
+                    </div>
+                    <span class="token-lib-name">{{ token.name }}</span>
+                    <button class="icon-btn-sq" @click.stop="openEditLibraryToken(token)">
+                      <OhVueIcon name="md-edit" scale="0.75" />
+                    </button>
+                    <button class="icon-btn-sq icon-btn-sq--danger" @click.stop="removeFromLibrary(token.id)">
+                      <OhVueIcon name="md-close" scale="0.75" />
+                    </button>
+                  </div>
+                  <div v-if="filteredLibrary.some(t => !t.isPlayerCharacter)" class="tok-section-label tok-section-label--others">Others</div>
+                </template>
                 <div
-                  v-for="token in filteredLibrary"
+                  v-for="token in filteredLibrary.filter(t => !t.isPlayerCharacter)"
                   :key="token.id"
                   class="token-chip"
                   draggable="true"
@@ -348,6 +377,38 @@
                 <OhVueIcon name="md-add" scale="0.8" /> Add Token
               </Button>
             </div>
+            </template><!-- end tokens tab -->
+
+            <!-- ── Creatures tab ── -->
+            <template v-if="libSidebarTab === 'creatures'">
+            <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
+              <div class="token-search">
+                <InputText v-model="creatureSearch" placeholder="Search creatures…" />
+              </div>
+              <div class="token-list" style="flex:1;overflow-y:auto">
+                <div
+                  v-for="rec in filteredCreatures"
+                  :key="rec.id"
+                  class="token-chip creature-chip"
+                  draggable="true"
+                  @dragstart="onCreatureDragStart($event, rec)"
+                >
+                  <div class="token-thumb">
+                    <img v-if="rec.imageSource" :src="rec.imageSource" class="enc-token-img" />
+                    <span v-else class="enc-token-initial enc-token-initial--creature">{{ rec.name.charAt(0) }}</span>
+                  </div>
+                  <div class="creature-chip-info">
+                    <span class="token-lib-name">{{ rec.name }}</span>
+                    <span class="creature-chip-type">{{ rec.entityTypeId }}</span>
+                  </div>
+                </div>
+                <p v-if="filteredCreatures.length === 0" class="enc-hint" style="padding:12px 0">
+                  {{ creatureSearch ? 'No matches' : 'No creature records found. Link a system to this campaign first.' }}
+                </p>
+              </div>
+            </div>
+            </template><!-- end creatures tab -->
+
           </template>
 
           <!-- ══ RUN: ORDER | LOG tabs ══ -->
@@ -668,11 +729,42 @@
                   </Button>
                 </div>
               </div>
+              <!-- Linked creature -->
+              <div>
+                <label class="f-label">Linked Creature <span class="f-hint">auto-fills HP &amp; AC on placement</span></label>
+                <div v-if="newToken.linkedRecordName" class="tok-linked-row">
+                  <span class="tok-linked-badge">{{ newToken.linkedRecordName }}</span>
+                  <button class="tok-clear-link" @click="clearTokenModalRecord('new')">× Clear</button>
+                </div>
+                <div v-else>
+                  <InputText
+                    v-model="tokenModalRecordSearch"
+                    placeholder="Search records…"
+                    style="width:100%"
+                    @input="filterTokenModalRecords"
+                    @focus="filterTokenModalRecords"
+                  />
+                  <div v-if="tokenModalRecordResults.length" class="tok-rec-dropdown">
+                    <button
+                      v-for="rec in tokenModalRecordResults"
+                      :key="rec.id"
+                      class="tok-rec-row"
+                      @click="selectTokenModalRecord(rec, 'new')"
+                    >
+                      <span class="tem-rec-type">{{ rec.entityTypeId }}</span>
+                      {{ rec.name }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- PC flag -->
+              <label class="tok-pc-row">
+                <input type="checkbox" v-model="newToken.isPlayerCharacter" class="tem-checkbox" />
+                <span>Player Character <span class="f-hint">pinned at top of token list</span></span>
+              </label>
             </div>
             <div class="flex justify-end gap-2 mt-4">
-              <Button severity="secondary" @click="showAddToken = false"
-                >Cancel</Button
-              >
+              <Button severity="secondary" @click="showAddToken = false">Cancel</Button>
               <Button @click="confirmAddToken">Add Token</Button>
             </div>
           </div>
@@ -713,6 +805,39 @@
                   <img :src="editLibraryTokenForm.imageSource" style="max-height:80px;border-radius:6px;object-fit:contain" />
                 </div>
               </div>
+              <!-- Linked creature -->
+              <div>
+                <label class="f-label">Linked Creature <span class="f-hint">auto-fills HP &amp; AC on placement</span></label>
+                <div v-if="editLibraryTokenForm.linkedRecordName" class="tok-linked-row">
+                  <span class="tok-linked-badge">{{ editLibraryTokenForm.linkedRecordName }}</span>
+                  <button class="tok-clear-link" @click="clearTokenModalRecord('edit')">× Clear</button>
+                </div>
+                <div v-else>
+                  <InputText
+                    v-model="tokenModalRecordSearch"
+                    placeholder="Search records…"
+                    style="width:100%"
+                    @input="filterTokenModalRecords"
+                    @focus="filterTokenModalRecords"
+                  />
+                  <div v-if="tokenModalRecordResults.length" class="tok-rec-dropdown">
+                    <button
+                      v-for="rec in tokenModalRecordResults"
+                      :key="rec.id"
+                      class="tok-rec-row"
+                      @click="selectTokenModalRecord(rec, 'edit')"
+                    >
+                      <span class="tem-rec-type">{{ rec.entityTypeId }}</span>
+                      {{ rec.name }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- PC flag -->
+              <label class="tok-pc-row">
+                <input type="checkbox" v-model="editLibraryTokenForm.isPlayerCharacter" class="tem-checkbox" />
+                <span>Player Character <span class="f-hint">pinned at top of token list</span></span>
+              </label>
             </div>
             <div class="flex justify-end gap-2 mt-4">
               <Button severity="secondary" @click="showEditLibraryToken = false">Cancel</Button>
@@ -1046,9 +1171,11 @@ function onCtxAddTokenHere(gridX: number, gridY: number) {
 
 async function pickTokenForPlacement(token: any) {
   if (!pendingDropPos.value) return
-  await store.addTokenToEncounter(token.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
-  const placed = store.current?.tokens[store.current.tokens.length - 1]
-  if (placed) await openLinkModal(placed.id)
+  const { autoLinked } = await store.addTokenToEncounter(token.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
+  if (!autoLinked) {
+    const placed = store.current?.tokens[store.current.tokens.length - 1]
+    if (placed) await openLinkModal(placed.id)
+  }
   pendingDropPos.value = null
   showTokenPicker.value = false
 }
@@ -1189,12 +1316,29 @@ async function doClearLog() {
 const showAddToken = ref(false);
 const showEditLibraryToken = ref(false);
 const editLibraryTokenId = ref<number | null>(null);
-const editLibraryTokenForm = ref({ name: '', imageSource: '', imageType: 'file' as 'file' | 'url' });
+const editLibraryTokenForm = ref({
+  name: '',
+  imageSource: '',
+  imageType: 'file' as 'file' | 'url',
+  linkedRecordId: null as number | null,
+  linkedRecordName: null as string | null,
+  isPlayerCharacter: false,
+});
 const showTokenPicker = ref(false);
 const tokenPickerSearch = ref("");
+
+function sortPcFirst(tokens: typeof store.tokenLibrary) {
+  return [...tokens].sort((a, b) => {
+    if (a.isPlayerCharacter === b.isPlayerCharacter) return 0
+    return a.isPlayerCharacter ? -1 : 1
+  })
+}
+
 const filteredPickerTokens = computed(() =>
-  store.tokenLibrary.filter((t: any) =>
-    t.name.toLowerCase().includes(tokenPickerSearch.value.toLowerCase())
+  sortPcFirst(
+    store.tokenLibrary.filter((t: any) =>
+      t.name.toLowerCase().includes(tokenPickerSearch.value.toLowerCase())
+    )
   )
 );
 const tokenSearch = ref("");
@@ -1202,7 +1346,82 @@ const newToken = ref({
   name: "",
   imageSource: "",
   imageType: "file" as "file" | "url",
+  linkedRecordId: null as number | null,
+  linkedRecordName: null as string | null,
+  isPlayerCharacter: false,
 });
+
+// ── Token library sidebar tab (Tokens | Creatures) ────────────────────────
+const libSidebarTab = ref<'tokens' | 'creatures'>('tokens')
+const creatureRecords = ref<Array<{ id: number; name: string; entityTypeId: string; imageSource: string | null }>>([])
+const creatureSearch = ref('')
+const filteredCreatures = computed(() =>
+  creatureRecords.value.filter(r =>
+    r.name.toLowerCase().includes(creatureSearch.value.toLowerCase()) ||
+    r.entityTypeId.toLowerCase().includes(creatureSearch.value.toLowerCase())
+  )
+)
+
+async function loadCreatureRecords() {
+  if (!store.current || !linkCampaignSystemId.value) return
+  const systemId = linkCampaignSystemId.value
+  const creatureTypeIds = await getCombatantTypes(systemId)
+  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll()
+  const sys = systemsStore.getSystem(systemId)
+
+  const perType = await Promise.all(creatureTypeIds.map(async typeId => {
+    const recs = await dbApi.records.list(systemId, typeId)
+    const et: any = sys?.entityTypes?.find((e: any) => e.id === typeId)
+    const imgField = (et?.fields ?? []).find((f: any) => f.component === 'image')
+    return recs.map(r => {
+      const data: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data ?? {})
+      const imageSource: string | null = imgField ? (data[imgField.key] ?? null) : null
+      return { id: r.id!, name: r.name, entityTypeId: r.entityTypeId, imageSource }
+    })
+  }))
+  creatureRecords.value = perType.flat().sort((a, b) => a.name.localeCompare(b.name))
+}
+
+watch(libSidebarTab, tab => { if (tab === 'creatures') loadCreatureRecords() })
+
+// ── Shared record search for Add/Edit Library Token modals ────────────────
+const tokenModalRecordSearch = ref('')
+const tokenModalRecordResults = ref<Array<{ id: number; name: string; entityTypeId: string }>>([])
+
+async function filterTokenModalRecords() {
+  if (!linkCampaignSystemId.value) return
+  const q = tokenModalRecordSearch.value.toLowerCase()
+  if (!q) { tokenModalRecordResults.value = []; return }
+  if (!creatureRecords.value.length) await loadCreatureRecords()
+  tokenModalRecordResults.value = creatureRecords.value
+    .filter(r => r.name.toLowerCase().includes(q) || r.entityTypeId.toLowerCase().includes(q))
+    .slice(0, 8)
+}
+
+function selectTokenModalRecord(rec: typeof tokenModalRecordResults.value[0], target: 'new' | 'edit') {
+  if (target === 'new') {
+    newToken.value.linkedRecordId = rec.id
+    newToken.value.linkedRecordName = rec.name
+  } else {
+    editLibraryTokenForm.value.linkedRecordId = rec.id
+    editLibraryTokenForm.value.linkedRecordName = rec.name
+  }
+  tokenModalRecordSearch.value = ''
+  tokenModalRecordResults.value = []
+}
+
+function clearTokenModalRecord(target: 'new' | 'edit') {
+  if (target === 'new') {
+    newToken.value.linkedRecordId = null
+    newToken.value.linkedRecordName = null
+  } else {
+    editLibraryTokenForm.value.linkedRecordId = null
+    editLibraryTokenForm.value.linkedRecordName = null
+  }
+}
+
+// Dragging type: 'token' or 'creature'
+let draggingPayload: { type: 'token'; tokenId: number } | { type: 'creature'; recordId: number } | null = null
 
 function toggleTool(tool: "fog" | "measure" | "shapes" | "wall") {
   activeTool.value = activeTool.value === tool ? "select" : tool;
@@ -1229,9 +1448,11 @@ const sortedEncounterTokens = computed(() =>
 );
 const playerWindowOpen = computed(() => store.playerWindowOpen);
 const filteredLibrary = computed(() =>
-  store.tokenLibrary.filter((t) =>
-    t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
-  ),
+  sortPcFirst(
+    store.tokenLibrary.filter((t) =>
+      t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
+    )
+  )
 );
 
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
@@ -1366,19 +1587,29 @@ async function onOffsetChange(axis: "x" | "y", val: number | null) {
   else await store.updateGrid(enc.gridSize, enc.gridOffsetX, val);
 }
 
-let draggingTokenId: number | null = null;
 function onTokenDragStart(e: DragEvent, token: any) {
-  draggingTokenId = token.id;
-  e.dataTransfer?.setData("tokenId", String(token.id));
+  draggingPayload = { type: 'token', tokenId: token.id }
+  e.dataTransfer?.setData("tokenId", String(token.id))
+}
+
+function onCreatureDragStart(e: DragEvent, record: any) {
+  draggingPayload = { type: 'creature', recordId: record.id }
+  e.dataTransfer?.setData("creatureId", String(record.id))
 }
 
 async function onCanvasDrop(e: DragEvent) {
-  if (!canvas || draggingTokenId === null) return;
-  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY);
-  await store.addTokenToEncounter(draggingTokenId, gridX, gridY);
-  const newToken = store.current?.tokens[store.current.tokens.length - 1];
-  if (newToken) await openLinkModal(newToken.id);
-  draggingTokenId = null;
+  if (!canvas || !draggingPayload) return
+  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY)
+  if (draggingPayload.type === 'creature') {
+    await store.addCreatureToEncounter(draggingPayload.recordId, gridX, gridY)
+  } else {
+    const { autoLinked } = await store.addTokenToEncounter(draggingPayload.tokenId, gridX, gridY)
+    if (!autoLinked) {
+      const placed = store.current?.tokens[store.current.tokens.length - 1]
+      if (placed) await openLinkModal(placed.id)
+    }
+  }
+  draggingPayload = null
 }
 
 async function togglePlayerWindow() {
@@ -1399,14 +1630,24 @@ async function browseTokenImage() {
   }
 }
 
-function openEditLibraryToken(token: any) {
-  editLibraryTokenId.value = token.id;
+async function openEditLibraryToken(token: any) {
+  editLibraryTokenId.value = token.id
+  let linkedRecordName: string | null = null
+  if (token.linkedRecordId) {
+    const rec = await dbApi.records.get(token.linkedRecordId)
+    linkedRecordName = rec?.name ?? null
+  }
   editLibraryTokenForm.value = {
     name: token.name,
     imageSource: token.imageSource ?? '',
     imageType: token.imageType ?? 'file',
-  };
-  showEditLibraryToken.value = true;
+    linkedRecordId: token.linkedRecordId ?? null,
+    linkedRecordName,
+    isPlayerCharacter: token.isPlayerCharacter ?? false,
+  }
+  tokenModalRecordSearch.value = ''
+  tokenModalRecordResults.value = []
+  showEditLibraryToken.value = true
 }
 
 async function browseEditTokenImage() {
@@ -1418,30 +1659,36 @@ async function browseEditTokenImage() {
 }
 
 async function confirmEditLibraryToken() {
-  if (!editLibraryTokenId.value || !editLibraryTokenForm.value.name.trim()) return;
-  const { name, imageSource } = editLibraryTokenForm.value;
-  const imageType = imageSource.startsWith('http') ? 'url' : 'file';
-  await store.updateLibraryToken(editLibraryTokenId.value, name, imageSource || null, imageType);
-  showEditLibraryToken.value = false;
+  if (!editLibraryTokenId.value || !editLibraryTokenForm.value.name.trim()) return
+  const { name, imageSource, linkedRecordId, isPlayerCharacter } = editLibraryTokenForm.value
+  const imageType = imageSource.startsWith('http') ? 'url' : 'file'
+  await store.updateLibraryToken(editLibraryTokenId.value, name, imageSource || null, imageType, linkedRecordId, isPlayerCharacter)
+  showEditLibraryToken.value = false
 }
 
 async function confirmAddToken() {
-  if (!newToken.value.name.trim()) return;
-  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file";
+  if (!newToken.value.name.trim()) return
+  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file"
   await store.addToLibrary(
     newToken.value.name,
     newToken.value.imageSource || null,
     type,
-  );
-  const libraryToken = store.tokenLibrary[store.tokenLibrary.length - 1];
+    newToken.value.linkedRecordId,
+    newToken.value.isPlayerCharacter,
+  )
+  const libraryToken = store.tokenLibrary[store.tokenLibrary.length - 1]
   if (libraryToken && pendingDropPos.value) {
-    await store.addTokenToEncounter(libraryToken.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY);
-    const placed = store.current?.tokens[store.current.tokens.length - 1];
-    if (placed) await openLinkModal(placed.id);
+    const { autoLinked } = await store.addTokenToEncounter(libraryToken.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
+    if (!autoLinked) {
+      const placed = store.current?.tokens[store.current.tokens.length - 1]
+      if (placed) await openLinkModal(placed.id)
+    }
   }
-  pendingDropPos.value = null;
-  newToken.value = { name: "", imageSource: "", imageType: "file" };
-  showAddToken.value = false;
+  pendingDropPos.value = null
+  newToken.value = { name: "", imageSource: "", imageType: "file", linkedRecordId: null, linkedRecordName: null, isPlayerCharacter: false }
+  tokenModalRecordSearch.value = ''
+  tokenModalRecordResults.value = []
+  showAddToken.value = false
 }
 
 function addShape(anchorCol: number, anchorRow: number, endCol: number, endRow: number) {
@@ -1888,6 +2135,144 @@ function getImageUrl(token: any): string {
   font-family: var(--font-head);
   font-size: 11px;
   color: var(--gold);
+}
+.enc-token-initial--creature {
+  color: var(--blood);
+}
+
+/* ── Library sidebar tabs ── */
+.lib-tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--parch-line);
+  flex-shrink: 0;
+}
+.lib-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.lib-tab:hover { color: var(--ink); }
+.lib-tab--active {
+  color: var(--blood);
+  border-bottom: 2px solid var(--blood);
+}
+
+/* ── PC / section separators in token list ── */
+.tok-section-label {
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  padding: 6px 8px 2px;
+}
+.tok-section-label--others {
+  border-top: 1px dashed var(--parch-line);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+.token-chip--pc {
+  background: rgba(184,134,11,0.05);
+}
+
+/* ── Creature chip ── */
+.creature-chip { cursor: grab; }
+.creature-chip:active { cursor: grabbing; }
+.creature-chip-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.creature-chip-type {
+  font-family: var(--font-head);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+
+/* ── Token modal: linked record row ── */
+.tok-linked-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+.tok-linked-badge {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  font-style: italic;
+}
+.tok-clear-link {
+  background: none;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  cursor: pointer;
+  color: var(--ink-ghost);
+  transition: color 0.15s, border-color 0.15s;
+}
+.tok-clear-link:hover { color: var(--blood); border-color: var(--blood); }
+
+.tok-rec-dropdown {
+  border: 1px solid var(--parch-line);
+  border-top: none;
+  background: var(--parch);
+  border-radius: 0 0 2px 2px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.tok-rec-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.tok-rec-row:hover { background: rgba(184,134,11,0.08); }
+
+.tok-pc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.f-hint {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-ghost);
+  font-style: italic;
 }
 
 /* ── Canvas — dark, full remaining height ── */

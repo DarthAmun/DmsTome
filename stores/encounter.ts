@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { dbApi } from '~/composables/useDb'
 import type { DbEncounterWall } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
+import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
 
 export interface CombatLogEntry {
   id: number
@@ -20,6 +21,8 @@ export interface Token {
   name: string
   imageSource: string | null
   imageType: 'file' | 'url'
+  linkedRecordId: number | null
+  isPlayerCharacter: boolean
 }
 
 export interface TokenCondition {
@@ -30,7 +33,7 @@ export interface TokenCondition {
 export interface EncounterToken {
   id: number
   encounterId: number
-  tokenId: number
+  tokenId: number | null
   // From token join
   name: string
   imageSource: string | null
@@ -72,6 +75,8 @@ export interface Encounter {
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
+  const { extractStatsFromData, extractAllFromRecord } = useStatBlockLinker()
+
   // ── State ──────────────────────────────────────────────────────────────────
   const current = ref<Encounter | null>(null)
   const tokenLibrary = ref<Token[]>([])
@@ -141,6 +146,8 @@ export const useEncounterStore = defineStore('encounter', () => {
         name: t.name,
         imageSource: t.image_source,
         imageType: t.image_type,
+        linkedRecordId: t.linked_record_id ?? null,
+        isPlayerCharacter: Boolean(t.is_player_character),
       }))
     } catch (err) {
       console.error('[EncounterStore] loadTokenLibrary:', err)
@@ -204,9 +211,29 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   // ── Actions — Tokens ──────────────────────────────────────────────────────
-  async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number) {
-    if (!current.value) return
+  async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number): Promise<{ autoLinked: boolean }> {
+    if (!current.value) return { autoLinked: false }
     try {
+      const libToken = tokenLibrary.value.find(t => t.id === tokenId)
+      let hpCurrent: number | null = null
+      let hpMax: number | null = null
+      let ac: number | null = null
+      let linkedRecordId: number | null = null
+      let autoLinked = false
+
+      if (libToken?.linkedRecordId) {
+        const rec = await dbApi.records.get(libToken.linkedRecordId)
+        if (rec) {
+          const data: Record<string, any> = typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : (rec.data ?? {})
+          const stats = extractStatsFromData(data)
+          hpMax = stats.hpMax
+          hpCurrent = stats.hpCurrent
+          ac = stats.ac
+          linkedRecordId = rec.id!
+          autoLinked = true
+        }
+      }
+
       const result = await dbApi.encounterTokens.add({
         encounterId: current.value.id,
         tokenId,
@@ -214,11 +241,42 @@ export const useEncounterStore = defineStore('encounter', () => {
         gridY,
         size: 1,
         isVisible: 1,
+        hpCurrent,
+        hpMax,
+        ac,
+        linkedRecordId,
+      })
+      current.value.tokens.push(normalizeToken(result))
+      syncToPlayer()
+      return { autoLinked }
+    } catch (err) {
+      console.error('[EncounterStore] addTokenToEncounter:', err)
+      return { autoLinked: false }
+    }
+  }
+
+  async function addCreatureToEncounter(recordId: number, gridX: number, gridY: number) {
+    if (!current.value) return
+    try {
+      const extracted = await extractAllFromRecord(recordId)
+      const result = await dbApi.encounterTokens.add({
+        encounterId: current.value.id,
+        tokenId: null,
+        gridX,
+        gridY,
+        size: 1,
+        isVisible: 1,
+        hpCurrent: extracted.hpCurrent,
+        hpMax: extracted.hpMax,
+        ac: extracted.ac,
+        linkedRecordId: recordId,
+        imageSource: extracted.imageSource,
+        imageType: extracted.imageType,
       })
       current.value.tokens.push(normalizeToken(result))
       syncToPlayer()
     } catch (err) {
-      console.error('[EncounterStore] addTokenToEncounter:', err)
+      console.error('[EncounterStore] addCreatureToEncounter:', err)
     }
   }
 
@@ -324,24 +382,26 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function updateLibraryToken(id: number, name: string, imageSource: string | null, imageType: 'file' | 'url') {
+  async function updateLibraryToken(id: number, name: string, imageSource: string | null, imageType: 'file' | 'url', linkedRecordId?: number | null, isPlayerCharacter?: boolean) {
     try {
-      await dbApi.tokens.update(id, { name, imageSource, imageType })
+      await dbApi.tokens.update(id, { name, imageSource, imageType, linkedRecordId, isPlayerCharacter })
       const token = tokenLibrary.value.find(t => t.id === id)
-      if (token) Object.assign(token, { name, imageSource, imageType })
+      if (token) Object.assign(token, { name, imageSource, imageType, linkedRecordId: linkedRecordId ?? token.linkedRecordId, isPlayerCharacter: isPlayerCharacter ?? token.isPlayerCharacter })
     } catch (err) {
       console.error('[EncounterStore] updateLibraryToken:', err)
     }
   }
 
-  async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url') {
+  async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url', linkedRecordId?: number | null, isPlayerCharacter?: boolean) {
     try {
-      const token = await dbApi.tokens.create({ name, imageSource, imageType })
+      const token = await dbApi.tokens.create({ name, imageSource, imageType, linkedRecordId, isPlayerCharacter })
       tokenLibrary.value.push({
         id: token!.id!,
         name: token!.name,
         imageSource: token!.image_source,
         imageType: token!.image_type,
+        linkedRecordId: token!.linked_record_id ?? null,
+        isPlayerCharacter: Boolean(token!.is_player_character),
       })
       return token
     } catch (err) {
@@ -510,7 +570,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     return {
       id: raw.id,
       encounterId: raw.encounter_id,
-      tokenId: raw.token_id,
+      tokenId: raw.token_id ?? null,
       name: raw.name,
       imageSource: raw.image_source,
       imageType: raw.image_type,
@@ -545,7 +605,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     addWall, undoLastWall, updateWall, deleteWall, toggleDoor,
     setFovEnabled,
     setSoundPlaylistId,
-    addTokenToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
+    addTokenToEncounter, addCreatureToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
     addLogNote, clearCombatLog,

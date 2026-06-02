@@ -72,76 +72,14 @@
           :key="e.id"
           class="erow"
           :class="{ active: activeForList === e.id }"
-          @click="route.path.endsWith('/map') && type === 'location' ? selectMapLocation(e) : openEntry(e)"
         >
-          <!-- NPC -->
-          <div v-if="type === 'npc'" class="erow-avatar"
-            :style="attrImg(e, 'portraitSource') ? {} : { background: avatarGradient(e.name) }">
-            <img v-if="attrImg(e, 'portraitSource')" :src="attrImg(e, 'portraitSource')!" class="erow-avatar-img" />
-            <template v-else>{{ initials(e.name) }}</template>
-          </div>
-
-          <!-- Location -->
-          <div v-else-if="type === 'location'" class="erow-avatar erow-avatar--sq"
-            :style="attrImg(e, 'logoSource') ? {} : { background: avatarGradient(e.name) }">
-            <img v-if="attrImg(e, 'logoSource')" :src="attrImg(e, 'logoSource')!" class="erow-avatar-img" />
-            <template v-else>{{ initials(e.name) }}</template>
-          </div>
-
-          <!-- Faction -->
-          <div v-else-if="type === 'faction'" class="erow-avatar erow-avatar--icon"
-            :style="attrImg(e, 'imageSource') ? {} : { background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40' }">
-            <img v-if="attrImg(e, 'imageSource')" :src="attrImg(e, 'imageSource')!" class="erow-avatar-img" />
-            <OhVueIcon v-else name="gi-american-shield" scale="0.7" :style="{ color: typeConfig?.color }" />
-          </div>
-
-          <!-- Session: selected icon if set, otherwise session number badge -->
-          <div v-else-if="type === 'session'">
-            <div v-if="(e.attributes as any)?.icon" class="erow-icon-badge" :style="{ color: typeConfig?.color }">
-              <OhVueIcon :name="(e.attributes as any).icon" scale="0.75" />
-            </div>
-            <div v-else class="erow-num-badge"
-              :style="{ background: (typeConfig?.color ?? '#888') + '18', borderColor: (typeConfig?.color ?? '#888') + '40', color: typeConfig?.color }">
-              {{ (e.attributes as any)?.sessionNumber || '#' }}
-            </div>
-          </div>
-
-          <!-- Quest icon -->
-          <div v-else-if="type === 'quest'" class="erow-icon-badge" :style="{ color: questColor(e) }">
-            <OhVueIcon name="gi-holy-grail" scale="0.75" />
-          </div>
-
-          <!-- Event icon -->
-          <div v-else-if="type === 'event'" class="erow-icon-badge" :style="{ color: eventColor(e) }">
-            <OhVueIcon name="gi-sands-of-time" scale="0.75" />
-          </div>
-
-          <!-- Note icon -->
-          <div v-else-if="type === 'note'" class="erow-icon-badge" :style="{ color: typeConfig?.color }">
-            <OhVueIcon :name="(e.attributes as any)?.icon || 'gi-scroll-unfurled'" scale="0.75" />
-          </div>
-
-          <!-- Random Table: die badge -->
-          <div v-else-if="type === 'random-table'" class="erow-die-badge" :style="{ color: typeConfig?.color, borderColor: (typeConfig?.color ?? '#888') + '55', background: (typeConfig?.color ?? '#888') + '11' }">
-            {{ (e.attributes as any)?.die || 'd?' }}
-          </div>
-
-          <!-- Rumor: speak icon -->
-          <div v-else-if="type === 'rumor'" class="erow-icon-badge" :style="{ color: typeConfig?.color }">
-            <OhVueIcon name="gi-speaker" scale="0.75" />
-          </div>
-
-          <!-- Fallback dot -->
-          <div v-else class="erow-dot" :style="{ background: activeEntryId === e.id ? typeConfig?.color : 'var(--border-hi)' }" />
-
-          <!-- Name + sub -->
-          <div class="erow-body">
-            <div class="erow-name">{{ e.name }}</div>
-            <div v-if="rowSub(e)" class="erow-sub">{{ rowSub(e) }}</div>
-          </div>
-
-          <span v-if="rowTag(e)" class="erow-pill" :style="pillStyle(rowTag(e)!)">{{ rowTag(e) }}</span>
-          <span v-if="rowDate(e)" class="erow-date">{{ rowDate(e) }}</span>
+          <component
+            :is="ENTRY_COMPONENTS[type]"
+            :entry="e"
+            :deletable="true"
+            @open="route.path.endsWith('/map') && type === 'location' ? selectMapLocation(e) : openEntry(e)"
+            @delete="deleteEntry"
+          />
         </div>
       </div>
     </div>
@@ -160,13 +98,28 @@
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
 import type { EntityType } from '~/types/entities'
 import type { Entity } from '~/composables/useEntities'
+import NpcEntry         from '~/components/notes/NpcEntry.vue'
+import LocationEntry    from '~/components/notes/LocationEntry.vue'
+import FactionEntry     from '~/components/notes/FactionEntry.vue'
+import QuestEntry       from '~/components/notes/QuestEntry.vue'
+import EventEntry       from '~/components/notes/EventEntry.vue'
+import SessionEntry     from '~/components/notes/SessionEntry.vue'
+import NoteEntry        from '~/components/notes/NoteEntry.vue'
+import RandomTableEntry from '~/components/notes/RandomTableEntry.vue'
+import RumorEntry       from '~/components/notes/RumorEntry.vue'
+
+const ENTRY_COMPONENTS: Record<EntityType, any> = {
+  npc: NpcEntry, location: LocationEntry, faction: FactionEntry,
+  quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
+  'random-table': RandomTableEntry, rumor: RumorEntry,
+}
 
 const props = defineProps<{ type: EntityType }>()
 
 const route = useRoute()
 const router = useRouter()
 const {
-  typeConfig, entries, openEntry, createEntry, ensureLoaded, formatDateShort,
+  typeConfig, entries, openEntry, createEntry, deleteEntry, ensureLoaded,
 } = useCampaignEntity(props.type)
 
 const campaignId = computed(() => Number(route.params.id))
@@ -180,7 +133,7 @@ const QF_FIELDS: Partial<Record<string, QFConfig[]>> = {
   npc:            [{ key: 'status', label: 'Status' }, { key: 'race', label: 'Race' }, { key: 'role', label: 'Class' }, { key: 'level', label: 'Level' }],
   quest:          [{ key: 'status', label: 'Status' }],
   session:        [{ key: 'mode', label: 'Mode' }],
-  location:       [{ key: 'status', label: 'Status' }],
+  location:       [{ key: 'locationType', label: 'Type' }, { key: 'status', label: 'Status' }],
   event:          [{ key: 'significance', label: 'Significance' }],
   faction:        [{ key: 'factionType', label: 'Type' }, { key: 'size', label: 'Size' }],
   'random-table': [{ key: 'die', label: 'Die' }],
@@ -268,74 +221,6 @@ function selectMapLocation(e: Entity) {
   router.push(`/campaign/${campaignId.value}/locations/${e.id}/map`)
 }
 
-// ── Avatar helpers ─────────────────────────────────────────────────────────────
-const AVATAR_GRADIENTS = [
-  ['#6f6fc8', '#9b68c8'], ['#c86f6f', '#c89b68'], ['#6fc8a8', '#68c89b'],
-  ['#c8a86f', '#c8c868'], ['#6fa8c8', '#6890c8'], ['#c86fa8', '#c868c8'],
-]
-function avatarGradient(name: string): string {
-  const idx = (name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % AVATAR_GRADIENTS.length
-  const [a, b] = AVATAR_GRADIENTS[idx]
-  return `linear-gradient(135deg, ${a}, ${b})`
-}
-function initials(name: string): string {
-  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-}
-function attrImg(e: Entity, key: string): string | null {
-  const v = (e.attributes as any)?.[key]
-  return v && typeof v === 'string' && v.length > 0 ? v : null
-}
-
-// ── Row helpers ───────────────────────────────────────────────────────────────
-function rowSub(e: Entity): string | null {
-  const a = e.attributes as any
-  if (props.type === 'npc') return [a?.title, a?.race].filter(Boolean).join(' · ') || null
-  if (props.type === 'location') return a?.locationType || null
-  if (props.type === 'faction') return [a?.factionType, a?.size].filter(Boolean).join(' · ') || null
-  if (props.type === 'quest') return a?.questGiver ? `from ${a.questGiver}` : null
-  if (props.type === 'event') return [a?.location, a?.significance].filter(Boolean).join(' · ') || null
-  if (props.type === 'note') { const tags = a?.tags as string[] | undefined; return tags?.length ? tags.slice(0, 2).join(', ') : null }
-  if (props.type === 'random-table') { const rows = a?.rows?.length; return rows ? `${rows} row${rows !== 1 ? 's' : ''}` : null }
-  if (props.type === 'rumor') return a?.source ? `from ${a.source}` : null
-  return null
-}
-
-function rowDate(e: Entity): string | null {
-  const a = e.attributes as any
-  if (props.type === 'session' && a?.date) return formatDateShort(a.date)
-  if (props.type === 'event' && a?.date) return formatDateShort(a.date)
-  return null
-}
-
-function rowTag(e: Entity): string | null {
-  const a = e.attributes as any
-  if (props.type === 'npc') return a?.status || null
-  if (props.type === 'session') return a?.mode || null
-  if (props.type === 'quest') return a?.status || null
-  if (props.type === 'location') return a?.status || null
-  if (props.type === 'rumor') return a?.statuses?.[0] ?? null
-  return null
-}
-
-const TAG_COLORS: Record<string, string> = {
-  active: 'var(--success)', planning: '#6b9fe8', running: 'var(--success)',
-  finished: '#b87de8', completed: 'var(--success)', failed: 'var(--danger)',
-  dormant: 'var(--text3)', discovered: 'var(--success)', undiscovered: 'var(--text3)',
-  destroyed: 'var(--danger)', rare: '#b87de8', unique: '#e8924a',
-  uncommon: '#7cc44e', common: 'var(--text3)',
-}
-function pillStyle(tag: string) {
-  const c = TAG_COLORS[tag] ?? 'var(--text3)'
-  return { color: c, borderColor: c + '44', background: c + '11' }
-}
-function questColor(e: Entity): string { return TAG_COLORS[(e.attributes as any)?.status] ?? 'var(--text3)' }
-function eventColor(e: Entity): string {
-  const sig = (e.attributes as any)?.significance
-  if (sig === 'critical') return 'var(--danger)'
-  if (sig === 'major') return '#ebbd34'
-  return 'var(--text3)'
-}
-
 function exportEntries() {
   const data = {
     version: 1,
@@ -394,5 +279,28 @@ onMounted(() => ensureLoaded())
 .elist-vbtn + .elist-vbtn { border-left: 1px solid var(--border); }
 .elist-vbtn:hover { color: var(--text2); background: var(--surface-hi); }
 .elist-vbtn.active { background: var(--accent-bg); color: var(--accent-l); }
+
+/* ── Entry-card row wrapper ──────────────────────────────────────────────── */
+/* Override the global .erow flex layout — the entry component owns its layout */
+.erow {
+  display: block;
+  padding: 0;
+  gap: 0;
+  border-radius: var(--r2);
+  margin-bottom: 2px;
+}
+
+/* Active accent bleeds into the entry card */
+.erow.active :deep(.entry) {
+  background: var(--accent-bg);
+}
+
+/* Suppress the entry component's own hover padding-shift inside the erow border */
+.erow :deep(.entry:hover) {
+  padding-left: 10px;
+}
+.erow :deep(.entry:hover::before) {
+  display: none;
+}
 
 </style>

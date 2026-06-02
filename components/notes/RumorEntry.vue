@@ -13,9 +13,7 @@
       </div>
     </div>
 
-    <span class="entry-dots" />
     <span v-for="s in attrs.statuses ?? []" :key="s" class="status-badge" :style="badgeStyle(s)">{{ s }}</span>
-    <span class="entry-date">{{ formatDateShort(entry.updatedAt) }}</span>
 
     <div v-if="deletable" class="entry-actions" @click.stop>
       <button class="entry-act entry-act--del" @click.stop="$emit('delete', entry.id)">
@@ -26,15 +24,12 @@
 </template>
 
 <script setup lang="ts">
-import { useFormatters } from '~/composables/useFormatters'
 import type { Entity } from '~/composables/useEntities'
 import type { RumorAttributes } from '~/types/entities'
 import { RUMOR_STATUS_COLORS } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()
 defineEmits<{ open: []; delete: [id: number] }>()
-
-const { formatDateShort } = useFormatters()
 const attrs = computed(() => (props.entry.attributes ?? {}) as RumorAttributes)
 
 function badgeStyle(s: string) {
@@ -48,7 +43,6 @@ function badgeStyle(s: string) {
 </script>
 
 <style scoped>
-.entry-dots { flex: 0 1 40px; min-width: 16px; }
 .media { flex-shrink: 0; width: 42px; display: flex; align-items: center; justify-content: center; }
 .icon-wrap {
   width: 34px; height: 34px; border-radius: 50%;

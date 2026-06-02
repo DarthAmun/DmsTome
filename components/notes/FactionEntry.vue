@@ -20,9 +20,6 @@
       </div>
     </div>
 
-    <span class="entry-dots" />
-    <span class="entry-date">{{ formatDateShort(entry.updatedAt) }}</span>
-
     <div v-if="deletable" class="entry-actions" @click.stop>
       <button class="entry-act entry-act--del" @click.stop="$emit('delete', entry.id)">
         <OhVueIcon name="md-delete" scale="0.75" />
@@ -33,22 +30,17 @@
 
 
 <script setup lang="ts">
-import { useFormatters } from '~/composables/useFormatters'
 import type { Entity } from '~/composables/useEntities'
 import type { FactionAttributes } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()
 defineEmits<{ open: []; delete: [id: number] }>()
-
-const { formatDateShort } = useFormatters()
 const attrs = computed(() => (props.entry.attributes ?? {}) as FactionAttributes)
 const hasMeta = computed(() => !!(attrs.value.factionType || attrs.value.size || attrs.value.headquartersName))
 </script>
 
 
 <style scoped>
-.entry-dots { flex: 0 1 40px; min-width: 16px; }
-
 .media {
   flex-shrink: 0;
   width: 42px;

@@ -63,13 +63,15 @@ export interface DbToken {
   image_source: string | null // base64 data URL or http URL
   image_type: 'file' | 'url'
   is_template: number
+  is_player_character: number  // 0 | 1
+  linked_record_id: number | null
   created_at: string
 }
 
 export interface DbEncounterToken {
   id?: number
   encounter_id: number
-  token_id: number
+  token_id: number | null      // null = placed directly from creature record
   grid_x: number
   grid_y: number
   size: number
@@ -85,6 +87,8 @@ export interface DbEncounterToken {
   linked_record_id: number | null
   vision_range: number | null // tiles, null = infinite
   is_player_token: number     // 0 | 1
+  image_source: string | null // for creature-direct tokens (token_id = null)
+  image_type: 'file' | 'url'
 }
 
 export interface DbEncounterWall {
@@ -357,6 +361,40 @@ class DmForgeDb extends Dexie {
       soundTracks:        '++id, name, type',
       soundPlaylists:     '++id, name',
     })
+    // v12: tokens gain linked_record_id + is_player_character; encounterTokens.token_id becomes nullable
+    this.version(12).stores({
+      campaigns:          '++id, updated_at, system_id',
+      encounters:         '++id, campaign_id, created_at',
+      tokens:             '++id, is_template, name, linked_record_id',
+      encounterTokens:    '++id, encounter_id, token_id, linked_record_id',
+      entities:           '++id, campaign_id, type, name',
+      entityLinks:        '++id, source_id, target_type, target_name',
+      systems:            '++id, shortId, updatedAt',
+      records:            '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:     '++id, encounter_id',
+      entitySnapshots:    '++id, entity_id, event_id, created_at',
+      entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
+      graphLayouts:       '++id, campaign_id, name',
+      soundTracks:        '++id, name, type',
+      soundPlaylists:     '++id, name',
+    })
+    // v13: encounterTokens gains image_source/image_type for creature-direct tokens
+    this.version(13).stores({
+      campaigns:          '++id, updated_at, system_id',
+      encounters:         '++id, campaign_id, created_at',
+      tokens:             '++id, is_template, name, linked_record_id',
+      encounterTokens:    '++id, encounter_id, token_id, linked_record_id',
+      entities:           '++id, campaign_id, type, name',
+      entityLinks:        '++id, source_id, target_type, target_name',
+      systems:            '++id, shortId, updatedAt',
+      records:            '++id, systemId, entityTypeId, name, updatedAt',
+      encounterWalls:     '++id, encounter_id',
+      entitySnapshots:    '++id, entity_id, event_id, created_at',
+      entityConnections:  '++id, campaign_id, source_entity_id, target_entity_id',
+      graphLayouts:       '++id, campaign_id, name',
+      soundTracks:        '++id, name, type',
+      soundPlaylists:     '++id, name',
+    })
   }
 }
 
@@ -431,11 +469,14 @@ export const dbApi = {
       const db = getDb()
       const enc = await db.encounters.get(id)
       if (!enc) return null
-      // Join tokens
+      // Join tokens — token_id may be null for creature-direct placements
       const etRows = await db.encounterTokens.where('encounter_id').equals(id).toArray()
       const tokens = await Promise.all(etRows.map(async et => {
-        const tok = await db.tokens.get(et.token_id)
-        return { ...et, name: tok?.name ?? '', image_source: tok?.image_source ?? null, image_type: tok?.image_type ?? 'file' }
+        const tok = et.token_id ? await db.tokens.get(et.token_id) : null
+        const rec = (!tok && et.linked_record_id) ? await db.records.get(et.linked_record_id) : null
+        const imageSource = tok?.image_source ?? et.image_source ?? null
+        const imageType: 'file' | 'url' = tok?.image_type ?? et.image_type ?? 'file'
+        return { ...et, name: tok?.name ?? rec?.name ?? '', image_source: imageSource, image_type: imageType }
       }))
       return { ...enc, tokens }
     },
@@ -469,17 +510,27 @@ export const dbApi = {
       const db = getDb()
       return db.tokens.where('is_template').equals(1).sortBy('name')
     },
-    async create(data: { name: string; imageSource?: string | null; imageType?: string }) {
+    async create(data: { name: string; imageSource?: string | null; imageType?: string; linkedRecordId?: number | null; isPlayerCharacter?: boolean }) {
       const db = getDb()
-      const id = await db.tokens.add({ name: data.name, image_source: data.imageSource ?? null, image_type: (data.imageType ?? 'file') as any, is_template: 1, created_at: now() })
+      const id = await db.tokens.add({
+        name: data.name,
+        image_source: data.imageSource ?? null,
+        image_type: (data.imageType ?? 'file') as any,
+        is_template: 1,
+        is_player_character: data.isPlayerCharacter ? 1 : 0,
+        linked_record_id: data.linkedRecordId ?? null,
+        created_at: now(),
+      })
       return db.tokens.get(id)
     },
-    async update(id: number, data: { name?: string; imageSource?: string | null; imageType?: 'file' | 'url' }) {
+    async update(id: number, data: { name?: string; imageSource?: string | null; imageType?: 'file' | 'url'; linkedRecordId?: number | null; isPlayerCharacter?: boolean }) {
       const db = getDb()
       const changes: Record<string, any> = {}
       if (data.name !== undefined) changes.name = data.name
       if (data.imageSource !== undefined) changes.image_source = data.imageSource
       if (data.imageType !== undefined) changes.image_type = data.imageType
+      if ('linkedRecordId' in data) changes.linked_record_id = data.linkedRecordId ?? null
+      if ('isPlayerCharacter' in data) changes.is_player_character = data.isPlayerCharacter ? 1 : 0
       await db.tokens.update(id, changes)
     },
     async delete(id: number) {
@@ -493,17 +544,26 @@ export const dbApi = {
     async add(data: any) {
       const db = getDb()
       const id = await db.encounterTokens.add({
-        encounter_id: data.encounterId, token_id: data.tokenId,
+        encounter_id: data.encounterId,
+        token_id: data.tokenId ?? null,
         grid_x: data.gridX ?? 0, grid_y: data.gridY ?? 0,
         size: data.size ?? 1, is_visible: data.isVisible ?? 1, is_dead: 0,
         label: data.label ?? null, conditions: '[]',
         hp_current: data.hpCurrent ?? null, hp_max: data.hpMax ?? null,
+        ac: data.ac ?? null,
         initiative: data.initiative ?? null, notes: null,
-        linked_record_id: null,
+        linked_record_id: data.linkedRecordId ?? null,
+        vision_range: data.visionRange ?? null,
+        is_player_token: data.isPlayerToken ? 1 : 0,
+        image_source: data.imageSource ?? null,
+        image_type: (data.imageType ?? 'file') as 'file' | 'url',
       })
       const et = await db.encounterTokens.get(id)
-      const tok = await db.tokens.get(et!.token_id)
-      return { ...et, name: tok?.name ?? '', image_source: tok?.image_source ?? null, image_type: tok?.image_type ?? 'file' }
+      const tok = et!.token_id ? await db.tokens.get(et!.token_id) : null
+      const resolvedImageSource = tok?.image_source ?? et!.image_source ?? null
+      const resolvedImageType: 'file' | 'url' = tok?.image_type ?? et!.image_type ?? 'file'
+      const rec = (!tok && et!.linked_record_id) ? await db.records.get(et!.linked_record_id) : null
+      return { ...et, name: tok?.name ?? rec?.name ?? '', image_source: resolvedImageSource, image_type: resolvedImageType }
     },
     async update(data: { id: number; [key: string]: any }) {
       const db = getDb()

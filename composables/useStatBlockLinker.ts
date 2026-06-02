@@ -119,24 +119,59 @@ export function useStatBlockLinker() {
     return ids
   }
 
-  /** Loads a record by id and pulls HP/AC, consulting the record's entity
-   *  type schema for field-label fallback when keys don't match. */
-  async function linkRecordToToken(recordId: number): Promise<ExtractedStats> {
+  async function loadRecordWithFields(recordId: number) {
     const rec = await dbApi.records.get(recordId)
-    if (!rec) return { hpCurrent: null, hpMax: null, ac: null }
+    if (!rec) return null
     const data: Record<string, any> = typeof rec.data === 'string'
       ? JSON.parse(rec.data || '{}')
       : (rec.data ?? {})
     if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll()
     const sys = systemsStore.getSystem(rec.systemId)
     const et: any = sys?.entityTypes?.find((t: any) => t.id === rec.entityTypeId)
-    const fields: Array<{ key: string; label?: string }> = et?.fields ?? []
-    return extractStatsFromData(data, fields)
+    const fields: Array<{ key: string; label?: string; component?: string }> = et?.fields ?? []
+    return { rec, data, fields }
+  }
+
+  async function linkRecordToToken(recordId: number): Promise<ExtractedStats> {
+    const loaded = await loadRecordWithFields(recordId)
+    if (!loaded) return { hpCurrent: null, hpMax: null, ac: null }
+    return extractStatsFromData(loaded.data, loaded.fields)
+  }
+
+  /** Loads a record and extracts stats + image, returning everything needed
+   *  to create an encounter token. */
+  async function extractAllFromRecord(recordId: number): Promise<ExtractedStats & { imageSource: string | null; imageType: 'file' | 'url'; name: string }> {
+    const loaded = await loadRecordWithFields(recordId)
+    if (!loaded) return { hpCurrent: null, hpMax: null, ac: null, imageSource: null, imageType: 'file', name: '' }
+    const { rec, data, fields } = loaded
+    const stats = extractStatsFromData(data, fields)
+    const imageSource = extractImageFromRecord(data, fields)
+    return {
+      ...stats,
+      imageSource,
+      imageType: imageSource?.startsWith('http') ? 'url' : 'file',
+      name: rec.name,
+    }
+  }
+
+  /** Returns the image data URL from a record's data, using the entity type
+   *  schema to find the field with component === 'image'. */
+  function extractImageFromRecord(
+    data: Record<string, any>,
+    fields?: Array<{ key: string; component?: string }>,
+  ): string | null {
+    if (!fields) return null
+    const imgField = fields.find(f => f.component === 'image')
+    if (!imgField) return null
+    const val = data[imgField.key]
+    return typeof val === 'string' && val ? val : null
   }
 
   return {
     extractStatValue,
     extractStatsFromData,
+    extractImageFromRecord,
+    extractAllFromRecord,
     getCombatantTypes,
     linkRecordToToken,
     HP_RE,

@@ -213,6 +213,15 @@ async function cloneEncounter(id: number) {
       isVisible: 1,
     })
   }
+  const walls = await dbApi.walls.list(id)
+  for (const wall of walls) {
+    await dbApi.walls.add({
+      encounter_id: copy.id,
+      points: wall.points,
+      coverType: wall.coverType,
+      isOpen: wall.isOpen,
+    })
+  }
   await loadEncounters()
 }
 
