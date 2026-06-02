@@ -75,7 +75,7 @@ export interface Encounter {
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
-  const { extractStatsFromData, extractAllFromRecord } = useStatBlockLinker()
+  const { extractStatsFromData, extractAllFromRecord, linkRecordToToken } = useStatBlockLinker()
 
   // ── State ──────────────────────────────────────────────────────────────────
   const current = ref<Encounter | null>(null)
@@ -222,16 +222,12 @@ export const useEncounterStore = defineStore('encounter', () => {
       let autoLinked = false
 
       if (libToken?.linkedRecordId) {
-        const rec = await dbApi.records.get(libToken.linkedRecordId)
-        if (rec) {
-          const data: Record<string, any> = typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : (rec.data ?? {})
-          const stats = extractStatsFromData(data)
-          hpMax = stats.hpMax
-          hpCurrent = stats.hpCurrent
-          ac = stats.ac
-          linkedRecordId = rec.id!
-          autoLinked = true
-        }
+        const stats = await linkRecordToToken(libToken.linkedRecordId)
+        hpMax = stats.hpMax
+        hpCurrent = stats.hpCurrent
+        ac = stats.ac
+        linkedRecordId = libToken.linkedRecordId
+        autoLinked = true
       }
 
       const result = await dbApi.encounterTokens.add({
@@ -573,7 +569,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       tokenId: raw.token_id ?? null,
       name: raw.name,
       imageSource: raw.image_source,
-      imageType: raw.image_type,
+      imageType: raw.image_type ?? 'file',
       gridX: raw.grid_x ?? 0,
       gridY: raw.grid_y ?? 0,
       size: raw.size ?? 1,

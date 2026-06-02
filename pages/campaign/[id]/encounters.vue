@@ -203,25 +203,28 @@ async function cloneEncounter(id: number) {
     grid_offset_x: source.grid_offset_x,
     grid_offset_y: source.grid_offset_y,
   })
-  for (const token of (source as any).tokens ?? []) {
-    await dbApi.encounterTokens.add({
+  const walls = await dbApi.walls.list(id)
+  await Promise.all([
+    ...((source as any).tokens ?? []).map((token: any) => dbApi.encounterTokens.add({
       encounterId: copy.id,
       tokenId: token.token_id,
       gridX: token.grid_x,
       gridY: token.grid_y,
       size: token.size,
-      isVisible: 1,
-    })
-  }
-  const walls = await dbApi.walls.list(id)
-  for (const wall of walls) {
-    await dbApi.walls.add({
+      isVisible: token.is_visible ?? 1,
+      linkedRecordId: token.linked_record_id,
+      imageSource: token.image_source,
+      imageType: token.image_type,
+      isPlayerToken: token.is_player_token,
+      visionRange: token.vision_range,
+    })),
+    ...walls.map(wall => dbApi.walls.add({
       encounter_id: copy.id,
       points: wall.points,
       coverType: wall.coverType,
       isOpen: wall.isOpen,
-    })
-  }
+    })),
+  ])
   await loadEncounters()
 }
 

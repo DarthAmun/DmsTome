@@ -459,6 +459,18 @@ export const dbApi = {
     },
   },
 
+  // ── Internal helpers ─────────────────────────────────────────────────
+  async _resolveTokenDisplay(et: DbEncounterToken) {
+    const db = getDb()
+    const tok = et.token_id ? await db.tokens.get(et.token_id) : null
+    const rec = (!tok && et.linked_record_id) ? await db.records.get(et.linked_record_id) : null
+    return {
+      name: tok?.name ?? rec?.name ?? '',
+      image_source: tok?.image_source ?? et.image_source ?? null,
+      image_type: (tok?.image_type ?? et.image_type ?? 'file') as 'file' | 'url',
+    }
+  },
+
   // ── Encounters ────────────────────────────────────────────────────────
   encounters: {
     async list(campaignId: number) {
@@ -472,11 +484,8 @@ export const dbApi = {
       // Join tokens — token_id may be null for creature-direct placements
       const etRows = await db.encounterTokens.where('encounter_id').equals(id).toArray()
       const tokens = await Promise.all(etRows.map(async et => {
-        const tok = et.token_id ? await db.tokens.get(et.token_id) : null
-        const rec = (!tok && et.linked_record_id) ? await db.records.get(et.linked_record_id) : null
-        const imageSource = tok?.image_source ?? et.image_source ?? null
-        const imageType: 'file' | 'url' = tok?.image_type ?? et.image_type ?? 'file'
-        return { ...et, name: tok?.name ?? rec?.name ?? '', image_source: imageSource, image_type: imageType }
+        const display = await dbApi._resolveTokenDisplay(et)
+        return { ...et, ...display }
       }))
       return { ...enc, tokens }
     },
@@ -559,11 +568,9 @@ export const dbApi = {
         image_type: (data.imageType ?? 'file') as 'file' | 'url',
       })
       const et = await db.encounterTokens.get(id)
-      const tok = et!.token_id ? await db.tokens.get(et!.token_id) : null
-      const resolvedImageSource = tok?.image_source ?? et!.image_source ?? null
-      const resolvedImageType: 'file' | 'url' = tok?.image_type ?? et!.image_type ?? 'file'
-      const rec = (!tok && et!.linked_record_id) ? await db.records.get(et!.linked_record_id) : null
-      return { ...et, name: tok?.name ?? rec?.name ?? '', image_source: resolvedImageSource, image_type: resolvedImageType }
+      if (!et) throw new Error(`encounterTokens.add: row ${id} not found after insert`)
+      const display = await dbApi._resolveTokenDisplay(et)
+      return { ...et, ...display }
     },
     async update(data: { id: number; [key: string]: any }) {
       const db = getDb()

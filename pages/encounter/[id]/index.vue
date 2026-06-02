@@ -327,10 +327,10 @@
               </div>
               <div class="token-list" style="flex:1;overflow-y:auto">
                 <!-- PC separator -->
-                <template v-if="filteredLibrary.some(t => t.isPlayerCharacter)">
+                <template v-if="filteredLibraryPCs.length">
                   <div class="tok-section-label">Player Characters</div>
                   <div
-                    v-for="token in filteredLibrary.filter(t => t.isPlayerCharacter)"
+                    v-for="token in filteredLibraryPCs"
                     :key="token.id"
                     class="token-chip token-chip--pc"
                     draggable="true"
@@ -348,10 +348,10 @@
                       <OhVueIcon name="md-close" scale="0.75" />
                     </button>
                   </div>
-                  <div v-if="filteredLibrary.some(t => !t.isPlayerCharacter)" class="tok-section-label tok-section-label--others">Others</div>
+                  <div v-if="filteredLibraryOthers.length" class="tok-section-label tok-section-label--others">Others</div>
                 </template>
                 <div
-                  v-for="token in filteredLibrary.filter(t => !t.isPlayerCharacter)"
+                  v-for="token in filteredLibraryOthers"
                   :key="token.id"
                   class="token-chip"
                   draggable="true"
@@ -903,7 +903,7 @@ import { useConditionPanel } from "~/composables/useConditionPanel";
 import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
 import { useSounds } from "~/composables/useSounds";
 
-const { extractStatsFromData, getCombatantTypes } = useStatBlockLinker();
+const { extractStatsFromData, getCombatantTypes, extractImageFromRecord } = useStatBlockLinker();
 
 const route = useRoute();
 const store = useEncounterStore();
@@ -1334,13 +1334,12 @@ function sortPcFirst(tokens: typeof store.tokenLibrary) {
   })
 }
 
-const filteredPickerTokens = computed(() =>
-  sortPcFirst(
-    store.tokenLibrary.filter((t: any) =>
-      t.name.toLowerCase().includes(tokenPickerSearch.value.toLowerCase())
-    )
+const filteredPickerTokens = computed(() => {
+  const filtered = store.tokenLibrary.filter((t: any) =>
+    t.name.toLowerCase().includes(tokenPickerSearch.value.toLowerCase())
   )
-);
+  return sortPcFirst(filtered)
+});
 const tokenSearch = ref("");
 const newToken = ref({
   name: "",
@@ -1354,6 +1353,7 @@ const newToken = ref({
 // ── Token library sidebar tab (Tokens | Creatures) ────────────────────────
 const libSidebarTab = ref<'tokens' | 'creatures'>('tokens')
 const creatureRecords = ref<Array<{ id: number; name: string; entityTypeId: string; imageSource: string | null }>>([])
+const creaturesLoaded = ref(false)
 const creatureSearch = ref('')
 const filteredCreatures = computed(() =>
   creatureRecords.value.filter(r =>
@@ -1372,14 +1372,14 @@ async function loadCreatureRecords() {
   const perType = await Promise.all(creatureTypeIds.map(async typeId => {
     const recs = await dbApi.records.list(systemId, typeId)
     const et: any = sys?.entityTypes?.find((e: any) => e.id === typeId)
-    const imgField = (et?.fields ?? []).find((f: any) => f.component === 'image')
+    const fields = et?.fields ?? []
     return recs.map(r => {
       const data: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data ?? {})
-      const imageSource: string | null = imgField ? (data[imgField.key] ?? null) : null
-      return { id: r.id!, name: r.name, entityTypeId: r.entityTypeId, imageSource }
+      return { id: r.id!, name: r.name, entityTypeId: r.entityTypeId, imageSource: extractImageFromRecord(data, fields) }
     })
   }))
   creatureRecords.value = perType.flat().sort((a, b) => a.name.localeCompare(b.name))
+  creaturesLoaded.value = true
 }
 
 watch(libSidebarTab, tab => { if (tab === 'creatures') loadCreatureRecords() })
@@ -1392,7 +1392,7 @@ async function filterTokenModalRecords() {
   if (!linkCampaignSystemId.value) return
   const q = tokenModalRecordSearch.value.toLowerCase()
   if (!q) { tokenModalRecordResults.value = []; return }
-  if (!creatureRecords.value.length) await loadCreatureRecords()
+  if (!creaturesLoaded.value) await loadCreatureRecords()
   tokenModalRecordResults.value = creatureRecords.value
     .filter(r => r.name.toLowerCase().includes(q) || r.entityTypeId.toLowerCase().includes(q))
     .slice(0, 8)
@@ -1448,12 +1448,12 @@ const sortedEncounterTokens = computed(() =>
 );
 const playerWindowOpen = computed(() => store.playerWindowOpen);
 const filteredLibrary = computed(() =>
-  sortPcFirst(
-    store.tokenLibrary.filter((t) =>
-      t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
-    )
+  store.tokenLibrary.filter((t) =>
+    t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
   )
 );
+const filteredLibraryPCs = computed(() => filteredLibrary.value.filter(t => t.isPlayerCharacter))
+const filteredLibraryOthers = computed(() => filteredLibrary.value.filter(t => !t.isPlayerCharacter))
 
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 
@@ -1515,7 +1515,8 @@ onMounted(async () => {
     store.playerWindowOpen = false;
   });
 
-
+  document.addEventListener('keydown', handleWallUndo)
+  document.addEventListener('dragend', handleDragEnd)
 });
 
 watch(
@@ -1561,8 +1562,11 @@ watch(
   },
 );
 
+const handleDragEnd = () => { draggingPayload = null }
+
 onUnmounted(() => {
   document.removeEventListener('keydown', handleWallUndo);
+  document.removeEventListener('dragend', handleDragEnd);
   canvas?.destroy();
 });
 
@@ -1731,7 +1735,6 @@ const handleWallUndo = async (e: KeyboardEvent) => {
     canvas?.redrawWalls();
   }
 };
-document.addEventListener('keydown', handleWallUndo);
 
 watch(shapes, () => {
   store.setShapeOverlays(shapes.value);
