@@ -169,7 +169,7 @@
 import type { EncounterToken, TokenCondition } from '~/stores/encounter'
 import { getDb } from '~/composables/useDb'
 import { useSystems } from '~/composables/useSystems'
-import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
+import { useStatBlockLinker, SIZE_STRING_MAP } from '~/composables/useStatBlockLinker'
 
 const { extractStatsFromData } = useStatBlockLinker()
 
@@ -291,12 +291,12 @@ function applyHealing() {
 
 
 // ── Save ───────────────────────────────────────────────────────────────────
-const tokenSizeOptions = [
-  { label: '1×1 (medium)',     value: 1 },
-  { label: '2×2 (large)',      value: 2 },
-  { label: '3×3 (huge)',       value: 3 },
-  { label: '4×4 (gargantuan)', value: 4 },
-]
+const SIZE_LABELS: Record<number, string> = {
+  1: 'medium', 2: 'large', 3: 'huge', 4: 'gargantuan',
+}
+const tokenSizeOptions = [...new Set(Object.values(SIZE_STRING_MAP))]
+  .sort((a, b) => a - b)
+  .map(v => ({ label: `${v}×${v} (${SIZE_LABELS[v] ?? v})`, value: v }))
 
 function save() {
   if (!props.token) return

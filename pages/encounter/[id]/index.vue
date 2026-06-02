@@ -369,7 +369,7 @@
                     <OhVueIcon name="md-close" scale="0.75" />
                   </button>
                 </div>
-                <p v-if="filteredLibrary.length === 0" class="enc-hint" style="padding:12px 0">No tokens yet</p>
+                <p v-if="filteredLibrary.isEmpty" class="enc-hint" style="padding:12px 0">No tokens yet</p>
               </div>
             </div>
             <div class="sidebar-section" style="flex-shrink:0">
@@ -664,30 +664,12 @@
         @edit-token="onCtxEditToken"
         @add-condition="onCtxAddCondition"
         @set-initiative="onCtxSetInitiative"
+        @apply-damage="onCtxApplyDamage"
+        @view-record="onCtxViewRecord"
         @toggle-visibility="onCtxToggleVisibility"
         @toggle-dead="onCtxToggleDead"
         @remove-token="onCtxRemoveToken"
       />
-
-      <!-- ── Floating initiative input ──────────────────────────────────────────── -->
-      <Teleport to="body">
-        <div
-          v-if="initFloatOpen"
-          class="init-float-wrap"
-          :style="{ left: initFloatX + 'px', top: initFloatY + 'px' }"
-        >
-          <input
-            ref="initFloatEl"
-            v-model.number="initFloatValue"
-            type="number"
-            class="init-float-input"
-            placeholder="Init…"
-            @keyup.enter="commitInitFloat"
-            @keyup.esc="initFloatOpen = false"
-            @blur="commitInitFloat"
-          />
-        </div>
-      </Teleport>
 
       <!-- ── Condition Reference Panel ─────────────────────────────────────────── -->
       <ConditionPanel
@@ -1186,49 +1168,35 @@ function openCreateTokenFromPicker() {
 }
 
 function onCtxEditToken(tokenId: number) {
-  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  const token = store.getToken(tokenId)
   if (token) { selectedToken.value = token; editingToken.value = token }
 }
 
 function onCtxAddCondition(tokenId: number) {
-  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  const token = store.getToken(tokenId)
   if (token) { conditionToken.value = token }
 }
 
-// Floating initiative input
-const initFloatOpen = ref(false)
-const initFloatX = ref(0)
-const initFloatY = ref(0)
-const initFloatValue = ref<number | null>(null)
-const initFloatTokenId = ref<number | null>(null)
-const initFloatEl = ref<HTMLInputElement | null>(null)
-
-function onCtxSetInitiative(tokenId: number, x: number, y: number) {
-  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
-  initFloatTokenId.value = tokenId
-  initFloatValue.value = token?.initiative ?? null
-  initFloatX.value = Math.min(x, window.innerWidth - 120)
-  initFloatY.value = Math.min(y, window.innerHeight - 60)
-  initFloatOpen.value = true
-  nextTick(() => initFloatEl.value?.select())
+function onCtxSetInitiative(tokenId: number, value: number | null) {
+  if (value !== null) store.updateToken(tokenId, { initiative: value })
 }
 
-async function commitInitFloat() {
-  if (initFloatTokenId.value !== null && initFloatValue.value !== null) {
-    await store.updateToken(initFloatTokenId.value, { initiative: initFloatValue.value })
-  }
-  initFloatOpen.value = false
-  initFloatTokenId.value = null
-  initFloatValue.value = null
+function onCtxApplyDamage(tokenId: number, amount: number) {
+  store.applyDamage(tokenId, amount)
+}
+
+function onCtxViewRecord(tokenId: number) {
+  const token = store.getToken(tokenId)
+  if (token?.linkedRecordId) openRecordPanel(token.linkedRecordId)
 }
 
 function onCtxToggleVisibility(tokenId: number) {
-  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  const token = store.getToken(tokenId)
   if (token) store.updateToken(tokenId, { isVisible: !token.isVisible })
 }
 
 function onCtxToggleDead(tokenId: number) {
-  const token = store.allTokens.find((t: EncounterToken) => t.id === tokenId)
+  const token = store.getToken(tokenId)
   if (token) store.updateToken(tokenId, { isDead: !token.isDead })
 }
 
@@ -1447,13 +1415,18 @@ const sortedEncounterTokens = computed(() =>
   }),
 );
 const playerWindowOpen = computed(() => store.playerWindowOpen);
-const filteredLibrary = computed(() =>
-  store.tokenLibrary.filter((t) =>
-    t.name.toLowerCase().includes(tokenSearch.value.toLowerCase()),
-  )
-);
-const filteredLibraryPCs = computed(() => filteredLibrary.value.filter(t => t.isPlayerCharacter))
-const filteredLibraryOthers = computed(() => filteredLibrary.value.filter(t => !t.isPlayerCharacter))
+const filteredLibrary = computed(() => {
+  const q = tokenSearch.value.toLowerCase()
+  const pcs: typeof store.tokenLibrary = []
+  const others: typeof store.tokenLibrary = []
+  for (const t of store.tokenLibrary) {
+    if (!t.name.toLowerCase().includes(q)) continue
+    t.isPlayerCharacter ? pcs.push(t) : others.push(t)
+  }
+  return { pcs, others, isEmpty: pcs.length === 0 && others.length === 0 }
+})
+const filteredLibraryPCs = computed(() => filteredLibrary.value.pcs)
+const filteredLibraryOthers = computed(() => filteredLibrary.value.others)
 
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 
@@ -3111,32 +3084,6 @@ function getImageUrl(token: any): string {
 .order-vis-btn--hidden { color: var(--blood); }
 .order-vis-btn:hover { color: var(--ink); }
 .order-vis-btn--hidden:hover { opacity: 0.7; }
-
-/* ── Floating initiative input ── */
-.init-float-wrap {
-  position: fixed;
-  z-index: var(--z-modal);
-  background-color: var(--parch);
-  background-image: var(--paper);
-  background-blend-mode: multiply;
-  border: 1px solid var(--parch-line);
-  border-radius: 2px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  padding: 4px;
-}
-.init-float-input {
-  width: 80px;
-  padding: 5px 8px;
-  background: none;
-  border: none;
-  outline: none;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--gold);
-  text-align: center;
-}
-.init-float-input::-webkit-inner-spin-button,
-.init-float-input::-webkit-outer-spin-button { opacity: 0.4; }
 
 /* ── Shape context menu (right-click on a placed shape) ── */
 .ctx-back {

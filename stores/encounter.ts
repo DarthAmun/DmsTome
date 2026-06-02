@@ -83,7 +83,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   const isLoading = ref(false)
   const playerWindowOpen = ref(false)
   const shapeOverlays = ref<ShapeOverlay[]>([])
-  const currentTurnIndex = ref(0)
+  const _activeTurnTokenId = ref<number | null>(null)
   const roundNumber = ref(1)
   const walls = ref<DbEncounterWall[]>([])
   const fovMode = ref<'gm' | 'active' | 'group'>('gm')
@@ -97,7 +97,6 @@ export const useEncounterStore = defineStore('encounter', () => {
   const initiativeOrder = computed(() =>
     (current.value?.tokens ?? [])
       .filter(t => t.isVisible && !t.isDead)
-      .slice()
       .sort((a, b) => {
         if (a.initiative === null && b.initiative === null) return 0
         if (a.initiative === null) return 1
@@ -105,6 +104,25 @@ export const useEncounterStore = defineStore('encounter', () => {
         return b.initiative - a.initiative
       })
   )
+
+  // Index derived from the active token ID so it stays stable when the order
+  // changes (tokens added, removed, hidden, initiative updated).
+  const currentTurnIndex = computed(() => {
+    if (_activeTurnTokenId.value === null) return 0
+    const idx = initiativeOrder.value.findIndex(t => t.id === _activeTurnTokenId.value)
+    return idx >= 0 ? idx : 0
+  })
+
+  // When the active token itself is hidden/removed/killed, advance to the same
+  // position (clamped) in the new order rather than jumping to index 0.
+  watch(initiativeOrder, (newOrder, oldOrder) => {
+    if (_activeTurnTokenId.value === null) return
+    if (newOrder.some(t => t.id === _activeTurnTokenId.value)) return
+    if (!newOrder.length) { _activeTurnTokenId.value = null; return }
+    const oldIdx = oldOrder.findIndex(t => t.id === _activeTurnTokenId.value)
+    const next = Math.min(oldIdx >= 0 ? oldIdx : 0, newOrder.length - 1)
+    _activeTurnTokenId.value = newOrder[next].id
+  }, { flush: 'sync' })
 
   // ── Actions — Loading ──────────────────────────────────────────────────────
   async function loadEncounter(id: number) {
@@ -127,8 +145,9 @@ export const useEncounterStore = defineStore('encounter', () => {
         soundPlaylistId: data.sound_playlist_id ?? undefined,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
-      currentTurnIndex.value = data.current_turn_index ?? 0
       roundNumber.value = data.round_number ?? 1
+      const storedIndex = data.current_turn_index ?? 0
+      _activeTurnTokenId.value = initiativeOrder.value[storedIndex]?.id ?? null
       walls.value = await dbApi.walls.list(id)
       wallUndoStack.value = []
     } catch (err) {
@@ -221,11 +240,13 @@ export const useEncounterStore = defineStore('encounter', () => {
       let linkedRecordId: number | null = null
       let autoLinked = false
 
+      let size = 1
       if (libToken?.linkedRecordId) {
         const stats = await linkRecordToToken(libToken.linkedRecordId)
         hpMax = stats.hpMax
         hpCurrent = stats.hpCurrent
         ac = stats.ac
+        size = stats.size
         linkedRecordId = libToken.linkedRecordId
         autoLinked = true
       }
@@ -235,7 +256,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         tokenId,
         gridX,
         gridY,
-        size: 1,
+        size,
         isVisible: 1,
         hpCurrent,
         hpMax,
@@ -260,7 +281,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         tokenId: null,
         gridX,
         gridY,
-        size: 1,
+        size: extracted.size,
         isVisible: 1,
         hpCurrent: extracted.hpCurrent,
         hpMax: extracted.hpMax,
@@ -425,25 +446,30 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   function nextTurn() {
-    if (!initiativeOrder.value.length) return
-    currentTurnIndex.value++
-    if (currentTurnIndex.value >= initiativeOrder.value.length) {
-      currentTurnIndex.value = 0
+    const order = initiativeOrder.value
+    if (!order.length) return
+    const idx = currentTurnIndex.value
+    if (idx + 1 >= order.length) {
+      _activeTurnTokenId.value = order[0].id
       roundNumber.value++
+    } else {
+      _activeTurnTokenId.value = order[idx + 1].id
     }
     syncToPlayer()
     persistTurnState()
   }
 
   function prevTurn() {
-    if (!initiativeOrder.value.length) return
-    if (currentTurnIndex.value === 0) {
+    const order = initiativeOrder.value
+    if (!order.length) return
+    const idx = currentTurnIndex.value
+    if (idx === 0) {
       if (roundNumber.value > 1) {
         roundNumber.value--
-        currentTurnIndex.value = initiativeOrder.value.length - 1
+        _activeTurnTokenId.value = order[order.length - 1].id
       }
     } else {
-      currentTurnIndex.value--
+      _activeTurnTokenId.value = order[idx - 1].id
     }
     syncToPlayer()
     persistTurnState()
@@ -590,6 +616,16 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
+  function getToken(id: number): EncounterToken | undefined {
+    return current.value?.tokens.find(t => t.id === id)
+  }
+
+  function applyDamage(tokenId: number, amount: number) {
+    const token = getToken(tokenId)
+    if (!token || token.hpCurrent === null) return
+    updateToken(tokenId, { hpCurrent: Math.max(0, token.hpCurrent - amount) })
+  }
+
   return {
     current, tokenLibrary, isLoading, playerWindowOpen,
     currentTurnIndex, roundNumber, initiativeOrder,
@@ -604,6 +640,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     addTokenToEncounter, addCreatureToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
+    getToken, applyDamage,
     addLogNote, clearCombatLog,
   }
 })

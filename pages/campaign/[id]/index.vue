@@ -155,9 +155,7 @@ onMounted(async () => {
     const sys = await dbApi.systems.list();
     availableSystems.value = sys.map((s: any) => ({ id: s.id!, name: s.name }));
 
-    if (!notesStore.entities.some((e) => e.campaignId === id)) {
-        await notesStore.loadAll(id);
-    }
+    await notesStore.loadAll(id);
 });
 
 async function uploadBanner(e: Event) {
@@ -187,28 +185,15 @@ async function setLinkedSystem(e: Event) {
 }
 
 const ENTITY_TYPES = [
-    {
-        key: "session",
-        label: "Sessions",
-        segment: "sessions",
-        color: "#b87de8",
-    },
-    { key: "npc", label: "NPCs", segment: "npcs", color: "#7cc44e" },
-    {
-        key: "location",
-        label: "Locations",
-        segment: "locations",
-        color: "#a87de8",
-    },
-    {
-        key: "faction",
-        label: "Factions",
-        segment: "factions",
-        color: "#e05555",
-    },
-    { key: "quest", label: "Quests", segment: "quests", color: "#e8924a" },
-    { key: "event", label: "Events", segment: "events", color: "#4ab8e8" },
-    { key: "note", label: "Notes", segment: "notes", color: "#6b9fe8" },
+    { key: "session",      label: "Sessions",      segment: "sessions",      color: "#b87de8" },
+    { key: "npc",          label: "NPCs",           segment: "npcs",          color: "#7cc44e" },
+    { key: "location",     label: "Locations",      segment: "locations",     color: "#a87de8" },
+    { key: "faction",      label: "Factions",       segment: "factions",      color: "#e05555" },
+    { key: "quest",        label: "Quests",         segment: "quests",        color: "#e8924a" },
+    { key: "event",        label: "Events",         segment: "events",        color: "#4ab8e8" },
+    { key: "note",         label: "Notes",          segment: "notes",         color: "#6b9fe8" },
+    { key: "random-table", label: "Random Tables",  segment: "random-tables", color: "#e8c44a" },
+    { key: "rumor",        label: "Rumors",         segment: "rumors",        color: "#c86fa8" },
 ];
 
 const counts = computed(() => {
