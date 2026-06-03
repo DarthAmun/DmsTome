@@ -376,7 +376,7 @@
                 <div class="tag-area">
                     <span
                         v-for="(tag, i) in currentTags"
-                        :key="i"
+                        :key="tag"
                         class="tag-chip"
                     >
                         {{ tag }}

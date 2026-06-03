@@ -13,9 +13,9 @@
       <NuxtPage />
     </template>
 
-    <GlobalSearch v-if="!isPlayerRoute" />
-    <DiceRoller v-if="!isPlayerRoute" />
-    <AppSoundBar v-if="!isPlayerRoute" />
+    <LazyGlobalSearch v-if="!isPlayerRoute" />
+    <LazyDiceRoller v-if="!isPlayerRoute" />
+    <LazyAppSoundBar v-if="!isPlayerRoute" />
     <div id="spark-layer" aria-hidden="true" />
 
     <!-- New Campaign dialog -->

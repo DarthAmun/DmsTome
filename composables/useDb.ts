@@ -455,6 +455,7 @@ export const dbApi = {
         await db.entityLinks.where('source_id').equals(eid).delete()
       }
       await db.entities.where('campaign_id').equals(id).delete()
+      await db.entityConnections.where('campaign_id').equals(id).delete()
       await db.campaigns.delete(id)
     },
   },
@@ -640,6 +641,8 @@ export const dbApi = {
     async delete(id: number) {
       const db = getDb()
       await db.entityLinks.where('source_id').equals(id).delete()
+      await db.entityConnections.where('source_entity_id').equals(id).delete()
+      await db.entityConnections.where('target_entity_id').equals(id).delete()
       await db.entities.delete(id)
     },
     async listLinks(campaignId: number) {

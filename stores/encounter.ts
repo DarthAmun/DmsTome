@@ -4,6 +4,11 @@ import type { DbEncounterWall } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
 
+function tryParseJson<T>(s: unknown, fallback: T): T {
+  if (typeof s !== 'string') return fallback
+  try { return JSON.parse(s) } catch { return fallback }
+}
+
 export interface CombatLogEntry {
   id: number
   round: number
@@ -132,9 +137,9 @@ export const useEncounterStore = defineStore('encounter', () => {
       if (!data) return
       current.value = {
         ...data,
-        fogData: typeof data.fog_data === 'string' ? JSON.parse(data.fog_data) : {},
-        viewport: typeof data.viewport === 'string' ? JSON.parse(data.viewport) : { x: 0, y: 0, scale: 1 },
-        combatLog: typeof data.combat_log === 'string' ? JSON.parse(data.combat_log || '[]') : [],
+        fogData: tryParseJson(data.fog_data, {} as Record<string, 'hidden' | 'revealed' | 'partial'>),
+        viewport: tryParseJson(data.viewport, { x: 0, y: 0, scale: 1 }),
+        combatLog: tryParseJson(data.combat_log || '[]', [] as CombatLogEntry[]),
         gridSize: data.grid_size,
         gridOffsetX: data.grid_offset_x,
         gridOffsetY: data.grid_offset_y,
@@ -602,9 +607,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       isVisible: Boolean(raw.is_visible),
       isDead: Boolean(raw.is_dead),
       label: raw.label,
-      conditions: typeof raw.conditions === 'string'
-        ? JSON.parse(raw.conditions)
-        : [],
+      conditions: tryParseJson<TokenCondition[]>(raw.conditions, []),
       hpCurrent: raw.hp_current,
       hpMax: raw.hp_max,
       ac: raw.ac ?? null,

@@ -45,8 +45,9 @@ export function useBookmarks() {
 
   function reorder(fromIndex: number, toIndex: number) {
     const bms = [...bookmarks.value]
+    if (fromIndex < 0 || fromIndex >= bms.length) return
     const [moved] = bms.splice(fromIndex, 1)
-    bms.splice(toIndex, 0, moved)
+    bms.splice(Math.max(0, Math.min(toIndex, bms.length)), 0, moved)
     bookmarks.value = bms
     persist()
   }

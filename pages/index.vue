@@ -155,8 +155,8 @@
                             No entries yet
                         </div>
                         <div
-                            v-for="(a, i) in recentActivity"
-                            :key="i"
+                            v-for="a in recentActivity"
+                            :key="a.id"
                             class="home-act-row"
                             @click="
                                 openCampaign(
@@ -196,8 +196,8 @@
                             No active quests
                         </div>
                         <div
-                            v-for="(q, i) in activeQuests"
-                            :key="i"
+                            v-for="q in activeQuests"
+                            :key="q.id"
                             class="home-quest-row"
                             @click="
                                 openCampaign(
@@ -501,48 +501,42 @@ const ENTITY_COLORS: Partial<Record<EntityType, string>> = {
     note: "var(--text3)",
 };
 
-const recentActivity = computed(() => {
-    const items: {
-        name: string;
-        sub: string;
-        campName: string;
-        color: string;
-        campaignId: number;
-    }[] = [];
-    campaigns.value.forEach((c) => {
-        const ents = entityMap.value[c.id] ?? [];
-        ents.forEach((e) => {
-            console.log(e.updated_at);
-            items.push({
+const recentActivity = computed(() =>
+    campaigns.value
+        .flatMap((c) =>
+            (entityMap.value[c.id] ?? []).map((e) => ({
+                id: e.id,
                 name: e.name,
                 sub: ENTITY_TYPE_CONFIG[e.type as EntityType]?.label ?? e.type,
                 campName: c.name,
                 color: ENTITY_COLORS[e.type as EntityType] ?? "var(--text3)",
                 campaignId: c.id,
-                lastUpdated: new Date(e.updated_at),
-            });
-        });
-    });
-    return items
-        .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
-        .slice(0, 8);
-});
+                updatedAt: e.updated_at as string,
+            }))
+        )
+        .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1))
+        .slice(0, 8)
+)
 
 // ── Active Quests ─────────────────────────────────────────────────────────────
-const activeQuests = computed(() => {
-    const quests: { name: string; campName: string; campaignId: number }[] = [];
-    campaigns.value.forEach((c) => {
-        const ents = entityMap.value[c.id] ?? [];
-        ents.filter(
-            (e) =>
-                e.type === "quest" &&
-                JSON.parse(e.attributes ?? "{}").status === "active",
-        ).forEach((e) =>
-            quests.push({ name: e.name, campName: c.name, campaignId: c.id }),
-        );
-    });
-    return quests.slice(0, 8);
-});
+const activeQuests = computed(() =>
+    campaigns.value
+        .flatMap((c) =>
+            (entityMap.value[c.id] ?? [])
+                .filter((e) => {
+                    if (e.type !== "quest") return false
+                    const attr = e.attributes ?? "{}"
+                    if (!attr.includes('"active"')) return false
+                    try {
+                        return JSON.parse(attr).status === "active"
+                    } catch {
+                        return false
+                    }
+                })
+                .map((e) => ({ id: e.id, name: e.name, campName: c.name, campaignId: c.id }))
+        )
+        .slice(0, 8)
+)
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function systemName(id?: number | null) {

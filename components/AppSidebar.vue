@@ -488,19 +488,21 @@ const entityCounts = computed(() => {
 // ── Record counts (system) ─────────────────────────────────────────────────
 const recordCounts = ref<Record<number, Record<string, number>>>({})
 
-async function loadRecordCounts() {
-  const all = await getDb().records.toArray()
-  const result: Record<number, Record<string, number>> = {}
-  for (const r of all) {
-    if (!result[r.systemId]) result[r.systemId] = {}
-    result[r.systemId][r.entityTypeId] = (result[r.systemId][r.entityTypeId] ?? 0) + 1
-  }
-  recordCounts.value = result
+async function loadRecordCountsForSystems(systemIds: number[]) {
+  if (!systemIds.length) return
+  const allRecs = await Promise.all(systemIds.map(id => dbApi.records.list(id)))
+  allRecs.forEach((recs, i) => {
+    recordCounts.value[systemIds[i]] = recs.reduce<Record<string, number>>((acc, r) => {
+      acc[r.entityTypeId] = (acc[r.entityTypeId] ?? 0) + 1
+      return acc
+    }, {})
+  })
 }
 
-onMounted(loadRecordCounts)
-
-watch(expandedSystems, loadRecordCounts)
+watch(expandedSystems, (newSet, oldSet) => {
+  const newlyExpanded = [...newSet].filter(id => !oldSet?.has(id))
+  loadRecordCountsForSystems(newlyExpanded)
+}, { immediate: true })
 
 // ── Campaign color ─────────────────────────────────────────────────────────
 const CAMPAIGN_COLORS = [

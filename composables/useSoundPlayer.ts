@@ -201,9 +201,10 @@ async function playPlaylist(playlist: DbSoundPlaylist, tracks: DbSoundTrack[], s
 }
 
 async function autoNext() {
-  if (!queueTracks.length) return
-  const doShuffle = currentPlaylist.value?.shuffle === 1
-  const doLoop    = currentPlaylist.value?.loop === 1
+  if (!queueTracks.length || !currentPlaylist.value) return
+  const playlist = currentPlaylist.value
+  const doShuffle = playlist.shuffle === 1
+  const doLoop    = playlist.loop === 1
   let next: number
 
   if (doShuffle) {
@@ -215,23 +216,23 @@ async function autoNext() {
       next = 0
     }
   }
-  await playTrack(queueTracks[next], currentPlaylist.value!, next)
+  await playTrack(queueTracks[next], playlist, next)
 }
 
 async function nextTrack() {
-  if (!queueTracks.length) return
+  if (!queueTracks.length || !currentPlaylist.value) return
   const next = (currentIndex.value + 1) % queueTracks.length
-  await playTrack(queueTracks[next], currentPlaylist.value!, next)
+  await playTrack(queueTracks[next], currentPlaylist.value, next)
 }
 
 async function prevTrack() {
-  if (!queueTracks.length) return
+  if (!queueTracks.length || !currentPlaylist.value) return
   // If more than 3s in, restart; otherwise go to previous
   if (audio && audio.currentTime > 3) {
     seek(0); return
   }
   const prev = (currentIndex.value - 1 + queueTracks.length) % queueTracks.length
-  await playTrack(queueTracks[prev], currentPlaylist.value!, prev)
+  await playTrack(queueTracks[prev], currentPlaylist.value, prev)
 }
 
 function pause()       { audio?.pause() }

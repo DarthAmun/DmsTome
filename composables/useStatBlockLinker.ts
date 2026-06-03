@@ -28,6 +28,15 @@ function coerceSize(raw: unknown): number | null {
   return null
 }
 
+function extractHpFromObject(obj: any): { hpMax: number | null; hpCurrent: number | null } {
+  const rawMax = obj.max
+  const rawCur = obj.current ?? rawMax
+  return {
+    hpMax: rawMax != null ? Number(rawMax) : null,
+    hpCurrent: rawCur != null ? Number(rawCur) : null,
+  }
+}
+
 function toStringArray(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === 'string')
   if (typeof raw === 'string') return raw.split(',').map(s => s.trim())
@@ -123,11 +132,11 @@ export function useStatBlockLinker() {
     for (const [k, v] of Object.entries(data)) {
       if (HP_RE.test(k)) {
         if (v && typeof v === 'object' && 'max' in v) {
-          hpMax = Number((v as any).max) || null
-          hpCurrent = Number((v as any).current ?? (v as any).max) || null
+          const hp = extractHpFromObject(v)
+          hpMax = hp.hpMax; hpCurrent = hp.hpCurrent
         } else {
           const n = Number(v)
-          if (!isNaN(n) && n > 0) { hpMax = n; hpCurrent = n }
+          if (!isNaN(n) && n >= 0) { hpMax = n; hpCurrent = n }
         }
       }
       if (AC_RE.test(k)) {
@@ -143,11 +152,11 @@ export function useStatBlockLinker() {
         const raw = (data as any)[f.key]
         if (raw === undefined || raw === null) continue
         if (raw && typeof raw === 'object' && 'max' in raw) {
-          hpMax = Number((raw as any).max) || null
-          hpCurrent = Number((raw as any).current ?? (raw as any).max) || null
+          const hp = extractHpFromObject(raw)
+          hpMax = hp.hpMax; hpCurrent = hp.hpCurrent
         } else {
           const n = Number(raw)
-          if (!isNaN(n) && n > 0) { hpMax = n; hpCurrent = n }
+          if (!isNaN(n) && n >= 0) { hpMax = n; hpCurrent = n }
         }
         if (hpMax !== null) break
       }
