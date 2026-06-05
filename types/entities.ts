@@ -99,6 +99,25 @@ export const RUMOR_STATUS_COLORS: Record<string, string> = {
   false:    'var(--danger)',
 }
 
+export const SESSION_MODE_COLORS: Record<string, string> = {
+  planning: '#6b9fe8',
+  running:  '#7cc44e',
+  finished: '#b87de8',
+}
+
+export const QUEST_STATUS_COLORS: Record<string, string> = {
+  active:    '#e8924a',
+  completed: '#7cc44e',
+  failed:    'var(--blood)',
+  dormant:   'var(--ink-ghost)',
+}
+
+export const EVENT_SIGNIFICANCE_COLORS: Record<string, string> = {
+  critical: 'var(--blood)',
+  major:    'var(--gold)',
+  minor:    'var(--ink-ghost)',
+}
+
 // Shape reference — used via EntityAttributes union
 export interface PinnedLocation {
   locationEntityId: number
@@ -137,6 +156,15 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   'random-table': { label: 'Random Table', plural: 'Random Tables', color: '#e8c44a', defaultIcon: 'gi-dice-six-faces-six' },
   rumor:          { label: 'Rumor',        plural: 'Rumors',        color: '#c86fa8', defaultIcon: 'gi-speaker' },
 }
+
+/** Pre-built list from ENTITY_TYPE_CONFIG + ENTITY_TYPE_ROUTE. Import this instead of re-deriving in each component. */
+export const ENTITY_TYPE_LIST = (Object.keys(ENTITY_TYPE_CONFIG) as EntityType[]).map(key => ({
+  key,
+  label:   ENTITY_TYPE_CONFIG[key].plural,
+  segment: ENTITY_TYPE_ROUTE[key],
+  color:   ENTITY_TYPE_CONFIG[key].color,
+  icon:    ENTITY_TYPE_CONFIG[key].defaultIcon,
+}))
 
 // Note icon picker — all verified to exist
 export const NOTE_ICONS = [

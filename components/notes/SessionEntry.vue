@@ -29,14 +29,13 @@
 <script setup lang="ts">
 import type { Entity } from '~/composables/useEntities'
 import type { SessionAttributes } from '~/types/entities'
+import { SESSION_MODE_COLORS } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()
 defineEmits<{ open: []; delete: [id: number] }>()
 const attrs = computed(() => (props.entry.attributes ?? {}) as SessionAttributes)
 
-const modeColor = computed(() => ({
-  planning: '#6b9fe8', running: '#7cc44e', finished: '#b87de8',
-} as any)[attrs.value.mode ?? ''] ?? '#b87de8')
+const modeColor = computed(() => SESSION_MODE_COLORS[attrs.value.mode ?? ''] ?? '#b87de8')
 
 const hasMeta = computed(() => !!(attrs.value.mode || attrs.value.date))
 

@@ -276,9 +276,10 @@ import { dbApi, getDb } from '~/composables/useDb'
 import { useEntities } from '~/composables/useEntities'
 import { usePageChrome } from '~/composables/usePageChrome'
 import { useBookmarks } from '~/composables/useBookmarks'
-import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from '~/types/entities'
+import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE, ENTITY_TYPE_LIST } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
 import { DM_SCREEN_CTX_KEY } from '~/composables/useDmScreenContext'
+import { type WidgetKind, type DmWidget, SINGLETONS, DEFAULT_SIZES, WIDGET_LABELS, WIDGET_COLORS } from '~/types/widgets'
 
 // ── Route ──────────────────────────────────────────────────────────────────
 const route = useRoute()
@@ -383,42 +384,6 @@ function selectOnly(id: string) { selectedIds.value = [id] }
 function clearSelection() { selectedIds.value = [] }
 
 // ── Widget state ───────────────────────────────────────────────────────────
-type WidgetKind =
-  | 'session' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'note'
-  | 'encounter-link' | 'conditions-grid' | 'scratchpad' | 'system-entity'
-  | 'timer' | 'rules-lookup' | 'random-table' | 'rumor' | 'npc-generator'
-
-interface DmWidget {
-  id: string
-  kind: WidgetKind
-  entityId?: number
-  recordId?: number
-  encounterId?: number | null
-  x: number      // px on the plane
-  y: number
-  width: number
-  height: number
-}
-
-// Default pixel sizes [width, height] per widget kind
-const DEFAULT_SIZES: Record<WidgetKind, [number, number]> = {
-  session:           [1200, 240],
-  npc:               [576,  120],
-  location:          [576,  240],
-  faction:           [576,  120],
-  quest:             [576,  120],
-  event:             [576,  120],
-  note:              [576,  240],
-  'encounter-link':  [576,  240],
-  'conditions-grid': [576,  240],
-  scratchpad:        [1200, 120],
-  'system-entity':   [576,  240],
-  timer:             [576,  240],
-  'rules-lookup':    [768,  360],
-  'random-table':    [576,  240],
-  rumor:             [576,  120],
-  'npc-generator':   [576,  360],
-}
 
 const MIN_W = 200, MIN_H = 96
 const SNAP  = 24
@@ -592,8 +557,6 @@ function getEntity(w: DmWidget) {
   return entitiesStore.entities.find(e => e.id === w.entityId && e.campaignId === id) ?? null
 }
 
-const SINGLETONS: WidgetKind[] = ['encounter-link', 'conditions-grid', 'scratchpad', 'timer', 'rules-lookup', 'npc-generator']
-
 function canAdd(kind: WidgetKind, entityId?: number, recordId?: number): boolean {
   if (SINGLETONS.includes(kind) && widgets.value.some(w => w.kind === kind)) return false
   if (entityId != null && widgets.value.some(w => w.kind === kind && w.entityId === entityId)) return false
@@ -672,15 +635,22 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', onResizeEnd)
 })
 
-function isWidgetPinned(kind: WidgetKind) {
-  return widgets.value.some(w => w.kind === kind)
-}
-function isEntityPinned(kind: string, entityId: number) {
-  return widgets.value.some(w => w.kind === kind && w.entityId === entityId)
-}
-function isRecordPinned(recordId: number) {
-  return widgets.value.some(w => w.kind === 'system-entity' && w.recordId === recordId)
-}
+// Pre-computed pin sets so template v-for items do O(1) lookups instead of O(n) scans
+const pinnedKinds = computed(() => new Set(widgets.value.map(w => w.kind)))
+const pinnedEntityKeys = computed(() => {
+  const s = new Set<string>()
+  for (const w of widgets.value) if (w.entityId != null) s.add(`${w.kind}:${w.entityId}`)
+  return s
+})
+const pinnedRecordIds = computed(() => {
+  const s = new Set<number>()
+  for (const w of widgets.value) if (w.recordId != null) s.add(w.recordId)
+  return s
+})
+
+function isWidgetPinned(kind: WidgetKind)              { return pinnedKinds.value.has(kind) }
+function isEntityPinned(kind: string, entityId: number) { return pinnedEntityKeys.value.has(`${kind}:${entityId}`) }
+function isRecordPinned(recordId: number)               { return pinnedRecordIds.value.has(recordId) }
 
 function widgetTitle(w: DmWidget): string {
   if (w.kind === 'encounter-link')   return 'Encounter'
@@ -697,31 +667,11 @@ function widgetTitle(w: DmWidget): string {
 }
 
 function widgetKindLabel(w: DmWidget): string {
-  const MAP: Partial<Record<WidgetKind, string>> = {
-    'encounter-link': 'Encounter', 'conditions-grid': 'Conditions',
-    scratchpad: 'Notes', 'system-entity': 'System',
-    timer: 'Timer', 'rules-lookup': 'Rules',
-    session: 'Session', npc: 'NPC', location: 'Location',
-    faction: 'Faction', quest: 'Quest', event: 'Event', note: 'Note',
-    'random-table': 'Table', rumor: 'Rumor', 'npc-generator': 'NPC Gen',
-  }
-  return MAP[w.kind] ?? w.kind
+  return WIDGET_LABELS[w.kind] ?? ENTITY_TYPE_CONFIG[w.kind as EntityType]?.label ?? w.kind
 }
 
 function widgetColor(w: DmWidget): string {
-  const MAP: Partial<Record<WidgetKind, string>> = {
-    'encounter-link':  'oklch(72% 0.20 295)',
-    'conditions-grid': 'oklch(72% 0.20 22)',
-    scratchpad:      'oklch(76% 0.10 215)',
-    'system-entity': 'oklch(76% 0.14 85)',
-    timer:           'oklch(72% 0.18 200)',
-    'rules-lookup':  'oklch(72% 0.16 260)',
-    'npc-generator': 'oklch(76% 0.18 80)',
-    session:           '#6b9fe8', npc: '#5db870', location: '#a87de8',
-    faction:           '#e05555', quest: '#e8924a', event: '#4ab8e8', note: '#7eaacc',
-    'random-table':    '#e8c44a', rumor: '#c86fa8',
-  }
-  return MAP[w.kind] ?? 'var(--accent)'
+  return WIDGET_COLORS[w.kind] ?? ENTITY_TYPE_CONFIG[w.kind as EntityType]?.color ?? 'var(--accent)'
 }
 
 // ── Density ────────────────────────────────────────────────────────────────
@@ -736,17 +686,7 @@ const density = ref('comfortable')
 const palCollapsed = ref(false)
 const paletteQuery = ref('')
 
-const ENTITY_TYPES = [
-  { key: 'session',      label: 'Sessions',      color: '#6b9fe8' },
-  { key: 'npc',          label: 'NPCs',          color: '#5db870' },
-  { key: 'location',     label: 'Locations',     color: '#a87de8' },
-  { key: 'faction',      label: 'Factions',      color: '#e05555' },
-  { key: 'quest',        label: 'Quests',        color: '#e8924a' },
-  { key: 'event',        label: 'Events',        color: '#4ab8e8' },
-  { key: 'note',         label: 'Notes',         color: '#7eaacc' },
-  { key: 'random-table', label: 'Random Tables', color: '#e8c44a' },
-  { key: 'rumor',        label: 'Rumors',        color: '#c86fa8' },
-]
+const ENTITY_TYPES = ENTITY_TYPE_LIST
 
 const QUICK_WIDGETS = [
   { kind: 'encounter-link'  as WidgetKind, label: 'Encounter',       icon: '⚔' },

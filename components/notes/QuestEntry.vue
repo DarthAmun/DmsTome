@@ -29,14 +29,13 @@
 <script setup lang="ts">
 import type { Entity } from '~/composables/useEntities'
 import type { QuestAttributes } from '~/types/entities'
+import { QUEST_STATUS_COLORS } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()
 defineEmits<{ open: []; delete: [id: number] }>()
 const attrs = computed(() => (props.entry.attributes ?? {}) as QuestAttributes)
 
-const statusColor = computed(() => ({
-  active: '#e8924a', completed: '#7cc44e', failed: 'var(--blood)', dormant: 'var(--ink-ghost)',
-} as any)[attrs.value.status ?? ''] ?? '#e8924a')
+const statusColor = computed(() => QUEST_STATUS_COLORS[attrs.value.status ?? ''] ?? '#e8924a')
 
 const hasMeta = computed(() => !!(attrs.value.status || attrs.value.questGiver))
 </script>

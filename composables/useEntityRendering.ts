@@ -9,6 +9,7 @@ import { useEntities } from '~/composables/useEntities'
 import { useSystems } from '~/composables/useSystems'
 import { getDb } from '~/composables/useDb'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
 import type { MaybeRefOrGetter } from 'vue'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -34,12 +35,9 @@ export function iconToSvg(icon: any, color: string): string {
 }
 
 export function typeIconHtml(type: string, color: string): string {
-  const ICONS: Record<string, string> = {
-    note: 'gi-scroll-unfurled', npc: 'gi-person', location: 'gi-castle',
-    faction: 'gi-american-shield', quest: 'gi-holy-grail', event: 'gi-sands-of-time',
-    session: 'gi-book-aura', encounter: 'gi-broadsword',
-  }
-  const icon = (GiIcons as any)[giNameToExport(ICONS[type] ?? '')]
+  const iconName = ENTITY_TYPE_CONFIG[type as EntityType]?.defaultIcon
+    ?? (type === 'encounter' ? 'gi-broadsword' : '')
+  const icon = (GiIcons as any)[giNameToExport(iconName)]
   return icon ? iconToSvg(icon, color) : ''
 }
 

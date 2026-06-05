@@ -230,7 +230,7 @@ import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
 import { useEntityRendering, typeColorMap, typeIconHtml, giIconByName, iconToSvg, ENCOUNTER_COLOR } from "~/composables/useEntityRendering";
 import { useDiceRoll } from "~/composables/useDiceRoll";
 import { getDb, dbApi } from "~/composables/useDb";
-import { ENTITY_TYPE_CONFIG } from "~/types/entities";
+import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from "~/types/entities";
 import type { EntityType } from "~/types/entities";
 
 const { renderMarkdown } = useEntityMarkdown();
@@ -890,13 +890,6 @@ function onMixedBlockKeydown(e: KeyboardEvent, i: number) {
 // ── Preview click ─────────────────────────────────────────────────────────────
 const { triggerRoll } = useDiceRoll();
 
-const ENTITY_TYPE_PLURAL: Record<string, string> = {
-    npc: "npcs",
-    location: "locations",
-    faction: "factions",
-    quest: "quests",
-};
-
 async function onPreviewClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
     const rollEl = target.closest(".roll-ref") as HTMLElement | null;
@@ -924,7 +917,7 @@ async function onPreviewClick(e: MouseEvent) {
             const snap = snaps.find(
                 (s) => s.label.toLowerCase() === snapshotLabel.toLowerCase(),
             );
-            const segment = ENTITY_TYPE_PLURAL[ent.type];
+            const segment = ENTITY_TYPE_ROUTE[ent.type as EntityType];
             if (segment) {
                 const q = snap ? `?snapshot=${snap.id}` : "";
                 router.push(

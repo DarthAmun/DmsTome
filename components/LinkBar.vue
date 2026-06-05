@@ -84,21 +84,21 @@
                     <OhVueIcon
                         :name="
                             linkAvatar(
-                                sourceEntity(bl.sourceId)?.type ?? '',
-                                sourceEntity(bl.sourceId)?.name ?? '',
+                                entityById(bl.sourceId)?.type ?? '',
+                                entityById(bl.sourceId)?.name ?? '',
                             ).iconName
                         "
                         scale="0.75"
                         :style="{
                             color: linkAvatar(
-                                sourceEntity(bl.sourceId)?.type ?? '',
-                                sourceEntity(bl.sourceId)?.name ?? '',
+                                entityById(bl.sourceId)?.type ?? '',
+                                entityById(bl.sourceId)?.name ?? '',
                             ).color,
                             flexShrink: 0,
                         }"
                     />
-                    <span>{{ sourceEntity(bl.sourceId)?.name }}</span>
-                    <span class="link-sub">{{ sourceEntity(bl.sourceId)?.type }}</span>
+                    <span>{{ entityById(bl.sourceId)?.name }}</span>
+                    <span class="link-sub">{{ entityById(bl.sourceId)?.type }}</span>
                 </button>
             </div>
         </div>
@@ -189,8 +189,9 @@ import { useEntities } from "~/composables/useEntities";
 import { useSystems } from "~/composables/useSystems";
 import { extractLinks } from "~/composables/useEntityParser";
 import { getDb } from "~/composables/useDb";
-import { ENTITY_TYPE_CONFIG } from "~/types/entities";
+import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from "~/types/entities";
 import type { EntityType } from "~/types/entities";
+import { ENCOUNTER_COLOR, typeColorMap as baseTypeColorMap } from "~/composables/useEntityRendering";
 
 const props = defineProps<{
     entityId: number;
@@ -213,7 +214,6 @@ const entity = computed(
 );
 
 // ── Campaign data (for linkAvatar) ────────────────────────────────────────────
-const ENCOUNTER_COLOR = "#e8a87a";
 const campaignEncounters = ref<{ id: number; name: string; mapSource?: string }[]>([]);
 const systemEntityTypes = ref<{ id: string; name: string; color: string; icon: string }[]>([]);
 
@@ -244,13 +244,7 @@ watch(
 );
 
 // ── Type colors ───────────────────────────────────────────────────────────────
-const typeColorMap: Record<string, string> = {
-    ...Object.fromEntries(
-        Object.entries(ENTITY_TYPE_CONFIG).map(([t, c]) => [t, c.color]),
-    ),
-    encounter: ENCOUNTER_COLOR,
-    snapshot: "var(--gold)",
-};
+const typeColorMap: Record<string, string> = { ...baseTypeColorMap, snapshot: "var(--gold)" };
 
 // ── linkAvatar ────────────────────────────────────────────────────────────────
 function linkAvatar(type: string, name: string) {
@@ -329,34 +323,29 @@ watch(
     { immediate: true },
 );
 
-const ENTITY_TYPE_PLURAL: Record<string, string> = {
-    npc: "npcs", location: "locations", faction: "factions", quest: "quests",
-};
+const entityMap = computed(() => new Map(store.entities.map(e => [e.id, e])))
+function entityById(id: number) { return entityMap.value.get(id) ?? null }
 
 function entityIconForSnapshot(snap: any): string {
-    const ent = store.entities.find((e) => e.id === snap.entity_id);
-    if (!ent) return "gi-scroll-unfurled";
-    return ENTITY_TYPE_CONFIG[ent.type as EntityType]?.defaultIcon ?? "gi-scroll-unfurled";
+    const ent = entityById(snap.entity_id)
+    return ENTITY_TYPE_CONFIG[ent?.type as EntityType]?.defaultIcon ?? "gi-scroll-unfurled";
 }
 
 function entityColorForSnapshot(snap: any): string {
-    const ent = store.entities.find((e) => e.id === snap.entity_id);
-    if (!ent) return "var(--ink-ghost)";
-    return ENTITY_TYPE_CONFIG[ent.type as EntityType]?.color ?? "var(--ink-ghost)";
+    const ent = entityById(snap.entity_id)
+    return ENTITY_TYPE_CONFIG[ent?.type as EntityType]?.color ?? "var(--ink-ghost)";
 }
 
 function navigateToSnapshot(snap: any) {
-    const ent = store.entities.find((e) => e.id === snap.entity_id);
+    const ent = entityById(snap.entity_id)
     if (!ent) return;
-    const segment = ENTITY_TYPE_PLURAL[ent.type];
+    const segment = ENTITY_TYPE_ROUTE[ent.type as EntityType];
     if (!segment) return;
     router.push(`/campaign/${props.campaignId}/${segment}/${ent.id}?snapshot=${snap.id}`);
 }
 
-const sourceEntity = (id: number) => store.entities.find((e) => e.id === id);
-
 function navigateToSource(sourceId: number) {
-    const e = sourceEntity(sourceId);
+    const e = entityById(sourceId);
     if (e) emit("navigate", e.type, e.name);
 }
 </script>

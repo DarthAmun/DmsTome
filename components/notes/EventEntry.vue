@@ -31,14 +31,13 @@
 <script setup lang="ts">
 import type { Entity } from '~/composables/useEntities'
 import type { EventAttributes } from '~/types/entities'
+import { EVENT_SIGNIFICANCE_COLORS } from '~/types/entities'
 
 const props = defineProps<{ entry: Entity; deletable?: boolean }>()
 defineEmits<{ open: []; delete: [id: number] }>()
 const attrs = computed(() => (props.entry.attributes ?? {}) as EventAttributes)
 
-const sigColor = computed(() => ({
-  critical: 'var(--blood)', major: 'var(--gold)', minor: 'var(--ink-ghost)',
-} as any)[attrs.value.significance ?? ''] ?? '#4ab8e8')
+const sigColor = computed(() => EVENT_SIGNIFICANCE_COLORS[attrs.value.significance ?? ''] ?? '#4ab8e8')
 
 const hasMeta = computed(() => !!(attrs.value.significance || attrs.value.date || attrs.value.location))
 </script>
