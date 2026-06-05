@@ -16,10 +16,24 @@
       <div class="dms-density">
         <button v-for="d in DENSITIES" :key="d.key" :class="['dms-density-btn', { active: density === d.key }]" @click="density = d.key">{{ d.label }}</button>
       </div>
+      <div class="dms-zoom-ctrl">
+        <button class="dms-top-btn dms-zoom-btn" title="Zoom out" @click="adjustZoom(-0.15)">−</button>
+        <button class="dms-top-btn dms-zoom-pct" title="Fit board to viewport" @click="resetView">{{ Math.round(zoom * 100) }}%</button>
+        <button class="dms-top-btn dms-zoom-btn" title="Zoom in" @click="adjustZoom(0.15)">+</button>
+      </div>
       <button class="dms-top-btn" @click="resetLayout" title="Reset to default layout">↺ Reset</button>
       <button class="dms-top-btn" @click="clearAll" title="Remove all widgets">⌫ Clear</button>
       <NuxtLink :to="`/campaign/${id}`" class="dms-top-btn dms-top-btn--danger">✕ Exit</NuxtLink>
     </div>
+
+    <!-- Entity quick-view drawer (opened when clicking {{entity: ...}} tags) -->
+    <EntityQuickPanel
+      :type="drawer.type"
+      :name="drawer.name"
+      :campaign-id="id"
+      :open="drawer.open"
+      @close="drawer.open = false"
+    />
 
     <!-- ── Body ───────────────────────────────────────────────── -->
     <div class="dms-body">
@@ -39,12 +53,12 @@
             <span class="rail-count">{{ g.items.length }}</span>
           </button>
           <div v-if="systemGroups.length" class="dms-palette-rail-sep" />
-          <button v-for="sg in systemGroups.filter(g => g.records.length)" :key="sg.id"
+          <button v-for="sg in systemGroups" :key="sg.id"
             class="dms-palette-rail-btn"
-            :title="`${sg.name} (${sg.records.length})`"
-            @click="palCollapsed = false; openGroups[`sys-${sg.id}`] = true">
+            :title="sg.name"
+            @click="palCollapsed = false; openGroups[`sys-${sg.id}`] = true; loadSysGroupRecords(sg.id)">
             <span class="rail-dot" :style="{ background: sg.color || 'var(--accent)' }" />
-            <span class="rail-count">{{ sg.records.length }}</span>
+            <span class="rail-count">{{ sg.loaded ? sg.records.length : '…' }}</span>
           </button>
           <div class="dms-palette-rail-sep" />
           <button class="dms-palette-rail-btn" title="Quick widgets" @click="palCollapsed = false; openGroups.quick = true">
@@ -60,6 +74,30 @@
         </div>
 
         <div class="dms-palette-scroll">
+
+          <!-- Bookmarks group -->
+          <div v-if="bookmarkPalItems.length" class="dms-pal-group">
+            <div class="dms-pal-group-head" @click="openGroups.bookmarks = !openGroups.bookmarks">
+              <span :class="['dms-pal-group-arrow', { open: openGroups.bookmarks }]">▶</span>
+              <span class="dms-pal-group-dot" style="background: var(--gold, #b8860b)" />
+              <span class="dms-pal-group-label">Bookmarks</span>
+              <span class="dms-pal-group-count">{{ bookmarkPalItems.length }}</span>
+            </div>
+            <template v-if="openGroups.bookmarks">
+              <div v-for="item in bookmarkPalItems" :key="item.bm.id"
+                :class="['dms-pal-item', { pinned: isEntityPinned(item.widget.kind, item.widget.entityId) }]"
+                :draggable="!isEntityPinned(item.widget.kind, item.widget.entityId)"
+                :title="isEntityPinned(item.widget.kind, item.widget.entityId) ? 'Already pinned' : 'Drag or double-click to add'"
+                @dragstart="!isEntityPinned(item.widget.kind, item.widget.entityId) && onPalDragStart($event, item.widget.kind, item.widget.entityId)"
+                @dragend="onDragEnd"
+                @dblclick="!isEntityPinned(item.widget.kind, item.widget.entityId) && addWidget({ kind: item.widget.kind, entityId: item.widget.entityId })">
+                <span class="dms-pal-item-dot" style="background: var(--gold, #b8860b)" />
+                <span class="dms-pal-item-name">{{ item.bm.label }}</span>
+                <span class="dms-pal-item-meta">{{ widgetKindLabel({ kind: item.widget.kind } as any) }}</span>
+                <span v-if="isEntityPinned(item.widget.kind, item.widget.entityId)" class="dms-pal-item-meta" style="color:var(--success)">✓</span>
+              </div>
+            </template>
+          </div>
 
           <!-- Quick widgets group -->
           <div class="dms-pal-group">
@@ -108,28 +146,31 @@
             </template>
           </div>
 
-          <!-- System entity groups -->
+          <!-- System entity groups (records loaded lazily on first expand) -->
           <template v-if="systemGroups.length">
             <div v-for="sg in systemGroups" :key="sg.id" class="dms-pal-group">
-              <div class="dms-pal-group-head" @click="openGroups[`sys-${sg.id}`] = !openGroups[`sys-${sg.id}`]">
+              <div class="dms-pal-group-head" @click="toggleSysGroup(sg.id)">
                 <span :class="['dms-pal-group-arrow', { open: openGroups[`sys-${sg.id}`] }]">▶</span>
                 <span class="dms-pal-group-dot" :style="{ background: sg.color || 'var(--accent)' }" />
                 <span class="dms-pal-group-label">{{ sg.name }}</span>
-                <span class="dms-pal-group-count">{{ sg.records.length }}</span>
+                <span class="dms-pal-group-count">{{ sg.loaded ? sg.records.length : '…' }}</span>
               </div>
               <template v-if="openGroups[`sys-${sg.id}`]">
-                <div v-for="r in sg.records" :key="r.id"
-                  :class="['dms-pal-item', { pinned: isRecordPinned(r.id) }]"
-                  :draggable="!isRecordPinned(r.id)"
-                  :title="isRecordPinned(r.id) ? 'Already pinned' : 'Drag or double-click to add'"
-                  @dragstart="!isRecordPinned(r.id) && onPalDragStart($event, 'system-entity', undefined, r.id)"
-                  @dragend="onDragEnd"
-                  @dblclick="!isRecordPinned(r.id) && addWidget({ kind: 'system-entity', recordId: r.id })">
-                  <span class="dms-pal-item-dot" :style="{ background: sg.color || 'var(--accent)' }" />
-                  <span class="dms-pal-item-name">{{ r.name }}</span>
-                  <span v-if="isRecordPinned(r.id)" class="dms-pal-item-meta" style="color:var(--success)">✓</span>
-                </div>
-                <div v-if="!sg.records.length" class="dms-pal-empty">No entries</div>
+                <div v-if="!sg.loaded" class="dms-pal-empty">Loading…</div>
+                <template v-else>
+                  <div v-for="r in sg.records" :key="r.id"
+                    :class="['dms-pal-item', { pinned: isRecordPinned(r.id) }]"
+                    :draggable="!isRecordPinned(r.id)"
+                    :title="isRecordPinned(r.id) ? 'Already pinned' : 'Drag or double-click to add'"
+                    @dragstart="!isRecordPinned(r.id) && onPalDragStart($event, 'system-entity', undefined, r.id)"
+                    @dragend="onDragEnd"
+                    @dblclick="!isRecordPinned(r.id) && addWidget({ kind: 'system-entity', recordId: r.id })">
+                    <span class="dms-pal-item-dot" :style="{ background: sg.color || 'var(--accent)' }" />
+                    <span class="dms-pal-item-name">{{ r.name }}</span>
+                    <span v-if="isRecordPinned(r.id)" class="dms-pal-item-meta" style="color:var(--success)">✓</span>
+                  </div>
+                  <div v-if="!sg.records.length" class="dms-pal-empty">No entries</div>
+                </template>
               </template>
             </div>
           </template>
@@ -140,22 +181,35 @@
         </div>
 
         <div class="dms-pal-foot">
-          <kbd>drag</kbd> or <kbd>dbl-click</kbd> to add · <kbd>esc</kbd> to exit
+          <kbd>drag</kbd> or <kbd>dbl-click</kbd> to add · <kbd>shift+click</kbd> widget to select · <kbd>esc</kbd> to exit
         </div>
       </div>
 
       <!-- Widget Canvas -->
-      <div ref="canvasRef" :class="['dms-canvas', `density-${density}`]"
+      <div ref="canvasRef" :class="['dms-canvas', `density-${density}`, { panning: isPanning }]"
         @dragover.prevent="onCanvasDragOver"
         @drop.prevent="onCanvasDrop"
-        @dragleave="onCanvasDragLeave">
-        <div ref="gridRef" :class="['dms-grid', `density-${density}`, { 'drag-active': isDragFromPalette }]">
+        @dragleave="onCanvasDragLeave"
+        @wheel="onCanvasWheel"
+        @pointerdown="onCanvasPanStart">
+
+        <!-- Selection toolbar (appears when multiple widgets are selected) -->
+        <Transition name="dms-selectbar">
+          <div v-if="selectedIds.length > 1" class="dms-select-bar">
+            <span class="dms-select-icon">⊡</span>
+            <span class="dms-select-text">{{ selectedIds.length }} widgets selected — drag any to move as group</span>
+            <button class="dms-select-clear" title="Deselect all" @click="clearSelection">✕</button>
+          </div>
+        </Transition>
+
+        <div ref="gridRef" :class="['dms-plane', `density-${density}`, { 'drag-active': isDragFromPalette }]"
+          :style="gridStyle">
 
           <!-- Empty state -->
           <div v-if="!widgets.length" class="dms-empty">
             <div class="dms-empty-icon">DM</div>
             <div class="dms-empty-title">Empty Screen</div>
-            <div class="dms-empty-sub">Drag entities from the palette to pin them here. Resize, rearrange, and clear as you go — layout is saved per campaign.</div>
+            <div class="dms-empty-sub">Drag entities from the palette anywhere on the plane. Resize, rearrange, and clear as you go — layout is saved per campaign.</div>
             <div class="dms-empty-quick">
               <button class="dms-empty-quick-btn" @click="resetLayout">↺ Suggest a layout</button>
             </div>
@@ -164,14 +218,17 @@
           <!-- Drop preview ghost -->
           <div v-if="dragPreview" class="dms-drop-preview"
             :style="{
-              gridColumn: `${dragPreview.col} / span ${dragPreview.cols}`,
-              gridRow: `${dragPreview.row} / span ${dragPreview.rows}`,
+              left:   dragPreview.x + 'px',
+              top:    dragPreview.y + 'px',
+              width:  dragPreview.width  + 'px',
+              height: dragPreview.height + 'px',
             }" />
 
           <!-- Widgets -->
           <div v-for="w in widgets" :key="w.id"
-            :class="['dms-w', { dragging: dragState?.from?.widgetId === w.id }]"
-            :style="{ gridColumn: `${w.col} / span ${w.cols}`, gridRow: `${w.row} / span ${w.rows}` }">
+            :class="['dms-w', { dragging: dragState?.from?.widgetId === w.id, selected: isSelected(w.id) }]"
+            :style="{ left: w.x + 'px', top: w.y + 'px', width: w.width + 'px', height: w.height + 'px' }"
+            data-widget>
 
             <!-- Widget header -->
             <div class="dms-w-head"
@@ -215,10 +272,13 @@
 </template>
 
 <script setup lang="ts">
-import { dbApi } from '~/composables/useDb'
-import { getDb } from '~/composables/useDb'
+import { dbApi, getDb } from '~/composables/useDb'
 import { useEntities } from '~/composables/useEntities'
 import { usePageChrome } from '~/composables/usePageChrome'
+import { useBookmarks } from '~/composables/useBookmarks'
+import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from '~/types/entities'
+import type { EntityType } from '~/types/entities'
+import { DM_SCREEN_CTX_KEY } from '~/composables/useDmScreenContext'
 
 // ── Route ──────────────────────────────────────────────────────────────────
 const route = useRoute()
@@ -236,21 +296,22 @@ const linkedSystemId = ref<number | null>(null)
 const linkedSystemName = ref('')
 
 onMounted(async () => {
-  const camps = await dbApi.campaigns.list()
-  const c = camps.find((x: any) => x.id === id)
+  const c = await dbApi.campaigns.get(id)
   campaignName.value = c?.name ?? ''
   linkedSystemId.value = (c as any)?.system_id ?? null
 
   if (linkedSystemId.value) {
-    const sys = await dbApi.systems.list()
-    const s = sys.find((s: any) => s.id === linkedSystemId.value)
+    const s = await dbApi.systems.get(linkedSystemId.value)
     linkedSystemName.value = s?.name ?? ''
-    await loadSystemGroups(linkedSystemId.value)
+    if (s) loadSystemGroupShells(s)
   }
 
   if (!entitiesStore.entities.some(e => e.campaignId === id)) {
     await entitiesStore.loadAll(id)
   }
+
+  await nextTick()
+  fitZoom()
 })
 
 // ── System entity groups (for palette) ─────────────────────────────────────
@@ -259,37 +320,67 @@ interface SystemGroup {
   name: string
   color: string
   records: { id: number; name: string }[]
+  loaded: boolean
 }
 const systemGroups = ref<SystemGroup[]>([])
 
-async function loadSystemGroups(sysId: number) {
-  const db = getDb()
-  const sys = await db.systems.get(sysId)
-  if (!sys) return
+function loadSystemGroupShells(sys: any) {
   const entityTypes: any[] = typeof sys.entityTypes === 'string'
     ? JSON.parse(sys.entityTypes || '[]')
     : (sys.entityTypes ?? [])
 
-  const groups: SystemGroup[] = []
-  for (const et of entityTypes) {
-    const recs = await db.records
-      .where('systemId').equals(sysId)
-      .filter((r: any) => r.entityTypeId === et.id)
-      .toArray()
-    if (recs.length) {
-      groups.push({
-        id: et.id,
-        name: et.plural || et.name,
-        color: et.color || 'var(--accent)',
-        records: recs.map((r: any) => ({ id: r.id!, name: r.name })).sort((a, b) => a.name.localeCompare(b.name)),
-      })
-    }
-  }
-  systemGroups.value = groups
+  systemGroups.value = entityTypes.map((et: any) => ({
+    id: et.id,
+    name: et.plural || et.name,
+    color: et.color || 'var(--accent)',
+    records: [],
+    loaded: false,
+  }))
+}
+
+async function loadSysGroupRecords(groupId: string) {
+  const g = systemGroups.value.find(g => g.id === groupId)
+  if (!linkedSystemId.value || !g || g.loaded) return
+  const db = getDb()
+  const recs = await db.records
+    .where('systemId').equals(linkedSystemId.value)
+    .filter((r: any) => r.entityTypeId === groupId)
+    .toArray()
+  g.records = recs.map((r: any) => ({ id: r.id!, name: r.name }))
+    .sort((a: any, b: any) => a.name.localeCompare(b.name))
+  g.loaded = true
+}
+
+function toggleSysGroup(groupId: string) {
+  const key = `sys-${groupId}`
+  openGroups[key] = !openGroups[key]
+  if (openGroups[key]) loadSysGroupRecords(groupId)
 }
 
 // ── NPC Generator ref (singleton widget) ──────────────────────────────────
 const npcGenRef = ref<{ openConfig: () => void } | null>(null)
+
+// ── Entity quick-view drawer ───────────────────────────────────────────────
+const drawer = reactive({ open: false, type: '', name: '' })
+
+provide(DM_SCREEN_CTX_KEY, {
+  onEntityClick: (type: string, name: string) => {
+    if (!(type in ENTITY_TYPE_CONFIG)) return false
+    drawer.type = type; drawer.name = name; drawer.open = true
+    return true
+  },
+})
+
+// ── Selection state ────────────────────────────────────────────────────────
+const selectedIds = ref<string[]>([])
+const isSelected = (id: string) => selectedIds.value.includes(id)
+function toggleSelect(id: string) {
+  const i = selectedIds.value.indexOf(id)
+  if (i >= 0) selectedIds.value.splice(i, 1)
+  else selectedIds.value.push(id)
+}
+function selectOnly(id: string) { selectedIds.value = [id] }
+function clearSelection() { selectedIds.value = [] }
 
 // ── Widget state ───────────────────────────────────────────────────────────
 type WidgetKind =
@@ -303,100 +394,158 @@ interface DmWidget {
   entityId?: number
   recordId?: number
   encounterId?: number | null
-  cols: number
-  rows: number
-  col: number
-  row: number
+  x: number      // px on the plane
+  y: number
+  width: number
+  height: number
 }
 
-const DEFAULT_COLS_ROWS: Record<WidgetKind, [number, number]> = {
-  session: [6, 2], npc: [3, 1], location: [3, 2], faction: [3, 1],
-  quest: [3, 1], event: [3, 1], note: [3, 2],
-  'encounter-link': [3, 2], 'conditions-grid': [3, 2],
-  scratchpad: [6, 1], 'system-entity': [3, 2],
-  timer: [3, 2], 'rules-lookup': [4, 3],
-  'random-table': [3, 2], rumor: [3, 1], 'npc-generator': [3, 3],
+// Default pixel sizes [width, height] per widget kind
+const DEFAULT_SIZES: Record<WidgetKind, [number, number]> = {
+  session:           [1200, 240],
+  npc:               [576,  120],
+  location:          [576,  240],
+  faction:           [576,  120],
+  quest:             [576,  120],
+  event:             [576,  120],
+  note:              [576,  240],
+  'encounter-link':  [576,  240],
+  'conditions-grid': [576,  240],
+  scratchpad:        [1200, 120],
+  'system-entity':   [576,  240],
+  timer:             [576,  240],
+  'rules-lookup':    [768,  360],
+  'random-table':    [576,  240],
+  rumor:             [576,  120],
+  'npc-generator':   [576,  360],
 }
 
-const LEGACY_SIZE_MAP: Record<string, [number, number]> = {
-  xs: [2, 1], s: [3, 1], m: [3, 2], w: [6, 1], l: [6, 2], t: [3, 3], xl: [12, 3],
-}
+const MIN_W = 200, MIN_H = 96
+const SNAP  = 24
+const WIDGET_GAP  = 8    // enforced gap between any two widgets
+const PLANE_CENTER = 4000 // CSS origin of the plane; (0,0) in logical terms lives here
+function snap(v: number) { return Math.round(v / SNAP) * SNAP }
 
-const LS_KEY = `dmscreen-v2-${id}`
+const LS_KEY    = `dmscreen-v4-${id}`
+const LS_KEY_V3 = `dmscreen-v3-${id}`
+const LS_KEY_V2 = `dmscreen-v2-${id}`
 const LS_SCRATCH = `dmscreen-scratch-v2-${id}`
 
-const widgets = ref<DmWidget[]>([])
+const widgets  = ref<DmWidget[]>([])
 const scratchpad = ref('')
 
-// ── Grid packing helpers ───────────────────────────────────────────────────
-function autopack(ws: DmWidget[]): DmWidget[] {
-  const GRID_COLS = 12
-  const occ = new Set<string>()
+// ── Free-placement helpers ─────────────────────────────────────────────────
+// Gap is included in all overlap checks so widgets never touch
+function isOverlapping(x: number, y: number, width: number, height: number, excludeIds?: string[]): boolean {
+  for (const w of widgets.value) {
+    if (excludeIds?.includes(w.id)) continue
+    const noOverlap = x + width  + WIDGET_GAP <= w.x || x >= w.x + w.width  + WIDGET_GAP ||
+                      y + height + WIDGET_GAP <= w.y || y >= w.y + w.height + WIDGET_GAP
+    if (!noOverlap) return true
+  }
+  return false
+}
 
-  function fits(c: number, r: number, cols: number, rows: number) {
-    if (c + cols - 1 > GRID_COLS) return false
-    for (let dc = 0; dc < cols; dc++)
-      for (let dr = 0; dr < rows; dr++)
-        if (occ.has(`${c + dc},${r + dr}`)) return false
-    return true
+// Search for a free spot spiralling outward from the plane center
+function findFreeXY(width: number, height: number): [number, number] {
+  const startX = snap(PLANE_CENTER - width  / 2)
+  const startY = snap(PLANE_CENTER - height / 2)
+  const step   = SNAP * 2 + WIDGET_GAP
+  for (let row = 0; row < 200; row++) {
+    const y = startY + row * (height + step)
+    for (let col = 0; col < 20; col++) {
+      const x = startX + col * (width + step)
+      if (!isOverlapping(x, y, width, height)) return [x, y]
+    }
   }
-  function mark(c: number, r: number, cols: number, rows: number) {
-    for (let dc = 0; dc < cols; dc++)
-      for (let dr = 0; dr < rows; dr++)
-        occ.add(`${c + dc},${r + dr}`)
-  }
-  function findPos(cols: number, rows: number): [number, number] {
-    for (let r = 1; r < 500; r++)
-      for (let c = 1; c <= GRID_COLS - cols + 1; c++)
-        if (fits(c, r, cols, rows)) { mark(c, r, cols, rows); return [c, r] }
-    return [1, 1]
-  }
+  return [PLANE_CENTER, PLANE_CENTER]
+}
+
+// Flow-pack widgets that have no position yet, anchored to the plane center
+function autolayout(ws: DmWidget[]): DmWidget[] {
+  const GAP   = SNAP * 2 + WIDGET_GAP
+  const ROW_W = 2400
+  let x = snap(PLANE_CENTER), y = snap(PLANE_CENTER), rowH = 0
 
   return ws.map(w => {
-    if (w.col != null && w.row != null) { mark(w.col, w.row, w.cols, w.rows); return w }
-    const [col, row] = findPos(w.cols, w.rows)
-    return { ...w, col, row }
+    if (w.x != null && w.y != null) {
+      rowH = Math.max(rowH, w.height)
+      return w
+    }
+    if (x + w.width - snap(PLANE_CENTER) > ROW_W && x > snap(PLANE_CENTER)) {
+      x = snap(PLANE_CENTER); y += rowH + GAP; rowH = 0
+    }
+    const result = { ...w, x, y }
+    x += w.width + GAP
+    rowH = Math.max(rowH, w.height)
+    return result
   })
 }
 
-function findFreePos(cols: number, rows: number): [number, number] {
-  for (let r = 1; r < 500; r++)
-    for (let c = 1; c <= 13 - cols; c++)
-      if (!isOccupied(c, r, cols, rows)) return [c, r]
-  return [1, 1]
-}
-
-// Load from localStorage (with migration from old size-based format)
+// Load from localStorage — v4 format first, then migrate v3/v2
 if (import.meta.client) {
   try {
-    const raw = localStorage.getItem(LS_KEY)
+    let raw = localStorage.getItem(LS_KEY)
+
+    if (!raw) {
+      // v3 → v4: coordinates were top-left based; shift to plane-center based
+      const v3raw = localStorage.getItem(LS_KEY_V3)
+      if (v3raw) {
+        const v3 = JSON.parse(v3raw)
+        if (Array.isArray(v3) && v3.length) {
+          raw = JSON.stringify(v3.map((w: any) => ({
+            ...w,
+            x: (w.x ?? 0) + PLANE_CENTER,
+            y: (w.y ?? 0) + PLANE_CENTER,
+          })))
+        }
+      }
+    }
+
+    if (!raw) {
+      // v2 → v4: col/row grid → pixel + center offset
+      const v2raw = localStorage.getItem(LS_KEY_V2)
+      if (v2raw) {
+        const v2 = JSON.parse(v2raw)
+        if (Array.isArray(v2) && v2.length) {
+          const CELL_W = 189, ROW_H = 110, GAP = 12
+          const migrated = v2.map((w: any) => {
+            if (w.kind === 'dice' || w.kind === 'search') return null
+            if (w.x != null) return { ...w, x: w.x + PLANE_CENTER, y: w.y + PLANE_CENTER }
+            const cols = w.cols ?? 3, rows = w.rows ?? 2
+            const col  = w.col  ?? 1, row  = w.row  ?? 1
+            const { col: _c, row: _r, cols: _cs, rows: _rs, size: _s, ...rest } = w
+            return {
+              ...rest,
+              x: snap((col  - 1) * (CELL_W + GAP)) + PLANE_CENTER,
+              y: snap((row  - 1) * (ROW_H  + GAP)) + PLANE_CENTER,
+              width:  snap(cols * CELL_W + (cols - 1) * GAP),
+              height: snap(rows * ROW_H  + (rows - 1) * GAP),
+            }
+          }).filter(Boolean)
+          raw = JSON.stringify(migrated)
+        }
+      }
+    }
+
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length) {
-        let ws = parsed.map((w: any) => {
-          const migrated = (w.cols != null && w.rows != null) ? w : (() => {
-            const [cols, rows] = LEGACY_SIZE_MAP[w.size] ?? [3, 2]
-            const { size: _s, ...rest } = w
-            return { ...rest, cols, rows }
-          })()
-          if (migrated.kind === 'dice-search' || migrated.kind === 'dice') return null
-          if (migrated.kind === 'search') return null
-          return migrated
-        }).filter(Boolean)
-        // Migrate widgets that lack explicit col/row
-        if (ws.some((w: any) => w.col == null || w.row == null)) ws = autopack(ws)
-        widgets.value = ws
+        widgets.value = parsed.filter((w: any) => w.kind !== 'dice' && w.kind !== 'search')
       }
     }
   } catch {}
   try { scratchpad.value = localStorage.getItem(LS_SCRATCH) || '' } catch {}
 }
 
-// Persist to localStorage
+// Persist to localStorage (debounced)
+let persistTimer: ReturnType<typeof setTimeout> | null = null
 watch(widgets, v => {
-  if (import.meta.client) {
+  if (!import.meta.client) return
+  if (persistTimer) clearTimeout(persistTimer)
+  persistTimer = setTimeout(() => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(v)) } catch {}
-  }
+  }, 400)
 }, { deep: true })
 
 watch(scratchpad, v => {
@@ -408,34 +557,32 @@ watch(scratchpad, v => {
 // ── Default layout ─────────────────────────────────────────────────────────
 function buildDefaultLayout(): DmWidget[] {
   const ents = entitiesStore.entities.filter(e => e.campaignId === id)
-  const partial: Omit<DmWidget, 'col' | 'row'>[] = []
   const byType = (t: string) => ents.filter(e => e.type === t)
+  const ws: Array<Omit<DmWidget, 'x' | 'y'>> = []
 
   const lastSession = byType('session').at(-1)
-  if (lastSession) partial.push({ id: `w-s-${lastSession.id}`, kind: 'session', entityId: lastSession.id, cols: 6, rows: 2 })
-
-  partial.push({ id: 'w-enc', kind: 'encounter-link', cols: 3, rows: 2 })
-
-  byType('npc').slice(0, 2).forEach(n => partial.push({ id: `w-n-${n.id}`, kind: 'npc', entityId: n.id, cols: 3, rows: 1 }))
-
+  if (lastSession) ws.push({ id: `w-s-${lastSession.id}`, kind: 'session', entityId: lastSession.id, width: 1200, height: 240 })
+  ws.push({ id: 'w-enc', kind: 'encounter-link', width: 576, height: 240 })
+  byType('npc').slice(0, 2).forEach(n => ws.push({ id: `w-n-${n.id}`, kind: 'npc', entityId: n.id, width: 576, height: 120 }))
   const activeQuest = byType('quest').find(q => (q.attributes as any)?.status === 'active')
-  if (activeQuest) partial.push({ id: `w-q-${activeQuest.id}`, kind: 'quest', entityId: activeQuest.id, cols: 3, rows: 1 })
+  if (activeQuest) ws.push({ id: `w-q-${activeQuest.id}`, kind: 'quest', entityId: activeQuest.id, width: 576, height: 120 })
+  ws.push({ id: 'w-cond', kind: 'conditions-grid', width: 576, height: 240 })
+  ws.push({ id: 'w-scratch', kind: 'scratchpad', width: 1200, height: 120 })
 
-  partial.push({ id: 'w-cond', kind: 'conditions-grid', cols: 3, rows: 2 })
-  partial.push({ id: 'w-scratch', kind: 'scratchpad', cols: 6, rows: 1 })
-
-  return autopack(partial as DmWidget[])
+  return autolayout(ws as DmWidget[])
 }
 
 function resetLayout() {
   if (confirm('Reset layout to defaults?')) {
     widgets.value = buildDefaultLayout()
+    clearSelection()
   }
 }
 
 function clearAll() {
   if (confirm('Remove all widgets? (Scratchpad is kept.)')) {
     widgets.value = []
+    clearSelection()
   }
 }
 
@@ -456,48 +603,45 @@ function canAdd(kind: WidgetKind, entityId?: number, recordId?: number): boolean
 
 function addWidget(opts: { kind: WidgetKind; entityId?: number; recordId?: number }) {
   const { kind, entityId, recordId } = opts
-  const [cols, rows] = DEFAULT_COLS_ROWS[kind]
-  const [col, row] = findFreePos(cols, rows)
-  addWidgetAt({ kind, entityId, recordId, col, row, cols, rows })
+  const [width, height] = DEFAULT_SIZES[kind]
+  const [x, y] = findFreeXY(width, height)
+  addWidgetAt({ kind, entityId, recordId, x, y, width, height })
 }
 
-function addWidgetAt(opts: { kind: WidgetKind; entityId?: number; recordId?: number; col: number; row: number; cols: number; rows: number }) {
-  const { kind, entityId, recordId, col, row, cols, rows } = opts
+function addWidgetAt(opts: { kind: WidgetKind; entityId?: number; recordId?: number; x: number; y: number; width: number; height: number }) {
+  const { kind, entityId, recordId, x, y, width, height } = opts
   if (!canAdd(kind, entityId, recordId)) return
-  const id = entityId != null ? `w-${kind}-${entityId}`
+  const wid = entityId != null ? `w-${kind}-${entityId}`
     : recordId != null ? `w-${kind}-${recordId}`
     : `w-${kind}-${Date.now()}`
-  widgets.value.push({ id, kind, entityId, recordId, col, row, cols, rows })
+  widgets.value.push({ id: wid, kind, entityId, recordId, x, y, width, height })
 }
 
-function removeWidget(id: string) {
-  widgets.value = widgets.value.filter(w => w.id !== id)
+function removeWidget(wid: string) {
+  widgets.value = widgets.value.filter(w => w.id !== wid)
+  selectedIds.value = selectedIds.value.filter(sid => sid !== wid)
 }
 
 function setEncounterId(wid: string, encounterId: number | null) {
   widgets.value = widgets.value.map(w => w.id === wid ? { ...w, encounterId } : w)
 }
 
-// ── Resize by dragging corner ──────────────────────────────────────────────
+// ── Resize ─────────────────────────────────────────────────────────────────
 const gridRef = ref<HTMLElement | null>(null)
 
 interface ResizeState {
   widgetId: string
   startX: number; startY: number
-  startCols: number; startRows: number
-  cellW: number; cellH: number; gap: number
+  startWidth: number; startHeight: number
+  zoom: number
 }
 const resizeState = ref<ResizeState | null>(null)
 
 function onResizeStart(e: MouseEvent, w: DmWidget) {
-  const grid = gridRef.value
-  if (!grid) return
-  const rect = grid.getBoundingClientRect()
-  const gap = density.value === 'compact' ? 8 : density.value === 'loose' ? 16 : 12
-  const cellH = density.value === 'compact' ? 88 : density.value === 'loose' ? 140 : 110
-  const cellW = (rect.width - 11 * gap) / 12
-
-  resizeState.value = { widgetId: w.id, startX: e.clientX, startY: e.clientY, startCols: w.cols, startRows: w.rows, cellW, cellH, gap }
+  resizeState.value = {
+    widgetId: w.id, startX: e.clientX, startY: e.clientY,
+    startWidth: w.width, startHeight: w.height, zoom: zoom.value,
+  }
   document.addEventListener('mousemove', onResizeMove)
   document.addEventListener('mouseup', onResizeEnd, { once: true })
 }
@@ -505,17 +649,17 @@ function onResizeStart(e: MouseEvent, w: DmWidget) {
 function onResizeMove(e: MouseEvent) {
   const s = resizeState.value
   if (!s) return
-  const w = widgets.value.find(w => w.id === s.widgetId)
+  const w = widgets.value.find(x => x.id === s.widgetId)
   if (!w) return
-  const rawCols = Math.max(2, Math.min(13 - w.col, s.startCols + Math.round((e.clientX - s.startX) / (s.cellW + s.gap))))
-  const rawRows = Math.max(1, Math.min(8,           s.startRows + Math.round((e.clientY - s.startY) / (s.cellH + s.gap))))
-  // Always produce a valid size — shrink rather than refuse the drag
-  let cols = rawCols
-  while (cols > 2 && isOccupied(w.col, w.row, cols, rawRows, w.id)) cols--
-  let rows = rawRows
-  while (rows > 1 && isOccupied(w.col, w.row, cols, rows, w.id)) rows--
-  if (w.cols === cols && w.rows === rows) return
-  widgets.value = widgets.value.map(x => x.id === s.widgetId ? { ...x, cols, rows } : x)
+  const newWidth  = Math.max(MIN_W, snap(s.startWidth  + (e.clientX - s.startX) / s.zoom))
+  const newHeight = Math.max(MIN_H, snap(s.startHeight + (e.clientY - s.startY) / s.zoom))
+  if (w.width === newWidth && w.height === newHeight) return
+  // Allow growing only when the expanded footprint doesn't overlap another widget
+  if (newWidth > w.width || newHeight > w.height) {
+    if (isOverlapping(w.x, w.y, newWidth, newHeight, [w.id])) return
+  }
+  w.width  = newWidth
+  w.height = newHeight
 }
 
 function onResizeEnd() {
@@ -568,8 +712,6 @@ function widgetColor(w: DmWidget): string {
   const MAP: Partial<Record<WidgetKind, string>> = {
     'encounter-link':  'oklch(72% 0.20 295)',
     'conditions-grid': 'oklch(72% 0.20 22)',
-    dice:              'oklch(72% 0.18 145)',
-    search:            'oklch(72% 0.18 145)',
     scratchpad:      'oklch(76% 0.10 215)',
     'system-entity': 'oklch(76% 0.14 85)',
     timer:           'oklch(72% 0.18 200)',
@@ -582,7 +724,7 @@ function widgetColor(w: DmWidget): string {
   return MAP[w.kind] ?? 'var(--accent)'
 }
 
-// ── Density & grid ─────────────────────────────────────────────────────────
+// ── Density ────────────────────────────────────────────────────────────────
 const DENSITIES = [
   { key: 'compact', label: 'Compact' },
   { key: 'comfortable', label: 'Cozy' },
@@ -616,61 +758,104 @@ const QUICK_WIDGETS = [
 ]
 
 const openGroups = reactive<Record<string, boolean>>({
-  session: true, npc: true, location: false, faction: false,
+  bookmarks: true, quick: true,
+  session: false, npc: false, location: false, faction: false,
   quest: false, event: false, note: false,
-  'random-table': false, rumor: false, quick: true,
+  'random-table': false, rumor: false,
 })
 
-const palGroups = computed(() =>
-  ENTITY_TYPES.map(et => ({
+const palGroups = computed(() => {
+  const q = paletteQuery.value.trim().toLowerCase()
+  return ENTITY_TYPES.map(et => ({
     key: et.key,
     label: et.label,
     color: et.color,
     items: entitiesStore.entities
-      .filter(e => e.campaignId === id && e.type === et.key &&
-        (!paletteQuery.value.trim() || e.name.toLowerCase().includes(paletteQuery.value.toLowerCase()))),
+      .filter(e => e.campaignId === id && e.type === et.key && (!q || e.name.toLowerCase().includes(q))),
   }))
-)
+})
 
 // ── Drag and drop ──────────────────────────────────────────────────────────
 interface DragState {
   kind: WidgetKind
   entityId?: number
   recordId?: number
-  cols: number
-  rows: number
-  from?: { widgetId: string; col: number; row: number }
+  width: number
+  height: number
+  from?: { widgetId: string; x: number; y: number }
 }
 
-const dragState = ref<DragState | null>(null)
-const dragPreview = ref<{ col: number; row: number; cols: number; rows: number } | null>(null)
-const canvasRef = ref<HTMLElement | null>(null)
-const lastDragCell = ref<{ col: number; row: number } | null>(null)
+const dragState   = ref<DragState | null>(null)
+const dragPreview = ref<{ x: number; y: number; width: number; height: number } | null>(null)
+const canvasRef   = ref<HTMLElement | null>(null)
 
 const isDragFromPalette = computed(() => !!dragState.value && !dragState.value.from)
 
+// Convert screen coords → plane (canvas-space) coords
+function screenToPlane(clientX: number, clientY: number): { x: number; y: number } | null {
+  const canvas = canvasRef.value
+  if (!canvas) return null
+  const rect = canvas.getBoundingClientRect()
+  return {
+    x: (clientX - rect.left - CANVAS_PADDING - panX.value) / zoom.value,
+    y: (clientY - rect.top  - CANVAS_PADDING - panY.value) / zoom.value,
+  }
+}
+
 function onPalDragStart(e: DragEvent, kind: WidgetKind, entityId?: number, recordId?: number) {
-  const [cols, rows] = DEFAULT_COLS_ROWS[kind]
-  dragState.value = { kind, entityId, recordId, cols, rows }
+  const [width, height] = DEFAULT_SIZES[kind]
+  dragState.value = { kind, entityId, recordId, width, height }
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
 }
 
 function onWidgetPointerDown(e: PointerEvent, w: DmWidget) {
   if (e.button > 0) return
-  dragState.value = { kind: w.kind, entityId: w.entityId, recordId: w.recordId, cols: w.cols, rows: w.rows, from: { widgetId: w.id, col: w.col, row: w.row } }
+
+  // Shift+click: toggle selection, don't start drag
+  if (e.shiftKey) {
+    toggleSelect(w.id)
+    return
+  }
+
+  // Regular click: select only this widget unless already in multi-selection
+  if (!isSelected(w.id)) selectOnly(w.id)
+
+  dragState.value = { kind: w.kind, entityId: w.entityId, recordId: w.recordId, width: w.width, height: w.height, from: { widgetId: w.id, x: w.x, y: w.y } }
 
   const el = e.currentTarget as HTMLElement
   el.setPointerCapture(e.pointerId)
 
+  // Offset of pointer relative to widget top-left in plane coords
+  const startPlane = screenToPlane(e.clientX, e.clientY)!
+  const offsetX = startPlane.x - w.x
+  const offsetY = startPlane.y - w.y
+
   function onMove(ev: PointerEvent) {
-    if (!dragState.value) return
-    const { cols, from } = dragState.value
-    const cell = getDropCellXY(ev.clientX, ev.clientY)
-    if (!cell) return
-    if (lastDragCell.value?.col === cell.col && lastDragCell.value?.row === cell.row) return
-    lastDragCell.value = cell
-    if (!isOccupied(cell.col, cell.row, cols, dragState.value.rows, from?.widgetId, from?.col, from?.row)) {
-      dragPreview.value = { col: cell.col, row: cell.row, cols, rows: dragState.value.rows }
+    if (!dragState.value?.from) return
+    const pos = screenToPlane(ev.clientX, ev.clientY)
+    if (!pos) return
+    const newX = snap(pos.x - offsetX)
+    const newY = snap(pos.y - offsetY)
+
+    const isGroupDrag = selectedIds.value.includes(w.id) && selectedIds.value.length > 1
+
+    if (isGroupDrag) {
+      const dx = newX - dragState.value.from.x
+      const dy = newY - dragState.value.from.y
+      const groupIds = selectedIds.value
+      let valid = true
+      for (const gid of groupIds) {
+        const gw = widgets.value.find(x => x.id === gid)
+        if (!gw) continue
+        const nx = gw.x + dx
+        const ny = gw.y + dy
+        if (isOverlapping(nx, ny, gw.width, gw.height, groupIds)) { valid = false; break }
+      }
+      dragPreview.value = valid ? { x: newX, y: newY, width: w.width, height: w.height } : null
+    } else {
+      dragPreview.value = isOverlapping(newX, newY, w.width, w.height, [w.id])
+        ? null
+        : { x: newX, y: newY, width: w.width, height: w.height }
     }
   }
 
@@ -686,48 +871,17 @@ function onWidgetPointerDown(e: PointerEvent, w: DmWidget) {
   el.addEventListener('pointercancel', onUp)
 }
 
-function isOccupied(col: number, row: number, cols: number, rows: number, excludeId?: string, excludeCol?: number, excludeRow?: number): boolean {
-  for (const w of widgets.value) {
-    // Exclude by ID or by source position — both guards against any edge case
-    if (w.id === excludeId) continue
-    if (excludeCol !== undefined && excludeRow !== undefined && w.col === excludeCol && w.row === excludeRow) continue
-    const noOverlap = col + cols <= w.col || col >= w.col + w.cols ||
-                      row + rows <= w.row || row >= w.row + w.rows
-    if (!noOverlap) return true
-  }
-  return false
-}
-
-function getDropCellXY(clientX: number, clientY: number): { col: number; row: number } | null {
-  const grid = gridRef.value
-  if (!grid || !dragState.value) return null
-  const gap = density.value === 'compact' ? 8 : density.value === 'loose' ? 16 : 12
-  const rowH = density.value === 'compact' ? 88 : density.value === 'loose' ? 140 : 110
-  const rect = grid.getBoundingClientRect()
-  const cellW = (rect.width - 11 * gap) / 12
-  const x = clientX - rect.left
-  const y = clientY - rect.top
-  const { cols, rows } = dragState.value
-  const col = Math.max(1, Math.min(13 - cols, Math.floor(x / (cellW + gap)) + 1))
-  const row = Math.max(1, Math.floor(y / (rowH + gap)) + 1)
-  return { col, row }
-}
-
-function getDropCell(e: DragEvent): { col: number; row: number } | null {
-  return getDropCellXY(e.clientX, e.clientY)
-}
-
 function onCanvasDragOver(e: DragEvent) {
   if (!dragState.value) return
-  const { cols, from } = dragState.value
-  if (e.dataTransfer) e.dataTransfer.dropEffect = from ? 'move' : 'copy'
-  const cell = getDropCell(e)
-  if (!cell) return
-  if (lastDragCell.value?.col === cell.col && lastDragCell.value?.row === cell.row) return
-  lastDragCell.value = cell
-  if (!isOccupied(cell.col, cell.row, cols, dragState.value.rows, from?.widgetId, from?.col, from?.row)) {
-    dragPreview.value = { col: cell.col, row: cell.row, cols, rows: dragState.value.rows }
-  }
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  const pos = screenToPlane(e.clientX, e.clientY)
+  if (!pos) return
+  const { width, height } = dragState.value
+  const x = snap(pos.x)
+  const y = snap(pos.y)
+  dragPreview.value = isOverlapping(x, y, width, height)
+    ? null
+    : { x, y, width, height }
 }
 
 function onCanvasDragLeave(e: DragEvent) {
@@ -740,20 +894,159 @@ function onCanvasDrop() {
   if (!dragState.value) return
   const pos = dragPreview.value
   if (!pos) { onDragEnd(); return }
+
   if (dragState.value.from) {
     const srcId = dragState.value.from.widgetId
-    widgets.value = widgets.value.map(w => w.id === srcId ? { ...w, col: pos.col, row: pos.row } : w)
+    const isGroupDrag = selectedIds.value.includes(srcId) && selectedIds.value.length > 1
+    if (isGroupDrag) {
+      const dx = pos.x - dragState.value.from.x
+      const dy = pos.y - dragState.value.from.y
+      widgets.value = widgets.value.map(w => {
+        if (!selectedIds.value.includes(w.id)) return w
+        return { ...w, x: w.x + dx, y: w.y + dy }
+      })
+    } else {
+      widgets.value = widgets.value.map(w => w.id === srcId ? { ...w, x: pos.x, y: pos.y } : w)
+    }
   } else {
-    addWidgetAt({ kind: dragState.value.kind, entityId: dragState.value.entityId, recordId: dragState.value.recordId, col: pos.col, row: pos.row, cols: pos.cols, rows: pos.rows })
+    addWidgetAt({ kind: dragState.value.kind, entityId: dragState.value.entityId, recordId: dragState.value.recordId, x: pos.x, y: pos.y, width: pos.width, height: pos.height })
   }
   onDragEnd()
 }
 
 function onDragEnd() {
-  dragState.value = null
+  dragState.value  = null
   dragPreview.value = null
-  lastDragCell.value = null
 }
+
+// ── Pan / Zoom ─────────────────────────────────────────────────────────────
+const CANVAS_PADDING = 18
+const ZOOM_MIN = 0.15, ZOOM_MAX = 3
+const ZOOM_FIT_MIN = 0.2, ZOOM_FIT_MAX = 1.0
+
+const panX = ref(0)
+const panY = ref(0)
+const zoom = ref(1)
+const isPanning = ref(false)
+
+const gridStyle = computed(() => ({
+  transform: `translate(${panX.value}px, ${panY.value}px) scale(${zoom.value})`,
+  transformOrigin: '0 0',
+}))
+
+function zoomTowardPoint(cx: number, cy: number, newZoom: number) {
+  const sf = newZoom / zoom.value
+  panX.value = cx * (1 - sf) + panX.value * sf
+  panY.value = cy * (1 - sf) + panY.value * sf
+  zoom.value = newZoom
+}
+
+function fitZoom() {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  if (!widgets.value.length) {
+    zoom.value  = 0.8
+    panX.value  = canvas.clientWidth  / 2 - PLANE_CENTER * 0.8
+    panY.value  = canvas.clientHeight / 2 - PLANE_CENTER * 0.8
+    return
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const w of widgets.value) {
+    if (w.x           < minX) minX = w.x
+    if (w.y           < minY) minY = w.y
+    if (w.x + w.width  > maxX) maxX = w.x + w.width
+    if (w.y + w.height > maxY) maxY = w.y + w.height
+  }
+  const contentW = maxX - minX + 4 * CANVAS_PADDING
+  const contentH = maxY - minY + 4 * CANVAS_PADDING
+  const z = Math.max(ZOOM_FIT_MIN, Math.min(ZOOM_FIT_MAX, Math.min(canvas.clientWidth / contentW, canvas.clientHeight / contentH)))
+  zoom.value  = z
+  panX.value  = CANVAS_PADDING - minX * z
+  panY.value  = CANVAS_PADDING - minY * z
+}
+
+function onCanvasWheel(e: WheelEvent) {
+  const canvas = canvasRef.value
+  if (!canvas) return
+
+  if (e.ctrlKey) {
+    // Ctrl+scroll always zooms, even over a widget
+    e.preventDefault()
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
+    const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom.value * factor))
+    const rect = canvas.getBoundingClientRect()
+    zoomTowardPoint(e.clientX - rect.left - CANVAS_PADDING, e.clientY - rect.top - CANVAS_PADDING, newZoom)
+    return
+  }
+
+  // If the scroll started inside a widget, let the browser scroll the widget content
+  if ((e.target as HTMLElement).closest('[data-widget]')) return
+
+  e.preventDefault()
+  panX.value -= e.deltaX
+  panY.value -= e.deltaY
+}
+
+function onCanvasPanStart(e: PointerEvent) {
+  if (dragState.value || resizeState.value) return
+  const target = e.target as HTMLElement
+  if (target.closest('[data-widget]')) return
+  clearSelection()
+  e.preventDefault()
+  isPanning.value = true
+  const canvas = canvasRef.value!
+  const startPX = panX.value - e.clientX
+  const startPY = panY.value - e.clientY
+  canvas.setPointerCapture(e.pointerId)
+  function onMove(ev: PointerEvent) {
+    panX.value = ev.clientX + startPX
+    panY.value = ev.clientY + startPY
+  }
+  function onUp() {
+    isPanning.value = false
+    canvas.removeEventListener('pointermove', onMove)
+    canvas.removeEventListener('pointerup', onUp)
+    canvas.removeEventListener('pointercancel', onUp)
+  }
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onUp)
+}
+
+function adjustZoom(delta: number) {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom.value + delta))
+  zoomTowardPoint(canvas.clientWidth / 2, canvas.clientHeight / 2, newZoom)
+}
+
+function resetView() {
+  panX.value = 0
+  panY.value = 0
+  fitZoom()
+}
+
+// ── Bookmarks palette integration ─────────────────────────────────────────
+const { bookmarks } = useBookmarks()
+
+const SEGMENT_TO_KIND = Object.fromEntries(
+  Object.entries(ENTITY_TYPE_ROUTE).map(([k, v]) => [v, k as WidgetKind])
+) as Record<string, WidgetKind>
+
+function bookmarkWidgetInfo(route: string): { kind: WidgetKind; entityId: number } | null {
+  const m = route.match(/^\/campaign\/(\d+)\/([^/?]+)\/(\d+)$/)
+  if (!m || Number(m[1]) !== id) return null
+  const kind = SEGMENT_TO_KIND[m[2]]
+  if (!kind) return null
+  return { kind, entityId: Number(m[3]) }
+}
+
+const bookmarkPalItems = computed(() =>
+  bookmarks.value.flatMap(bm => {
+    const widget = bookmarkWidgetInfo(bm.route)
+    return widget ? [{ bm, widget }] : []
+  })
+)
 </script>
 
 <style scoped>
@@ -817,6 +1110,10 @@ function onDragEnd() {
 .dms-top-btn:hover { background: var(--surface-hi); border-color: var(--border-hi); color: var(--text); }
 .dms-top-btn.active { background: var(--accent-bg); border-color: color-mix(in oklch, var(--accent) 45%, transparent); color: var(--accent-l); }
 .dms-top-btn--danger:hover { background: var(--danger-bg); border-color: color-mix(in oklch, var(--danger) 40%, transparent); color: var(--danger); }
+
+.dms-zoom-ctrl { display: flex; gap: 1px; }
+.dms-zoom-btn { padding: 6px 10px; font-size: 14px; font-weight: 600; min-width: 32px; justify-content: center; }
+.dms-zoom-pct { min-width: 52px; justify-content: center; font-family: var(--fm); font-size: 11px; }
 
 /* ── Body ── */
 .dms-body { position: relative; z-index: 1; flex: 1; display: flex; overflow: hidden; }
@@ -935,48 +1232,35 @@ function onDragEnd() {
 
 /* ── Canvas ── */
 .dms-canvas {
-  flex: 1; overflow-y: auto; overflow-x: hidden; padding: 18px; position: relative;
-  background-image: radial-gradient(
-    circle at calc(100% - var(--gap, 12px) / 2) calc(100% - var(--gap, 12px) / 2),
-    var(--text3) 1.5px, transparent 1.5px
-  );
-  background-attachment: local;
-  background-size:
-    calc((100% - 36px + var(--gap, 12px)) / 12)
-    calc(var(--row-h, 110px) + var(--gap, 12px));
-  background-position: 18px 18px;
+  flex: 1; overflow: hidden; padding: 18px; position: relative;
+  cursor: grab;
 }
-.dms-canvas.density-compact     { --row-h: 88px;  --gap: 8px; }
-.dms-canvas.density-comfortable { --row-h: 110px; --gap: 12px; }
-.dms-canvas.density-loose       { --row-h: 140px; --gap: 16px; }
-.dms-canvas::-webkit-scrollbar { width: 8px; }
-.dms-canvas::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 99px; }
+.dms-canvas.panning { cursor: grabbing; }
 
-.dms-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: var(--row-h, 110px);
-  gap: var(--gap, 12px);
-  min-height: 100%;
+/* ── Infinite plane ── */
+.dms-plane {
   position: relative;
+  width: 8000px;
+  height: 8000px;
+  /* Dot grid — 24px spacing matches SNAP constant */
+  background-image: radial-gradient(circle, var(--text3) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
-.dms-grid.density-compact  { --row-h: 88px; --gap: 8px; }
-.dms-grid.density-comfortable { --row-h: 110px; --gap: 12px; }
-.dms-grid.density-loose    { --row-h: 140px; --gap: 16px; }
 
-.dms-grid.drag-active::before {
-  content: ''; position: absolute; inset: 14px; border-radius: 14px;
+.dms-plane.drag-active::before {
+  content: ''; position: absolute; inset: 0;
   border: 1.5px dashed color-mix(in oklch, var(--accent) 55%, transparent);
-  background: var(--accent-bg);
-  pointer-events: none;
+  background: color-mix(in oklch, var(--accent) 4%, transparent);
+  pointer-events: none; border-radius: 14px;
 }
 
 /* Empty state */
 .dms-empty {
-  grid-column: 1 / -1; grid-row: 1 / 4;
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; color: var(--text3); text-align: center;
   border: 1.5px dashed var(--border); border-radius: 14px;
+  padding: 60px 80px;
 }
 .dms-empty-icon { font-family: var(--fh); font-size: 36px; font-weight: 700; color: color-mix(in oklch, var(--accent) 55%, transparent); letter-spacing: 0.08em; }
 .dms-empty-title { font-family: var(--fh); font-size: 18px; color: var(--text2); letter-spacing: 0.06em; }
@@ -989,26 +1273,36 @@ function onDragEnd() {
 }
 .dms-empty-quick-btn:hover { background: var(--accent-bhi); }
 
-/* Widget cells */
+/* Widget cells — absolute positioned on the plane */
 .dms-w {
-  position: relative;
+  position: absolute;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px; overflow: hidden;
   display: flex; flex-direction: column;
   transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s;
   box-shadow: var(--sh);
+  cursor: default;
 }
 .dms-w:hover { border-color: var(--border-hi); box-shadow: var(--sh-md); }
 .dms-w.dragging { opacity: 0.35; transform: scale(0.97); pointer-events: none; }
 
+/* Selected widget highlight */
+.dms-w.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent), var(--sh-md);
+}
+.dms-w.selected .dms-w-head {
+  background: color-mix(in oklch, var(--accent) 10%, var(--surface-hi));
+}
+
 .dms-drop-preview {
+  position: absolute;
   border: 2px dashed color-mix(in oklch, var(--accent) 65%, transparent);
   border-radius: 12px;
   background: color-mix(in oklch, var(--accent) 8%, transparent);
   pointer-events: none;
   z-index: 0;
-  transition: grid-column 0.08s, grid-row 0.08s;
 }
 
 /* Widget header */
@@ -1060,7 +1354,33 @@ function onDragEnd() {
   border-bottom: 1.5px solid color-mix(in oklch, var(--accent) 40%, transparent);
 }
 
-/* Prevent text selection and enforce cursor while resizing */
+/* Prevent text selection while resizing */
 .dms-root.resizing,
 .dms-root.resizing * { cursor: nwse-resize !important; user-select: none !important; }
+
+/* Selection toolbar */
+.dms-select-bar {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 16px; border-radius: 99px;
+  background: var(--surface);
+  border: 1px solid color-mix(in oklch, var(--accent) 55%, transparent);
+  font-size: 12px; color: var(--text2);
+  box-shadow: var(--sh-md), 0 0 20px color-mix(in oklch, var(--accent) 18%, transparent);
+  pointer-events: all; white-space: nowrap; user-select: none;
+}
+.dms-select-icon { color: var(--accent-l); font-size: 15px; flex-shrink: 0; }
+.dms-select-text { font-family: var(--fm); }
+.dms-select-clear {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--text3); cursor: pointer; flex-shrink: 0; transition: all 0.12s;
+}
+.dms-select-clear:hover { background: var(--danger-bg); color: var(--danger); }
+
+.dms-selectbar-enter-active,
+.dms-selectbar-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.dms-selectbar-enter-from,
+.dms-selectbar-leave-to { opacity: 0; transform: translateX(-50%) translateY(6px); }
 </style>

@@ -254,6 +254,8 @@ const store = useEntities();
 const router = useRouter();
 const { entityLookup, extraTypes: systemExtraTypes, campaignSystemId, systemEntityTypes, campaignEncounters } = useEntityRendering(() => props.campaignId);
 
+const dmCtx = useDmScreenContext()
+
 
 // ── Entity types (for toolbar) ────────────────────────────────────────────────
 const entityTypes = [
@@ -908,6 +910,8 @@ async function onPreviewClick(e: MouseEvent) {
     const type = entityEl.dataset.entityType;
     const name = entityEl.dataset.entityName;
     if (!type || !name) return;
+
+    if (dmCtx?.onEntityClick(type!, name!)) return
 
     const snapshotLabel = entityEl.dataset.snapshotLabel;
     if (snapshotLabel) {

@@ -21,9 +21,20 @@
           <OhVueIcon name="md-editnote" scale="0.85" class="ctx-icon" />
           Edit Token
         </button>
+        <!-- Quick conditions -->
+        <div class="ctx-quick-conditions">
+          <button
+            v-for="cond in QUICK_CONDITIONS"
+            :key="cond"
+            class="ctx-cond-chip"
+            :class="{ 'ctx-cond-chip--active': activeConditions.has(cond) }"
+            :title="activeConditions.has(cond) ? `Remove ${cond}` : `Add ${cond}`"
+            @click="emit('quick-condition', targetToken.id, cond); emit('close')"
+          >{{ cond }}</button>
+        </div>
         <button class="ctx-item" @click="emit('add-condition', targetToken.id); emit('close')">
           <OhVueIcon name="gi-poison" scale="0.85" class="ctx-icon" />
-          Add Condition
+          All Conditions…
         </button>
 
         <!-- Inline initiative -->
@@ -105,6 +116,7 @@ const emit = defineEmits<{
   'add-token-here': [gridX: number, gridY: number]
   'edit-token': [tokenId: number]
   'add-condition': [tokenId: number]
+  'quick-condition': [tokenId: number, name: string]
   'set-initiative': [tokenId: number, value: number | null]
   'apply-damage': [tokenId: number, amount: number]
   'view-record': [tokenId: number]
@@ -112,6 +124,12 @@ const emit = defineEmits<{
   'toggle-dead': [tokenId: number]
   'remove-token': [tokenId: number]
 }>()
+
+const QUICK_CONDITIONS = ['Prone', 'Blinded', 'Frightened', 'Stunned', 'Poisoned', 'Restrained']
+
+const activeConditions = computed(() =>
+  new Set(props.targetToken?.conditions?.map(c => c.name) ?? [])
+)
 
 const menuEl = ref<HTMLElement | null>(null)
 
@@ -271,4 +289,27 @@ function onKey(e: KeyboardEvent) {
 }
 .ctx-inline-input::-webkit-inner-spin-button,
 .ctx-inline-input::-webkit-outer-spin-button { opacity: 0.4; }
+
+/* ── Quick condition chips ── */
+.ctx-quick-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 14px;
+}
+.ctx-cond-chip {
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--parch-line);
+  background: none;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.ctx-cond-chip:hover { border-color: var(--gold); color: var(--ink); background: rgba(184,134,11,0.08); }
+.ctx-cond-chip--active { border-color: var(--blood); color: var(--blood); background: rgba(139,0,0,0.07); }
+.ctx-cond-chip--active:hover { background: rgba(139,0,0,0.12); }
 </style>

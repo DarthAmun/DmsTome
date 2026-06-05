@@ -279,7 +279,7 @@ const router = useRouter()
 const notesStore = useEntities()
 const systemsStore = useSystems()
 const { isBookmarked, bookmarkEntity, bookmarkRecord, bookmarkPage, removeBookmark, bookmarks } = useBookmarks()
-const { ctx, clearCtx, isCommandMode, getSuggestions } = useCommandPalette()
+const { ctx, setCtx, clearCtx, isCommandMode, getSuggestions } = useCommandPalette()
 const { update: updateSettings } = useSettings()
 
 const { open } = useGlobalSearch()
@@ -651,10 +651,17 @@ function close() {
   cmdCursorId.value = null
 }
 
-// Focus input when opening; trigger command suggestions if context is set and query empty
-watch(open, (val) => {
-  if (val) {
-    nextTick(() => inputRef.value?.focus())
+const route = useRoute()
+
+// Focus input on open; auto-set campaign context from current route
+watch(open, async (val) => {
+  if (!val) return
+  nextTick(() => inputRef.value?.focus())
+  if (ctx.value.campaign) return
+  const m = route.path.match(/^\/campaign\/(\d+)/)
+  if (m) {
+    const camp = await dbApi.campaigns.get(Number(m[1]))
+    if (camp) setCtx('campaign', { id: camp.id!, name: camp.name })
   }
 })
 

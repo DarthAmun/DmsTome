@@ -629,6 +629,58 @@ export const useEncounterStore = defineStore('encounter', () => {
     updateToken(tokenId, { hpCurrent: Math.max(0, token.hpCurrent - amount) })
   }
 
+  async function rollAllInitiative() {
+    if (!current.value) return
+    const toUpdate: { id: number; initiative: number }[] = []
+    for (const token of current.value.tokens) {
+      if (token.initiative === null) {
+        const roll = Math.floor(Math.random() * 20) + 1
+        token.initiative = roll
+        toUpdate.push({ id: token.id, initiative: roll })
+      }
+    }
+    if (!toUpdate.length) return
+    syncToPlayer()
+    await Promise.all(toUpdate.map(({ id, initiative }) => dbApi.encounterTokens.update({ id, initiative })))
+  }
+
+  async function bulkRemoveTokens(ids: Set<number>) {
+    if (!current.value || !ids.size) return
+    current.value.tokens = current.value.tokens.filter(t => !ids.has(t.id))
+    syncToPlayer()
+    await Promise.all([...ids].map(id => dbApi.encounterTokens.remove(id)))
+  }
+
+  async function bulkSetTokenVisibility(ids: Set<number>, visible: boolean) {
+    if (!current.value || !ids.size) return
+    for (const token of current.value.tokens) {
+      if (ids.has(token.id)) token.isVisible = visible
+    }
+    syncToPlayer()
+    const v = visible ? 1 : 0
+    await Promise.all([...ids].map(id => dbApi.encounterTokens.update({ id, isVisible: v })))
+  }
+
+  function toggleCondition(tokenId: number, name: string) {
+    const token = getToken(tokenId)
+    if (!token) return
+    const existing = token.conditions ?? []
+    const next = existing.some(c => c.name === name)
+      ? existing.filter(c => c.name !== name)
+      : [...existing, { name, value: null }]
+    updateToken(tokenId, { conditions: next })
+  }
+
+  async function addCreatureToEncounterAuto(recordId: number) {
+    const occupied = new Set((current.value?.tokens ?? []).map(t => `${t.gridX},${t.gridY}`))
+    let gx = 5, gy = 5
+    for (let i = 0; i < 30 && occupied.has(`${gx},${gy}`); i++) {
+      gx = 4 + (i % 6)
+      gy = 4 + Math.floor(i / 6)
+    }
+    return addCreatureToEncounter(recordId, gx, gy)
+  }
+
   return {
     current, tokenLibrary, isLoading, playerWindowOpen,
     currentTurnIndex, roundNumber, initiativeOrder,
@@ -640,10 +692,10 @@ export const useEncounterStore = defineStore('encounter', () => {
     addWall, undoLastWall, updateWall, deleteWall, toggleDoor,
     setFovEnabled,
     setSoundPlaylistId,
-    addTokenToEncounter, addCreatureToEncounter, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
+    addTokenToEncounter, addCreatureToEncounter, addCreatureToEncounterAuto, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
-    getToken, applyDamage,
+    getToken, applyDamage, rollAllInitiative, bulkRemoveTokens, bulkSetTokenVisibility, toggleCondition,
     addLogNote, clearCombatLog,
   }
 })

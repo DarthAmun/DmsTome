@@ -40,15 +40,15 @@
           </button>
         </div>
 
-        <!-- FOV mode toggle (run mode + fovEnabled only) -->
-        <div v-if="mode === 'run' && encounter?.fovEnabled" class="enc-fov-mode-toggle">
-          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'gm' }" title="DM sees all" @click="setFovMode('gm')">
+        <!-- FOV mode toggle (run mode only; grayed when FOV disabled) -->
+        <div v-if="mode === 'run'" class="enc-fov-mode-toggle" :class="{ 'enc-fov-mode-toggle--off': !encounter?.fovEnabled }" :title="encounter?.fovEnabled ? '' : 'Enable FOV & Walls in Prepare mode to use vision control'">
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'gm' }" :disabled="!encounter?.fovEnabled" title="DM sees all" @click="setFovMode('gm')">
             GM
           </button>
-          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'active' }" title="Active turn token's vision" @click="setFovMode('active')">
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'active' }" :disabled="!encounter?.fovEnabled" title="Active turn token's vision" @click="setFovMode('active')">
             Active
           </button>
-          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'group' }" title="All player tokens' vision" @click="setFovMode('group')">
+          <button class="fov-mode-btn" :class="{ active: store.fovMode === 'group' }" :disabled="!encounter?.fovEnabled" title="All player tokens' vision" @click="setFovMode('group')">
             Group
           </button>
         </div>
@@ -323,7 +323,7 @@
             <template v-if="libSidebarTab === 'tokens'">
             <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
               <div class="token-search">
-                <InputText v-model="tokenSearch" placeholder="Search tokens…" />
+                <InputText ref="searchInputRef" v-model="tokenSearch" placeholder="Search tokens…" />
               </div>
               <div class="token-list" style="flex:1;overflow-y:auto">
                 <!-- PC separator -->
@@ -383,7 +383,7 @@
             <template v-if="libSidebarTab === 'creatures'">
             <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;border-bottom:none">
               <div class="token-search">
-                <InputText v-model="creatureSearch" placeholder="Search creatures…" />
+                <InputText ref="searchInputRef" v-model="creatureSearch" placeholder="Search creatures…" />
               </div>
               <div class="token-list" style="flex:1;overflow-y:auto">
                 <div
@@ -401,6 +401,9 @@
                     <span class="token-lib-name">{{ rec.name }}</span>
                     <span class="creature-chip-type">{{ rec.entityTypeId }}</span>
                   </div>
+                  <button class="icon-btn-sq" title="Place on map" @click.stop="store.addCreatureToEncounterAuto(rec.id)">
+                    <OhVueIcon name="md-add" scale="0.75" />
+                  </button>
                 </div>
                 <p v-if="filteredCreatures.length === 0" class="enc-hint" style="padding:12px 0">
                   {{ creatureSearch ? 'No matches' : 'No creature records found. Link a system to this campaign first.' }}
@@ -429,6 +432,17 @@
                   <button class="init-nav-btn" @click="store.nextTurn()">
                     <OhVueIcon name="md-chevronright" scale="0.8" />
                   </button>
+                  <button class="init-nav-btn init-roll-all-btn" title="Roll d20 initiative for all tokens without initiative set" @click="store.rollAllInitiative()">
+                    ⚄
+                  </button>
+                </div>
+                <!-- Bulk action bar -->
+                <div v-if="selectedTokenIds.size > 0" class="order-bulk-bar">
+                  <span class="order-bulk-count">{{ selectedTokenIds.size }} selected</span>
+                  <button class="order-bulk-btn" title="Show all selected" @click="bulkSetVisibility(true)">Show</button>
+                  <button class="order-bulk-btn" title="Hide all selected" @click="bulkSetVisibility(false)">Hide</button>
+                  <button class="order-bulk-btn order-bulk-btn--danger" title="Remove selected tokens" @click="bulkRemove">Remove</button>
+                  <button class="order-bulk-btn order-bulk-btn--clear" title="Clear selection" @click="clearSelection()">✕</button>
                 </div>
                 <div class="order-token-list">
                   <div
@@ -437,10 +451,11 @@
                     class="order-token-row"
                     :class="{
                       'order-token-row--active': token.id === currentTurnTokenId,
-                      'order-token-row--selected': editingToken?.id === token.id,
+                      'order-token-row--selected': editingToken?.id === token.id || selectedTokenIds.has(token.id),
                       'order-token-row--dead': token.isDead,
+                      'order-token-row--bulk': selectedTokenIds.has(token.id),
                     }"
-                    @click="selectToken(token)"
+                    @click="onOrderRowClick($event, token)"
                     @contextmenu.prevent="onTokenRowRightClick($event, token)"
                   >
                     <!-- Row 1: thumb | name | initiative | gear (hover-only) -->
@@ -463,7 +478,7 @@
                         </button>
                       </div>
                     </div>
-                    <!-- Row 2: HP bar + HP text | visibility toggle (always shown) -->
+                    <!-- Row 2: HP bar + HP text + quick damage input | visibility toggle -->
                     <div class="order-row-2">
                       <template v-if="token.hpMax">
                         <div class="order-hp-track">
@@ -476,6 +491,15 @@
                           />
                         </div>
                         <span class="order-hp-text">{{ token.hpCurrent ?? 0 }}/{{ token.hpMax }}</span>
+                        <input
+                          class="order-hp-quick-input"
+                          type="number"
+                          placeholder="dmg"
+                          title="Damage (positive) or heal (negative), Enter to apply"
+                          @click.stop
+                          @keyup.enter="applyQuickHp($event, token.id)"
+                          @keyup.esc="($event.target as HTMLInputElement).value = ''"
+                        />
                       </template>
                       <button
                         class="order-vis-btn"
@@ -663,6 +687,7 @@
         @add-token-here="onCtxAddTokenHere"
         @edit-token="onCtxEditToken"
         @add-condition="onCtxAddCondition"
+        @quick-condition="onCtxQuickCondition"
         @set-initiative="onCtxSetInitiative"
         @apply-damage="onCtxApplyDamage"
         @view-record="onCtxViewRecord"
@@ -1177,6 +1202,46 @@ function onCtxAddCondition(tokenId: number) {
   if (token) { conditionToken.value = token }
 }
 
+function onCtxQuickCondition(tokenId: number, name: string) {
+  store.toggleCondition(tokenId, name)
+}
+
+function applyQuickHp(e: KeyboardEvent, tokenId: number) {
+  const input = e.target as HTMLInputElement
+  const val = Number(input.value)
+  if (!val) return
+  store.applyDamage(tokenId, val)
+  input.value = ''
+  input.blur()
+}
+
+// ── Multi-select (Order tab) ──────────────────────────────────────────────────
+const selectedTokenIds = shallowRef<Set<number>>(new Set())
+
+function clearSelection() { selectedTokenIds.value = new Set() }
+
+function onOrderRowClick(event: MouseEvent, token: any) {
+  if (event.shiftKey) {
+    const s = new Set(selectedTokenIds.value)
+    s.has(token.id) ? s.delete(token.id) : s.add(token.id)
+    selectedTokenIds.value = s
+    return
+  }
+  clearSelection()
+  selectToken(token)
+}
+
+function bulkSetVisibility(visible: boolean) {
+  store.bulkSetTokenVisibility(selectedTokenIds.value, visible)
+  clearSelection()
+}
+
+function bulkRemove() {
+  store.bulkRemoveTokens(selectedTokenIds.value)
+  clearSelection()
+}
+
+
 function onCtxSetInitiative(tokenId: number, value: number | null) {
   if (value !== null) store.updateToken(tokenId, { initiative: value })
 }
@@ -1350,7 +1415,13 @@ async function loadCreatureRecords() {
   creaturesLoaded.value = true
 }
 
-watch(libSidebarTab, tab => { if (tab === 'creatures') loadCreatureRecords() })
+const searchInputRef = ref<any>(null)
+
+watch(libSidebarTab, async (tab) => {
+  if (tab === 'creatures') loadCreatureRecords()
+  await nextTick()
+  searchInputRef.value?.$el?.focus()
+})
 
 // ── Shared record search for Add/Edit Library Token modals ────────────────
 const tokenModalRecordSearch = ref('')
@@ -2592,6 +2663,65 @@ function getImageUrl(token: any): string {
   font-size: 11px;
   line-height: 1;
 }
+.init-roll-all-btn {
+  font-size: 14px;
+  margin-left: auto;
+}
+
+/* ── Inline HP quick-damage input ── */
+.order-hp-quick-input {
+  width: 44px;
+  padding: 1px 4px;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
+  text-align: center;
+  outline: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.order-token-row:hover .order-hp-quick-input,
+.order-hp-quick-input:focus { opacity: 1; }
+.order-hp-quick-input:focus { border-color: var(--gold); background: rgba(0,0,0,0.03); }
+.order-hp-quick-input::-webkit-inner-spin-button,
+.order-hp-quick-input::-webkit-outer-spin-button { opacity: 0.4; }
+
+/* ── Multi-select bulk bar ── */
+.order-token-row--bulk { background: rgba(184,134,11,0.08) !important; }
+.order-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(184,134,11,0.1);
+  border-bottom: 1px solid rgba(184,134,11,0.25);
+  flex-shrink: 0;
+}
+.order-bulk-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+  flex: 1;
+}
+.order-bulk-btn {
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid var(--parch-line);
+  background: var(--parch);
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.order-bulk-btn:hover { border-color: var(--gold); }
+.order-bulk-btn--danger { color: var(--blood); }
+.order-bulk-btn--danger:hover { border-color: var(--blood); background: rgba(139,0,0,0.06); }
+.order-bulk-btn--clear { color: var(--ink-ghost); }
 
 /* ── Linked record badge ── */
 .enc-linked-record {
@@ -3343,11 +3473,14 @@ function getImageUrl(token: any): string {
   align-items: center;
 }
 .fov-mode-btn:last-child { border-right: none; }
-.fov-mode-btn:hover { background: rgba(184,134,11,0.1); color: var(--ink); }
+.fov-mode-btn:hover:not(:disabled) { background: rgba(184,134,11,0.1); color: var(--ink); }
 .fov-mode-btn.active {
   background: rgba(184,134,11,0.15);
   color: var(--gold);
 }
+.fov-mode-btn:disabled { cursor: default; }
+.enc-fov-mode-toggle--off { opacity: 0.4; }
+.enc-fov-mode-toggle--off:hover { opacity: 0.6; }
 
 /* ── Wall type sub-toolbar (sidebar / non-floating use) ── */
 .wall-type-toolbar {
