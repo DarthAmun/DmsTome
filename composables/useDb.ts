@@ -53,6 +53,7 @@ export interface DbEncounter {
   round_number?: number
   fov_enabled?: boolean
   sound_playlist_id?: number | null
+  initiative_formula?: string | null
   created_at: string
   updated_at: string
 }
@@ -89,6 +90,7 @@ export interface DbEncounterToken {
   is_player_token: number     // 0 | 1
   image_source: string | null // for creature-direct tokens (token_id = null)
   image_type: 'file' | 'url'
+  elevation: number | null
 }
 
 export interface DbEncounterWall {
@@ -567,6 +569,7 @@ export const dbApi = {
         is_player_token: data.isPlayerToken ? 1 : 0,
         image_source: data.imageSource ?? null,
         image_type: (data.imageType ?? 'file') as 'file' | 'url',
+        elevation: data.elevation ?? null,
       })
       const et = await db.encounterTokens.get(id)
       if (!et) throw new Error(`encounterTokens.add: row ${id} not found after insert`)
@@ -621,6 +624,18 @@ export const dbApi = {
     async search(query: string, limit = 5) {
       const lq = query.toLowerCase()
       return getDb().entities.filter(e => e.name.toLowerCase().includes(lq) || e.type.toLowerCase().includes(lq)).limit(limit).toArray()
+    },
+    async searchByTag(tag: string, limit = 20) {
+      const lq = tag.toLowerCase()
+      const all = await getDb().entities.toArray()
+      return all
+        .filter(e => {
+          try {
+            const attrs = JSON.parse(e.attributes ?? '{}')
+            return Array.isArray(attrs.tags) && attrs.tags.some((t: string) => String(t).toLowerCase().includes(lq))
+          } catch { return false }
+        })
+        .slice(0, limit)
     },
     async get(id: number) {
       const db = getDb()

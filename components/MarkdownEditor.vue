@@ -26,6 +26,7 @@
                     Preview
                 </button>
             </div>
+            <button class="etab-print" title="Print / export as PDF (hidden blocks excluded)" @click="printView"><OhVueIcon name="md-print" scale="0.9" /></button>
         </div>
 
         <slot name="above-editor" />
@@ -76,6 +77,21 @@
                         @click="insertNotes('\n> ', '')"
                     >
                         ❝
+                    </button>
+                    <div class="tb-divider" />
+                    <button
+                        class="tb-btn"
+                        title="Inline dice widget — click to roll in preview (e.g. ::dice[2d6])"
+                        @click="insertNotes('::dice[', ']')"
+                    >
+                        <OhVueIcon name="gi-dice-six-faces-six" scale="0.85" />
+                    </button>
+                    <button
+                        class="tb-btn"
+                        title="Inline table widget — rolls a random table by name (e.g. ::table[My Table])"
+                        @click="insertNotes('::table[', ']')"
+                    >
+                        <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
                     </button>
                     <div class="tb-divider" />
                     <button
@@ -155,7 +171,7 @@
                     v-for="(block, i) in editableBlocks"
                     :key="i"
                     class="mixed-block"
-                    :class="{ 'mixed-block--active': activeBlock === i }"
+                    :class="{ 'mixed-block--active': activeBlock === i, 'mixed-block--hidden': isBlockRedacted(i) }"
                 >
                     <template v-if="activeBlock === i && !readonly">
                         <textarea
@@ -181,6 +197,13 @@
                         "
                         @click="onMixedPreviewClick($event, i)"
                     />
+                    <button
+                        v-if="!readonly && activeBlock !== i"
+                        class="mixed-redact-btn"
+                        :class="{ 'mixed-redact-btn--active': isBlockRedacted(i) }"
+                        :title="isBlockRedacted(i) ? 'Unmark as DM only' : 'Mark as DM only (hidden from players)'"
+                        @click.stop="toggleBlockRedacted(i)"
+                    ><OhVueIcon name="md-lock" scale="0.75" /></button>
                 </div>
                 <button
                     v-if="!readonly"
@@ -227,6 +250,8 @@
 <script setup lang="ts">
 import { useEntities } from "~/composables/useEntities";
 import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
+import { evaluateFormula } from "~/composables/useFormulaEvaluator";
+import type { RandomTableAttributes } from "~/types/entities";
 import { useEntityRendering, typeColorMap, typeIconHtml, giIconByName, iconToSvg, ENCOUNTER_COLOR } from "~/composables/useEntityRendering";
 import { useDiceRoll } from "~/composables/useDiceRoll";
 import { getDb, dbApi } from "~/composables/useDb";
@@ -270,25 +295,31 @@ const entityTypes = [
 const localTypeColorMap: Record<string, string> = { ...typeColorMap, snapshot: "var(--gold)" };
 
 // ── Post-processing ───────────────────────────────────────────────────────────
+const HIDDEN_CALLOUT_TYPE = 'hidden'
+const _ci = (n: string, c: string) => { const i = giIconByName(n); return i ? iconToSvg(i, c) : '' }
+const _diceWidgetIcon = _ci('gi-dice-six-faces-six', 'currentColor')
+const _tableWidgetIcon = _ci('gi-scroll-unfurled', 'currentColor')
+
 const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
-    note: { color: "#5b8ee6", icon: "ℹ️" },
-    info: { color: "#5b8ee6", icon: "ℹ️" },
-    tip: { color: "#5aad6e", icon: "💡" },
-    warning: { color: "#e6a93b", icon: "⚠️" },
-    caution: { color: "#e05a5a", icon: "⚠️" },
-    danger: { color: "#e05a5a", icon: "🔥" },
-    important: { color: "#9b59d4", icon: "❗" },
+    note:      { color: "#5b8ee6", icon: _ci('gi-scroll-unfurled', '#5b8ee6') },
+    info:      { color: "#5b8ee6", icon: _ci('gi-scroll-unfurled', '#5b8ee6') },
+    tip:       { color: "#5aad6e", icon: _ci('gi-sparkles', '#5aad6e') },
+    warning:   { color: "#e6a93b", icon: _ci('gi-lightning-bolt', '#e6a93b') },
+    caution:   { color: "#e05a5a", icon: _ci('gi-lightning-bolt', '#e05a5a') },
+    danger:    { color: "#e05a5a", icon: _ci('gi-crossed-swords', '#e05a5a') },
+    important: { color: "#9b59d4", icon: _ci('gi-labels', '#9b59d4') },
+    [HIDDEN_CALLOUT_TYPE]: { color: "#8b2030", icon: _ci('gi-all-seeing-eye', '#8b2030') },
 };
 
 function postProcessHtml(html: string): string {
     let out = html
         .replace(
             /<li>\s*\[ \]\s*/g,
-            '<li class="task-item"><input type="checkbox" disabled> ',
+            '<li class="task-item"><input type="checkbox"> ',
         )
         .replace(
             /<li>\s*\[x\]\s*/gi,
-            '<li class="task-item task-item--done"><input type="checkbox" checked disabled> ',
+            '<li class="task-item task-item--done"><input type="checkbox" checked> ',
         );
     out = out.replace(
         /<blockquote>\s*<p>\[!([\w]+)\]([^<]*)(?:<br\s*\/?>)?\s*([\s\S]*?)<\/p>\s*<\/blockquote>/gi,
@@ -304,6 +335,15 @@ ${body ? `<div class="callout-body">${body}</div>` : ""}
 </div>`;
         },
     );
+    // Inline widgets: ::dice[expr] and ::table[Name] — single pass
+    out = out.replace(/::(?:(dice)\[([^\]]+)\]|(table)\[([^\]]+)\])/g, (_m, d, dExpr, _t, tName) => {
+        if (d) {
+            const safe = esc(dExpr.trim())
+            return `<button class="inline-widget inline-widget--dice" data-widget="dice" data-expr="${safe}" title="Click to roll ${safe}">${_diceWidgetIcon} ${safe}</button>`
+        }
+        const safe = esc(tName.trim())
+        return `<button class="inline-widget inline-widget--table" data-widget="table" data-table="${safe}" title="Click to roll on: ${safe}">${_tableWidgetIcon} ${safe}</button>`
+    })
     return out;
 }
 
@@ -543,6 +583,41 @@ function onBlockBlur() {
 function addBlock() {
     editableBlocks.value.push("");
     nextTick(() => activateBlock(editableBlocks.value.length - 1));
+}
+
+function printView() { if (import.meta.client) window.print() }
+
+// ── DM-only (redaction) toggle ────────────────────────────────────────────────
+function isBlockRedacted(i: number): boolean {
+    return editableBlocks.value[i]?.trimStart().startsWith(`> [!${HIDDEN_CALLOUT_TYPE}]`) ?? false
+}
+
+function toggleBlockRedacted(i: number) {
+    const block = editableBlocks.value[i]
+    if (isBlockRedacted(i)) {
+        const lines = block.split('\n')
+        const inner = lines
+            .slice(1)
+            .map(l => l.startsWith('> ') ? l.slice(2) : l.startsWith('>') ? l.slice(1) : l)
+            .join('\n')
+            .trim()
+        editableBlocks.value[i] = inner
+    } else {
+        const lines = block.split('\n')
+        editableBlocks.value[i] = `> [!${HIDDEN_CALLOUT_TYPE}]\n` + lines.map(l => `> ${l}`).join('\n')
+    }
+    draftContent.value = editableBlocks.value.join('\n\n')
+    scheduleContentEmit()
+}
+
+// ── Task list toggle ──────────────────────────────────────────────────────────
+function toggleNthTask(text: string, n: number): string {
+    let count = -1
+    return text.replace(/^- \[([ x])\] /gim, (match, state) => {
+        count++
+        if (count === n) return state === ' ' ? '- [x] ' : '- [ ] '
+        return match
+    })
 }
 
 // ── Emit debounce ─────────────────────────────────────────────────────────────
@@ -887,11 +962,73 @@ function onMixedBlockKeydown(e: KeyboardEvent, i: number) {
     }
 }
 
+// ── Inline widget helpers ─────────────────────────────────────────────────────
+function showWidgetResult(btn: HTMLElement, text: string) {
+    btn.parentElement?.querySelectorAll('.inline-widget-result').forEach(el => el.remove())
+    const badge = document.createElement('span')
+    badge.className = 'inline-widget-result'
+    badge.textContent = text
+    btn.after(badge)
+    setTimeout(() => badge.classList.add('inline-widget-result--fade'), 2200)
+    setTimeout(() => badge.remove(), 2800)
+}
+
+function rollOnTable(tableName: string): string {
+    const ent = store.findByTypeAndName('random-table', tableName)
+    if (!ent) return `(table "${tableName}" not found)`
+    const attrs = (ent.attributes ?? {}) as RandomTableAttributes
+    const rows = attrs.rows ?? []
+    if (!rows.length) return '(empty table)'
+    const sides = parseInt((attrs.die ?? 'd20').slice(1)) || 20
+    const roll = Math.floor(Math.random() * sides) + 1
+    const row = rows.find(r => roll >= r.min && roll <= r.max)
+    return row ? `${roll}: ${row.result}` : `${roll}: (no match)`
+}
+
+function handleCheckboxToggle(
+    e: MouseEvent,
+    tgt: HTMLElement,
+    getText: () => string,
+    setText: (s: string) => void,
+): boolean {
+    if (tgt.tagName !== 'INPUT' || (tgt as HTMLInputElement).type !== 'checkbox') return false
+    e.preventDefault()
+    if (props.readonly) return true
+    const container = e.currentTarget as HTMLElement
+    const allBoxes = Array.from(container.querySelectorAll('input[type="checkbox"]'))
+    const idx = allBoxes.indexOf(tgt)
+    if (idx !== -1) {
+        setText(toggleNthTask(getText(), idx))
+        scheduleContentEmit()
+    }
+    return true
+}
+
+async function handleWidgetClick(target: HTMLElement): Promise<boolean> {
+    const btn = target.closest('.inline-widget') as HTMLElement | null
+    if (!btn) return false
+    const kind = btn.dataset.widget
+    if (kind === 'dice') {
+        const expr = btn.dataset.expr ?? 'd20'
+        showWidgetResult(btn, String(evaluateFormula(expr)))
+    } else if (kind === 'table') {
+        const name = btn.dataset.table ?? ''
+        const result = rollOnTable(name)
+        showWidgetResult(btn, result)
+    }
+    return true
+}
+
 // ── Preview click ─────────────────────────────────────────────────────────────
 const { triggerRoll } = useDiceRoll();
 
 async function onPreviewClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
+
+    if (await handleWidgetClick(target)) return;
+
+    if (handleCheckboxToggle(e, target, () => draftContent.value, s => { draftContent.value = s })) return
+
     const rollEl = target.closest(".roll-ref") as HTMLElement | null;
     if (rollEl) {
         const roll = rollEl.dataset.roll;
@@ -953,10 +1090,14 @@ async function onPreviewClick(e: MouseEvent) {
     }
 }
 
-function onMixedPreviewClick(e: MouseEvent, i: number) {
-    const el = (e.target as HTMLElement).closest(
-        "[data-entity-type], .roll-ref",
-    );
+async function onMixedPreviewClick(e: MouseEvent, i: number) {
+    const tgt = e.target as HTMLElement
+    if (await handleWidgetClick(tgt)) return
+    if (handleCheckboxToggle(e, tgt,
+        () => editableBlocks.value[i],
+        s => { editableBlocks.value[i] = s; draftContent.value = editableBlocks.value.join('\n\n') }
+    )) return
+    const el = tgt.closest("[data-entity-type], .roll-ref");
     if (el) {
         onPreviewClick(e);
         return;
@@ -997,6 +1138,12 @@ onUnmounted(() => {
 .etab-spacer {
     flex: 1;
 }
+.etab-print {
+    padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text3); font-size: 13px; cursor: pointer;
+    transition: all 0.12s; align-self: center;
+}
+.etab-print:hover { border-color: var(--border-hi); color: var(--text); }
 .etab-group {
     display: flex;
     border: 1px solid var(--border);
@@ -1088,6 +1235,50 @@ onUnmounted(() => {
     height: 16px;
     background: var(--border-hi);
     margin: 0 3px;
+}
+
+/* ── Inline widgets ───────────────────────────────────────────────── */
+:deep(.inline-widget) {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px;
+    border: 1px solid; cursor: pointer; font-size: 0.85em;
+    font-family: inherit; vertical-align: middle;
+    transition: all 0.12s; margin: 0 2px;
+    position: relative;
+}
+:deep(.inline-widget--dice) {
+    border-color: color-mix(in oklch, var(--gold) 50%, transparent);
+    background: color-mix(in oklch, var(--gold) 8%, transparent);
+    color: var(--gold);
+}
+:deep(.inline-widget--dice:hover) {
+    background: color-mix(in oklch, var(--gold) 18%, transparent);
+    border-color: var(--gold);
+}
+:deep(.inline-widget--table) {
+    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+    background: color-mix(in oklch, var(--accent) 8%, transparent);
+    color: var(--accent-l);
+}
+:deep(.inline-widget--table:hover) {
+    background: color-mix(in oklch, var(--accent) 18%, transparent);
+    border-color: var(--accent-l);
+}
+
+:deep(.inline-widget-result) {
+    display: inline-block; margin-left: 6px;
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--gold); color: #1a1208;
+    font-size: 0.82em; font-weight: 700;
+    vertical-align: middle;
+    animation: widget-pop 0.15s ease-out;
+    transition: opacity 0.6s ease;
+}
+:deep(.inline-widget-result--fade) { opacity: 0; }
+
+@keyframes widget-pop {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
 }
 
 .editor-area-wrap {
@@ -1222,6 +1413,22 @@ onUnmounted(() => {
     border-color: var(--accent);
     background: var(--accent-bg);
 }
+.mixed-block--hidden:not(.mixed-block--active) {
+    opacity: 0.55;
+    border-color: color-mix(in oklch, #8b2030 30%, transparent) !important;
+}
+
+/* DM-only toggle button */
+.mixed-redact-btn {
+    position: absolute; top: 4px; right: 4px;
+    padding: 1px 5px; border-radius: 4px; font-size: 10px;
+    border: 1px solid transparent; background: none; cursor: pointer;
+    opacity: 0; transition: opacity 0.1s, border-color 0.1s;
+    z-index: 2;
+}
+.mixed-block:hover .mixed-redact-btn { opacity: 0.6; }
+.mixed-redact-btn:hover { opacity: 1 !important; border-color: #8b2030; background: oklch(54% 0.24 22 / 0.1); }
+.mixed-redact-btn--active { opacity: 0.9 !important; color: #e87a7a; border-color: #8b2030 !important; background: oklch(54% 0.24 22 / 0.12) !important; }
 
 .mixed-preview {
     padding: 5px 10px;
@@ -1386,7 +1593,7 @@ onUnmounted(() => {
     width: 13px;
     height: 13px;
     vertical-align: middle;
-    cursor: default;
+    cursor: pointer;
 }
 .markdown-body .task-item--done {
     color: var(--ink-ghost);
@@ -1668,5 +1875,40 @@ onUnmounted(() => {
 .ie-snap-badge--unloaded {
     opacity: 0.6;
     border-style: dashed;
+}
+
+/* ── DM-only (hidden) callout ── */
+.callout--hidden {
+    --callout-color: #8b2030;
+}
+.callout--hidden .callout-title::after {
+    content: ' — DM only';
+    font-size: 10px;
+    opacity: 0.6;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ── Print styles ── */
+@media print {
+    .editor-tabbar,
+    .editor-toolbar,
+    .mixed-redact-btn,
+    .mixed-add-btn,
+    .mixed-block--active .mixed-textarea { display: none !important; }
+
+    .callout--hidden { display: none !important; }
+
+    .markdown-editor, .editor-body, .mixed-pane, .mixed-block, .mixed-preview, .preview-pane, .preview-body {
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    .markdown-body { font-size: 12pt; color: #000; }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #111; }
 }
 </style>

@@ -56,6 +56,13 @@
       @navigate="onNavigate"
       @deleted="goToList()"
     />
+    <RegionEditor
+      v-else-if="props.type === 'region'"
+      :entity-id="currentEntry.id"
+      :campaign-id="campaignId"
+      @navigate="onNavigate"
+      @deleted="goToList()"
+    />
     <NoteEditorSimple
       v-else
       :entity-id="currentEntry.id"

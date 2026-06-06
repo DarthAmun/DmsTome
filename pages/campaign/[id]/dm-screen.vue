@@ -23,6 +23,26 @@
       </div>
       <button class="dms-top-btn" @click="resetLayout" title="Reset to default layout">↺ Reset</button>
       <button class="dms-top-btn" @click="clearAll" title="Remove all widgets">⌫ Clear</button>
+
+      <!-- Layout presets -->
+      <div class="dms-presets" ref="presetsRef">
+        <button class="dms-top-btn dms-presets-trigger" @click="showPresets = !showPresets" title="Saved layouts">
+          <OhVueIcon name="md-tune" scale="0.8" /> Layouts {{ presets.length ? `(${presets.length})` : '' }}
+        </button>
+        <div v-if="showPresets" class="dms-presets-dropdown">
+          <div class="dms-presets-head">
+            <span class="dms-presets-title">Saved Layouts</span>
+            <button class="dms-presets-save" @click="promptSavePreset">+ Save current</button>
+          </div>
+          <div v-if="!presets.length" class="dms-presets-empty">No saved layouts yet.</div>
+          <div v-for="p in presets" :key="p.name" class="dms-preset-row">
+            <button class="dms-preset-load" @click="loadPreset(p)">{{ p.name }}</button>
+            <span class="dms-preset-count">{{ p.widgets.length }}w</span>
+            <button class="dms-preset-del" @click="deletePreset(p.name)" title="Delete">✕</button>
+          </div>
+        </div>
+      </div>
+
       <NuxtLink :to="`/campaign/${id}`" class="dms-top-btn dms-top-btn--danger">✕ Exit</NuxtLink>
     </div>
 
@@ -115,7 +135,7 @@
                 @dragstart="!isWidgetPinned(q.kind) && onPalDragStart($event, q.kind)"
                 @dragend="onDragEnd"
                 @dblclick="!isWidgetPinned(q.kind) && addWidget({ kind: q.kind })">
-                <span class="dms-pal-quick-icon">{{ q.icon }}</span>
+                <span class="dms-pal-quick-icon"><OhVueIcon :name="q.icon" scale="1.1" /></span>
                 <span class="dms-pal-quick-label">{{ q.label }}</span>
                 <span v-if="isWidgetPinned(q.kind)" style="font-size:10px;color:var(--success)">✓</span>
               </div>
@@ -237,7 +257,7 @@
               <span class="dms-w-head-kind">{{ widgetKindLabel(w) }}</span>
               <span class="dms-w-head-title">{{ widgetTitle(w) }}</span>
               <div class="dms-w-head-actions">
-                <button v-if="w.kind === 'npc-generator'" class="dms-w-act" title="Configure" @pointerdown.stop @click.stop="npcGenRef?.openConfig()">⚙</button>
+                <button v-if="w.kind === 'npc-generator'" class="dms-w-act" title="Configure" @pointerdown.stop @click.stop="npcGenRef?.openConfig()"><OhVueIcon name="md-settings" scale="0.8" /></button>
                 <button class="dms-w-act del" title="Remove widget" @pointerdown.stop @click="removeWidget(w.id)">✕</button>
               </div>
             </div>
@@ -258,6 +278,7 @@
             <WidgetScratchpad    v-else-if="w.kind === 'scratchpad'"     v-model="scratchpad" class="dms-w-fill" />
             <WidgetNpcGenerator v-else-if="w.kind === 'npc-generator'" :ref="(el: any) => { npcGenRef = el }" :campaign-id="id" :system-id="linkedSystemId" class="dms-w-fill" />
             <WidgetSystemEntity v-else-if="w.kind === 'system-entity' && w.recordId" :record-id="w.recordId" class="dms-w-fill" />
+            <WidgetWeather v-else-if="w.kind === 'weather'" :config="w.config ?? {}" class="dms-w-fill" @update:config="updateWidgetConfig(w.id, $event)" />
             <div v-else class="dms-w-missing">Entity removed or not found.</div>
 
             <!-- Resize handle -->
@@ -551,6 +572,64 @@ function clearAll() {
   }
 }
 
+// ── Widget config ──────────────────────────────────────────────────────────
+function updateWidgetConfig(wid: string, config: Record<string, any>) {
+  const w = widgets.value.find(x => x.id === wid)
+  if (w) w.config = config
+}
+
+// ── Layout presets ─────────────────────────────────────────────────────────
+interface LayoutPreset { name: string; widgets: DmWidget[] }
+const LS_PRESETS = `dmscreen-presets-${id}`
+const presets = ref<LayoutPreset[]>([])
+const showPresets = ref(false)
+const presetsRef = ref<HTMLElement | null>(null)
+
+if (import.meta.client) {
+  try {
+    const raw = localStorage.getItem(LS_PRESETS)
+    if (raw) presets.value = JSON.parse(raw)
+  } catch {}
+}
+
+function savePresets() {
+  try { localStorage.setItem(LS_PRESETS, JSON.stringify(presets.value)) } catch {}
+}
+
+function promptSavePreset() {
+  const name = prompt('Layout name:')?.trim()
+  if (!name) return
+  const existing = presets.value.findIndex(p => p.name === name)
+  const entry: LayoutPreset = { name, widgets: JSON.parse(JSON.stringify(widgets.value)) }
+  if (existing >= 0) presets.value[existing] = entry
+  else presets.value.push(entry)
+  savePresets()
+  showPresets.value = false
+}
+
+function loadPreset(p: LayoutPreset) {
+  if (!confirm(`Load layout "${p.name}"? Current layout will be replaced.`)) return
+  widgets.value = JSON.parse(JSON.stringify(p.widgets))
+  clearSelection()
+  showPresets.value = false
+}
+
+function deletePreset(name: string) {
+  presets.value = presets.value.filter(p => p.name !== name)
+  savePresets()
+}
+
+// Close presets dropdown on outside click
+if (import.meta.client) {
+  const onDocClick = (e: MouseEvent) => {
+    if (showPresets.value && presetsRef.value && !presetsRef.value.contains(e.target as Node)) {
+      showPresets.value = false
+    }
+  }
+  onMounted(() => document.addEventListener('click', onDocClick))
+  onUnmounted(() => document.removeEventListener('click', onDocClick))
+}
+
 // ── Widget helpers ─────────────────────────────────────────────────────────
 function getEntity(w: DmWidget) {
   if (!w.entityId) return null
@@ -689,12 +768,13 @@ const paletteQuery = ref('')
 const ENTITY_TYPES = ENTITY_TYPE_LIST
 
 const QUICK_WIDGETS = [
-  { kind: 'encounter-link'  as WidgetKind, label: 'Encounter',       icon: '⚔' },
-  { kind: 'conditions-grid' as WidgetKind, label: 'Conditions Grid', icon: '☣' },
-  { kind: 'timer'           as WidgetKind, label: 'Timer',           icon: '⏱' },
-  { kind: 'rules-lookup'    as WidgetKind, label: 'Rules Lookup',    icon: '⊞' },
-  { kind: 'scratchpad'      as WidgetKind, label: 'Scratchpad',      icon: '✎' },
-  { kind: 'npc-generator'   as WidgetKind, label: 'NPC Generator',   icon: '🎲' },
+  { kind: 'encounter-link'  as WidgetKind, label: 'Encounter',       icon: 'gi-broadsword' },
+  { kind: 'conditions-grid' as WidgetKind, label: 'Conditions Grid', icon: 'gi-poison' },
+  { kind: 'timer'           as WidgetKind, label: 'Timer',           icon: 'gi-hourglass' },
+  { kind: 'rules-lookup'    as WidgetKind, label: 'Rules Lookup',    icon: 'gi-book-aura' },
+  { kind: 'scratchpad'      as WidgetKind, label: 'Scratchpad',      icon: 'gi-scroll-unfurled' },
+  { kind: 'npc-generator'   as WidgetKind, label: 'NPC Generator',   icon: 'gi-person' },
+  { kind: 'weather'         as WidgetKind, label: 'Weather',         icon: 'gi-lightning-bolt' },
 ]
 
 const openGroups = reactive<Record<string, boolean>>({
@@ -1054,6 +1134,30 @@ const bookmarkPalItems = computed(() =>
 .dms-zoom-ctrl { display: flex; gap: 1px; }
 .dms-zoom-btn { padding: 6px 10px; font-size: 14px; font-weight: 600; min-width: 32px; justify-content: center; }
 .dms-zoom-pct { min-width: 52px; justify-content: center; font-family: var(--fm); font-size: 11px; }
+
+/* ── Layout presets ── */
+.dms-presets { position: relative; }
+.dms-presets-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 400;
+  min-width: 240px;
+  background: var(--surface-solid); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: var(--sh-md); overflow: hidden;
+}
+.dms-presets-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface-hi);
+}
+.dms-presets-title { font-size: 11px; font-weight: 700; color: var(--text2); font-family: var(--fm); letter-spacing: 0.06em; text-transform: uppercase; }
+.dms-presets-save { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent-l); cursor: pointer; }
+.dms-presets-empty { padding: 12px; font-size: 12px; color: var(--text3); font-style: italic; text-align: center; }
+.dms-preset-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--parch-line); }
+.dms-preset-row:last-child { border-bottom: none; }
+.dms-preset-load { flex: 1; text-align: left; font-size: 12px; font-weight: 600; color: var(--text); background: none; border: none; cursor: pointer; padding: 4px 0; }
+.dms-preset-load:hover { color: var(--accent-l); }
+.dms-preset-count { font-size: 10px; color: var(--text3); font-family: var(--fm); flex-shrink: 0; }
+.dms-preset-del { font-size: 10px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 2px 4px; border-radius: 3px; flex-shrink: 0; }
+.dms-preset-del:hover { color: var(--danger); background: var(--danger-bg); }
 
 /* ── Body ── */
 .dms-body { position: relative; z-index: 1; flex: 1; display: flex; overflow: hidden; }

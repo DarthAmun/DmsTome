@@ -1,4 +1,4 @@
-export type EntityType = 'session' | 'note' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'random-table' | 'rumor'
+export type EntityType = 'session' | 'note' | 'npc' | 'location' | 'faction' | 'quest' | 'event' | 'random-table' | 'rumor' | 'region'
 
 // Shape reference — used via EntityAttributes union
 export interface NpcAttributes {
@@ -92,6 +92,36 @@ export interface RumorAttributes {
   tags?: string[]
 }
 
+export interface RegionPolygonPoint { x: number; y: number }
+
+// Shape reference — used via EntityAttributes union
+export interface RegionAttributes {
+  locationEntityId: number | null   // null = campaign world map
+  polygon: RegionPolygonPoint[]
+  color: string
+}
+
+export const REGION_COLORS = [
+  '#5fc98a', '#4ab8e8', '#e8924a', '#e05555', '#b87de8',
+  '#e8c44a', '#c86fa8', '#7cc44e', '#a87de8', '#4ae8d5',
+] as const
+
+/** Normalize 0–1 fraction polygon points into a fixed SVG viewport with bbox-fitting and padding. */
+export function normalizePolygon(
+  pts: RegionPolygonPoint[],
+  svgW: number,
+  svgH: number,
+  pad = 12,
+): { x: number; y: number }[] {
+  if (!pts.length) return []
+  const xs = pts.map(p => p.x)
+  const ys = pts.map(p => p.y)
+  const minX = Math.min(...xs), maxX = Math.max(...xs)
+  const minY = Math.min(...ys), maxY = Math.max(...ys)
+  const scale = Math.min((svgW - pad * 2) / (maxX - minX || 1), (svgH - pad * 2) / (maxY - minY || 1))
+  return pts.map(p => ({ x: pad + (p.x - minX) * scale, y: pad + (p.y - minY) * scale }))
+}
+
 export const RUMOR_STATUS_COLORS: Record<string, string> = {
   unheard:  'var(--text3)',
   heard:    '#6b9fe8',
@@ -126,7 +156,7 @@ export interface PinnedLocation {
   y: number
 }
 
-export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes | RandomTableAttributes | RumorAttributes
+export type EntityAttributes = NpcAttributes | LocationAttributes | FactionAttributes | NoteAttributes | QuestAttributes | EventAttributes | SessionAttributes | RandomTableAttributes | RumorAttributes | RegionAttributes
 
 export const ENTITY_TYPE_ROUTE: Record<EntityType, string> = {
   session:        'sessions',
@@ -138,6 +168,7 @@ export const ENTITY_TYPE_ROUTE: Record<EntityType, string> = {
   event:          'events',
   'random-table': 'random-tables',
   rumor:          'rumors',
+  region:         'regions',
 }
 
 export const ENTITY_TYPE_CONFIG: Record<EntityType, {
@@ -155,6 +186,7 @@ export const ENTITY_TYPE_CONFIG: Record<EntityType, {
   event:          { label: 'Event',        plural: 'Events',        color: '#4ab8e8', defaultIcon: 'gi-sands-of-time' },
   'random-table': { label: 'Random Table', plural: 'Random Tables', color: '#e8c44a', defaultIcon: 'gi-dice-six-faces-six' },
   rumor:          { label: 'Rumor',        plural: 'Rumors',        color: '#c86fa8', defaultIcon: 'gi-speaker' },
+  region:         { label: 'Region',       plural: 'Regions',       color: '#5fc98a', defaultIcon: 'gi-forest' },
 }
 
 /** Pre-built list from ENTITY_TYPE_CONFIG + ENTITY_TYPE_ROUTE. Import this instead of re-deriving in each component. */

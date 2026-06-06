@@ -15,7 +15,7 @@
           <button v-if="type === 'location'" class="elist-vbtn" :class="{ active: route.path.endsWith('/map') }" :disabled="!activeEntryId" @click="setView('map')">Map</button>
         </div>
         <button class="elist-export-btn" title="Export as JSON" @click="exportEntries">↓ JSON</button>
-        <button class="btn-accent-sm" @click="createEntry">+ New</button>
+        <button v-if="type !== 'region'" class="btn-accent-sm" @click="createEntry">+ New</button>
       </div>
 
       <div class="elist-search">
@@ -64,7 +64,8 @@
             {{ typeConfig?.plural?.charAt(0) }}
           </div>
           <span>{{ search ? 'No results' : `No ${typeConfig?.plural?.toLowerCase()} yet` }}</span>
-          <button class="btn-accent-sm" style="margin-top: 8px" @click="createEntry">Create one</button>
+          <button v-if="type !== 'region'" class="btn-accent-sm" style="margin-top: 8px" @click="createEntry">Create one</button>
+          <span v-else style="font-size:11px;color:var(--ink-ghost);margin-top:6px">Draw regions on the World Map</span>
         </div>
 
         <div
@@ -107,11 +108,12 @@ import SessionEntry     from '~/components/notes/SessionEntry.vue'
 import NoteEntry        from '~/components/notes/NoteEntry.vue'
 import RandomTableEntry from '~/components/notes/RandomTableEntry.vue'
 import RumorEntry       from '~/components/notes/RumorEntry.vue'
+import RegionEntry      from '~/components/notes/RegionEntry.vue'
 
 const ENTRY_COMPONENTS: Record<EntityType, any> = {
   npc: NpcEntry, location: LocationEntry, faction: FactionEntry,
   quest: QuestEntry, event: EventEntry, session: SessionEntry, note: NoteEntry,
-  'random-table': RandomTableEntry, rumor: RumorEntry,
+  'random-table': RandomTableEntry, rumor: RumorEntry, region: RegionEntry,
 }
 
 const props = defineProps<{ type: EntityType }>()

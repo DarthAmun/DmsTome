@@ -28,7 +28,7 @@
               ref="inputRef"
               v-model="query"
               class="gs-input"
-              :placeholder="inCommandMode ? 'Type a command — goto, add, find, set, theme…' : 'Search campaigns, entities, records… or type > for commands'"
+              :placeholder="inCommandMode ? 'Type a command — goto, add, find, set, theme…' : 'Search… or #tag for tag search, > for commands'"
               autocomplete="off"
               @keydown="onKeydown"
             />
@@ -444,6 +444,38 @@ watch(inCommandMode, (val) => {
 // ── Search ────────────────────────────────────────────────────────────────────
 
 async function runSearch(q: string) {
+  // Tag search mode
+  if (q.startsWith('#')) {
+    const tag = q.slice(1).toLowerCase()
+    if (!tag) {
+      results.value = { campaigns: [], entities: [], records: [], encounters: [], graphs: [] }
+      loading.value = false
+      return
+    }
+    const entityDbRows = await dbApi.entities.searchByTag(tag, 20)
+    const entities: SearchResult[] = entityDbRows.map((r: any) => ({
+      kind: 'entity' as const,
+      id: r.id,
+      name: r.name,
+      type: r.type,
+      campaignId: r.campaign_id,
+      entity: notesStore.entities.find(en => en.id === r.id) ?? {
+        id: r.id,
+        campaignId: r.campaign_id,
+        type: r.type,
+        name: r.name,
+        content: r.content,
+        attributes: JSON.parse(r.attributes ?? '{}'),
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      },
+    }))
+    results.value = { campaigns: [], entities, records: [], encounters: [], graphs: [] }
+    cursor.value = 0
+    loading.value = false
+    return
+  }
+
   const lq = q.toLowerCase()
 
   const allCampaigns = await dbApi.campaigns.list()

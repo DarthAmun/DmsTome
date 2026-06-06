@@ -88,6 +88,12 @@
                 <select v-model="localSize" class="tem-select">
                   <option v-for="opt in tokenSizeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
+
+                <label class="tem-label" style="margin-top:10px">
+                  Elevation
+                  <span class="tem-hint-inline">ft / tiles · blank = ground</span>
+                </label>
+                <input v-model.number="localElevation" type="number" class="tem-num-input" placeholder="0" />
               </div>
             </div>
           </div>
@@ -197,6 +203,7 @@ const localConditions = ref<TokenCondition[]>([])
 const localLinkedRecordId = ref<number | null>(null)
 const localIsPlayerToken = ref(false)
 const localVisionRange = ref<number | null>(null)
+const localElevation = ref<number | null>(null)
 
 // Reset local state whenever the token changes
 watch(() => props.token, (tok) => {
@@ -211,6 +218,7 @@ watch(() => props.token, (tok) => {
   localLinkedRecordId.value = tok.linkedRecordId
   localIsPlayerToken.value = tok.isPlayerToken ?? false
   localVisionRange.value = tok.visionRange ?? null
+  localElevation.value = tok.elevation ?? null
   linkedRecordName.value = null
   changingLink.value = false
   linkSearch.value = ''
@@ -312,6 +320,7 @@ function save() {
   if (localLinkedRecordId.value !== props.token.linkedRecordId) changes.linkedRecordId = localLinkedRecordId.value
   if (localIsPlayerToken.value !== (props.token.isPlayerToken ?? false)) changes.isPlayerToken = localIsPlayerToken.value
   if (localVisionRange.value !== props.token.visionRange) changes.visionRange = localVisionRange.value || null
+  if (localElevation.value !== props.token.elevation) changes.elevation = localElevation.value ?? null
 
   // Optionally sync HP/AC from newly linked record
   if (pendingLink.value && syncHpAc.value) {

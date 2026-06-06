@@ -31,10 +31,36 @@
         <template #icon><OhVueIcon name="gi-all-seeing-eye" scale="0.85" /></template>
         {{ pinMode ? 'Cancel Pin' : 'Add Pin' }}
       </Button>
+      <Button
+        :severity="drawMode ? undefined : 'secondary'"
+        size="small"
+        :title="drawMode ? 'Click to add vertices, double-click to finish' : 'Draw a map region'"
+        @click="drawMode ? cancelDraw() : startDraw()"
+      >
+        <template #icon><OhVueIcon name="gi-forest" scale="0.85" /></template>
+        {{ drawMode ? 'Cancel Region' : 'Draw Region' }}
+      </Button>
       <Button severity="secondary" size="small" title="Open player map view" @click="openPlayerView">
         <template #icon><OhVueIcon name="md-openinnew" scale="0.85" /></template>
         Player View
       </Button>
+    </div>
+
+    <!-- Draw region hint bar (DM only) -->
+    <div v-if="!playerMode && drawMode" class="draw-hint-bar">
+      <span class="draw-hint-text">
+        Click to place vertices ({{ drawingPolygon.length }} placed) · Double-click to finish · Esc to cancel
+      </span>
+      <div class="draw-color-row">
+        <button
+          v-for="c in REGION_COLORS" :key="c"
+          class="draw-swatch"
+          :class="{ active: drawColor === c }"
+          :style="{ background: c }"
+          @click="drawColor = c"
+        />
+      </div>
+      <button class="draw-finish-btn" :disabled="drawingPolygon.length < 3" @click="showRegionDialog = true">Finish</button>
     </div>
 
     <!-- Pin entity picker (DM only, shown when pinMode is active) -->
@@ -75,7 +101,7 @@
     </div>
 
     <!-- Map canvas area -->
-    <div class="map-canvas-wrap" ref="canvasWrap">
+    <div class="map-canvas-wrap" :class="{ 'draw-mode': drawMode }" ref="canvasWrap">
       <div
         v-if="mapImageUrl"
         class="map-image-container"
@@ -83,6 +109,7 @@
         @mousedown="onMapMouseDown"
         @wheel.prevent="onWheel"
         @click="onMapClick"
+        @dblclick.stop="onMapDblClick"
       >
         <img
           ref="mapImg"
@@ -91,6 +118,82 @@
           draggable="false"
           @load="onImageLoad"
         />
+
+        <!-- Regions SVG overlay -->
+        <svg
+          class="map-regions-svg"
+          :width="imgNaturalW"
+          :height="imgNaturalH"
+          :viewBox="`0 0 ${imgNaturalW} ${imgNaturalH}`"
+        >
+          <!-- Existing regions -->
+          <g
+            v-for="{ r, polygon, color, centroid } in currentRegions"
+            :key="r.id"
+            class="region-group"
+            @mouseenter="hoveredRegionId = r.id"
+            @mouseleave="hoveredRegionId = null"
+            @click="onRegionClick(r, $event)"
+          >
+            <polygon
+              v-if="polygon.length >= 3"
+              :points="polygon.map(p => `${p.x * imgNaturalW},${p.y * imgNaturalH}`).join(' ')"
+              :fill="color + (hoveredRegionId === r.id ? '55' : '33')"
+              :stroke="color"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <text
+              v-if="polygon.length >= 3"
+              :x="centroid.x * imgNaturalW"
+              :y="centroid.y * imgNaturalH"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              :font-size="Math.max(10, 13 / zoom)"
+              font-family="'DM Sans', sans-serif"
+              font-weight="600"
+              :fill="color"
+              paint-order="stroke"
+              stroke="rgba(0,0,0,0.7)"
+              :stroke-width="Math.max(2, 3 / zoom)"
+              style="pointer-events: none"
+            >{{ r.name }}</text>
+          </g>
+
+          <!-- In-progress drawing polygon -->
+          <g v-if="drawMode && drawingPolygon.length > 0" style="pointer-events: none">
+            <polyline
+              :points="drawingPolygon.map(p => `${p.x * imgNaturalW},${p.y * imgNaturalH}`).join(' ')"
+              fill="none"
+              :stroke="drawColor"
+              stroke-width="2"
+              stroke-dasharray="8,5"
+              stroke-linecap="round"
+            />
+            <!-- Closing preview line -->
+            <line
+              v-if="drawingPolygon.length >= 3"
+              :x1="drawingPolygon[drawingPolygon.length - 1].x * imgNaturalW"
+              :y1="drawingPolygon[drawingPolygon.length - 1].y * imgNaturalH"
+              :x2="drawingPolygon[0].x * imgNaturalW"
+              :y2="drawingPolygon[0].y * imgNaturalH"
+              :stroke="drawColor"
+              stroke-width="1"
+              stroke-dasharray="4,4"
+              opacity="0.45"
+            />
+            <circle
+              v-for="(pt, i) in drawingPolygon"
+              :key="i"
+              :cx="pt.x * imgNaturalW"
+              :cy="pt.y * imgNaturalH"
+              r="5"
+              :fill="drawColor"
+              stroke="white"
+              stroke-width="1.5"
+            />
+          </g>
+        </svg>
 
         <!-- Pins -->
         <div
@@ -128,6 +231,83 @@
           <template #icon><OhVueIcon name="md-map" scale="0.85" /></template>
           Load Map Image
         </Button>
+      </div>
+    </div>
+
+    <!-- Region creation dialog -->
+    <div v-if="showRegionDialog" class="pin-preview-overlay" @click.self="cancelDraw">
+      <div class="pin-preview rge-dialog">
+        <div class="pin-preview-body">
+          <div class="pin-preview-type" style="color: #5fc98a">New Region</div>
+          <div class="rge-dialog-name-row">
+            <input
+              v-model="newRegionName"
+              class="rge-dialog-name-input"
+              placeholder="Region name…"
+              autofocus
+              @keyup.enter="confirmCreateRegion"
+              @keyup.esc="cancelDraw"
+            />
+          </div>
+          <div class="rge-dialog-color-row">
+            <button
+              v-for="c in REGION_COLORS"
+              :key="c"
+              class="rge-dialog-swatch"
+              :class="{ active: drawColor === c }"
+              :style="{ background: c, outline: drawColor === c ? `2px solid ${c}` : 'none' }"
+              @click="drawColor = c"
+            />
+          </div>
+          <div class="rge-dialog-preview">
+            <svg viewBox="0 0 200 120" width="200" height="120" style="display:block">
+              <polygon
+                :points="normalizePolygon(drawingPolygon, 200, 120).map(p => `${p.x},${p.y}`).join(' ')"
+                :fill="drawColor + '44'"
+                :stroke="drawColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div class="pin-preview-actions">
+            <Button size="small" @click="confirmCreateRegion">Create Region</Button>
+            <button class="pin-remove-btn" style="margin-left:auto" @click="cancelDraw">
+              <OhVueIcon name="md-close" scale="0.85" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Region preview popup -->
+    <div v-if="previewRegion" class="pin-preview-overlay" @click.self="previewRegion = null">
+      <div class="pin-preview">
+        <div class="pin-preview-body">
+          <div class="pin-preview-type" :style="{ color: regionColor(previewRegion) }">Region</div>
+          <h3 class="pin-preview-name">{{ previewRegion.name }}</h3>
+          <div class="rge-dialog-preview" style="margin: 8px 0">
+            <svg viewBox="0 0 200 100" width="200" height="100" style="display:block;border-radius:6px">
+              <polygon
+                v-if="regionPolygon(previewRegion).length >= 3"
+                :points="normalizePolygon(regionPolygon(previewRegion), 200, 100).map(p => `${p.x},${p.y}`).join(' ')"
+                :fill="regionColor(previewRegion) + '44'"
+                :stroke="regionColor(previewRegion)"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div class="pin-preview-actions">
+            <Button size="small" severity="secondary" @click="navigateToRegion(previewRegion)">
+              <template #icon><OhVueIcon name="md-editnote" scale="0.85" /></template>
+              Open Notes
+            </Button>
+            <button class="pin-remove-btn" title="Delete region" @click="deleteRegion(previewRegion.id)">
+              <OhVueIcon name="md-delete" scale="0.85" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -198,7 +378,8 @@
 import { useEntities } from '~/composables/useEntities'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import { extractLinks } from '~/composables/useEntityParser'
-import type { MapPin } from '~/types/entities'
+import type { MapPin, RegionAttributes } from '~/types/entities'
+import { REGION_COLORS, normalizePolygon } from '~/types/entities'
 
 const props = defineProps<{
   campaignId: number
@@ -340,6 +521,100 @@ function onMouseUp() {
   window.removeEventListener('mouseup', onMouseUp)
 }
 
+// ── Region drawing ────────────────────────────────────────────────────────────
+const drawMode = ref(false)
+const drawingPolygon = ref<{ x: number; y: number }[]>([])
+const drawColor = ref('#5fc98a')
+const showRegionDialog = ref(false)
+const newRegionName = ref('')
+const hoveredRegionId = ref<number | null>(null)
+const previewRegion = ref<any>(null)
+
+const currentRegions = computed(() =>
+  store.entities
+    .filter(e => {
+      if (e.type !== 'region' || e.campaignId !== props.campaignId) return false
+      const attrs = (e.attributes ?? {}) as RegionAttributes
+      return attrs.locationEntityId === currentLocationId.value
+    })
+    .map(r => {
+      const attrs = (r.attributes ?? {}) as RegionAttributes
+      const polygon = attrs.polygon ?? []
+      const color = attrs.color ?? '#5fc98a'
+      const centroid = polygon.length
+        ? { x: polygon.reduce((s, p) => s + p.x, 0) / polygon.length,
+            y: polygon.reduce((s, p) => s + p.y, 0) / polygon.length }
+        : { x: 0.5, y: 0.5 }
+      return { r, polygon, color, centroid }
+    })
+)
+
+function regionAttrs(r: any): RegionAttributes {
+  return (r.attributes ?? {}) as RegionAttributes
+}
+
+function regionPolygon(r: any): { x: number; y: number }[] {
+  return regionAttrs(r).polygon ?? []
+}
+
+function regionColor(r: any): string {
+  return regionAttrs(r).color ?? '#5fc98a'
+}
+
+
+function onRegionClick(r: any, e: MouseEvent) {
+  if (drawMode.value) return  // let click bubble to container for vertex placement
+  e.stopPropagation()
+  previewRegion.value = r
+}
+
+function openRegionPreview(r: any) {
+  previewRegion.value = r
+}
+
+function startDraw() {
+  drawMode.value = true
+  drawingPolygon.value = []
+  pinMode.value = false
+  selectedEntityForPin.value = null
+}
+
+function cancelDraw() {
+  drawMode.value = false
+  drawingPolygon.value = []
+  showRegionDialog.value = false
+  newRegionName.value = ''
+}
+
+function onMapDblClick(_e: MouseEvent) {
+  if (!drawMode.value) return
+  // Remove the extra vertex added by the second click of the dblclick
+  if (drawingPolygon.value.length > 0) drawingPolygon.value.pop()
+  if (drawingPolygon.value.length >= 3) {
+    showRegionDialog.value = true
+  }
+}
+
+async function confirmCreateRegion() {
+  const name = newRegionName.value.trim() || 'New Region'
+  await store.createEntity(props.campaignId, 'region', name, {
+    locationEntityId: currentLocationId.value,
+    polygon: [...drawingPolygon.value],
+    color: drawColor.value,
+  } as RegionAttributes)
+  cancelDraw()
+}
+
+async function deleteRegion(id: number) {
+  await store.deleteEntity(id)
+  previewRegion.value = null
+}
+
+function navigateToRegion(r: any) {
+  previewRegion.value = null
+  emit('navigate-entity', r)
+}
+
 // Pin placement
 const pinMode = ref(false)
 const selectedEntityForPin = ref<any>(null)
@@ -357,12 +632,17 @@ const filteredPinEntities = computed(() => {
 
 function onMapClick(e: MouseEvent) {
   if (hasMoved) return  // was a pan drag, not a click
-  if (!pinMode.value || !selectedEntityForPin.value) return
-  // coords relative to the image container (already accounts for transform via CSS)
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const x = (e.clientX - rect.left) / (imgNaturalW.value * zoom.value)
-  const y = (e.clientY - rect.top) / (imgNaturalH.value * zoom.value)
-  addPin(selectedEntityForPin.value.id, Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y)))
+  const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / (imgNaturalW.value * zoom.value)))
+  const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / (imgNaturalH.value * zoom.value)))
+
+  if (drawMode.value) {
+    drawingPolygon.value.push({ x, y })
+    return
+  }
+
+  if (!pinMode.value || !selectedEntityForPin.value) return
+  addPin(selectedEntityForPin.value.id, x, y)
   pinMode.value = false
   selectedEntityForPin.value = null
 }
@@ -480,9 +760,15 @@ function openPlayerView() {
   window.dmstome.window.openMapPlayer(props.campaignId, currentLocationId.value)
 }
 
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && drawMode.value) cancelDraw()
+}
+
+onMounted(() => window.addEventListener('keydown', onKeyDown))
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
+  window.removeEventListener('keydown', onKeyDown)
 })
 </script>
 
@@ -566,6 +852,61 @@ onUnmounted(() => {
 
 .map-canvas-wrap { flex: 1; overflow: hidden; position: relative; cursor: grab; }
 .map-canvas-wrap:active { cursor: grabbing; }
+.map-canvas-wrap.draw-mode { cursor: crosshair; }
+.map-canvas-wrap.draw-mode:active { cursor: crosshair; }
+
+/* ── Regions SVG ─────────────────────────────────────────────────── */
+.map-regions-svg {
+  position: absolute; top: 0; left: 0; pointer-events: none;
+  overflow: visible;
+}
+.region-group { pointer-events: fill; cursor: pointer; }
+.region-group polygon { transition: fill 0.15s; }
+
+/* ── Draw-mode hint bar ──────────────────────────────────────────── */
+.draw-hint-bar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px;
+  background: color-mix(in oklch, var(--parch-dark) 85%, #5fc98a);
+  border-bottom: 1px solid color-mix(in oklch, var(--parch-line) 60%, #5fc98a);
+}
+.draw-hint-text { font-size: 11px; color: var(--ink); flex: 1; white-space: nowrap; }
+.draw-color-row { display: flex; gap: 5px; align-items: center; }
+.draw-swatch {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: transform 0.1s, border-color 0.1s;
+}
+.draw-swatch:hover { transform: scale(1.2); }
+.draw-swatch.active { border-color: white; }
+.draw-finish-btn {
+  padding: 3px 10px; border-radius: var(--r-pill); font-size: 11px; font-weight: 600;
+  border: 1px solid var(--parch-line); background: var(--parch-dark); color: var(--ink);
+  cursor: pointer; transition: all 0.1s; white-space: nowrap;
+}
+.draw-finish-btn:hover:not(:disabled) { border-color: #5fc98a; color: #5fc98a; }
+.draw-finish-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Region creation dialog ──────────────────────────────────────── */
+.rge-dialog { min-width: 260px; }
+.rge-dialog-name-row { margin: 10px 0 8px; }
+.rge-dialog-name-input {
+  width: 100%; padding: 7px 10px; border-radius: var(--r);
+  border: 1px solid var(--parch-line); background: var(--parch-dark);
+  color: var(--ink); font-size: 14px; font-family: 'DM Sans', sans-serif;
+  outline: none;
+}
+.rge-dialog-name-input:focus { border-color: #5fc98a; }
+.rge-dialog-color-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.rge-dialog-swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: transform 0.1s; outline-offset: 2px;
+}
+.rge-dialog-swatch:hover { transform: scale(1.15); }
+.rge-dialog-swatch.active { border-color: white; }
+.rge-dialog-preview {
+  background: rgba(0,0,0,0.15); border-radius: var(--r); padding: 6px;
+  display: flex; justify-content: center; margin-bottom: 8px;
+}
 .map-image-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; user-select: none; }
 .map-image { display: block; max-width: none; }
 

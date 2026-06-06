@@ -1,19 +1,22 @@
-# DM Forge
+# DM's Tome
 
-An offline-first Progressive Web App for Dungeon Masters — campaign notes, world maps, and a full VTT encounter system. Runs entirely in the browser with no server required. Can be hosted for free on GitHub Pages.
+An offline-first Progressive Web App for Game Masters — campaign notes, world maps, a full VTT encounter system, and a customisable rules library. Runs entirely in the browser with no server required. Can be hosted for free on GitHub Pages.
 
 ## Technology Stack
 
 | Layer | Tech |
 |-------|------|
 | App | PWA (installable, offline-capable) |
-| Database | IndexedDB via Dexie.js |
+| Database | IndexedDB via Dexie.js (schema v13) |
 | Frontend | Nuxt 3 (static/CSR) + Vue 3 |
 | Styling | Tailwind CSS |
-| UI Components | PrimeVue (unstyled) |
+| UI Components | PrimeVue v4 (unstyled) |
 | Icons | oh-vue-icons |
 | State | Pinia |
 | Canvas / VTT | PixiJS v8 |
+| Knowledge Graph | Vue Flow + Cytoscape |
+| Markdown | markdown-it + DOMPurify |
+| Import / Export | JSZip |
 | Sync | BroadcastChannel API |
 
 ---
@@ -44,108 +47,139 @@ Live at: `https://your-username.github.io/your-repo-name/`
 
 ---
 
-## Project Structure
-
-```
-dm-forge/
-├── composables/
-│   ├── useDb.ts               # Dexie/IndexedDB layer (all data access)
-│   └── useEncounterCanvas.ts  # PixiJS VTT engine
-│
-├── plugins/
-│   ├── dmforge.client.ts      # Exposes window.dmforge → Dexie API
-│   └── oh-vue-icons.client.ts
-│
-├── pages/
-│   ├── index.vue                          # Campaign dashboard
-│   ├── campaign/[id]/encounters.vue       # Encounters list
-│   ├── campaign/[id]/notes.vue            # Notes / NPCs / Locations
-│   ├── campaign/[id]/map.vue              # World map with pins
-│   └── encounter/[id]/
-│       ├── index.vue                      # DM encounter view (PixiJS)
-│       └── player.vue                     # Player view (read-only)
-│
-├── components/
-│   ├── WorldMap.vue           # Interactive map with entity pins
-│   ├── NoteEditor.vue         # Split-pane markdown editor + preview
-│   ├── EntityCard.vue         # Card for notes/NPCs/locations/items/factions
-│   ├── AttributeEditor.vue    # Per-type attribute forms
-│   └── NotesGraph.vue         # Cytoscape relationship graph
-│
-├── stores/
-│   ├── encounter.ts           # Encounter state + player sync
-│   └── notes.ts               # Entities (notes, NPCs, locations…)
-│
-├── types/
-│   └── dmforge.d.ts           # window.dmforge type declarations
-│
-├── public/
-│   ├── icons/                 # PWA icons (replace placeholders)
-│   └── favicon.svg
-│
-└── .github/workflows/
-    └── deploy.yml             # GitHub Pages auto-deploy
-```
-
----
-
 ## Features
 
 ### Campaign Management
-- Multiple campaigns, each with their own encounters, notes, and world map
-- All data persists offline in IndexedDB
+- Multiple campaigns, each with a banner image, description, and full set of content
+- Dashboard overview with quick stats and navigation to all sections
+- All data persists offline in IndexedDB — no account or server needed
 
-### Notes & Entities
-- Five entity types: Notes, NPCs, Locations, Items, Factions
-- Markdown editor with live split-pane preview
-- `{{type: Name | key=value}}` syntax for entity links
-- Relationship graph view (Cytoscape)
-- World map with pins linking entities to locations
+### Lore & World-Building
+
+Nine entity types per campaign, each with a dedicated section:
+
+| Type | Purpose |
+|------|---------|
+| Notes | Freeform markdown documents |
+| NPCs | Characters with typed attribute blocks |
+| Locations | Places with optional map images, sub-maps, and logo/banner |
+| Factions | Organizations and groups |
+| Events | World/story events with an optional timeline view |
+| Sessions | Session summaries and logs |
+| Quests | Quest tracking with status |
+| Rumors | Rumor seeds and hooks |
+| Random Tables | Rollable tables for improvisation |
+
+Every entity supports:
+- Markdown editor with live preview
+- Typed attribute fields (stat blocks, images, dice, tags, links, clocks, checklists, and more)
+- Entity links via `{{entity: Name}}` inline syntax
+- Version snapshots with a labeled timeline (e.g. "Before Ascension", "Session 12")
+
+### Knowledge Graph
+- Interactive node graph of all campaign entities (Vue Flow)
+- Create and label directional or bi-directional connections between entities
+- Customize edge style and color per connection
+- Save and restore named graph layouts
+- Player-facing read-only graph view in a separate tab
 
 ### World Map
-- Load any image as a map (stored as base64)
-- Pin any entity (NPC, faction, note…) to a location on the map
-- Click pins for inline preview, drill down into sub-maps (city → district → dungeon)
-- Locations support separate logo/banner and map images
+- Load any image as a world map (stored as base64 or URL)
+- Pin any entity — NPC, faction, location, note — to a point on the map
+- Click pins for an inline preview panel; drill into sub-maps (world → city → dungeon)
+- Location entities each carry their own map with their own pins
 
-### Encounters (VTT)
-- Load map image, configure grid size and offset
-- Token library — drag tokens onto the map, snap to grid
-- Per-token: HP, initiative, size, conditions, visibility, dead/alive
-- Fog of War — paint cells, hide all / reveal all
-- Player View — opens in a separate browser tab, syncs in real-time via BroadcastChannel
+### VTT Encounters (PixiJS)
+- Load a map image and configure grid size and offset
+- Token library — drag templates onto the map, snap to grid
+- Per-token: name, image, HP, AC, initiative, size, conditions, visibility, dead/alive, notes
+- Tokens can be linked directly to creature records from the rules library
+- Fog of War — paint and erase fog cells; hide all / reveal all shortcuts
+- Wall tool — draw line walls with cover types (full, ¾, ½, ¼, door) for line-of-sight blocking
+- Field-of-view compute per token (vision range in tiles)
+- Round/turn tracker with a combat log
+- Sound playlist association per encounter
+- **Player View** — opens in a separate browser tab, syncs in real-time via BroadcastChannel
+
+### DM Screen
+- Freeform widget board — add, resize, and rearrange panels
+- Zoom and density controls; layout saved per campaign
+- Available widgets: Dice Roller, NPC Generator, Conditions Grid, Random Table, Quest, Session, Note, Faction, Location, Rumor, Scratchpad, Rules Lookup, Encounter Link, Search, System Entity, Timer
+
+### Rules Library (Systems)
+- Define custom game systems (e.g. D&D 5e, PF2e) with a visual schema builder
+- Create entity types (Spell, Creature, Item, …) with any combination of field types
+- Supported field types: text, number, markdown, image, tags, select, multi-select, toggle, rating, dice formula, damage formula, attack block, stat block, abilities, speed, spell slots, conditions, proficiency, scaling, action cost, entity link, trait picker, checklist, clock, tracker, currency
+- Populate a record library per entity type (spells, creatures, items, etc.)
+- Import and export system schemas as JSON
+
+### Audio
+- Sound library with track management
+- Playlists — assign a playlist to an encounter for ambient audio during play
+- Playback controls with loop and volume
+
+### Cross-Cutting Features
+- **Global Search** — search across all entities in all campaigns
+- **Command Palette** — keyboard-driven quick navigation
+- **Bookmarks** — pin frequently accessed entities to a ribbon
+- **Dice Roller** — available everywhere in the app
+- **Settings** — theme and app-level preferences
+- **Import / Export** — JSZip-based backup and restore
+
+---
+
+## Project Structure
+
+```
+dmstome/
+├── composables/
+│   ├── useDb.ts                  # Dexie/IndexedDB layer — all tables and queries
+│   ├── useEncounterCanvas.ts     # PixiJS VTT engine
+│   ├── useSystems.ts             # Rules library (systems + records)
+│   ├── useEntities.ts            # Campaign entities CRUD
+│   ├── useFovCompute.ts          # Field-of-view raycasting
+│   ├── useSoundPlayer.ts         # Audio playback
+│   └── ...
+│
+├── pages/
+│   ├── index.vue                               # Campaign list / home
+│   ├── settings.vue                            # App settings
+│   ├── sounds.vue                              # Sound library
+│   ├── campaign/[id]/
+│   │   ├── index.vue                           # Campaign dashboard
+│   │   ├── notes.vue / npcs.vue / ...          # Entity list pages (9 types)
+│   │   ├── map.vue                             # World map
+│   │   ├── graphs.vue                          # Knowledge graph
+│   │   ├── dm-screen.vue                       # DM widget board
+│   │   └── chronicle.vue                       # Entity snapshot timeline
+│   ├── encounter/[id]/
+│   │   ├── index.vue                           # DM encounter view (PixiJS)
+│   │   └── player.vue                          # Player view (read-only, synced)
+│   └── system/[id]/
+│       ├── library.vue                         # Records library
+│       └── builder.vue                         # Schema builder
+│
+├── components/
+│   ├── editors/                  # Per-entity-type edit forms
+│   ├── fields/                   # ~25 reusable field components
+│   ├── widgets/                  # DM Screen widget panels
+│   ├── graph/                    # Vue Flow graph nodes + modals
+│   ├── notes/                    # Entity list-row components
+│   └── ...
+│
+├── stores/
+│   └── encounter.ts              # Encounter state + BroadcastChannel player sync
+│
+└── .github/workflows/
+    └── deploy.yml                # GitHub Pages auto-deploy
+```
 
 ---
 
 ## Data & Backups
 
-All data lives in browser IndexedDB under the key `dmforge`.
+All data lives in browser IndexedDB under the key `dmstome`.
 
-To export: DevTools → Application → IndexedDB → right-click → Export  
-The Dexie export/import plugin can be added for in-app backup/restore.
+The app includes an import/export modal (JSZip) for in-app backup and restore of campaigns, encounters, entities, and system records.
 
----
-
-## window.dmforge API
-
-The `window.dmforge` object is the unified data API, backed by Dexie in the browser.
-
-```ts
-// Campaigns
-window.dmforge.campaigns.list()
-window.dmforge.campaigns.create({ name, description })
-window.dmforge.campaigns.delete(id)
-
-// Encounters
-window.dmforge.encounters.list(campaignId)
-window.dmforge.encounters.get(id)          // includes joined tokens
-window.dmforge.encounters.update({ id, ... })
-
-// System
-window.dmforge.system.openFileDialog()     // returns base64 data URL
-window.dmforge.system.readImage(src)       // returns src (already data URL)
-
-// Player window sync
-window.dmforge.window.openPlayer(encounterId)   // window.open()
-window.dmforge.window.syncEncounter(data)       // BroadcastChannel
-```
+Manual export: DevTools → Application → IndexedDB → right-click → Export

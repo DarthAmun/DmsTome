@@ -33,6 +33,7 @@
 
 <script setup lang="ts">
 import { useEntities } from "~/composables/useEntities";
+import { ENTITY_TYPE_ROUTE } from "~/types/entities";
 
 const route = useRoute();
 const router = useRouter();
@@ -50,13 +51,8 @@ const hasMap = computed(() => {
     return !!(attrs?.imageSource);
 });
 
-const TYPE_PLURAL_ROUTE: Record<string, string> = {
-    npc: "npcs", location: "locations", faction: "factions",
-    quest: "quests", event: "events", session: "sessions", note: "notes",
-};
-
 function onNavigateEntity(entity: any) {
-    const segment = TYPE_PLURAL_ROUTE[entity.type] ?? entity.type + "s";
+    const segment = ENTITY_TYPE_ROUTE[entity.type as keyof typeof ENTITY_TYPE_ROUTE] ?? entity.type + "s";
     router.push(`/campaign/${campaignId.value}/${segment}/${entity.id}`);
 }
 

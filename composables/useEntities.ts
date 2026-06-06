@@ -90,9 +90,12 @@ async function loadEntity(id: number) {
   }
 }
 
-async function createEntity(campaignId: number, type: EntityType, name: string) {
+async function createEntity(campaignId: number, type: EntityType, name: string, initialAttributes?: EntityAttributes) {
   try {
-    const raw = await dbApi.entities.create({ campaignId, type, name, content: '', attributes: '{}' })
+    const raw = await dbApi.entities.create({
+      campaignId, type, name, content: '',
+      attributes: initialAttributes ? JSON.stringify(initialAttributes) : '{}',
+    })
     const entity = normalize(raw)
     entities.value.unshift(entity)
     return entity

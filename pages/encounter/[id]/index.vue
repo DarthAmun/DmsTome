@@ -432,9 +432,45 @@
                   <button class="init-nav-btn" @click="store.nextTurn()">
                     <OhVueIcon name="md-chevronright" scale="0.8" />
                   </button>
-                  <button class="init-nav-btn init-roll-all-btn" title="Roll d20 initiative for all tokens without initiative set" @click="store.rollAllInitiative()">
-                    ⚄
+                  <button
+                    class="init-nav-btn init-roll-all-btn"
+                    :title="store.current?.initiativeFormula ? `Roll initiative: ${store.current.initiativeFormula}` : 'Roll d20 for all tokens without initiative'"
+                    @click="store.rollAllInitiative()"
+                  ><OhVueIcon name="gi-dice-six-faces-six" scale="0.85" /></button>
+                  <button
+                    class="init-nav-btn init-formula-btn"
+                    :class="{ active: showInitFormula }"
+                    title="Configure initiative formula"
+                    @click="showInitFormula = !showInitFormula"
+                  >
+                    <OhVueIcon name="md-settings" scale="0.75" />
                   </button>
+                </div>
+
+                <!-- Initiative formula settings panel -->
+                <div v-if="showInitFormula" class="init-formula-panel">
+                  <div class="init-formula-label">Initiative Formula</div>
+                  <div class="init-formula-row">
+                    <input
+                      v-model="initFormulaInput"
+                      class="init-formula-input"
+                      placeholder="e.g. d20 + floor(dex / 2)"
+                      @keyup.enter="saveInitFormula"
+                      @keyup.esc="showInitFormula = false"
+                    />
+                    <button class="init-formula-save" @click="saveInitFormula">Save</button>
+                    <button v-if="store.current?.initiativeFormula" class="init-formula-clear" @click="clearInitFormula" title="Clear formula (use plain d20)">✕</button>
+                  </div>
+                  <div class="init-formula-presets">
+                    <button class="init-preset-chip" @click="initFormulaInput = 'd20'">d20</button>
+                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + dexmod'">d20+dexmod</button>
+                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor((dex - 10) / 2)'">d20+DEX mod</button>
+                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor(perception / 2)'">d20+perc/2</button>
+                  </div>
+                  <div v-if="initFormulaError" class="init-formula-error">{{ initFormulaError }}</div>
+                  <div v-else-if="store.current?.initiativeFormula" class="init-formula-active">
+                    Active: <code>{{ store.current.initiativeFormula }}</code>
+                  </div>
                 </div>
                 <!-- Bulk action bar -->
                 <div v-if="selectedTokenIds.size > 0" class="order-bulk-bar">
@@ -1310,6 +1346,34 @@ async function onTokenEdit(tokenId: number, changes: Partial<EncounterToken>) {
 // ── Right sidebar tab ─────────────────────────────────────────────────────
 const rightTab = ref<'tokens' | 'log'>('tokens');
 const activeTab = ref<'order' | 'log'>('order');
+
+// ── Initiative formula settings ────────────────────────────────────────────
+const showInitFormula = ref(false)
+const initFormulaInput = ref('')
+const initFormulaError = ref('')
+
+watch(() => store.current?.initiativeFormula, (f) => {
+  initFormulaInput.value = f ?? ''
+}, { immediate: true })
+
+function saveInitFormula() {
+  const formula = initFormulaInput.value.trim()
+  if (!formula) {
+    clearInitFormula()
+    return
+  }
+  // evaluateFormula returns 0 on error (never throws), so any formula string is valid
+  // we just persist it; if the result is nonsensical the DM will see 0 rolls
+  store.setInitiativeFormula(formula)
+  initFormulaError.value = ''
+  showInitFormula.value = false
+}
+
+function clearInitFormula() {
+  store.setInitiativeFormula(null)
+  initFormulaInput.value = ''
+  initFormulaError.value = ''
+}
 
 function hpPercent(token: any): number {
   return token.hpMax
@@ -2666,6 +2730,59 @@ function getImageUrl(token: any): string {
 .init-roll-all-btn {
   font-size: 14px;
   margin-left: auto;
+}
+.init-formula-btn { margin-left: 2px; }
+.init-formula-btn.active { border-color: var(--accent); color: var(--accent-l); }
+
+/* ── Initiative formula panel ── */
+.init-formula-panel {
+  flex-shrink: 0;
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid var(--parch-line);
+  background: color-mix(in oklch, var(--parch-dark) 92%, var(--accent));
+  display: flex; flex-direction: column; gap: 6px;
+}
+.init-formula-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--ink-ghost); font-family: 'Cinzel', var(--font-head);
+}
+.init-formula-row { display: flex; gap: 4px; align-items: center; }
+.init-formula-input {
+  flex: 1; padding: 4px 7px; border-radius: 3px;
+  border: 1px solid var(--parch-line); background: var(--parch-dark);
+  color: var(--ink); font-size: 11px; font-family: 'DM Mono', monospace;
+  outline: none;
+}
+.init-formula-input:focus { border-color: var(--accent); }
+.init-formula-save {
+  padding: 3px 8px; border-radius: 3px; font-size: 10px; font-weight: 700;
+  border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent-l);
+  cursor: pointer; white-space: nowrap;
+}
+.init-formula-clear {
+  width: 22px; height: 22px; border-radius: 3px;
+  border: 1px solid var(--parch-line); background: none;
+  color: var(--ink-ghost); cursor: pointer; font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.init-formula-clear:hover { border-color: var(--blood); color: var(--blood); }
+.init-formula-presets { display: flex; gap: 4px; flex-wrap: wrap; }
+.init-preset-chip {
+  padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600;
+  font-family: 'DM Mono', monospace; letter-spacing: 0.02em;
+  border: 1px solid var(--parch-line); background: var(--parch-dark);
+  color: var(--ink-ghost); cursor: pointer; transition: all 0.1s; white-space: nowrap;
+}
+.init-preset-chip:hover { border-color: var(--gold); color: var(--gold); }
+.init-formula-error {
+  font-size: 10px; color: var(--blood); font-style: italic;
+}
+.init-formula-active {
+  font-size: 10px; color: var(--ink-ghost);
+}
+.init-formula-active code {
+  font-family: 'DM Mono', monospace; color: var(--accent-l);
+  background: var(--accent-bg); padding: 1px 4px; border-radius: 2px;
 }
 
 /* ── Inline HP quick-damage input ── */

@@ -3,10 +3,20 @@ import { dbApi } from '~/composables/useDb'
 import type { DbEncounterWall } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
+import { evaluateFormula, dataToScope } from '~/composables/useFormulaEvaluator'
 
 function tryParseJson<T>(s: unknown, fallback: T): T {
   if (typeof s !== 'string') return fallback
   try { return JSON.parse(s) } catch { return fallback }
+}
+
+function buildTokenScope(token: EncounterToken, recordData: Record<string, any> = {}): Record<string, number> {
+  return {
+    ...dataToScope(recordData),
+    ac: token.ac ?? 0,
+    hp: token.hpCurrent ?? 0,
+    hpmax: token.hpMax ?? 0,
+  }
 }
 
 export interface CombatLogEntry {
@@ -60,6 +70,7 @@ export interface EncounterToken {
   linkedRecordId: number | null
   visionRange: number | null  // tiles, null = infinite
   isPlayerToken: boolean      // default false
+  elevation: number | null
 }
 
 export interface Encounter {
@@ -77,6 +88,7 @@ export interface Encounter {
   combatLog: CombatLogEntry[]
   fovEnabled: boolean
   soundPlaylistId?: number
+  initiativeFormula: string | null
 }
 
 export const useEncounterStore = defineStore('encounter', () => {
@@ -148,6 +160,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         campaignId: data.campaign_id,
         fovEnabled: data.fov_enabled ?? false,
         soundPlaylistId: data.sound_playlist_id ?? undefined,
+        initiativeFormula: data.initiative_formula ?? null,
         tokens: ((data as any).tokens || []).map(normalizeToken),
       }
       roundNumber.value = data.round_number ?? 1
@@ -616,6 +629,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       linkedRecordId: raw.linked_record_id ?? null,
       visionRange: raw.vision_range ?? null,
       isPlayerToken: Boolean(raw.is_player_token),
+      elevation: raw.elevation ?? null,
     }
   }
 
@@ -629,15 +643,44 @@ export const useEncounterStore = defineStore('encounter', () => {
     updateToken(tokenId, { hpCurrent: Math.max(0, token.hpCurrent - amount) })
   }
 
+  async function setInitiativeFormula(formula: string | null) {
+    if (!current.value) return
+    current.value.initiativeFormula = formula
+    await dbApi.encounters.update({ id: current.value.id, initiative_formula: formula })
+  }
+
   async function rollAllInitiative() {
     if (!current.value) return
-    const toUpdate: { id: number; initiative: number }[] = []
-    for (const token of current.value.tokens) {
-      if (token.initiative === null) {
-        const roll = Math.floor(Math.random() * 20) + 1
-        token.initiative = roll
-        toUpdate.push({ id: token.id, initiative: roll })
+    const formula = current.value.initiativeFormula?.trim()
+    const useFormula = !!formula
+
+    // Pre-fetch linked record data for all tokens that need a roll
+    const tokensToRoll = current.value.tokens.filter(t => t.initiative === null)
+    const recordIds = [...new Set(tokensToRoll.map(t => t.linkedRecordId).filter((id): id is number => id !== null))]
+    const recordScopes: Map<number, Record<string, number>> = new Map()
+
+    if (useFormula && recordIds.length) {
+      const records = await Promise.all(recordIds.map(id => dbApi.records.get(id)))
+      for (const rec of records) {
+        if (!rec?.id) continue
+        const data: Record<string, any> = typeof rec.data === 'string'
+          ? JSON.parse(rec.data || '{}')
+          : (rec.data ?? {})
+        recordScopes.set(rec.id, dataToScope(data))
       }
+    }
+
+    const toUpdate: { id: number; initiative: number }[] = []
+    for (const token of tokensToRoll) {
+      let roll: number
+      if (useFormula) {
+        const recordData = token.linkedRecordId ? (recordScopes.get(token.linkedRecordId) ?? {}) : {}
+        roll = evaluateFormula(formula!, buildTokenScope(token, recordData))
+      } else {
+        roll = Math.floor(Math.random() * 20) + 1
+      }
+      token.initiative = roll
+      toUpdate.push({ id: token.id, initiative: roll })
     }
     if (!toUpdate.length) return
     syncToPlayer()
@@ -695,7 +738,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     addTokenToEncounter, addCreatureToEncounter, addCreatureToEncounterAuto, moveToken, updateToken, removeToken, addToLibrary, updateLibraryToken,
     openPlayerWindow, closePlayerWindow, setShapeOverlays,
     nextTurn, prevTurn,
-    getToken, applyDamage, rollAllInitiative, bulkRemoveTokens, bulkSetTokenVisibility, toggleCondition,
+    getToken, applyDamage, rollAllInitiative, setInitiativeFormula, bulkRemoveTokens, bulkSetTokenVisibility, toggleCondition,
     addLogNote, clearCombatLog,
   }
 })

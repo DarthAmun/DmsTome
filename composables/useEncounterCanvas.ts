@@ -1107,6 +1107,24 @@ export function useEncounterCanvas(options: CanvasOptions) {
       container.addChild(eye);
     }
 
+    if (token.elevation !== null && token.elevation !== undefined) {
+      const elvLabel = token.elevation >= 0 ? `↑${token.elevation}` : `↓${Math.abs(token.elevation)}`;
+      const elvColor = token.elevation >= 0 ? 0x88ccff : 0xffaa55;
+      const elvBg = new PIXI.Graphics();
+      elvBg.roundRect(1, pixelSize - 15, 22, 13, 3);
+      elvBg.fill({ color: 0x0a1a2a, alpha: 0.88 });
+      elvBg.stroke({ color: elvColor, width: 1, alpha: 0.8 });
+      container.addChild(elvBg);
+      const elvText = new PIXI.Text({
+        text: elvLabel,
+        style: { fontSize: 8, fill: elvColor, fontFamily: "system-ui", fontWeight: "bold", stroke: { color: 0x000000, width: 2 } },
+      });
+      elvText.anchor.set(0.5, 0.5);
+      elvText.x = 12;
+      elvText.y = pixelSize - 9;
+      container.addChild(elvText);
+    }
+
     if (options.isDmMode) {
       container.interactive = true;
       container.cursor = "grab";
