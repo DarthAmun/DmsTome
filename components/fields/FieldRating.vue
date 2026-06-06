@@ -10,7 +10,7 @@
         @click="mode === 'edit' && toggle(i)"
         :title="i <= val ? `${val}/${max}` : `Set to ${i}`"
       >
-        <OhVueIcon v-if="style === 'skull'" name="gi-skull" scale="0.7"
+        <OhVueIcon v-if="style === 'skull'" name="fa-skull" scale="0.7"
           :style="{ color: i <= val ? 'var(--parch)' : 'var(--ink-ghost)' }" />
         <OhVueIcon v-else-if="style === 'star'" name="gi-star-formation" scale="0.75"
           :style="{ color: i <= val ? 'var(--parch)' : 'var(--ink-ghost)' }" />

@@ -3,7 +3,7 @@
     <!-- Pill trigger (floating mode only) -->
     <button
       v-if="!inline"
-      class="dice-fab"
+      class="dice-fab no-print"
       :class="{ 'dice-fab--open': panelOpen }"
       @click="panelOpen = !panelOpen"
     >
@@ -13,7 +13,7 @@
 
     <!-- Panel -->
     <Transition :name="inline ? '' : 'dp'">
-      <div v-if="inline || panelOpen" class="dice-panel" :class="{ 'dice-panel--inline': inline }" @mousedown.stop @keydown.escape="panelOpen = false">
+      <div v-if="inline || panelOpen" class="dice-panel no-print" :class="{ 'dice-panel--inline': inline }" @mousedown.stop @keydown.escape="panelOpen = false">
         <!-- Dice grid: 4+3 layout, d100 spans 2 cols -->
         <div class="dp-dice-grid">
           <button

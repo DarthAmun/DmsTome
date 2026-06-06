@@ -16,7 +16,7 @@
     <LazyGlobalSearch v-if="!isPlayerRoute" />
     <LazyDiceRoller v-if="!isPlayerRoute" />
     <LazyAppSoundBar v-if="!isPlayerRoute" />
-    <div id="spark-layer" aria-hidden="true" />
+    <div id="spark-layer" class="no-print" aria-hidden="true" />
 
     <!-- New Campaign dialog -->
     <Teleport to="body">
@@ -86,7 +86,7 @@
     </Teleport>
 
     <Transition name="install">
-      <button v-if="installPrompt" class="install-pill" @click="installApp" title="Install DM's Tome">
+      <button v-if="installPrompt" class="install-pill no-print" @click="installApp" title="Install DM's Tome">
         <OhVueIcon name="md-install-mobile" scale="0.9" />
         Install App
       </button>

@@ -1,5 +1,5 @@
 <template>
-  <div class="bm-bar">
+  <div class="bm-bar no-print">
     <div class="bm-track">
 
       <!-- Pin button -->

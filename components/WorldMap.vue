@@ -637,6 +637,16 @@ function onMapClick(e: MouseEvent) {
   const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / (imgNaturalH.value * zoom.value)))
 
   if (drawMode.value) {
+    const pts = drawingPolygon.value
+    if (pts.length >= 3) {
+      const first = pts[0]
+      const dx = (x - first.x) * imgNaturalW.value * zoom.value
+      const dy = (y - first.y) * imgNaturalH.value * zoom.value
+      if (dx * dx + dy * dy < 144) {
+        showRegionDialog.value = true
+        return
+      }
+    }
     drawingPolygon.value.push({ x, y })
     return
   }

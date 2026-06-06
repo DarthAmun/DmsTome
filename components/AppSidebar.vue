@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar" :class="{ collapsed }">
+  <aside class="sidebar no-print" :class="{ collapsed }">
 
     <!-- ── Top bar ── -->
     <div class="sb-top">
@@ -71,7 +71,7 @@
               :class="{ active: route.path === `/campaign/${c.id}/dm-screen` }"
               data-tip="DM Screen"
             >
-              <span style="font-size:14px">🔮</span>
+              <OhVueIcon name="gi-crystal-ball" scale="0.75" style="color: #b87de8" />
             </NuxtLink>
           </div>
         </div>
@@ -107,10 +107,10 @@
       <!-- Collapsed bottom: sounds + settings -->
       <div class="sb-footer-collapsed">
         <NuxtLink to="/sounds" class="sb-bottom-row" :class="{ active: route.path.startsWith('/sounds') }" data-tip="Sounds">
-          <span class="sb-bottom-icon">♫</span>
+          <span class="sb-bottom-icon"><OhVueIcon name="gi-sound-waves" scale="0.85" /></span>
         </NuxtLink>
         <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }" data-tip="Settings">
-          <span class="sb-bottom-icon">⚙</span>
+          <span class="sb-bottom-icon"><OhVueIcon name="md-settings" scale="0.85" /></span>
         </NuxtLink>
       </div>
     </template>
@@ -169,7 +169,7 @@
                 class="sb-child-tool"
                 :class="{ active: route.path === `/campaign/${c.id}/encounters` || (route.path.startsWith('/encounter') && activeCampaignId === c.id) }"
               >
-                <span class="sb-child-tool-icon">⚔</span>
+                <OhVueIcon name="gi-crossed-swords" scale="0.65" style="color:#e05555;width:14px;flex-shrink:0" />
                 <span>Encounters</span>
               </NuxtLink>
               <NuxtLink
@@ -185,7 +185,7 @@
                 class="sb-child-tool"
                 :class="{ active: route.path === `/campaign/${c.id}/dm-screen` }"
               >
-                <span class="sb-child-tool-icon">🔮</span>
+                <OhVueIcon name="gi-crystal-ball" scale="0.65" style="color:#b87de8;width:14px;flex-shrink:0" />
                 <span>DM Screen</span>
               </NuxtLink>
             </div>
@@ -240,10 +240,12 @@
               <div v-if="!sys.entityTypes?.length" class="sb-empty" style="font-size:11px;padding:4px 12px">No entity types</div>
               <div class="sb-child-sep" />
               <NuxtLink :to="`/system/${sys.id}/library`" class="sb-child-tool" :class="{ active: route.path === `/system/${sys.id}/library` }">
-                <span class="sb-child-tool-icon">📚</span><span>Library</span>
+                <OhVueIcon name="gi-bookshelf" scale="0.65" style="color:#6b9fe8;width:14px;flex-shrink:0" />
+                <span>Library</span>
               </NuxtLink>
               <NuxtLink :to="`/system/${sys.id}/builder`" class="sb-child-tool" :class="{ active: route.path.includes(`/system/${sys.id}/builder`) }">
-                <span class="sb-child-tool-icon">🔧</span><span>Builder</span>
+                <OhVueIcon name="gi-anvil" scale="0.65" style="color:#e8924a;width:14px;flex-shrink:0" />
+                <span>Builder</span>
               </NuxtLink>
             </div>
           </Transition>
@@ -259,11 +261,11 @@
       <div class="sb-footer">
         <div class="sb-divider" style="margin:0" />
         <NuxtLink to="/sounds" class="sb-bottom-row" :class="{ active: route.path.startsWith('/sounds') }">
-          <span class="sb-bottom-icon">♫</span>
+          <span class="sb-bottom-icon"><OhVueIcon name="gi-sound-waves" scale="0.85" /></span>
           <span class="sb-bottom-label">Sounds</span>
         </NuxtLink>
         <NuxtLink to="/settings" class="sb-bottom-row" :class="{ active: route.path === '/settings' }">
-          <span class="sb-bottom-icon">⚙</span>
+          <span class="sb-bottom-icon"><OhVueIcon name="md-settings" scale="0.85" /></span>
           <span class="sb-bottom-label">Settings</span>
         </NuxtLink>
       </div>

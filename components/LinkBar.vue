@@ -110,7 +110,7 @@
         >
             <div class="links-label links-label--icon">
                 <OhVueIcon
-                    name="gi-time"
+                    name="gi-hourglass"
                     scale="0.75"
                     style="color: var(--gold)"
                 />

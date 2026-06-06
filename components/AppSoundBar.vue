@@ -2,7 +2,7 @@
   <Teleport to="body" :disabled="inline">
 
     <!-- ── FAB + encounter music notification ──────────────────── -->
-    <div v-if="!inline" class="sp-fab-group">
+    <div v-if="!inline" class="sp-fab-group no-print">
       <Transition name="sp-notif">
         <div v-if="linkedPlaylistNotif" class="sp-notif">
           <span class="sp-notif-name">♫ {{ linkedPlaylistNotif.name }}</span>

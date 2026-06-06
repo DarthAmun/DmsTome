@@ -1,32 +1,42 @@
 <template>
     <div class="markdown-editor">
-        <!-- ── Tab bar ── -->
-        <div v-if="showTabBar" class="editor-tabbar">
-            <div class="etab-spacer" />
-            <div class="etab-group">
-                <button
-                    class="etab"
-                    :class="{ active: viewMode === 'edit' }"
-                    @click="setViewMode('edit')"
-                >
-                    Edit
-                </button>
-                <button
-                    class="etab"
-                    :class="{ active: viewMode === 'mixed' }"
-                    @click="setViewMode('mixed')"
-                >
-                    Mixed
-                </button>
-                <button
-                    class="etab"
-                    :class="{ active: viewMode === 'preview' }"
-                    @click="setViewMode('preview')"
-                >
-                    Preview
-                </button>
+        <!-- ── Tab bar (also shown as mini-bar when showTabBar=false) ── -->
+        <div v-if="showTabBar || !readonly" class="editor-tabbar">
+            <template v-if="showTabBar">
+                <div class="etab-spacer" />
+                <div class="etab-group">
+                    <button
+                        class="etab"
+                        :class="{ active: viewMode === 'edit' }"
+                        @click="setViewMode('edit')"
+                    >
+                        Edit
+                    </button>
+                    <button
+                        class="etab"
+                        :class="{ active: viewMode === 'mixed' }"
+                        @click="setViewMode('mixed')"
+                    >
+                        Mixed
+                    </button>
+                    <button
+                        class="etab"
+                        :class="{ active: viewMode === 'preview' }"
+                        @click="setViewMode('preview')"
+                    >
+                        Preview
+                    </button>
+                </div>
+            </template>
+            <button v-if="!readonly" class="etab-btn tb-widget-ref-btn" :class="{ active: showWidgetRef }" title="Widget reference" @click="showWidgetRef = !showWidgetRef">?</button>
+            <button class="etab-btn etab-print" title="Print / export as PDF (hidden blocks excluded)" @click="printView"><OhVueIcon name="md-print" scale="0.9" /></button>
+        </div>
+
+        <div v-if="showWidgetRef && !readonly" class="widget-ref-panel">
+            <div v-for="w in WIDGETS" :key="w.type" class="widget-ref-row" @click="insertNotes(w.insert.prefix, w.insert.suffix)">
+                <code class="widget-ref-code">{{ w.example }}</code>
+                <span class="widget-ref-desc">{{ w.desc }}</span>
             </div>
-            <button class="etab-print" title="Print / export as PDF (hidden blocks excluded)" @click="printView"><OhVueIcon name="md-print" scale="0.9" /></button>
         </div>
 
         <slot name="above-editor" />
@@ -80,18 +90,12 @@
                     </button>
                     <div class="tb-divider" />
                     <button
+                        v-for="w in WIDGETS" :key="w.type"
                         class="tb-btn"
-                        title="Inline dice widget — click to roll in preview (e.g. ::dice[2d6])"
-                        @click="insertNotes('::dice[', ']')"
+                        :title="w.title"
+                        @click="insertNotes(w.insert.prefix, w.insert.suffix)"
                     >
-                        <OhVueIcon name="gi-dice-six-faces-six" scale="0.85" />
-                    </button>
-                    <button
-                        class="tb-btn"
-                        title="Inline table widget — rolls a random table by name (e.g. ::table[My Table])"
-                        @click="insertNotes('::table[', ']')"
-                    >
-                        <OhVueIcon name="gi-scroll-unfurled" scale="0.85" />
+                        <OhVueIcon :name="w.icon" scale="0.85" />
                     </button>
                     <div class="tb-divider" />
                     <button
@@ -247,12 +251,40 @@
     </div>
 </template>
 
+<script lang="ts">
+// Module-level: computed once per import, shared across all MarkdownEditor instances
+import { giIconByName, iconToSvg } from '~/composables/useEntityRendering'
+
+const _ci = (n: string, c: string) => { const i = giIconByName(n); return i ? iconToSvg(i, c) : '' }
+
+const _clockSvgCache: Record<string, string> = {}
+function _clockSvg(filled: number, total: number): string {
+    const key = `${filled}/${total}`
+    if (key in _clockSvgCache) return _clockSvgCache[key]
+    const r = 5, size = 13, gap = 3
+    const W = total * (size + gap) - gap
+    const segs = Array.from({ length: total }, (_, i) =>
+        `<circle cx="${i * (size + gap) + r + 1}" cy="${r + 1}" r="${r}"` +
+        ` fill="${i < filled ? '#e8c44a' : 'none'}" stroke="#e8c44a" stroke-width="1.5"/>`
+    ).join('')
+    return _clockSvgCache[key] = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${size}" viewBox="0 0 ${W} ${size}"` +
+        ` style="display:inline-block;vertical-align:middle;flex-shrink:0">${segs}</svg>`
+}
+
+const WIDGET_ICONS = {
+    dice:   _ci('gi-dice-six-faces-six', 'currentColor'),
+    table:  _ci('gi-scroll-unfurled',    'currentColor'),
+    button: _ci('gi-broadsword',         'currentColor'),
+    choose: _ci('gi-magic-hat',          'currentColor'),
+}
+</script>
+
 <script setup lang="ts">
 import { useEntities } from "~/composables/useEntities";
 import { useEntityMarkdown } from "~/composables/useEntityMarkdown";
 import { evaluateFormula } from "~/composables/useFormulaEvaluator";
 import type { RandomTableAttributes } from "~/types/entities";
-import { useEntityRendering, typeColorMap, typeIconHtml, giIconByName, iconToSvg, ENCOUNTER_COLOR } from "~/composables/useEntityRendering";
+import { useEntityRendering, typeColorMap, typeIconHtml, ENCOUNTER_COLOR } from "~/composables/useEntityRendering";
 import { useDiceRoll } from "~/composables/useDiceRoll";
 import { getDb, dbApi } from "~/composables/useDb";
 import { ENTITY_TYPE_CONFIG, ENTITY_TYPE_ROUTE } from "~/types/entities";
@@ -296,9 +328,89 @@ const localTypeColorMap: Record<string, string> = { ...typeColorMap, snapshot: "
 
 // ── Post-processing ───────────────────────────────────────────────────────────
 const HIDDEN_CALLOUT_TYPE = 'hidden'
-const _ci = (n: string, c: string) => { const i = giIconByName(n); return i ? iconToSvg(i, c) : '' }
-const _diceWidgetIcon = _ci('gi-dice-six-faces-six', 'currentColor')
-const _tableWidgetIcon = _ci('gi-scroll-unfurled', 'currentColor')
+const widgetColors = {
+    button: ENTITY_TYPE_CONFIG.npc.color,
+    choose: ENTITY_TYPE_CONFIG.session.color,
+    clock:  ENTITY_TYPE_CONFIG['random-table'].color,
+}
+type WidgetClickResult = ((src: string) => string) | void
+const WIDGETS = [
+    {
+        type: 'dice', icon: 'gi-dice-six-faces-six',
+        title: 'Inline dice roll (e.g. ::dice[2d6+3])',
+        insert: { prefix: '::dice[', suffix: ']' },
+        example: '::dice[2d6+3]', desc: 'Click to roll a dice expression',
+        renderHtml(args: string, _idx: number): string {
+            const safe = esc(args.trim())
+            return `<button class="inline-widget" data-widget="dice" data-expr="${safe}" title="Click to roll ${safe}">${WIDGET_ICONS.dice} ${safe}</button>`
+        },
+        onClick(btn: HTMLElement): WidgetClickResult { showWidgetResult(btn, String(evaluateFormula(btn.dataset.expr ?? 'd20'))) },
+    },
+    {
+        type: 'table', icon: 'gi-scroll-unfurled',
+        title: 'Random table widget (e.g. ::table[My Table])',
+        insert: { prefix: '::table[', suffix: ']' },
+        example: '::table[My Table]', desc: 'Click to roll on a random table by name',
+        renderHtml(args: string, _idx: number): string {
+            const safe = esc(args.trim())
+            return `<button class="inline-widget" data-widget="table" data-table="${safe}" title="Click to roll on: ${safe}">${WIDGET_ICONS.table} ${safe}</button>`
+        },
+        onClick(btn: HTMLElement): WidgetClickResult { showWidgetResult(btn, rollOnTable(btn.dataset.table ?? '')) },
+    },
+    {
+        type: 'button', icon: 'gi-broadsword',
+        title: 'Named roll button (e.g. ::button[Fireball | 8d6])',
+        insert: { prefix: '::button[', suffix: ' | d20]' },
+        example: '::button[Fireball | 8d6]', desc: 'Named roll button — shows label and result',
+        renderHtml(args: string, _idx: number): string {
+            const [rawLabel, rawExpr] = args.split('|').map((s: string) => s.trim())
+            const label = esc(rawLabel), expr = esc(rawExpr || rawLabel)
+            return `<button class="inline-widget" data-widget="button" data-expr="${expr}" data-label="${label}" title="Roll: ${expr}">${WIDGET_ICONS.button} ${rawLabel}</button>`
+        },
+        onClick(btn: HTMLElement): WidgetClickResult { showWidgetResult(btn, `${btn.dataset.label ?? ''}: ${evaluateFormula(btn.dataset.expr ?? 'd20')}`) },
+    },
+    {
+        type: 'choose', icon: 'gi-magic-hat',
+        title: 'Random picker (e.g. ::choose[Goblin | Orc])',
+        insert: { prefix: '::choose[opt1 | opt2 | ', suffix: ']' },
+        example: '::choose[Orc | Goblin | Troll]', desc: 'Randomly pick one option',
+        renderHtml(args: string, _idx: number): string {
+            const opts = args.split('|').map((s: string) => s.trim()).filter(Boolean)
+            return `<button class="inline-widget" data-widget="choose" data-options="${esc(opts.join('|'))}" title="Pick one of ${opts.length}">${WIDGET_ICONS.choose} Pick (${opts.length})</button>`
+        },
+        onClick(btn: HTMLElement): WidgetClickResult {
+            const opts = (btn.dataset.options ?? '').split('|').filter(Boolean)
+            if (opts.length) showWidgetResult(btn, opts[Math.floor(Math.random() * opts.length)])
+        },
+    },
+    {
+        type: 'clock', icon: 'gi-hourglass',
+        title: 'Progress clock (e.g. ::clock[Hunt Clock | 0/6])',
+        insert: { prefix: '::clock[', suffix: ' | 0/6]' },
+        example: '::clock[Hunt Clock | 0/6]', desc: 'Progress clock — click to advance',
+        renderHtml(args: string, idx: number): string {
+            const [rawName, rawFrac] = args.split('|').map((s: string) => s.trim())
+            const [filledS, totalS] = (rawFrac || '0/4').split('/')
+            const filled = Math.max(0, parseInt(filledS) || 0)
+            const total  = Math.min(Math.max(1, parseInt(totalS) || 4), 12)
+            const clFilled = Math.min(filled, total)
+            const safeName = esc(rawName)
+            return `<button class="inline-widget" data-widget="clock" data-name="${safeName}" data-clock-idx="${idx}" data-filled="${clFilled}" data-total="${total}" title="${rawName}: ${clFilled}/${total} — click to advance">${_clockSvg(clFilled, total)} <span class="clock-label">${rawName}</span></button>`
+        },
+        onClick(btn: HTMLElement): WidgetClickResult {
+            const idx    = parseInt(btn.dataset.clockIdx ?? '0')
+            const name   = btn.dataset.name   ?? ''
+            const filled = parseInt(btn.dataset.filled ?? '0')
+            const total  = parseInt(btn.dataset.total  ?? '4')
+            const next   = filled >= total ? 0 : filled + 1
+            return (src: string) => {
+                let count = 0
+                return src.replace(/::clock\[[^\]]+\]/g, m => count++ === idx ? `::clock[${name} | ${next}/${total}]` : m)
+            }
+        },
+    },
+]
+const WIDGET_BY_TYPE = Object.fromEntries(WIDGETS.map(w => [w.type, w]))
 
 const CALLOUT_TYPES: Record<string, { color: string; icon: string }> = {
     note:      { color: "#5b8ee6", icon: _ci('gi-scroll-unfurled', '#5b8ee6') },
@@ -335,15 +447,18 @@ ${body ? `<div class="callout-body">${body}</div>` : ""}
 </div>`;
         },
     );
-    // Inline widgets: ::dice[expr] and ::table[Name] — single pass
-    out = out.replace(/::(?:(dice)\[([^\]]+)\]|(table)\[([^\]]+)\])/g, (_m, d, dExpr, _t, tName) => {
-        if (d) {
-            const safe = esc(dExpr.trim())
-            return `<button class="inline-widget inline-widget--dice" data-widget="dice" data-expr="${safe}" title="Click to roll ${safe}">${_diceWidgetIcon} ${safe}</button>`
+    // Inline widgets — registry-dispatched, single pass
+    const typeCounts: Record<string, number> = {}
+    out = out.replace(
+        /::(dice|table|button|choose|clock)\[([^\]]+)\]/g,
+        (_m, type, args) => {
+            const def = WIDGET_BY_TYPE[type]
+            if (!def) return ''
+            const idx = typeCounts[type] ?? 0
+            typeCounts[type] = idx + 1
+            return def.renderHtml(args, idx)
         }
-        const safe = esc(tName.trim())
-        return `<button class="inline-widget inline-widget--table" data-widget="table" data-table="${safe}" title="Click to roll on: ${safe}">${_tableWidgetIcon} ${safe}</button>`
-    })
+    )
     return out;
 }
 
@@ -507,6 +622,7 @@ function renderBlock(block: string): string {
 }
 
 // ── Draft content (controlled) ────────────────────────────────────────────────
+const showWidgetRef = ref(false)
 const draftContent = ref(props.content);
 
 watch(
@@ -585,7 +701,57 @@ function addBlock() {
     nextTick(() => activateBlock(editableBlocks.value.length - 1));
 }
 
-function printView() { if (import.meta.client) window.print() }
+function printView() {
+    if (!import.meta.client) return
+    // Open a clean window — avoids the SPA's overflow:hidden/flex layout entirely
+    const html = renderMarkdown(draftContent.value, mdOpts.value)
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(_buildPrintDoc(html))
+    win.document.close()
+    win.document.fonts.ready.then(() => { win.print(); win.close() })
+}
+
+function _buildPrintDoc(body: string): string {
+    return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Print</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IM Fell English', Georgia, serif; font-size: 12pt; color: #1a1a1a; line-height: 1.65; padding: 2cm 2.5cm; }
+h1,h2,h3,h4,h5,h6 { font-family: 'Cinzel', Georgia, serif; font-weight: 700; color: #111; margin: 1.2em 0 0.4em; page-break-after: avoid; }
+h1 { font-size: 20pt; } h2 { font-size: 16pt; } h3 { font-size: 13pt; } h4 { font-size: 11pt; }
+p { margin: .5em 0; }
+ul, ol { margin: .5em 0; padding-left: 1.6em; }
+li { margin: .2em 0; }
+strong { font-weight: 700; }
+em { font-style: italic; }
+code { font-family: 'Courier New', monospace; font-size: .88em; background: #f0f0f0; padding: 1px 4px; border-radius: 2px; }
+pre { background: #f0f0f0; padding: .7em; border-radius: 4px; white-space: pre-wrap; margin: .5em 0; }
+pre code { background: none; padding: 0; }
+blockquote { border-left: 3px solid #bbb; margin: .6em 0; padding-left: 1em; color: #555; }
+hr { border: none; border-top: 1px solid #ccc; margin: 1em 0; }
+table { border-collapse: collapse; width: 100%; margin: .6em 0; }
+th, td { border: 1px solid #bbb; padding: 4px 9px; text-align: left; font-size: 11pt; }
+th { background: #f0f0f0; font-weight: 700; }
+.callout { border-left: 4px solid #888; background: #f7f7f7; border-radius: 0 4px 4px 0; margin: .8em 0; page-break-inside: avoid; }
+.callout-title { font-weight: 700; font-size: 9pt; padding: 5px 12px; text-transform: uppercase; letter-spacing: .06em; color: #555; background: #efefef; display: flex; align-items: center; gap: 6px; }
+.callout-body { padding: 5px 12px 8px; font-size: 11pt; }
+.callout--hidden { display: none !important; }
+.inline-widget { display: none !important; }
+.task-item { list-style: none; margin-left: -1.6em; }
+.task-item input { margin-right: 5px; }
+.task-item--done { text-decoration: line-through; color: #888; }
+.entity-ref { font-weight: 600; color: inherit; text-decoration: none; }
+.roll-ref { font-family: 'Courier New', monospace; font-size: .9em; }
+s, del { color: #888; }
+</style>
+</head>
+<body>${body}</body></html>`
+}
 
 // ── DM-only (redaction) toggle ────────────────────────────────────────────────
 function isBlockRedacted(i: number): boolean {
@@ -1004,18 +1170,20 @@ function handleCheckboxToggle(
     return true
 }
 
-async function handleWidgetClick(target: HTMLElement): Promise<boolean> {
+function handleWidgetClick(target: HTMLElement): ((src: string) => string) | null {
     const btn = target.closest('.inline-widget') as HTMLElement | null
-    if (!btn) return false
-    const kind = btn.dataset.widget
-    if (kind === 'dice') {
-        const expr = btn.dataset.expr ?? 'd20'
-        showWidgetResult(btn, String(evaluateFormula(expr)))
-    } else if (kind === 'table') {
-        const name = btn.dataset.table ?? ''
-        const result = rollOnTable(name)
-        showWidgetResult(btn, result)
-    }
+    if (!btn) return null
+    const def = WIDGET_BY_TYPE[btn.dataset.widget ?? '']
+    if (!def) return null
+    return def.onClick(btn) ?? (src => src)
+}
+
+function applyWidgetClick(target: HTMLElement, getSource: () => string, setSource: (s: string) => void): boolean {
+    const replacer = handleWidgetClick(target)
+    if (replacer === null) return false
+    const cur = getSource()
+    const next = replacer(cur)
+    if (next !== cur) setSource(next)
     return true
 }
 
@@ -1025,7 +1193,7 @@ const { triggerRoll } = useDiceRoll();
 async function onPreviewClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
 
-    if (await handleWidgetClick(target)) return;
+    if (applyWidgetClick(target, () => draftContent.value, s => { draftContent.value = s; scheduleContentEmit() })) return
 
     if (handleCheckboxToggle(e, target, () => draftContent.value, s => { draftContent.value = s })) return
 
@@ -1092,7 +1260,10 @@ async function onPreviewClick(e: MouseEvent) {
 
 async function onMixedPreviewClick(e: MouseEvent, i: number) {
     const tgt = e.target as HTMLElement
-    if (await handleWidgetClick(tgt)) return
+    if (applyWidgetClick(tgt,
+        () => editableBlocks.value[i],
+        s => { editableBlocks.value[i] = s; draftContent.value = editableBlocks.value.join('\n\n'); scheduleContentEmit() }
+    )) return
     if (handleCheckboxToggle(e, tgt,
         () => editableBlocks.value[i],
         s => { editableBlocks.value[i] = s; draftContent.value = editableBlocks.value.join('\n\n') }
@@ -1138,12 +1309,13 @@ onUnmounted(() => {
 .etab-spacer {
     flex: 1;
 }
-.etab-print {
+.etab-print, .etab-btn {
     padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text3); font-size: 13px; cursor: pointer;
     transition: all 0.12s; align-self: center;
 }
-.etab-print:hover { border-color: var(--border-hi); color: var(--text); }
+.etab-print:hover, .etab-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.etab-btn.active { color: var(--gold); border-color: var(--gold); background: color-mix(in oklch, var(--gold) 12%, transparent); }
 .etab-group {
     display: flex;
     border: 1px solid var(--border);
@@ -1237,7 +1409,34 @@ onUnmounted(() => {
     margin: 0 3px;
 }
 
+/* ── Widget reference panel ──────────────────────────────────────── */
+.tb-widget-ref-btn { font-size: 11px; font-weight: 700; color: var(--gold); }
+.tb-widget-ref-btn.active { color: var(--gold); border-color: var(--gold); background: color-mix(in oklch, var(--gold) 12%, transparent); }
+.widget-ref-panel {
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 6px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.widget-ref-row {
+    display: flex; align-items: baseline; gap: 10px;
+    cursor: pointer; padding: 3px 4px; border-radius: 3px;
+    transition: background 0.1s;
+}
+.widget-ref-row:hover { background: var(--accent-bg); }
+.widget-ref-code {
+    font-family: var(--font-mono, monospace); font-size: 11px;
+    color: var(--gold); white-space: nowrap; flex-shrink: 0;
+}
+.widget-ref-desc {
+    font-size: 11px; color: var(--text-dim); }
+
 /* ── Inline widgets ───────────────────────────────────────────────── */
+:deep([data-widget="dice"])   { --widget-color: var(--gold); }
+:deep([data-widget="table"])  { --widget-color: var(--accent); --widget-color-text: var(--accent-l); }
+:deep([data-widget="button"]) { --widget-color: v-bind('widgetColors.button'); }
+:deep([data-widget="choose"]) { --widget-color: v-bind('widgetColors.choose'); }
+:deep([data-widget="clock"])  { --widget-color: v-bind('widgetColors.clock'); gap: 6px; }
 :deep(.inline-widget) {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 8px; border-radius: 4px;
@@ -1245,25 +1444,15 @@ onUnmounted(() => {
     font-family: inherit; vertical-align: middle;
     transition: all 0.12s; margin: 0 2px;
     position: relative;
+    border-color: color-mix(in oklch, var(--widget-color, #888) 50%, transparent);
+    background: color-mix(in oklch, var(--widget-color, #888) 8%, transparent);
+    color: var(--widget-color-text, var(--widget-color, #888));
 }
-:deep(.inline-widget--dice) {
-    border-color: color-mix(in oklch, var(--gold) 50%, transparent);
-    background: color-mix(in oklch, var(--gold) 8%, transparent);
-    color: var(--gold);
+:deep(.inline-widget:hover) {
+    background: color-mix(in oklch, var(--widget-color, #888) 18%, transparent);
+    border-color: var(--widget-color-text, var(--widget-color, #888));
 }
-:deep(.inline-widget--dice:hover) {
-    background: color-mix(in oklch, var(--gold) 18%, transparent);
-    border-color: var(--gold);
-}
-:deep(.inline-widget--table) {
-    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
-    background: color-mix(in oklch, var(--accent) 8%, transparent);
-    color: var(--accent-l);
-}
-:deep(.inline-widget--table:hover) {
-    background: color-mix(in oklch, var(--accent) 18%, transparent);
-    border-color: var(--accent-l);
-}
+:deep(.clock-label) { font-size: 0.85em; }
 
 :deep(.inline-widget-result) {
     display: inline-block; margin-left: 6px;
@@ -1413,9 +1602,20 @@ onUnmounted(() => {
     border-color: var(--accent);
     background: var(--accent-bg);
 }
+/* Hidden block: let the callout fill the block */
 .mixed-block--hidden:not(.mixed-block--active) {
-    opacity: 0.55;
-    border-color: color-mix(in oklch, #8b2030 30%, transparent) !important;
+    border-color: transparent !important;
+    background: transparent;
+}
+.mixed-block--hidden:not(.mixed-block--active) .mixed-preview {
+    padding: 0;
+}
+.mixed-block--hidden:not(.mixed-block--active) :deep(.callout--hidden) {
+    margin: 4px !important;
+}
+/* Reserve space in callout-title for the lock button */
+.mixed-block--hidden:not(.mixed-block--active) :deep(.callout-title) {
+    padding-right: 34px;
 }
 
 /* DM-only toggle button */
@@ -1427,6 +1627,11 @@ onUnmounted(() => {
     z-index: 2;
 }
 .mixed-block:hover .mixed-redact-btn { opacity: 0.6; }
+/* On hidden blocks the button sits inside the callout-title row */
+.mixed-block--hidden .mixed-redact-btn {
+    top: 6px; right: 10px;
+    opacity: 0.8 !important;
+}
 .mixed-redact-btn:hover { opacity: 1 !important; border-color: #8b2030; background: oklch(54% 0.24 22 / 0.1); }
 .mixed-redact-btn--active { opacity: 0.9 !important; color: #e87a7a; border-color: #8b2030 !important; background: oklch(54% 0.24 22 / 0.12) !important; }
 
@@ -1891,24 +2096,5 @@ onUnmounted(() => {
     text-transform: uppercase;
 }
 
-/* ── Print styles ── */
-@media print {
-    .editor-tabbar,
-    .editor-toolbar,
-    .mixed-redact-btn,
-    .mixed-add-btn,
-    .mixed-block--active .mixed-textarea { display: none !important; }
-
-    .callout--hidden { display: none !important; }
-
-    .markdown-editor, .editor-body, .mixed-pane, .mixed-block, .mixed-preview, .preview-pane, .preview-body {
-        display: block !important;
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
-    }
-
-    .markdown-body { font-size: 12pt; color: #000; }
-    .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #111; }
-}
+/* Print button opens a clean new window — no @media print overrides needed here */
 </style>

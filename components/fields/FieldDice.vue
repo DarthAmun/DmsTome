@@ -7,7 +7,7 @@
           @input="emit('update', ($event.target as HTMLInputElement).value.trim())" />
         <span v-else class="f-dice-expr">{{ expr || '—' }}</span>
         <button v-if="expr" class="f-dice-btn" :class="{ rolling }" @click="roll" title="Roll">
-          <OhVueIcon name="gi-dice-six" scale="1.1" />
+          <OhVueIcon name="gi-dice-six-faces-six" scale="1.1" />
         </button>
       </div>
       <Transition name="dice-pop">

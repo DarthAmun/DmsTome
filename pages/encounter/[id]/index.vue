@@ -447,31 +447,6 @@
                   </button>
                 </div>
 
-                <!-- Initiative formula settings panel -->
-                <div v-if="showInitFormula" class="init-formula-panel">
-                  <div class="init-formula-label">Initiative Formula</div>
-                  <div class="init-formula-row">
-                    <input
-                      v-model="initFormulaInput"
-                      class="init-formula-input"
-                      placeholder="e.g. d20 + floor(dex / 2)"
-                      @keyup.enter="saveInitFormula"
-                      @keyup.esc="showInitFormula = false"
-                    />
-                    <button class="init-formula-save" @click="saveInitFormula">Save</button>
-                    <button v-if="store.current?.initiativeFormula" class="init-formula-clear" @click="clearInitFormula" title="Clear formula (use plain d20)">✕</button>
-                  </div>
-                  <div class="init-formula-presets">
-                    <button class="init-preset-chip" @click="initFormulaInput = 'd20'">d20</button>
-                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + dexmod'">d20+dexmod</button>
-                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor((dex - 10) / 2)'">d20+DEX mod</button>
-                    <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor(perception / 2)'">d20+perc/2</button>
-                  </div>
-                  <div v-if="initFormulaError" class="init-formula-error">{{ initFormulaError }}</div>
-                  <div v-else-if="store.current?.initiativeFormula" class="init-formula-active">
-                    Active: <code>{{ store.current.initiativeFormula }}</code>
-                  </div>
-                </div>
                 <!-- Bulk action bar -->
                 <div v-if="selectedTokenIds.size > 0" class="order-bulk-bar">
                   <span class="order-bulk-count">{{ selectedTokenIds.size }} selected</span>
@@ -934,6 +909,45 @@
       </Teleport>
     </div>
     <!-- end encounter-page -->
+
+    <!-- ── Initiative formula modal ── -->
+    <Teleport to="body">
+      <div v-if="showInitFormula" class="pv-dialog-mask" @click.self="showInitFormula = false" @keyup.esc="showInitFormula = false">
+        <div class="pv-dialog init-formula-modal">
+          <div class="pv-dialog-header">
+            <span class="pv-dialog-title">Initiative Formula</span>
+            <button class="pv-dialog-close" @click="showInitFormula = false">✕</button>
+          </div>
+          <div class="pv-dialog-content">
+            <div class="init-formula-label">Formula expression</div>
+            <div class="init-formula-row">
+              <input
+                v-model="initFormulaInput"
+                class="init-formula-input"
+                placeholder="e.g. d20 + floor(dex / 2)"
+                @keyup.enter="saveInitFormula"
+                @keyup.esc="showInitFormula = false"
+              />
+            </div>
+            <div class="init-formula-label" style="margin-top:8px">Presets</div>
+            <div class="init-formula-presets">
+              <button class="init-preset-chip" @click="initFormulaInput = 'd20'">d20</button>
+              <button class="init-preset-chip" @click="initFormulaInput = 'd20 + dexmod'">d20 + dexmod</button>
+              <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor((dex - 10) / 2)'">d20 + DEX mod</button>
+              <button class="init-preset-chip" @click="initFormulaInput = 'd20 + floor(perception / 2)'">d20 + perc/2</button>
+            </div>
+            <div v-if="initFormulaError" class="init-formula-error">{{ initFormulaError }}</div>
+            <div v-else-if="store.current?.initiativeFormula" class="init-formula-active">
+              Active: <code>{{ store.current.initiativeFormula }}</code>
+            </div>
+          </div>
+          <div class="pv-dialog-footer">
+            <button v-if="store.current?.initiativeFormula" class="init-formula-clear" @click="clearInitFormula">Clear</button>
+            <button class="init-formula-save" @click="saveInitFormula">Save</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -2734,55 +2748,45 @@ function getImageUrl(token: any): string {
 .init-formula-btn { margin-left: 2px; }
 .init-formula-btn.active { border-color: var(--accent); color: var(--accent-l); }
 
-/* ── Initiative formula panel ── */
-.init-formula-panel {
-  flex-shrink: 0;
-  padding: 8px 8px 6px;
-  border-bottom: 1px solid var(--parch-line);
-  background: color-mix(in oklch, var(--parch-dark) 92%, var(--accent));
-  display: flex; flex-direction: column; gap: 6px;
-}
+/* ── Initiative formula modal ── */
+.init-formula-modal { width: 420px; }
 .init-formula-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.1em; color: var(--ink-ghost); font-family: 'Cinzel', var(--font-head);
 }
 .init-formula-row { display: flex; gap: 4px; align-items: center; }
 .init-formula-input {
-  flex: 1; padding: 4px 7px; border-radius: 3px;
+  flex: 1; min-width: 0; padding: 6px 10px; border-radius: 4px;
   border: 1px solid var(--parch-line); background: var(--parch-dark);
-  color: var(--ink); font-size: 11px; font-family: 'DM Mono', monospace;
-  outline: none;
+  color: var(--ink); font-size: 13px; font-family: 'DM Mono', monospace;
+  outline: none; box-sizing: border-box; width: 100%;
 }
 .init-formula-input:focus { border-color: var(--accent); }
 .init-formula-save {
-  padding: 3px 8px; border-radius: 3px; font-size: 10px; font-weight: 700;
+  padding: 6px 16px; border-radius: 4px; font-size: 12px; font-weight: 700;
   border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent-l);
   cursor: pointer; white-space: nowrap;
 }
+.init-formula-save:hover { background: var(--accent); color: #fff; }
 .init-formula-clear {
-  width: 22px; height: 22px; border-radius: 3px;
+  padding: 6px 12px; border-radius: 4px; font-size: 12px;
   border: 1px solid var(--parch-line); background: none;
-  color: var(--ink-ghost); cursor: pointer; font-size: 10px;
-  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-ghost); cursor: pointer;
 }
 .init-formula-clear:hover { border-color: var(--blood); color: var(--blood); }
-.init-formula-presets { display: flex; gap: 4px; flex-wrap: wrap; }
+.init-formula-presets { display: flex; gap: 6px; flex-wrap: wrap; }
 .init-preset-chip {
-  padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600;
+  padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
   font-family: 'DM Mono', monospace; letter-spacing: 0.02em;
   border: 1px solid var(--parch-line); background: var(--parch-dark);
   color: var(--ink-ghost); cursor: pointer; transition: all 0.1s; white-space: nowrap;
 }
 .init-preset-chip:hover { border-color: var(--gold); color: var(--gold); }
-.init-formula-error {
-  font-size: 10px; color: var(--blood); font-style: italic;
-}
-.init-formula-active {
-  font-size: 10px; color: var(--ink-ghost);
-}
+.init-formula-error { font-size: 11px; color: var(--blood); font-style: italic; }
+.init-formula-active { font-size: 11px; color: var(--ink-ghost); }
 .init-formula-active code {
   font-family: 'DM Mono', monospace; color: var(--accent-l);
-  background: var(--accent-bg); padding: 1px 4px; border-radius: 2px;
+  background: var(--accent-bg); padding: 1px 5px; border-radius: 3px;
 }
 
 /* ── Inline HP quick-damage input ── */

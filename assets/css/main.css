@@ -4057,3 +4057,8 @@ html[data-theme="dark"] .bldr-field-row:hover {
 .entity-ref--encounter { color: #e8a87a; background: rgba(217,141,91,0.15); }
 .entity-ref--graph    { color: #7cc44e; background: rgba(100,180,60,0.15); }
 .roll-ref { cursor: pointer; color: oklch(78% 0.16 75); font-family: monospace; font-size: 0.9em; }
+
+/* ── Print: hide chrome if user hits Ctrl+P directly in the browser ── */
+@media print {
+    .no-print { display: none !important; }
+}
