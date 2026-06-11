@@ -435,7 +435,7 @@ export function getImageKeysByType(systems: DbSystem[]): Map<string, string[]> {
 const IMAGE_MAX_PX = 1920
 const IMAGE_QUALITY = 0.8
 
-export async function fileToDataUrl(file: File): Promise<string> {
+export async function fileToDataUrl(file: File, toJpeg = true): Promise<string> {
   const raw = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload  = () => resolve(reader.result as string)
@@ -443,7 +443,7 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 
-  return compressDataUrl(raw)
+  return compressDataUrl(raw, toJpeg)
 }
 
 export function compressDataUrl(dataUrl: string, toJpeg = true): Promise<string> {

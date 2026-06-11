@@ -70,6 +70,14 @@
                 />
               </div>
 
+              <div class="ifm-field">
+                <label class="ifm-jpeg-label">
+                  <input type="checkbox" v-model="convertToJpeg" class="ifm-check" />
+                  Convert to JPEG
+                  <span class="ifm-hint">(smaller files; PNGs lose transparency)</span>
+                </label>
+              </div>
+
             </div>
           </template>
 
@@ -212,6 +220,7 @@ const systems = ref<DbSystem[]>([])
 const systemId = ref<number | null>(null)
 const entityTypeId = ref<string | null>(null)
 const imageFieldKey = ref<string | null>(null)
+const convertToJpeg = ref(true)
 // shallowRef: File is a browser-native object — deep Vue proxying causes memory corruption
 const pickedFiles = shallowRef<File[]>([])
 const folderInput = ref<HTMLInputElement | null>(null)
@@ -386,7 +395,7 @@ async function applyMatches() {
 
   for (const m of toApply) {
     try {
-      const dataUrl = await fileToDataUrl(m.file)
+      const dataUrl = await fileToDataUrl(m.file, convertToJpeg.value)
       const rec = allRecords.value.find(r => r.id === m.selectedId)
       if (!rec) { skippedCount.value++; progressDone.value++; continue }
       const data: Record<string, any> = parseRecordData(rec.data)
@@ -465,6 +474,7 @@ function reset() {
   systemId.value = null
   entityTypeId.value = null
   imageFieldKey.value = null
+  convertToJpeg.value = true
   pickedFiles.value = []
   matches.value = []
   allRecords.value = []
@@ -541,6 +551,16 @@ onUnmounted(revokeObjUrls)
 .ifm-folder-btn:hover { border-color: var(--border-hi); color: var(--text); }
 
 .ifm-folder-count { font-size: 12px; color: var(--accent); font-weight: 500; }
+
+.ifm-jpeg-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+}
 
 /* ── Review ── */
 .ifm-stats-bar {
