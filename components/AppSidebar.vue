@@ -58,6 +58,14 @@
               <OhVueIcon :name="et.icon" scale="0.75" :style="{ color: et.color }" />
             </NuxtLink>
             <NuxtLink
+              :to="`/campaign/${c.id}/encounters`"
+              class="sb-icon-link"
+              :class="{ active: route.path === `/campaign/${c.id}/encounters` || (route.path.startsWith('/encounter') && activeCampaignId === c.id) }"
+              data-tip="Encounters"
+            >
+              <OhVueIcon name="gi-crossed-swords" scale="0.75" style="color: #e05555" />
+            </NuxtLink>
+            <NuxtLink
               :to="`/campaign/${c.id}/graphs`"
               class="sb-icon-link"
               :class="{ active: route.path.startsWith(`/campaign/${c.id}/graph`) }"
@@ -281,6 +289,7 @@ import { useEntities } from '~/composables/useEntities'
 import { useAppDialogs } from '~/composables/useAppDialogs'
 import type { DbCampaign } from '~/composables/useDb'
 import { ENTITY_TYPE_LIST } from '~/types/entities'
+import { useEncounterStore } from '~/stores/encounter'
 
 const { showNewCampaign, showNewSystem } = useAppDialogs()
 
@@ -288,6 +297,7 @@ const route = useRoute()
 const router = useRouter()
 const systemsStore = useSystems()
 const notesStore = useEntities()
+const encounterStore = useEncounterStore()
 
 // ── Collapse state ─────────────────────────────────────────────────────────
 const collapsed = ref(false)
@@ -323,13 +333,16 @@ onMounted(() => { if (!systems.value.length) systemsStore.loadAll() })
 
 // ── Active context ─────────────────────────────────────────────────────────
 const activeCampaignId = computed(() => {
-  const id = route.params.id
-  if (!route.path.startsWith('/campaign/') && !route.path.startsWith('/encounter')) return null
   if (route.path.startsWith('/encounter')) {
-    // Try to find the campaign from the encounter store if available
-    return null // encounters are separate routes; sidebar highlights via activeCampaignId = null
+    // Encounter store is loaded asynchronously by the encounter page;
+    // once it resolves, this computed updates and the watcher auto-expands the campaign.
+    return encounterStore.current?.campaignId ?? null
   }
-  return id ? Number(id) : null
+  if (route.path.startsWith('/campaign/')) {
+    const id = route.params.id
+    return id ? Number(id) : null
+  }
+  return null
 })
 
 const activeSystemId = computed(() => {

@@ -23,7 +23,7 @@
           <button v-if="search" class="cm-search-clear" @click="search = ''">✕</button>
         </div>
 
-        <div class="cm-body">
+        <div class="cm-body" @click="editingStyle = null">
 
           <!-- Active conditions -->
           <div v-if="localConditions.length" class="cm-section">
@@ -36,6 +36,7 @@
                 <div class="cm-active-row">
                   <span
                     class="cm-active-name"
+                    :class="{ 'cm-active-name--hidden': cond.hidden }"
                     title="Open full condition details"
                     @click="emit('show-condition-panel', cond.name, cond.value)"
                   >{{ cond.name }}</span>
@@ -44,6 +45,12 @@
                     <span class="cm-val-display">{{ cond.value !== null ? cond.value : '—' }}</span>
                     <button class="cond-ctrl-btn" @click="adjustValue(idx, 1)">+</button>
                   </div>
+                  <button
+                    class="cond-ctrl-btn cond-vis-btn"
+                    :class="{ 'cond-vis-btn--hidden': cond.hidden }"
+                    :title="cond.hidden ? 'Hidden from players — click to reveal' : 'Visible to players — click to hide'"
+                    @click="toggleHidden(idx)"
+                  >{{ cond.hidden ? '◌' : '👁' }}</button>
                   <button class="condition-remove" @click="removeCondition(idx)">✕</button>
                 </div>
               </div>
@@ -79,6 +86,16 @@
                 >
                   <div class="cm-row-body">
                     <div class="cm-row-top">
+                      <!-- Color/icon swatch — only for DB-backed conditions -->
+                      <button
+                        v-if="cond.recordId"
+                        class="cm-style-swatch"
+                        :style="{ background: cond.color ?? '#666' }"
+                        :title="'Edit color / icon for ' + cond.name"
+                        @click.stop="editingStyle = editingStyle === cond.name ? null : cond.name"
+                      >
+                        <OhVueIcon v-if="cond.icon" :name="cond.icon" :scale="0.5" style="opacity:0.9;pointer-events:none" />
+                      </button>
                       <span class="cm-cond-name">{{ cond.name }}</span>
                       <OhVueIcon
                         v-if="isActive(cond.name)"
@@ -92,6 +109,35 @@
                     </div>
                     <span v-if="cond.summary" class="cm-cond-summary">{{ cond.summary }}</span>
                     <span v-if="cond.description" class="cm-cond-desc">{{ cond.description }}</span>
+
+                    <!-- Style popover -->
+                    <div v-if="editingStyle === cond.name" class="cm-style-popover" @click.stop>
+                      <div class="cm-style-section-label">Color</div>
+                      <div class="cm-style-colors">
+                        <button
+                          v-for="c in STYLE_COLORS"
+                          :key="c"
+                          class="cm-swatch-btn"
+                          :class="{ 'cm-swatch-btn--active': cond.color === c }"
+                          :style="{ background: c }"
+                          @click="saveConditionStyle(cond, c)"
+                        />
+                      </div>
+                      <div class="cm-style-section-label" style="margin-top:8px">Icon</div>
+                      <div class="cm-style-icons">
+                        <button
+                          v-for="ic in STYLE_ICONS"
+                          :key="ic"
+                          class="cm-icon-btn"
+                          :class="{ 'cm-icon-btn--active': cond.icon === ic }"
+                          :title="ic"
+                          @click="saveConditionStyle(cond, undefined, ic)"
+                        >
+                          <OhVueIcon :name="ic" :scale="0.75" />
+                        </button>
+                      </div>
+                      <button class="cm-style-close" @click="editingStyle = null">Done</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -112,7 +158,8 @@
 
 <script setup lang="ts">
 import type { EncounterToken, TokenCondition } from '~/stores/encounter'
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
+import { CONDITION_CATALOG, getConditionColor } from '~/composables/useConditions'
 
 const props = defineProps<{
   token: EncounterToken | null
@@ -126,17 +173,36 @@ const emit = defineEmits<{
   'show-condition-panel': [name: string, value: number | null]
 }>()
 
+// ── Condition style palette ────────────────────────────────────────────────
+const STYLE_COLORS = [
+  '#5fae54', '#e07b39', '#d04a4a', '#a06ad4', '#d9c34a',
+  '#7d8a99', '#4aa3c0', '#d4b54a', '#8456a8', '#6a89b5',
+  '#88c5c5', '#c08a5a', '#a35b5b', '#9aa7b8', '#c86fa8', '#7cc44e',
+]
+const STYLE_ICONS = [
+  'gi-poison-bottle', 'gi-fire',          'gi-falling',       'gi-spider-web',
+  'gi-terror',        'gi-knockout',      'gi-sight-disabled','gi-brain',
+  'gi-angel-wings',   'gi-evil-moon',     'gi-snail',         'gi-invisible',
+  'gi-grab',          'gi-tired-eye',     'gi-death-skull',   'gi-broken-bone',
+  'gi-chain-lightning','gi-magic-swirl',  'gi-frozen-orb',    'gi-heart-shield',
+  'gi-sleepy',        'gi-eye-shield',    'gi-acid',          'gi-circle',
+]
+
 // ── State ──────────────────────────────────────────────────────────────────
 const search = ref('')
 const searchEl = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
 const localConditions = ref<TokenCondition[]>([])
+const editingStyle = ref<string | null>(null)  // condition name whose style popover is open
 
 interface AvailCondition {
   name: string
   summary: string
   hasValue: boolean
   description?: string
+  color?: string
+  icon?: string
+  recordId?: number  // set when loaded from DB; allows color/icon write-back
 }
 
 const availableConditions = ref<AvailCondition[]>([])
@@ -215,9 +281,7 @@ async function loadConditions() {
       if (recs.length) {
         const TEXT_KEY = /\b(description|desc|summary|effect|text|body|rules|detail)\b/i
         availableConditions.value = recs.map((r: any) => {
-          const data: Record<string, any> = typeof r.data === 'string'
-            ? JSON.parse(r.data || '{}')
-            : (r.data ?? {})
+          const data: Record<string, any> = parseRecordData(r.data)
           const summary: string = data.summary ?? data.effect ?? data.description ?? ''
           let description: string | undefined
           for (const [k, v] of Object.entries(data)) {
@@ -226,18 +290,31 @@ async function loadConditions() {
               break
             }
           }
+          const cat = CONDITION_CATALOG[r.name]
+          const color: string = (typeof data.color === 'string' && data.color)
+            ? data.color
+            : (cat?.color ?? getConditionColor(r.name))
+          const icon: string | undefined = (typeof data.icon === 'string' && data.icon)
+            ? data.icon
+            : cat?.icon
           return {
             name: r.name,
             summary,
             description,
             hasValue: data.hasValue === true || VALUED_CONDITIONS.has(r.name),
+            color,
+            icon,
+            recordId: r.id as number | undefined,
           }
         }).sort((a: AvailCondition, b: AvailCondition) => a.name.localeCompare(b.name))
         return
       }
     }
-    // No system linked or system has no condition records — use built-in list
-    availableConditions.value = FALLBACK_CONDITIONS
+    // No system linked or system has no condition records — use built-in list with catalog colors
+    availableConditions.value = FALLBACK_CONDITIONS.map(c => {
+      const cat = CONDITION_CATALOG[c.name]
+      return { ...c, color: cat?.color ?? getConditionColor(c.name), icon: cat?.icon }
+    })
   } finally {
     loading.value = false
   }
@@ -272,7 +349,13 @@ function emit_update() {
 function addCustomCondition() {
   const name = customConditionEntry.value
   if (!name || isActive(name)) return
-  localConditions.value.push({ name, value: null })
+  const cat = CONDITION_CATALOG[name]
+  localConditions.value.push({
+    name,
+    value: null,
+    color: cat?.color ?? getConditionColor(name),
+    icon: cat?.icon,
+  })
   emit_update()
   search.value = ''
 }
@@ -285,6 +368,8 @@ function toggleCondition(cond: AvailCondition) {
     localConditions.value.push({
       name: cond.name,
       value: cond.hasValue ? 1 : null,
+      color: cond.color,
+      icon: cond.icon,
     })
   }
   emit_update()
@@ -292,6 +377,12 @@ function toggleCondition(cond: AvailCondition) {
 
 function removeCondition(idx: number) {
   localConditions.value.splice(idx, 1)
+  emit_update()
+}
+
+function toggleHidden(idx: number) {
+  const c = localConditions.value[idx]
+  localConditions.value[idx] = { ...c, hidden: !c.hidden }
   emit_update()
 }
 
@@ -311,6 +402,30 @@ function adjustValue(idx: number, delta: number) {
   emit_update()
 }
 
+
+// ── Condition style editing ────────────────────────────────────────────────
+async function saveConditionStyle(cond: AvailCondition, color?: string, icon?: string) {
+  if (color !== undefined) cond.color = color
+  if (icon !== undefined) cond.icon = icon
+  // Write back to DB record if we have an ID
+  if (cond.recordId) {
+    const db = getDb()
+    const rec = await db.records.get(cond.recordId)
+    if (rec) {
+      const data = parseRecordData(rec.data)
+      if (color !== undefined) data.color = color
+      if (icon !== undefined) data.icon = icon
+      await db.records.update(cond.recordId, { data: JSON.stringify(data) })
+    }
+  }
+  // Propagate to any active condition on the current token
+  const active = localConditions.value.find(c => c.name === cond.name)
+  if (active) {
+    if (color !== undefined) active.color = color
+    if (icon !== undefined) active.icon = icon
+    emit_update()
+  }
+}
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 watch(() => props.open, async (open) => {
@@ -465,6 +580,10 @@ watch(() => props.token, (tok) => {
 }
 .cm-active-name:hover { color: var(--ink); }
 .cm-active-name--open { color: var(--ink); }
+.cm-active-name--hidden { opacity: 0.55; text-decoration: line-through; }
+.cond-vis-btn { font-size: 11px; opacity: 0.6; }
+.cond-vis-btn:hover { opacity: 1; }
+.cond-vis-btn--hidden { color: #6b6b9a; opacity: 0.85; }
 .cm-active-stepper {
   display: flex;
   align-items: center;
@@ -604,6 +723,96 @@ watch(() => props.token, (tok) => {
   border-color: rgba(159, 122, 191, 0.7);
 }
 .cm-add-custom strong { font-weight: 700; }
+
+/* Style swatch button */
+.cm-style-swatch {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s, border-color 0.12s;
+  color: #fff;
+}
+.cm-style-swatch:hover {
+  transform: scale(1.2);
+  border-color: rgba(255,255,255,0.5);
+}
+
+/* Style popover */
+.cm-style-popover {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--surface2, rgba(20,16,12,0.97));
+  border: 1px solid var(--parch-line);
+  border-radius: 5px;
+}
+.cm-style-section-label {
+  font-family: var(--font-head);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  margin-bottom: 6px;
+}
+.cm-style-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.cm-swatch-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.cm-swatch-btn:hover { transform: scale(1.2); }
+.cm-swatch-btn--active { border-color: #fff; transform: scale(1.15); }
+
+.cm-style-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.cm-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--parch-line);
+  background: none;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.cm-icon-btn:hover { background: rgba(159,122,191,0.12); color: var(--ink); }
+.cm-icon-btn--active { background: rgba(159,122,191,0.22); color: var(--arcane-l, #9f7abf); border-color: rgba(159,122,191,0.5); }
+
+.cm-style-close {
+  display: block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--parch-line);
+  background: none;
+  font-family: var(--font-head);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  cursor: pointer;
+}
+.cm-style-close:hover { border-color: var(--arcane); color: var(--arcane-l, #9f7abf); }
 
 /* Footer */
 .cm-footer {

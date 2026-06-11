@@ -194,7 +194,7 @@
 
 <script setup lang="ts">
 import { markRaw, shallowRef } from 'vue'
-import { getDb, fileToDataUrl, now } from '~/composables/useDb'
+import { getDb, fileToDataUrl, now, parseRecordData } from '~/composables/useDb'
 import { scoreNormalized, normalize } from '~/composables/useImageMatcher'
 import type { EntityTypeSchema, FieldSchema } from '~/types/entities'
 import type { DbSystem, DbRecord } from '~/composables/useDb'
@@ -389,8 +389,7 @@ async function applyMatches() {
       const dataUrl = await fileToDataUrl(m.file)
       const rec = allRecords.value.find(r => r.id === m.selectedId)
       if (!rec) { skippedCount.value++; progressDone.value++; continue }
-      let data: Record<string, any> = {}
-      try { data = JSON.parse(rec.data) } catch {}
+      const data: Record<string, any> = parseRecordData(rec.data)
       data[imageFieldKey.value!] = dataUrl
       await db.records.update(m.selectedId!, {
         data: JSON.stringify(data),

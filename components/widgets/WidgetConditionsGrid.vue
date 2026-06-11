@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 
 const props = defineProps<{ systemId: number | null }>()
 
@@ -100,9 +100,7 @@ async function load() {
 
       if (recs.length) {
         conditions.value = recs.map((r: any) => {
-          const data: Record<string, any> = typeof r.data === 'string'
-            ? JSON.parse(r.data || '{}')
-            : (r.data ?? {})
+          const data: Record<string, any> = parseRecordData(r.data)
           return { name: r.name, summary: data.summary ?? data.effect ?? data.description ?? '' }
         }).sort((a: Condition, b: Condition) => a.name.localeCompare(b.name))
         return

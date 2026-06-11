@@ -408,6 +408,12 @@ export function getDb(): DmForgeDb {
   return _db
 }
 
+export function parseRecordData(data: any): Record<string, any> {
+  if (!data) return {}
+  if (typeof data === 'object') return data
+  try { return JSON.parse(data) } catch { return {} }
+}
+
 // ── Timestamp helper ───────────────────────────────────────────────────────
 export function now() { return new Date().toISOString() }
 
@@ -747,10 +753,14 @@ export const dbApi = {
   // ── Window — replaces Electron IPC window management ─────────────────
   window: {
     _channel: null as BroadcastChannel | null,
-    _syncHandler: null as ((e: MessageEvent) => void) | null,
-    _closedHandler: null as ((e: MessageEvent) => void) | null,
-    _getChannel() {
-      if (!this._channel) this._channel = new BroadcastChannel('dmforge-player')
+    _handlers: new Map<string, (data: any) => void>(),
+    _ensureChannel() {
+      if (!this._channel) {
+        this._channel = new BroadcastChannel('dmforge-player')
+        this._channel.addEventListener('message', (e: MessageEvent) => {
+          this._handlers.get(e.data?.type)?.(e.data)
+        })
+      }
       return this._channel
     },
     openPlayer(encounterId: number): Promise<void> {
@@ -761,46 +771,41 @@ export const dbApi = {
       return Promise.resolve()
     },
     closePlayer(): Promise<void> {
-      this._getChannel().postMessage({ type: 'close' })
+      this._ensureChannel().postMessage({ type: 'close' })
       return Promise.resolve()
     },
     syncEncounter(data: any): void {
       // JSON round-trip strips Vue reactive Proxies, which postMessage cannot clone
-      this._getChannel().postMessage({ type: 'sync', data: JSON.parse(JSON.stringify(data)) })
+      this._ensureChannel().postMessage({ type: 'sync', data: JSON.parse(JSON.stringify(data)) })
     },
     onPlayerClosed(cb: () => void): void {
-      const ch = this._getChannel()
-      if (this._closedHandler) ch.removeEventListener('message', this._closedHandler)
-      this._closedHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'player-closed') cb()
-      }
-      ch.addEventListener('message', this._closedHandler)
+      this._ensureChannel()
+      this._handlers.set('player-closed', cb)
     },
-    offPlayerClosed(): void {
-      if (this._closedHandler) {
-        this._getChannel().removeEventListener('message', this._closedHandler)
-        this._closedHandler = null
-      }
-    },
+    offPlayerClosed(): void { this._handlers.delete('player-closed') },
     onEncounterSync(cb: (data: any) => void): void {
-      const ch = this._getChannel()
-      if (this._syncHandler) ch.removeEventListener('message', this._syncHandler)
-      this._syncHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'sync') cb(e.data.data)
-      }
-      ch.addEventListener('message', this._syncHandler)
+      this._ensureChannel()
+      this._handlers.set('sync', (d) => cb(d.data))
     },
-    offEncounterSync(): void {
-      if (this._syncHandler) {
-        this._getChannel().removeEventListener('message', this._syncHandler)
-        this._syncHandler = null
-      }
+    offEncounterSync(): void { this._handlers.delete('sync') },
+    onPlayerReady(cb: () => void): void {
+      this._ensureChannel()
+      this._handlers.set('player-ready', cb)
+    },
+    offPlayerReady(): void { this._handlers.delete('player-ready') },
+    sendPlayerReady(): void {
+      this._ensureChannel().postMessage({ type: 'player-ready' })
     },
     // ── Map player ───────────────────────────────────────────────────────
     _mapChannel: null as BroadcastChannel | null,
-    _mapSyncHandler: null as ((e: MessageEvent) => void) | null,
-    _getMapChannel() {
-      if (!this._mapChannel) this._mapChannel = new BroadcastChannel('dmforge-map')
+    _mapHandlers: new Map<string, (data: any) => void>(),
+    _ensureMapChannel() {
+      if (!this._mapChannel) {
+        this._mapChannel = new BroadcastChannel('dmforge-map')
+        this._mapChannel.addEventListener('message', (e: MessageEvent) => {
+          this._mapHandlers.get(e.data?.type)?.(e.data)
+        })
+      }
       return this._mapChannel
     },
     openMapPlayer(campaignId: number, locationId: number): Promise<void> {
@@ -810,22 +815,13 @@ export const dbApi = {
       return Promise.resolve()
     },
     syncMap(locationId: number | null): void {
-      this._getMapChannel().postMessage({ type: 'map-sync', locationId })
+      this._ensureMapChannel().postMessage({ type: 'map-sync', locationId })
     },
     onMapSync(cb: (locationId: number | null) => void): void {
-      const ch = this._getMapChannel()
-      if (this._mapSyncHandler) ch.removeEventListener('message', this._mapSyncHandler)
-      this._mapSyncHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'map-sync') cb(e.data.locationId)
-      }
-      ch.addEventListener('message', this._mapSyncHandler)
+      this._ensureMapChannel()
+      this._mapHandlers.set('map-sync', (d) => cb(d.locationId))
     },
-    offMapSync(): void {
-      if (this._mapSyncHandler) {
-        this._getMapChannel().removeEventListener('message', this._mapSyncHandler)
-        this._mapSyncHandler = null
-      }
-    },
+    offMapSync(): void { this._mapHandlers.delete('map-sync') },
   },
 
   // ── Systems ───────────────────────────────────────────────────────────

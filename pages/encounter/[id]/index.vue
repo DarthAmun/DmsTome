@@ -170,6 +170,19 @@
             style="width: 100%; height: 100%"
           />
 
+          <!-- Condition chips overlay -->
+          <ConditionChipsOverlay
+            v-if="encounter && canvasViewport"
+            :tokens="encounter.tokens"
+            :is-d-m="true"
+            :hovered-token-id="hoveredTokenId"
+            :selected-token-id="editingToken?.id ?? null"
+            :viewport="canvasViewport"
+            :grid-size="encounter.gridSize"
+            :grid-offset-x="encounter.gridOffsetX"
+            :grid-offset-y="encounter.gridOffsetY"
+          />
+
           <!-- Drop hint when no map -->
           <div v-if="!encounter?.mapSource" class="canvas-empty-state">
             <OhVueIcon name="md-map" scale="4" class="enc-empty-icon" />
@@ -954,7 +967,8 @@
 import { useEncounterStore } from "~/stores/encounter";
 import type { EncounterToken } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
-import { dbApi } from "~/composables/useDb";
+import { dbApi, parseRecordData } from "~/composables/useDb";
+import { hexColorToNumber } from "~/composables/useConditions";
 import { useSystems } from "~/composables/useSystems";
 import { useConditionPanel } from "~/composables/useConditionPanel";
 import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
@@ -1025,9 +1039,7 @@ const shapeType = ref<ShapeType>("circle");
 const shapeColor = ref("#e84040");
 const shapes = ref<ShapeOverlay[]>([]);
 
-function hexToPixi(hex: string): number {
-  return parseInt(hex.replace("#", ""), 16);
-}
+const hexToPixi = hexColorToNumber;
 
 const selectedToken = ref<any>(null);
 const editingToken = ref<EncounterToken | null>(null);
@@ -1076,8 +1088,7 @@ async function confirmLink() {
   const rec = await dbApi.records.get(linkSelectedId.value);
   if (!rec) return;
 
-  const data: Record<string, any> =
-    typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : (rec.data ?? {});
+  const data: Record<string, any> = parseRecordData(rec.data);
 
   if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll();
   const recSys = systemsStore.getSystem(rec.systemId);
@@ -1112,7 +1123,7 @@ async function openRecordPanel(recordId: number) {
   const entityType = sys?.entityTypes?.find((et: any) => et.id === rec.entityTypeId) ?? null;
   recordPanel.value = {
     open: true,
-    record: { ...rec, data: typeof rec.data === 'string' ? JSON.parse(rec.data || '{}') : rec.data },
+    record: { ...rec, data: parseRecordData(rec.data) },
     entityType,
     systemId: rec.systemId,
   };
@@ -1485,7 +1496,7 @@ async function loadCreatureRecords() {
     const et: any = sys?.entityTypes?.find((e: any) => e.id === typeId)
     const fields = et?.fields ?? []
     return recs.map(r => {
-      const data: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data ?? {})
+      const data: any = parseRecordData(r.data)
       return { id: r.id!, name: r.name, entityTypeId: r.entityTypeId, imageSource: extractImageFromRecord(data, fields) }
     })
   }))
@@ -1579,6 +1590,10 @@ const filteredLibraryOthers = computed(() => filteredLibrary.value.others)
 
 let canvas: ReturnType<typeof useEncounterCanvas> | null = null;
 
+// ── Condition chips overlay state ──────────────────────────────────────────
+const hoveredTokenId = ref<number | null>(null);
+const canvasViewport = ref<{ x: number; y: number; scale: number } | null>(null);
+
 const currentTurnTokenId = computed(
   () => store.initiativeOrder[store.currentTurnIndex]?.id ?? null
 );
@@ -1621,6 +1636,13 @@ onMounted(async () => {
       await store.addWall(points, coverType);
       canvas?.redrawWalls();
     },
+    onTokenPointerEnter: (tokenId) => {
+      hoveredTokenId.value = tokenId;
+      canvasViewport.value = canvas?.getViewport() ?? null;
+    },
+    onTokenPointerLeave: (tokenId) => {
+      if (hoveredTokenId.value === tokenId) hoveredTokenId.value = null;
+    },
   });
 
   await canvas.init();
@@ -1655,7 +1677,14 @@ watch(
   async () => {
     await canvas?.renderTokens();
     canvas?.recomputeFov();
+    canvasViewport.value = canvas?.getViewport() ?? null;
   },
+  { deep: true },
+);
+
+watch(
+  () => store.current?.viewport,
+  () => { canvasViewport.value = canvas?.getViewport() ?? null; },
   { deep: true },
 );
 

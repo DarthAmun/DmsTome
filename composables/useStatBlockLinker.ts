@@ -3,7 +3,7 @@
  * combatants. Replaces near-identical logic in the encounter page and
  * TokenEditModal.
  */
-import { dbApi } from '~/composables/useDb'
+import { dbApi, parseRecordData } from '~/composables/useDb'
 import { useSystems } from '~/composables/useSystems'
 import type { FieldComponentType } from '~/types/entities'
 
@@ -198,9 +198,7 @@ export function useStatBlockLinker() {
   async function loadRecordWithFields(recordId: number) {
     const rec = await dbApi.records.get(recordId)
     if (!rec) return null
-    const data: Record<string, any> = typeof rec.data === 'string'
-      ? JSON.parse(rec.data || '{}')
-      : (rec.data ?? {})
+    const data: Record<string, any> = parseRecordData(rec.data)
     if (!systemsStore.getSystem(rec.systemId)) await systemsStore.loadAll()
     const sys = systemsStore.getSystem(rec.systemId)
     const et: any = sys?.entityTypes?.find((t: any) => t.id === rec.entityTypeId)

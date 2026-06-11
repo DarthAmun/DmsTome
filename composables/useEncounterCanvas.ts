@@ -4,6 +4,7 @@ import type { EncounterToken } from "../stores/encounter";
 import type { DbEncounterWall } from "./useDb";
 import { useFovCompute, type Point } from "./useFovCompute";
 import { AlphaFilter, Container } from "pixi.js";
+import { visibleConditions, getConditionColorHex, hpColorHex, hexColorToNumber, healthState } from "./useConditions";
 
 export type ShapeType = "circle" | "square" | "cone";
 
@@ -38,6 +39,8 @@ export interface CanvasOptions {
     points: Array<{ x: number; y: number }>;
     coverType: DbEncounterWall["coverType"];
   }) => void;
+  onTokenPointerEnter?: (tokenId: number) => void;
+  onTokenPointerLeave?: (tokenId: number) => void;
 }
 
 export function useEncounterCanvas(options: CanvasOptions) {
@@ -958,6 +961,36 @@ export function useEncounterCanvas(options: CanvasOptions) {
     }
   }
 
+  // Degrees → canvas radians (0° = top, clockwise)
+  const toCanvasRad = (deg: number) => (deg - 90) * Math.PI / 180;
+
+  // ── Dash-arc helper: batches all dash subpaths into a single stroke() call ──
+  function drawDashedArc(
+    g: PIXI.Graphics,
+    cx: number, cy: number, r: number,
+    startDeg: number, endDeg: number,
+    color: number, alpha: number,
+    strokeWidth: number,
+    dashPx = 3, gapPx = 4,
+  ) {
+    const totalDeg = endDeg - startDeg;
+    const arcLen = Math.abs((totalDeg * Math.PI / 180) * r);
+    let pos = 0;
+    let drawing = true;
+    while (pos < arcLen) {
+      const segLen = Math.min(drawing ? dashPx : gapPx, arcLen - pos);
+      if (drawing && segLen > 0) {
+        const a0 = toCanvasRad(startDeg + (pos / arcLen) * totalDeg);
+        const a1 = toCanvasRad(startDeg + ((pos + segLen) / arcLen) * totalDeg);
+        g.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+        g.arc(cx, cy, r, a0, a1);
+      }
+      pos += segLen;
+      drawing = !drawing;
+    }
+    g.stroke({ color, alpha, width: strokeWidth, cap: "round" });
+  }
+
   async function renderToken(token: any) {
     if (!tokenContainer || !app) return;
     const enc = store.current;
@@ -967,82 +1000,34 @@ export function useEncounterCanvas(options: CanvasOptions) {
     const pixelX = gridOffsetX + token.gridX * gridSize;
     const pixelY = gridOffsetY + token.gridY * gridSize;
     const pixelSize = gridSize * token.size;
+    const R = pixelSize / 2;
+    const cx = R, cy = R; // center within container
+
+    const screenCell = enc.gridSize * viewport.scale;
+    const tier: "full" | "dots" | "pip" = screenCell >= 54 ? "full" : screenCell >= 32 ? "dots" : "pip";
 
     const container = new PIXI.Container();
     container.x = pixelX;
     container.y = pixelY;
     container.label = `token-${token.id}`;
 
+    // ── Base faction ring (pure disposition, no condition color) ─────────────
     const ring = new PIXI.Graphics();
-    const hasConditions = token.conditions && token.conditions.length > 0;
-    const ringColor = token.isDead
+    const factionColor = token.isDead
       ? 0x8b2030
-      : hasConditions
-        ? 0xc9973a
-        : !token.isVisible
-          ? 0x2d2d50
-          : 0x1a8070;
-    ring.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2);
-    ring.fill({ color: ringColor, alpha: 0.3 });
-    ring.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2);
-    ring.stroke({ color: ringColor, width: token.isDead ? 3 : 2, alpha: 0.9 });
+      : !token.isVisible
+        ? 0x2d2d50
+        : (token.isPlayerToken ? 0x1a8070 : 0xc0392b);
+    ring.circle(cx, cy, R);
+    ring.fill({ color: factionColor, alpha: 0.3 });
+    ring.circle(cx, cy, R);
+    ring.stroke({ color: factionColor, width: token.isDead ? 3 : 2, alpha: 0.9 });
     container.addChild(ring);
 
-    if (hasConditions && (options.isDmMode || token.isVisible)) {
-      const overlay = new PIXI.Container();
-      overlay.alpha = 0;
-      overlay.zIndex = 100;
-
-      const bg = new PIXI.Graphics();
-      bg.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 - 1);
-      bg.fill({ color: 0x0a0a19, alpha: 0.85 });
-      overlay.addChild(bg);
-
-      const conditions = token.conditions as any[];
-      const lineHeight = Math.min(14, (pixelSize - 8) / conditions.length);
-      const fontSize = Math.max(6, Math.min(11, lineHeight * 0.8));
-      const totalHeight = conditions.length * lineHeight;
-      const startY = pixelSize / 2 - totalHeight / 2 + lineHeight / 2;
-
-      conditions.forEach((cond, i) => {
-        const label =
-          cond.value !== null ? `${cond.name} ${cond.value}` : cond.name;
-        const text = new PIXI.Text({
-          text: label,
-          style: {
-            fontSize,
-            fill: 0xffcc66,
-            fontFamily: "system-ui",
-            fontWeight: "bold",
-            stroke: { color: 0x000000, width: 2 },
-          },
-        });
-        text.anchor.set(0.5);
-        text.x = pixelSize / 2;
-        text.y = startY + i * lineHeight;
-        overlay.addChild(text);
-      });
-
-      container.addChild(overlay);
-
-      if (options.isDmMode) {
-        container.interactive = true;
-        container.on("pointerenter", () => {
-          overlay.alpha = 1;
-        });
-        container.on("pointerleave", () => {
-          overlay.alpha = 0;
-        });
-      } else {
-        overlay.alpha = 1;
-      }
-    }
-
+    // ── Portrait / fallback initial ──────────────────────────────────────────
     if (token.imageSource) {
       try {
-        let url = token.imageSource;
-        if (token.imageSource) url = token.imageSource;
-        const texture = await PIXI.Assets.load(url);
+        const texture = await PIXI.Assets.load(token.imageSource);
         const sprite = new PIXI.Sprite(texture);
         const scale = (pixelSize - 4) / Math.min(texture.width, texture.height);
         sprite.scale.set(scale);
@@ -1050,7 +1035,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
         sprite.y = (pixelSize - sprite.height) / 2;
 
         const mask = new PIXI.Graphics();
-        mask.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 - 2);
+        mask.circle(cx, cy, R - 2);
         mask.fill(0xffffff);
         container.addChild(mask);
         container.addChild(sprite);
@@ -1061,36 +1046,114 @@ export function useEncounterCanvas(options: CanvasOptions) {
       } catch {
         const text = new PIXI.Text({
           text: token.name.charAt(0).toUpperCase(),
-          style: {
-            fontSize: pixelSize * 0.45,
-            fill: 0xc8c8e8,
-            fontFamily: "Cinzel",
-            fontWeight: "600",
-          },
+          style: { fontSize: pixelSize * 0.45, fill: 0xc8c8e8, fontFamily: "Cinzel", fontWeight: "600" },
         });
         text.anchor.set(0.5);
-        text.x = pixelSize / 2;
-        text.y = pixelSize / 2;
+        text.x = cx;
+        text.y = cy;
         container.addChild(text);
+      }
+    } else {
+      const text = new PIXI.Text({
+        text: token.name.charAt(0).toUpperCase(),
+        style: { fontSize: pixelSize * 0.45, fill: 0xc8c8e8, fontFamily: "Cinzel", fontWeight: "600" },
+      });
+      text.anchor.set(0.5);
+      text.x = cx;
+      text.y = cy;
+      container.addChild(text);
+    }
+
+    // ── Health tint (player view, non-PC tokens) ─────────────────────────────
+    if (!options.isDmMode && !token.isPlayerToken && !token.isDead) {
+      // Prefer the synced health-state word; fall back to computing from raw HP
+      // (raw HP is available on the initial DB load before any DM sync arrives)
+      const hs = token.playerHealthState ?? (token.hpMax ? healthState(token) : "healthy");
+      const tintAlpha = hs === "critical" ? 0.45 : hs === "bloodied" ? 0.28 : 0;
+      if (tintAlpha > 0) {
+        const tint = new PIXI.Graphics();
+        tint.circle(cx, cy, R - 2);
+        tint.fill({ color: 0x780f19, alpha: tintAlpha });
+        container.addChild(tint);
       }
     }
 
-    if (options.isDmMode || token.isVisible) {
+    // ── Dead skull overlay ───────────────────────────────────────────────────
+    if (token.isDead) {
+      // Simple X cross as skull substitute (texture loads would be async)
+      const skull = new PIXI.Graphics();
+      const s = R * 0.3;
+      skull.moveTo(cx - s, cy - s); skull.lineTo(cx + s, cy + s);
+      skull.stroke({ color: 0xe8d5d5, width: 2.5, alpha: 0.85, cap: "round" });
+      skull.moveTo(cx + s, cy - s); skull.lineTo(cx - s, cy + s);
+      skull.stroke({ color: 0xe8d5d5, width: 2.5, alpha: 0.85, cap: "round" });
+      container.addChild(skull);
+    }
+
+    // ── HP arc (DM view only) ────────────────────────────────────────────────
+    if (options.isDmMode && !token.isDead && token.hpMax && token.hpCurrent !== null) {
+      const f = Math.max(0, token.hpCurrent / token.hpMax);
+      if (f < 0.999) {
+        const arcR = R - 4.5;
+        const hpG = new PIXI.Graphics();
+        // Track (full circle minus 1° gap at top)
+        hpG.arc(cx, cy, arcR, toCanvasRad(1), toCanvasRad(359));
+        hpG.stroke({ color: 0x05050f, alpha: 0.55, width: 3 });
+        // Fill arc
+        if (f > 0.01) {
+          const sweep = 358 * f;
+          hpG.arc(cx, cy, arcR, toCanvasRad(1), toCanvasRad(1 + sweep));
+          hpG.stroke({ color: hpColorHex(f), alpha: 0.95, width: 3, cap: "round" });
+        }
+        container.addChild(hpG);
+      }
+    }
+
+    // ── Status ring (condition segments) ─────────────────────────────────────
+    const conds = visibleConditions(token.conditions ?? [], options.isDmMode);
+    if (conds.length > 0) {
+      const n = conds.length;
+      const ringR = R + 4;
+      const gap = n > 1 ? 10 : 0;
+      const seg = 360 / n;
+      const strokeW = tier === "pip" ? 3 : 4.5;
+      // Round caps overhang the arc endpoint by strokeW/2 px. Shrink each arc
+      // inward by that angle so the cap tip lands exactly at the gap boundary.
+      const capInsetDeg = n > 1
+        ? Math.asin((strokeW / 2) / ringR) * (180 / Math.PI)
+        : 0;
+      for (let i = 0; i < n; i++) {
+        const cond = conds[i];
+        const a0 = i * seg + gap / 2 + capInsetDeg;
+        const a1 = (i + 1) * seg - gap / 2 - capInsetDeg;
+        const color = cond.color
+          ? hexColorToNumber(cond.color)
+          : getConditionColorHex(cond.name);
+
+        const segG = new PIXI.Graphics();
+        if (cond.hidden) {
+          drawDashedArc(segG, cx, cy, ringR, a0, a1, color, 0.7, strokeW);
+        } else {
+          segG.arc(cx, cy, ringR, toCanvasRad(a0), toCanvasRad(a1));
+          segG.stroke({ color, alpha: 0.95, width: strokeW, cap: "round" });
+        }
+        container.addChild(segG);
+      }
+    }
+
+    // ── Nameplate + player health pip ────────────────────────────────────────
+    if ((options.isDmMode || token.isVisible) && tier !== "pip") {
       const label = new PIXI.Text({
         text: token.label || token.name,
-        style: {
-          fontSize: 10,
-          fill: 0xc8c8e8,
-          fontFamily: "system-ui",
-          stroke: { color: 0x000000, width: 3 },
-        },
+        style: { fontSize: 10, fill: 0xc8c8e8, fontFamily: "system-ui", stroke: { color: 0x000000, width: 3 } },
       });
       label.anchor.set(0.5, 0);
-      label.x = pixelSize / 2;
+      label.x = cx;
       label.y = pixelSize + 2;
       container.addChild(label);
     }
 
+    // ── DM hidden-token badge ────────────────────────────────────────────────
     if (options.isDmMode && !token.isVisible) {
       const badge = new PIXI.Graphics();
       badge.circle(pixelSize - 8, 8, 7);
@@ -1107,6 +1170,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
       container.addChild(eye);
     }
 
+    // ── Elevation badge ──────────────────────────────────────────────────────
     if (token.elevation !== null && token.elevation !== undefined) {
       const elvLabel = token.elevation >= 0 ? `↑${token.elevation}` : `↓${Math.abs(token.elevation)}`;
       const elvColor = token.elevation >= 0 ? 0x88ccff : 0xffaa55;
@@ -1125,8 +1189,27 @@ export function useEncounterCanvas(options: CanvasOptions) {
       container.addChild(elvText);
     }
 
+    // ── Active-turn gold ring (placed outside the condition ring at R+4) ────
+    if (options.getActiveTurnTokenId?.() === token.id) {
+      const activeRing = new PIXI.Graphics();
+      // Condition ring outer edge ≈ R+6.25 — start well clear of it
+      activeRing.circle(cx, cy, R + 10);
+      activeRing.stroke({ color: 0xffd700, width: 3, alpha: 0.95 });
+      activeRing.circle(cx, cy, R + 15);
+      activeRing.stroke({ color: 0xffd700, width: 1.5, alpha: 0.3 });
+      container.addChild(activeRing);
+    }
+
+    // ── Interaction (drag + hover events) ────────────────────────────────────
+    container.interactive = true;
+    container.on("pointerenter", () => {
+      options.onTokenPointerEnter?.(token.id);
+    });
+    container.on("pointerleave", () => {
+      options.onTokenPointerLeave?.(token.id);
+    });
+
     if (options.isDmMode) {
-      container.interactive = true;
       container.cursor = "grab";
       let dragging = false;
       let dragOffX = 0;
@@ -1162,15 +1245,6 @@ export function useEncounterCanvas(options: CanvasOptions) {
         container.y = gridOffsetY + snappedY * gridSize;
         options.onTokenMoved?.(token.id, snappedX, snappedY);
       });
-    }
-
-    if (options.getActiveTurnTokenId?.() === token.id) {
-      const activeRing = new PIXI.Graphics();
-      activeRing.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 + 5);
-      activeRing.stroke({ color: 0xffd700, width: 3, alpha: 0.95 });
-      activeRing.circle(pixelSize / 2, pixelSize / 2, pixelSize / 2 + 10);
-      activeRing.stroke({ color: 0xffd700, width: 1.5, alpha: 0.3 });
-      container.addChild(activeRing);
     }
 
     tokenContainer.addChild(container);
@@ -1420,6 +1494,10 @@ export function useEncounterCanvas(options: CanvasOptions) {
     app = null;
   }
 
+  function getViewport() {
+    return { ...viewport };
+  }
+
   return {
     init,
     loadMap,
@@ -1430,6 +1508,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
     applyExternalViewport,
     getGridPosFromScreen,
     getTokenScreenBounds,
+    getViewport,
     addShapeOverlay,
     removeShapeOverlay,
     clearShapeOverlays,

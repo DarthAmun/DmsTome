@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 import { useSystems } from '~/composables/useSystems'
 
 const props = defineProps<{
@@ -73,7 +73,7 @@ async function loadCondition() {
     entityType.value = sys?.entityTypes?.find((e: any) => e.id === 'condition') ?? null
     record.value = {
       name: rows.name,
-      data: typeof rows.data === 'string' ? JSON.parse(rows.data || '{}') : (rows.data ?? {}),
+      data: parseRecordData(rows.data),
     }
   } finally {
     loading.value = false

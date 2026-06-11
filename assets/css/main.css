@@ -2447,8 +2447,6 @@ html[data-theme="dark"] .entry:hover {
 #pixi-canvas canvas,
 #pixi-canvas-player canvas {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
 }
 .no-select {
     user-select: none;

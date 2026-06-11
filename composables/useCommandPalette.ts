@@ -1,4 +1,4 @@
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 import { useEntities } from '~/composables/useEntities'
 import { useSystems } from '~/composables/useSystems'
 import type { EntityTypeSchema } from '~/types/entities'
@@ -565,7 +565,7 @@ async function editSuggestions(
       ?? rows.find((r: any) => r.systemId === ctx.system!.id && r.entityTypeId === sysEt.id)
     // No key yet — show editable fields from the schema with current values
     if (!key && rec) {
-      const data = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+      const data = parseRecordData(rec.data)
       const editableFields = sysEt.fields.filter(f => f.component !== 'textarea')
       if (editableFields.length) {
         items.push({ kind: 'section', label: `${rec.name} — pick a field` })
@@ -592,7 +592,7 @@ async function editSuggestions(
             hint: 'Select this value',
             execute: async () => {
               if (!rec) return
-              const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+              const existing = parseRecordData(rec.data)
               await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [actualKey]: opt }) })
               close()
             },
@@ -608,7 +608,7 @@ async function editSuggestions(
       warning: !rec ? `no match for "${namePart}"` : !key ? 'type a field key' : !value ? 'type a value' : undefined,
       execute: async () => {
         if (!rec || !key || !value) return
-        const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+        const existing = parseRecordData(rec.data)
         await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [actualKey]: value }) })
         close()
       },
@@ -790,7 +790,7 @@ async function appendSuggestions(
       warning: !rec ? `no match for "${namePart}"` : !text ? 'type the paragraph text' : undefined,
       execute: async () => {
         if (!rec || !text) return
-        const existing = JSON.parse(typeof rec.data === 'string' ? rec.data : '{}')
+        const existing = parseRecordData(rec.data)
         const current = existing[textField.key] ?? ''
         await dbApi.records.update(rec.id, { data: JSON.stringify({ ...existing, [textField.key]: current ? `${current}\n\n${text}` : text }) })
         close()

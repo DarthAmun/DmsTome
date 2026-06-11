@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 
 const props = defineProps<{ systemId: number | null }>()
 
@@ -101,9 +101,7 @@ async function load() {
     const recs = await db.records.where('systemId').equals(props.systemId).toArray()
 
     allRecords.value = recs.map((r: any): RuleRecord => {
-      const data: Record<string, any> = typeof r.data === 'string'
-        ? JSON.parse(r.data || '{}')
-        : (r.data ?? {})
+      const data: Record<string, any> = parseRecordData(r.data)
 
       const fields = Object.entries(data)
         .filter(([k, v]) => !SKIP_KEYS.has(k) && !BODY_KEYS.test(k) && v != null && String(v).trim())

@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 
 const props = defineProps<{ recordId: number }>()
 
@@ -50,7 +50,7 @@ async function load() {
     const db = getDb()
     const raw = await db.records.get(props.recordId)
     if (!raw) { record.value = null; return }
-    const data = typeof raw.data === 'string' ? JSON.parse(raw.data || '{}') : (raw.data ?? {})
+    const data = parseRecordData(raw.data)
     record.value = { ...data }
   } finally {
     loading.value = false

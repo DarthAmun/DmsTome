@@ -49,6 +49,9 @@ interface Window {
       offPlayerClosed: () => void
       onEncounterSync: (cb: (data: any) => void) => void
       offEncounterSync: () => void
+      onPlayerReady: (cb: () => void) => void
+      offPlayerReady: () => void
+      sendPlayerReady: () => void
       openMapPlayer: (campaignId: number, locationId: number) => Promise<void>
       syncMap: (locationId: number | null) => void
       onMapSync: (cb: (locationId: number | null) => void) => void

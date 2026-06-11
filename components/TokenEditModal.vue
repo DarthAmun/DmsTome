@@ -173,7 +173,7 @@
 
 <script setup lang="ts">
 import type { EncounterToken, TokenCondition } from '~/stores/encounter'
-import { getDb } from '~/composables/useDb'
+import { getDb, parseRecordData } from '~/composables/useDb'
 import { useSystems } from '~/composables/useSystems'
 import { useStatBlockLinker, SIZE_STRING_MAP } from '~/composables/useStatBlockLinker'
 
@@ -324,9 +324,7 @@ function save() {
 
   // Optionally sync HP/AC from newly linked record
   if (pendingLink.value && syncHpAc.value) {
-    const data: Record<string, any> = typeof pendingLink.value.data === 'string'
-      ? JSON.parse(pendingLink.value.data || '{}')
-      : (pendingLink.value.data ?? {})
+    const data: Record<string, any> = parseRecordData(pendingLink.value.data)
     const extracted = extractStatsFromData(data)
     if (extracted.hpMax !== null) {
       changes.hpMax = extracted.hpMax

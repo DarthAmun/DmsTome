@@ -2,7 +2,7 @@
 // See the DATA MODEL NOTE in composables/useDb.ts for the full two-system explanation.
 import { ref, computed, reactive } from 'vue'
 import { extractLinks } from '~/composables/useEntityParser'
-import { dbApi, getDb } from '~/composables/useDb'
+import { dbApi, getDb, parseRecordData } from '~/composables/useDb'
 import type { DbEntitySnapshot } from '~/composables/useDb'
 import type { EntityType, EntityAttributes } from '~/types/entities'
 
@@ -352,7 +352,7 @@ function normalizeLink(raw: any): EntityLink {
     sourceId: raw.source_id,
     targetType: raw.target_type,
     targetName: raw.target_name,
-    metadata: typeof raw.metadata === 'string' ? JSON.parse(raw.metadata || '{}') : (raw.metadata ?? {}),
+    metadata: parseRecordData(raw.metadata),
   }
 }
 

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
-import { dbApi } from '~/composables/useDb'
+import { dbApi, parseRecordData } from '~/composables/useDb'
 import type { DbEncounterWall } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
 import { evaluateFormula, dataToScope } from '~/composables/useFormulaEvaluator'
+import { healthState, type HealthState } from '~/composables/useConditions'
 
 function tryParseJson<T>(s: unknown, fallback: T): T {
   if (typeof s !== 'string') return fallback
@@ -43,6 +44,9 @@ export interface Token {
 export interface TokenCondition {
   name: string
   value: number | null  // null = no value (e.g. Prone), number = stage (e.g. Poisoned 2)
+  hidden?: boolean      // DM-only; players never see it
+  color?: string        // hex color resolved at add-time; falls back to catalog/hash
+  icon?: string         // gi-* icon name resolved at add-time
 }
 
 export interface EncounterToken {
@@ -71,6 +75,7 @@ export interface EncounterToken {
   visionRange: number | null  // tiles, null = infinite
   isPlayerToken: boolean      // default false
   elevation: number | null
+  playerHealthState?: HealthState  // set only in player-sync payload; undefined in DM view
 }
 
 export interface Encounter {
@@ -168,6 +173,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       _activeTurnTokenId.value = initiativeOrder.value[storedIndex]?.id ?? null
       walls.value = await dbApi.walls.list(id)
       wallUndoStack.value = []
+      dbApi.window.onPlayerReady(syncToPlayer)
     } catch (err) {
       console.error('[EncounterStore] loadEncounter:', err)
     } finally {
@@ -511,7 +517,18 @@ export const useEncounterStore = defineStore('encounter', () => {
     dbApi.window.syncEncounter({
       tokens: current.value.tokens
         .filter(t => t.isVisible)
-        .map(t => ({ ...toRaw(t) })),
+        .map(t => {
+          const raw = { ...toRaw(t) }
+          // Strip hidden conditions from player view
+          raw.conditions = raw.conditions.filter(c => !c.hidden)
+          // Replace exact HP with health state for non-PC tokens
+          if (!raw.isPlayerToken) {
+            raw.playerHealthState = healthState(raw)
+            raw.hpCurrent = null
+            raw.hpMax = null
+          }
+          return raw
+        }),
       fogData: { ...toRaw(current.value.fogData) },
       mapSource: current.value.mapSource,
       mapType: current.value.mapType,
@@ -520,6 +537,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       gridOffsetY: current.value.gridOffsetY,
       shapes: shapeOverlays.value.map(s => ({ ...toRaw(s) })),
       currentTurnIndex: currentTurnIndex.value,
+      activeTurnTokenId: _activeTurnTokenId.value,
       roundNumber: roundNumber.value,
       wallDoorStates: walls.value.map(w => ({ id: w.id, isOpen: w.isOpen })),
     })
@@ -663,9 +681,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       const records = await Promise.all(recordIds.map(id => dbApi.records.get(id)))
       for (const rec of records) {
         if (!rec?.id) continue
-        const data: Record<string, any> = typeof rec.data === 'string'
-          ? JSON.parse(rec.data || '{}')
-          : (rec.data ?? {})
+        const data: Record<string, any> = parseRecordData(rec.data)
         recordScopes.set(rec.id, dataToScope(data))
       }
     }
