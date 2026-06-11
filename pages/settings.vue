@@ -188,113 +188,187 @@
       </section>
 
       <!-- Import & Export -->
-      <section v-else-if="activeSection === 'data'" class="sett-section">
-        <div class="sett-section-title">Import &amp; Export</div>
-        <div class="sett-group">
+      <div v-else-if="activeSection === 'data'" class="sett-data-cols">
 
-          <div v-if="stats" class="sett-stats-row">
-            <span class="sett-stat">{{ stats.campaigns }} campaigns</span>
-            <span class="sett-stat">{{ stats.entities }} notes</span>
-            <span class="sett-stat">{{ stats.graphs }} graphs</span>
-            <span class="sett-stat">{{ stats.systems }} systems</span>
-            <span class="sett-stat">{{ stats.records }} records</span>
-            <span class="sett-stat">{{ stats.tokens }} tokens</span>
-          </div>
-
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Everything</span>
-              <span class="sett-desc">All campaigns, systems, tokens and records</span>
-            </div>
-            <div class="sett-btn-pair">
-              <button class="sett-btn" @click="exportAll">↓ Export</button>
-              <label class="sett-btn">↑ Import
-                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'all')" />
-              </label>
+        <!-- Database stats -->
+        <section class="sett-section">
+          <div class="sett-section-title">Database</div>
+          <div class="sett-group">
+            <div v-if="stats" class="sett-stats-row" style="border-bottom:none">
+              <span class="sett-stat">{{ stats.campaigns }} campaigns</span>
+              <span class="sett-stat">{{ stats.entities }} notes</span>
+              <span class="sett-stat">{{ stats.graphs }} graphs</span>
+              <span class="sett-stat">{{ stats.systems }} systems</span>
+              <span class="sett-stat">{{ stats.records }} records</span>
+              <span class="sett-stat">{{ stats.tokens }} tokens</span>
             </div>
           </div>
+        </section>
 
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Campaigns</span>
-              <span class="sett-desc">Campaigns with encounters, notes and links</span>
+        <!-- Image Tools -->
+        <section class="sett-section">
+          <div class="sett-section-title">Image Tools</div>
+          <div class="sett-group">
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Image Folder Import</span>
+                <span class="sett-desc">Match a folder of images to system records by filename, then bulk-assign them to the image field of your choice.</span>
+              </div>
+              <button class="sett-btn" @click="imgFolderOpen = true">↑ Import</button>
             </div>
-            <div class="sett-btn-pair">
-              <button class="sett-btn" @click="exportCampaigns">↓ Export</button>
-              <label class="sett-btn">↑ Import
-                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'campaigns')" />
-              </label>
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Re-compress Images</span>
+                <span class="sett-desc">Downscale all stored images to ≤1920 px. Check a category to also convert it to JPEG for smaller files (PNGs lose transparency).</span>
+                <div class="sett-check-grid">
+                  <label class="sett-check">
+                    <input type="checkbox" v-model="rcJpegBanners" :disabled="recompressing" />
+                    Campaign banners → JPEG
+                  </label>
+                  <label class="sett-check">
+                    <input type="checkbox" v-model="rcJpegMaps" :disabled="recompressing" />
+                    Encounter maps → JPEG
+                  </label>
+                  <label class="sett-check">
+                    <input type="checkbox" v-model="rcJpegTokens" :disabled="recompressing" />
+                    Token images → JPEG
+                  </label>
+                  <label class="sett-check">
+                    <input type="checkbox" v-model="rcJpegRecords" :disabled="recompressing" />
+                    System record images → JPEG
+                  </label>
+                </div>
+              </div>
+              <button class="sett-btn" :disabled="recompressing" @click="recompressImages">{{ recompressLabel }}</button>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Full Backup -->
+        <section class="sett-section">
+          <div class="sett-section-title">Full Backup</div>
+          <div class="sett-group">
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Everything</span>
+                <span class="sett-desc">All campaigns, systems, tokens and records</span>
+              </div>
+              <div class="sett-btn-pair">
+                <button class="sett-btn" @click="exportAll">↓ Export</button>
+                <label class="sett-btn">↑ Import
+                  <input type="file" accept=".json" style="display:none" @change="openImport($event, 'all')" />
+                </label>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Systems</span>
-              <span class="sett-desc">Rule system schemas only</span>
+        <!-- Campaigns -->
+        <section class="sett-section">
+          <div class="sett-section-title">Campaigns</div>
+          <div class="sett-group">
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Campaigns</span>
+                <span class="sett-desc">Campaigns with encounters, notes and links</span>
+              </div>
+              <div class="sett-btn-pair">
+                <button class="sett-btn" @click="exportCampaigns">↓ Export</button>
+                <label class="sett-btn">↑ Import
+                  <input type="file" accept=".json" style="display:none" @change="openImport($event, 'campaigns')" />
+                </label>
+              </div>
             </div>
-            <div class="sett-btn-pair">
-              <button class="sett-btn" @click="exportSystems(false)">↓ Export</button>
-              <label class="sett-btn">↑ Import
-                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems')" />
-              </label>
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Export as Markdown</span>
+                <span class="sett-desc">Download a campaign's notes as a Markdown zip</span>
+                <select v-if="campaigns.length" v-model="mdExportCampaignId" class="sett-md-select">
+                  <option :value="null">— choose campaign —</option>
+                  <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <button class="sett-btn" :disabled="!mdExportCampaignId || mdExporting" @click="exportCampaignMarkdown">
+                {{ mdExporting ? 'Exporting…' : '↓ Export' }}
+              </button>
+            </div>
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Export for Claude</span>
+                <span class="sett-desc">Single Markdown file optimised for uploading to a Claude project as reference knowledge</span>
+                <select v-if="campaigns.length" v-model="claudeExportCampaignId" class="sett-md-select">
+                  <option :value="null">— choose campaign —</option>
+                  <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <button class="sett-btn sett-btn--claude" :disabled="!claudeExportCampaignId || claudeExporting" @click="exportCampaignForClaude">
+                {{ claudeExporting ? 'Building…' : '↓ Export' }}
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Systems -->
+        <section class="sett-section">
+          <div class="sett-section-title">Systems</div>
+          <div class="sett-group">
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Schemas only</span>
+                <span class="sett-desc">Rule system schemas without records</span>
+              </div>
+              <div class="sett-btn-pair">
+                <button class="sett-btn" @click="exportSystems(false)">↓ Export</button>
+                <label class="sett-btn">↑ Import
+                  <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems')" />
+                </label>
+              </div>
+            </div>
+
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Schemas + Records</span>
+                <span class="sett-desc">System schemas with all data records</span>
+              </div>
+              <div class="sett-btn-pair">
+                <button class="sett-btn" @click="exportSystems(true)">↓ Export</button>
+                <label class="sett-btn">↑ Import
+                  <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems-full')" />
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Tokens -->
+        <section class="sett-section">
+          <div class="sett-section-title">Tokens</div>
+          <div class="sett-group">
+            <div class="sett-row">
+              <div class="sett-row-text">
+                <span class="sett-label">Token templates</span>
+                <span class="sett-desc">Token templates and their images</span>
+              </div>
+              <div class="sett-btn-pair">
+                <button class="sett-btn" @click="exportTokens">↓ Export</button>
+                <label class="sett-btn">↑ Import
+                  <input type="file" accept=".json" style="display:none" @change="openImport($event, 'tokens')" />
+                </label>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Systems + Records</span>
-              <span class="sett-desc">System schemas with all data records</span>
-            </div>
-            <div class="sett-btn-pair">
-              <button class="sett-btn" @click="exportSystems(true)">↓ Export</button>
-              <label class="sett-btn">↑ Import
-                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'systems-full')" />
-              </label>
-            </div>
-          </div>
-
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Tokens</span>
-              <span class="sett-desc">Token templates and their images</span>
-            </div>
-            <div class="sett-btn-pair">
-              <button class="sett-btn" @click="exportTokens">↓ Export</button>
-              <label class="sett-btn">↑ Import
-                <input type="file" accept=".json" style="display:none" @change="openImport($event, 'tokens')" />
-              </label>
-            </div>
-          </div>
-
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Export as Markdown</span>
-              <span class="sett-desc">Download a campaign's notes as a Markdown zip</span>
-              <select v-if="campaigns.length" v-model="mdExportCampaignId" class="sett-md-select">
-                <option :value="null">— choose campaign —</option>
-                <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-            </div>
-            <button class="sett-btn" :disabled="!mdExportCampaignId || mdExporting" @click="exportCampaignMarkdown">
-              {{ mdExporting ? 'Exporting…' : '↓ Export' }}
-            </button>
-          </div>
-
-          <div class="sett-row">
-            <div class="sett-row-text">
-              <span class="sett-label">Export for Claude</span>
-              <span class="sett-desc">Single Markdown file optimised for uploading to a Claude project as reference knowledge</span>
-              <select v-if="campaigns.length" v-model="claudeExportCampaignId" class="sett-md-select">
-                <option :value="null">— choose campaign —</option>
-                <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-            </div>
-            <button class="sett-btn sett-btn--claude" :disabled="!claudeExportCampaignId || claudeExporting" @click="exportCampaignForClaude">
-              {{ claudeExporting ? 'Building…' : '↓ Export' }}
-            </button>
-          </div>
-        </div>
-      </section>
+      </div>
 
       <!-- Danger Zone -->
       <section v-else-if="activeSection === 'danger'" class="sett-section sett-section--danger">
@@ -327,6 +401,8 @@
     </div>
   </div>
 
+  <ImageFolderImportModal :open="imgFolderOpen" @close="imgFolderOpen = false" />
+
   <ImportModal
     :open="modalOpen"
     :phase="modalPhase"
@@ -345,7 +421,7 @@
 
 <script setup lang="ts">
 import JSZip from 'jszip'
-import { getDb, dbApi } from '~/composables/useDb'
+import { getDb, dbApi, compressDataUrl, now, getImageKeysByType } from '~/composables/useDb'
 import { THEMES, ACCENT_PRESETS } from '~/composables/useSettings'
 import { ENTITY_TYPE_CONFIG } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
@@ -415,6 +491,88 @@ const mdExporting = ref(false)
 const claudeExportCampaignId = ref<number | null>(null)
 const claudeExporting = ref(false)
 
+const imgFolderOpen    = ref(false)
+const recompressing  = ref(false)
+const rcJpegBanners  = ref(true)
+const rcJpegMaps     = ref(true)
+const rcJpegTokens   = ref(true)
+const rcJpegRecords  = ref(true)
+const recompressDone  = ref(0)
+const recompressTotal = ref(0)
+const recompressLabel  = computed(() => {
+  if (recompressing.value) return `Working… ${recompressDone.value} / ${recompressTotal.value}`
+  if (recompressTotal.value > 0 && recompressDone.value === recompressTotal.value) return `Done — ${recompressDone.value} images`
+  return '↻ Compress'
+})
+
+async function recompressImages() {
+  if (recompressing.value) return
+  recompressing.value = true
+  recompressDone.value = 0
+  recompressTotal.value = 0
+  try {
+    const db = getDb()
+    const jpegBanners = rcJpegBanners.value
+    const jpegMaps    = rcJpegMaps.value
+    const jpegTokens  = rcJpegTokens.value
+    const jpegRecords = rcJpegRecords.value
+
+    const [c, enc, tok, etok, systemRows, allRecs] = await Promise.all([
+      db.campaigns.toArray(),
+      db.encounters.toArray(),
+      db.tokens.toArray(),
+      db.encounterTokens.toArray(),
+      db.systems.toArray(),
+      db.records.toArray(),
+    ])
+
+    type Task = { table: any; id: number; field: string; value: string; toJpeg: boolean }
+    type RecordTask = { id: number; data: Record<string, any>; imageKeys: string[] }
+
+    const tableDefs = [
+      { table: db.campaigns,       rows: c,    field: 'banner_source', toJpeg: jpegBanners },
+      { table: db.encounters,      rows: enc,  field: 'map_source',    toJpeg: jpegMaps    },
+      { table: db.tokens,          rows: tok,  field: 'image_source',  toJpeg: jpegTokens  },
+      { table: db.encounterTokens, rows: etok, field: 'image_source',  toJpeg: jpegTokens  },
+    ]
+
+    const tasks: Task[] = []
+    for (const { table, rows, field, toJpeg } of tableDefs) {
+      for (const row of rows) {
+        const value = (row as any)[field]
+        if (value?.startsWith('data:')) tasks.push({ table, id: row.id!, field, value, toJpeg })
+      }
+    }
+
+    const imgKeysByType = getImageKeysByType(systemRows)
+    const recordTasks: RecordTask[] = []
+    for (const rec of allRecs) {
+      const imgKeys = imgKeysByType.get(rec.entityTypeId)
+      if (!imgKeys?.length) continue
+      let data: Record<string, any> = {}
+      try { data = JSON.parse(rec.data) } catch { continue }
+      const keysWithData = imgKeys.filter(k => typeof data[k] === 'string' && data[k].startsWith('data:'))
+      if (keysWithData.length) recordTasks.push({ id: rec.id!, data, imageKeys: keysWithData })
+    }
+
+    recompressTotal.value = tasks.length + recordTasks.length
+    for (const task of tasks) {
+      const compressed = await compressDataUrl(task.value, task.toJpeg)
+      await task.table.update(task.id, { [task.field]: compressed })
+      recompressDone.value++
+    }
+    for (const rt of recordTasks) {
+      for (const key of rt.imageKeys) {
+        rt.data[key] = await compressDataUrl(rt.data[key], jpegRecords)
+      }
+      await db.records.update(rt.id, { data: JSON.stringify(rt.data), updatedAt: now() })
+      recompressDone.value++
+    }
+  } finally {
+    recompressing.value = false
+  }
+}
+
 async function loadCampaigns() {
   campaigns.value = (await dbApi.campaigns.list()).map((c: any) => ({ id: c.id, name: c.name }))
 }
@@ -440,7 +598,7 @@ function download(data: object, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-function slug() { return new Date().toISOString().slice(0, 10) }
+function slug() { return now().slice(0, 10) }
 function safeFilename(s: string) { return s.replace(/[/\\:*?"<>|]/g, '_') }
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -465,7 +623,7 @@ async function exportAll() {
       db.entities.toArray(), db.entityLinks.toArray(), db.entitySnapshots.toArray(), db.entityConnections.toArray(), db.graphLayouts.toArray(),
       db.tokens.toArray(), db.systems.toArray(), db.records.toArray(),
     ])
-  download({ version: 1, type: 'all', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts, tokens, systems, records }, `dmstome-all-${slug()}.json`)
+  download({ version: 1, type: 'all', exportedAt: now(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts, tokens, systems, records }, `dmstome-all-${slug()}.json`)
 }
 
 async function exportCampaigns() {
@@ -482,20 +640,20 @@ async function exportCampaigns() {
   const entitySnapshots = entIds.length ? await db.entitySnapshots.where('entity_id').anyOf(entIds).toArray() : []
   const entityConnections = campIds.length ? await db.entityConnections.where('campaign_id').anyOf(campIds).toArray() : []
   const graphLayouts = campIds.length ? await db.graphLayouts.where('campaign_id').anyOf(campIds).toArray() : []
-  download({ version: 1, type: 'campaigns', exportedAt: new Date().toISOString(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts }, `dmstome-campaigns-${slug()}.json`)
+  download({ version: 1, type: 'campaigns', exportedAt: now(), campaigns, encounters, encounterTokens, encounterWalls, entities, entityLinks, entitySnapshots, entityConnections, graphLayouts }, `dmstome-campaigns-${slug()}.json`)
 }
 
 async function exportSystems(withRecords: boolean) {
   const db = getDb()
   const systems = await db.systems.toArray()
   const records = withRecords ? await db.records.toArray() : []
-  download({ version: 1, type: withRecords ? 'systems-full' : 'systems', exportedAt: new Date().toISOString(), systems, records }, `dmstome-systems${withRecords ? '-full' : ''}-${slug()}.json`)
+  download({ version: 1, type: withRecords ? 'systems-full' : 'systems', exportedAt: now(), systems, records }, `dmstome-systems${withRecords ? '-full' : ''}-${slug()}.json`)
 }
 
 async function exportTokens() {
   const db = getDb()
   const tokens = await db.tokens.toArray()
-  download({ version: 1, type: 'tokens', exportedAt: new Date().toISOString(), tokens }, `dmstome-tokens-${slug()}.json`)
+  download({ version: 1, type: 'tokens', exportedAt: now(), tokens }, `dmstome-tokens-${slug()}.json`)
 }
 
 function wikilinkify(text: string): string {
@@ -956,6 +1114,10 @@ async function clearAll() {
 }
 .sett-label { font-size: 13px; font-weight: 500; color: var(--text); }
 .sett-desc { font-size: 11px; color: var(--text3); line-height: 1.4; }
+.sett-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); cursor: pointer; user-select: none; }
+.sett-check input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+.sett-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 16px; margin-top: 8px; }
+.sett-data-cols { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
 
 .sett-theme-pills { display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px; }
 .sett-pill-btn {

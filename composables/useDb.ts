@@ -24,6 +24,7 @@
  * A future 'entity-link' field type in DbRecord can reference DbRecords by name.
  */
 import Dexie, { type Table } from 'dexie'
+import type { EntityTypeSchema } from '~/types/entities'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface DbCampaign {
@@ -408,15 +409,54 @@ export function getDb(): DmForgeDb {
 }
 
 // ── Timestamp helper ───────────────────────────────────────────────────────
-function now() { return new Date().toISOString() }
+export function now() { return new Date().toISOString() }
 
-// ── Image helper — reads a File into a base64 data URL ────────────────────
+// ── Image-field discovery ─────────────────────────────────────────────────
+export function getImageKeysByType(systems: DbSystem[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  for (const sys of systems) {
+    let entityTypes: EntityTypeSchema[] = []
+    try { entityTypes = JSON.parse(sys.entityTypes) } catch {}
+    for (const et of entityTypes) {
+      const keys = et.fields.filter(f => f.component === 'image').map(f => f.key)
+      if (keys.length) map.set(et.id, keys)
+    }
+  }
+  return map
+}
+
+// ── Image helper — reads a File, resizes to ≤1920px, re-encodes as JPEG ──
+const IMAGE_MAX_PX = 1920
+const IMAGE_QUALITY = 0.8
+
 export async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
+  const raw = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload  = () => resolve(reader.result as string)
     reader.onerror = reject
     reader.readAsDataURL(file)
+  })
+
+  return compressDataUrl(raw)
+}
+
+export function compressDataUrl(dataUrl: string, toJpeg = true): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const { naturalWidth: w, naturalHeight: h } = img
+      const scale = Math.min(1, IMAGE_MAX_PX / Math.max(w, h))
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(w * scale)
+      canvas.height = Math.round(h * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const originalMime = dataUrl.match(/^data:([^;]+);/)?.[1] ?? 'image/png'
+      const mime = toJpeg ? 'image/jpeg' : originalMime
+      const quality = (mime === 'image/jpeg' || mime === 'image/webp') ? IMAGE_QUALITY : undefined
+      resolve(canvas.toDataURL(mime, quality))
+    }
+    img.onerror = reject
+    img.src = dataUrl
   })
 }
 
