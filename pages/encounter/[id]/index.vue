@@ -101,7 +101,7 @@
                 type="range"
                 min="1"
                 max="200"
-                step="1"
+                step="0.05"
                 :value="encounter?.gridSize ?? 70"
                 class="enc-range"
                 @input="onGridSizeChange"
@@ -111,6 +111,15 @@
                 <span style="color: var(--ink)">{{ encounter?.gridSize ?? 70 }}px</span>
                 <span>200px</span>
               </div>
+              <input
+                type="number"
+                min="1"
+                max="200"
+                step="0.01"
+                class="enc-grid-fine-input"
+                :value="encounter?.gridSize ?? 70"
+                @change="onGridSizeInput"
+              />
               <label class="f-label enc-offset-label">Offset X</label>
               <InputNumber
                 :model-value="encounter?.gridOffsetX ?? 0"
@@ -1734,6 +1743,14 @@ async function onGridSizeChange(e: Event) {
   await store.updateGrid(size, enc.gridOffsetX, enc.gridOffsetY);
 }
 
+async function onGridSizeInput(e: Event) {
+  const val = Number((e.target as HTMLInputElement).value);
+  const enc = store.current;
+  if (!enc || Number.isNaN(val)) return;
+  const clamped = Math.min(200, Math.max(1, val));
+  await store.updateGrid(clamped, enc.gridOffsetX, enc.gridOffsetY);
+}
+
 async function onOffsetChange(axis: "x" | "y", val: number | null) {
   if (val === null) return;
   const enc = store.current;
@@ -2504,6 +2521,15 @@ function getImageUrl(token: any): string {
 
 .enc-grid-col { display: flex; flex-direction: column; gap: 8px; }
 .enc-range { width: 100%; accent-color: var(--gold); }
+.enc-grid-fine-input {
+  width: 100%;
+  background: var(--surface-hi);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  padding: 5px 8px;
+  font-size: 12px;
+}
 .enc-token-detail { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink); }
 
 /* ── Add Token modal ── */
