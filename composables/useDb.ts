@@ -506,6 +506,116 @@ export const dbApi = {
       await db.entityConnections.where('campaign_id').equals(id).delete()
       await db.campaigns.delete(id)
     },
+    async clone(id: number) {
+      const db = getDb()
+      const source = await db.campaigns.get(id)
+      if (!source) throw new Error(`campaigns.clone: campaign ${id} not found`)
+      const ts = now()
+      const newCampaignId = await db.campaigns.add({
+        name: `${source.name} (Copy)`,
+        description: source.description,
+        banner_source: source.banner_source ?? null,
+        banner_type: source.banner_type,
+        system_id: (source as any).system_id ?? null,
+        created_at: ts,
+        updated_at: ts,
+      } as DbCampaign) as number
+
+      // ── Entities ──────────────────────────────────────────────────────
+      const entities = await db.entities.where('campaign_id').equals(id).toArray()
+      const entityIdMap = new Map<number, number>()
+      for (const e of entities) {
+        const { id: oldId, ...rest } = e
+        const newId = await db.entities.add({ ...rest, campaign_id: newCampaignId })
+        entityIdMap.set(oldId!, newId as number)
+      }
+      const oldEntityIds = entities.map(e => e.id!)
+
+      // ── Entity links (resolved by name — only source_id needs remap) ──
+      const links = oldEntityIds.length
+        ? await db.entityLinks.where('source_id').anyOf(oldEntityIds).toArray()
+        : []
+      for (const l of links) {
+        const { id: _linkId, ...rest } = l
+        const newSourceId = entityIdMap.get(rest.source_id)
+        if (newSourceId == null) continue
+        await db.entityLinks.add({ ...rest, source_id: newSourceId })
+      }
+
+      // ── Entity snapshots ────────────────────────────────────────────────
+      for (const oldEntId of oldEntityIds) {
+        const snaps = await db.entitySnapshots.where('entity_id').equals(oldEntId).toArray()
+        for (const s of snaps) {
+          const { id: _sId, ...rest } = s
+          const newEntityId = entityIdMap.get(rest.entity_id)
+          if (newEntityId == null) continue
+          const newEventId = rest.event_id != null ? (entityIdMap.get(rest.event_id) ?? null) : null
+          await db.entitySnapshots.add({ ...rest, entity_id: newEntityId, event_id: newEventId })
+        }
+      }
+
+      // ── Entity connections ──────────────────────────────────────────────
+      const connections = await db.entityConnections.where('campaign_id').equals(id).toArray()
+      for (const c of connections) {
+        const { id: _cId, ...rest } = c
+        const newSource = entityIdMap.get(rest.source_entity_id)
+        const newTarget = entityIdMap.get(rest.target_entity_id)
+        if (newSource == null || newTarget == null) continue
+        await db.entityConnections.add({ ...rest, campaign_id: newCampaignId, source_entity_id: newSource, target_entity_id: newTarget })
+      }
+
+      // ── Graph layouts ───────────────────────────────────────────────────
+      const remapIdArray = (json: string): string => {
+        try {
+          const arr = JSON.parse(json)
+          if (!Array.isArray(arr)) return json
+          return JSON.stringify(arr.map((oldId: number) => entityIdMap.get(oldId)).filter((v: any) => v != null))
+        } catch { return json }
+      }
+      const remapPositions = (json: string): string => {
+        try {
+          const obj = JSON.parse(json)
+          const out: Record<string, any> = {}
+          for (const [key, val] of Object.entries(obj)) {
+            const newId = entityIdMap.get(Number(key))
+            if (newId != null) out[newId] = val
+          }
+          return JSON.stringify(out)
+        } catch { return json }
+      }
+      const layouts = await db.graphLayouts.where('campaign_id').equals(id).toArray()
+      for (const g of layouts) {
+        const { id: _gId, ...rest } = g
+        await db.graphLayouts.add({
+          ...rest,
+          campaign_id: newCampaignId,
+          positions: remapPositions(rest.positions),
+          hidden_nodes: remapIdArray(rest.hidden_nodes),
+          player_hidden_nodes: rest.player_hidden_nodes != null ? remapIdArray(rest.player_hidden_nodes) : rest.player_hidden_nodes,
+        })
+      }
+
+      // ── Encounters (+ tokens, walls) ────────────────────────────────────
+      const encounters = await db.encounters.where('campaign_id').equals(id).toArray()
+      for (const enc of encounters) {
+        const { id: oldEncId, ...rest } = enc
+        const newEncId = await db.encounters.add({ ...rest, campaign_id: newCampaignId })
+
+        const tokens = await db.encounterTokens.where('encounter_id').equals(oldEncId!).toArray()
+        for (const t of tokens) {
+          const { id: _tId, ...tRest } = t
+          await db.encounterTokens.add({ ...tRest, encounter_id: newEncId as number })
+        }
+
+        const walls = await db.encounterWalls.where('encounter_id').equals(oldEncId!).toArray()
+        for (const w of walls) {
+          const { id: _wId, ...wRest } = w
+          await db.encounterWalls.add({ ...wRest, encounter_id: newEncId as number })
+        }
+      }
+
+      return db.campaigns.get(newCampaignId)
+    },
   },
 
   // ── Internal helpers ─────────────────────────────────────────────────

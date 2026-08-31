@@ -60,6 +60,14 @@
                                     <OhVueIcon name="md-editnote" scale="0.7" />
                                 </button>
                                 <button
+                                    class="home-camp-act"
+                                    title="Clone"
+                                    :disabled="cloningId === c.id"
+                                    @click.stop="cloneCampaign(c)"
+                                >
+                                    <OhVueIcon name="md-contentcopy" scale="0.7" />
+                                </button>
+                                <button
                                     class="home-camp-act home-camp-act--del"
                                     title="Delete"
                                     @click.stop="deleteCampaign(c.id!)"
@@ -566,6 +574,22 @@ async function deleteCampaign(id: number) {
     await dbApi.campaigns.delete(id);
     campaigns.value = campaigns.value.filter((c) => c.id !== id);
     delete entityMap.value[id];
+}
+
+// ── Clone campaign ────────────────────────────────────────────────────────────
+const cloningId = ref<number | null>(null);
+
+async function cloneCampaign(c: any) {
+    if (cloningId.value) return;
+    cloningId.value = c.id;
+    try {
+        const clone = await dbApi.campaigns.clone(c.id);
+        if (!clone) return;
+        campaigns.value = [clone, ...campaigns.value];
+        entityMap.value[clone.id!] = await dbApi.entities.list(clone.id!);
+    } finally {
+        cloningId.value = null;
+    }
 }
 
 // ── Edit campaign ─────────────────────────────────────────────────────────────
