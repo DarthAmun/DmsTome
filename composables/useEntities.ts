@@ -13,6 +13,7 @@ export interface Entity {
   name: string
   content: string
   attributes: EntityAttributes
+  isFavorite: boolean
   createdAt: string
   updatedAt: string
 }
@@ -123,6 +124,13 @@ async function updateEntity(id: number, updates: { name?: string; content?: stri
     console.error('[NotesStore] updateEntity:', err)
     throw err
   }
+}
+
+async function setFavorite(id: number, isFavorite: boolean) {
+  const entity = entities.value.find(e => e.id === id)
+  if (entity) entity.isFavorite = isFavorite
+  if (currentEntity.value?.id === id) currentEntity.value.isFavorite = isFavorite
+  await dbApi.entities.setFavorite(id, isFavorite)
 }
 
 async function deleteEntity(id: number) {
@@ -341,6 +349,7 @@ function normalize(raw: any): Entity {
     name: raw.name,
     content: raw.content ?? '',
     attributes: typeof raw.attributes === 'string' ? JSON.parse(raw.attributes || '{}') : (raw.attributes ?? {}),
+    isFavorite: Boolean(raw.is_favorite),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }
@@ -361,7 +370,7 @@ function normalizeLink(raw: any): EntityLink {
 export function useEntities() {
   return reactive({
     entities, currentEntity, links, isLoading, byType, snapshots, snapshotsEntityId,
-    loadAll, loadEntity, createEntity, updateEntity, deleteEntity,
+    loadAll, loadEntity, createEntity, updateEntity, deleteEntity, setFavorite,
     syncLinks, loadSnapshots, createSnapshot, updateSnapshot,
     updateSnapshotContent, deleteSnapshot,
     findByTypeAndName, linksFrom, backlinksTo, getGraphData, pinnedLocationsFor,

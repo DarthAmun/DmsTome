@@ -30,6 +30,16 @@
             <slot name="actions" />
 
             <button
+                class="hdr-btn hdr-btn--fav"
+                :class="{ active: isFavorite }"
+                :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+                @click="toggleFavorite"
+            >
+                <span class="fav-star">{{ isFavorite ? '★' : '☆' }}</span>
+                <span>Favorite</span>
+            </button>
+
+            <button
                 class="hdr-btn hdr-btn--danger"
                 title="Delete"
                 @click="confirmDelete"
@@ -43,6 +53,7 @@
 <script setup lang="ts">
 import { ENTITY_TYPE_CONFIG } from "~/types/entities";
 import type { Entity } from "~/composables/useEntities";
+import { useEntities } from "~/composables/useEntities";
 
 const props = defineProps<{
     entity: Entity;
@@ -53,6 +64,12 @@ const emit = defineEmits<{
     delete: [];
     rename: [name: string];
 }>();
+
+const entitiesStore = useEntities();
+const isFavorite = computed(() => props.entity.isFavorite);
+function toggleFavorite() {
+    entitiesStore.setFavorite(props.entity.id, !isFavorite.value);
+}
 
 const typeColor = computed(
     () => ENTITY_TYPE_CONFIG[props.entity.type]?.color ?? "var(--accent)",
@@ -169,6 +186,8 @@ function confirmDelete() {
     border-color: var(--accent);
     color: var(--accent-l);
 }
+.hdr-btn--fav .fav-star { font-size: 13px; line-height: 1; }
+.hdr-btn--fav.active { color: var(--fav); border-color: color-mix(in srgb, var(--fav) 45%, transparent); background: color-mix(in srgb, var(--fav) 10%, transparent); }
 .hdr-btn--danger {
     color: var(--danger);
 }

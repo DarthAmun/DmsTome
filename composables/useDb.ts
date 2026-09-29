@@ -67,6 +67,8 @@ export interface DbToken {
   is_template: number
   is_player_character: number  // 0 | 1
   linked_record_id: number | null
+  linked_entity_id?: number | null  // campaign entity (NPC) this token represents
+  sync_image?: number               // 0 | 1 — token image mirrors the linked entry's image
   created_at: string
 }
 
@@ -87,6 +89,7 @@ export interface DbEncounterToken {
   initiative: number | null
   notes: string | null
   linked_record_id: number | null
+  linked_entity_id?: number | null
   vision_range: number | null // tiles, null = infinite
   is_player_token: number     // 0 | 1
   image_source: string | null // for creature-direct tokens (token_id = null)
@@ -109,6 +112,7 @@ export interface DbEntity {
   name: string
   content: string
   attributes: string          // JSON
+  is_favorite?: number        // 0 | 1 — starred in the entity overview
   created_at: string
   updated_at: string
 }
@@ -414,6 +418,11 @@ export function parseRecordData(data: any): Record<string, any> {
   try { return JSON.parse(data) } catch { return {} }
 }
 
+/** "url" for http(s) sources, "file" for data URLs / local paths. */
+export function imageTypeOf(src: string): 'file' | 'url' {
+  return src.startsWith('http') ? 'url' : 'file'
+}
+
 // ── Timestamp helper ───────────────────────────────────────────────────────
 export function now() { return new Date().toISOString() }
 
@@ -467,6 +476,8 @@ export function compressDataUrl(dataUrl: string, toJpeg = true): Promise<string>
 }
 
 // ── API — mirrors window.dmforge from electron/preload.js ─────────────────
+
+const imageKeyCache = new Map<string, Map<string, string[]>>()
 
 export const dbApi = {
 
@@ -623,11 +634,54 @@ export const dbApi = {
     const db = getDb()
     const tok = et.token_id ? await db.tokens.get(et.token_id) : null
     const rec = (!tok && et.linked_record_id) ? await db.records.get(et.linked_record_id) : null
+    const synced = tok?.sync_image ? await dbApi.linkedImages.get(tok.linked_entity_id, tok.linked_record_id) : null
     return {
       name: tok?.name ?? rec?.name ?? '',
-      image_source: tok?.image_source ?? et.image_source ?? null,
-      image_type: (tok?.image_type ?? et.image_type ?? 'file') as 'file' | 'url',
+      image_source: synced?.source ?? tok?.image_source ?? et.image_source ?? null,
+      image_type: (synced?.type ?? tok?.image_type ?? et.image_type ?? 'file') as 'file' | 'url',
     }
+  },
+
+  // ── Linked-entry images (token ↔ NPC portrait / creature record image) ──
+  linkedImages: {
+    /** Image of the entry a token is linked to. The NPC portrait wins over
+     *  the creature record's image field when both links are set. */
+    async get(entityId?: number | null, recordId?: number | null): Promise<{ source: string; type: 'file' | 'url' } | null> {
+      const db = getDb()
+      if (entityId) {
+        const ent = await db.entities.get(entityId)
+        const attrs = parseRecordData(ent?.attributes)
+        if (attrs.portraitSource) return { source: attrs.portraitSource, type: attrs.portraitType ?? 'file' }
+      }
+      if (recordId) {
+        const rec = await db.records.get(recordId)
+        const key = rec && await dbApi.linkedImages._recordImageKey(rec)
+        const val = key ? parseRecordData(rec!.data)[key] : null
+        if (typeof val === 'string' && val) return { source: val, type: imageTypeOf(val) }
+      }
+      return null
+    },
+    /** Writes a creature record's image field. NPC portraits are written by the
+     *  caller through the entities store so its in-memory cache stays current. */
+    async setOnRecord(recordId: number, source: string): Promise<boolean> {
+      const db = getDb()
+      const rec = await db.records.get(recordId)
+      const key = rec && await dbApi.linkedImages._recordImageKey(rec)
+      if (!rec || !key) return false
+      const data = parseRecordData(rec.data)
+      data[key] = source
+      await db.records.update(recordId, { data: JSON.stringify(data), updatedAt: now() })
+      return true
+    },
+    async _recordImageKey(rec: DbRecord): Promise<string | null> {
+      const sys = await getDb().systems.get(rec.systemId)
+      if (!sys) return null
+      // Parsing the system schema is the expensive part — cache it per system version
+      const cacheKey = `${rec.systemId}:${sys.updatedAt}`
+      let keys = imageKeyCache.get(cacheKey)
+      if (!keys) { keys = getImageKeysByType([sys]); imageKeyCache.set(cacheKey, keys) }
+      return keys.get(rec.entityTypeId)?.[0] ?? null
+    },
   },
 
   // ── Encounters ────────────────────────────────────────────────────────
@@ -678,7 +732,7 @@ export const dbApi = {
       const db = getDb()
       return db.tokens.where('is_template').equals(1).sortBy('name')
     },
-    async create(data: { name: string; imageSource?: string | null; imageType?: string; linkedRecordId?: number | null; isPlayerCharacter?: boolean }) {
+    async create(data: { name: string; imageSource?: string | null; imageType?: string; linkedRecordId?: number | null; linkedEntityId?: number | null; isPlayerCharacter?: boolean; syncImage?: boolean }) {
       const db = getDb()
       const id = await db.tokens.add({
         name: data.name,
@@ -687,18 +741,22 @@ export const dbApi = {
         is_template: 1,
         is_player_character: data.isPlayerCharacter ? 1 : 0,
         linked_record_id: data.linkedRecordId ?? null,
+        linked_entity_id: data.linkedEntityId ?? null,
+        sync_image: data.syncImage ? 1 : 0,
         created_at: now(),
       })
       return db.tokens.get(id)
     },
-    async update(id: number, data: { name?: string; imageSource?: string | null; imageType?: 'file' | 'url'; linkedRecordId?: number | null; isPlayerCharacter?: boolean }) {
+    async update(id: number, data: { name?: string; imageSource?: string | null; imageType?: 'file' | 'url'; linkedRecordId?: number | null; linkedEntityId?: number | null; isPlayerCharacter?: boolean; syncImage?: boolean }) {
       const db = getDb()
       const changes: Record<string, any> = {}
       if (data.name !== undefined) changes.name = data.name
       if (data.imageSource !== undefined) changes.image_source = data.imageSource
       if (data.imageType !== undefined) changes.image_type = data.imageType
       if ('linkedRecordId' in data) changes.linked_record_id = data.linkedRecordId ?? null
+      if ('linkedEntityId' in data) changes.linked_entity_id = data.linkedEntityId ?? null
       if ('isPlayerCharacter' in data) changes.is_player_character = data.isPlayerCharacter ? 1 : 0
+      if ('syncImage' in data) changes.sync_image = data.syncImage ? 1 : 0
       await db.tokens.update(id, changes)
     },
     async delete(id: number) {
@@ -721,6 +779,7 @@ export const dbApi = {
         ac: data.ac ?? null,
         initiative: data.initiative ?? null, notes: null,
         linked_record_id: data.linkedRecordId ?? null,
+        linked_entity_id: data.linkedEntityId ?? null,
         vision_range: data.visionRange ?? null,
         is_player_token: data.isPlayerToken ? 1 : 0,
         image_source: data.imageSource ?? null,
@@ -808,6 +867,10 @@ export const dbApi = {
       const { id, ...rest } = data
       await db.entities.update(id, { ...rest, updated_at: now() })
       return db.entities.get(id)
+    },
+    /** Favourite flag is metadata — it must not bump updated_at ("recently updated" sort). */
+    async setFavorite(id: number, isFavorite: boolean) {
+      await getDb().entities.update(id, { is_favorite: isFavorite ? 1 : 0 })
     },
     async delete(id: number) {
       const db = getDb()

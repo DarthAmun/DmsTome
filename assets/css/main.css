@@ -19,6 +19,7 @@
     --danger: oklch(54% 0.22 22);
     --danger-bg: oklch(54% 0.22 22 / 0.1);
     --success: oklch(58% 0.18 158);
+    --fav: oklch(80% 0.13 85); /* favorite star */
 
     /* Border radius */
     --r1: 6px;
@@ -2890,71 +2891,6 @@ html[data-theme="dark"] .entry:hover {
     min-width: 36px;
 }
 
-/* Filter toggle button in search bar */
-.elist-filter-btn {
-    position: relative;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 7px;
-    cursor: pointer;
-    color: var(--text3);
-    font-size: 14px;
-    flex-shrink: 0;
-    line-height: 1.4;
-}
-.elist-filter-btn:hover,
-.elist-filter-btn.active { color: var(--accent); border-color: var(--accent); }
-.elist-filter-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 50%;
-    font-size: 9px;
-    width: 14px;
-    height: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--fm);
-    pointer-events: none;
-}
-
-/* Active filter chips row */
-.elist-qf-chips {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-}
-.elist-qf-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border: 1px solid var(--accent);
-    border-radius: 12px;
-    padding: 1px 8px;
-    font-size: 11px;
-    color: var(--accent);
-    font-family: var(--fm);
-}
-.elist-chip-x {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: inherit;
-    padding: 0;
-    font-size: 14px;
-    line-height: 1;
-    opacity: 0.7;
-}
-.elist-chip-x:hover { opacity: 1; }
 .elist-chip-clear {
     background: none;
     border: none;
@@ -2964,40 +2900,6 @@ html[data-theme="dark"] .entry:hover {
     padding: 1px 6px;
 }
 .elist-chip-clear:hover { color: var(--text); }
-
-/* Collapsible filter panel */
-.elist-filter-panel {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    max-height: 260px;
-    overflow-y: auto;
-    flex-shrink: 0;
-}
-.elist-fp-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border);
-}
-.elist-fp-row:last-child { border-bottom: none; }
-.elist-fp-label {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text3);
-    width: 46px;
-    flex-shrink: 0;
-    padding-top: 4px;
-}
-.elist-fp-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-}
 
 .elist-view-toggle {
     display: flex;

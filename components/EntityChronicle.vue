@@ -1,8 +1,33 @@
 <template>
-  <div class="chronicle screen-in">
+  <div class="chronicle screen-in" :style="{ '--type-color': typeConfig?.color }">
+
+    <!-- ── Rail: list folded while the overview is showing ── -->
+    <nav v-if="railShown" class="erail">
+      <button class="erail-btn erail-btn--boxed" title="Show list column" @click="browse.state.listCollapsed = false">
+        <OhVueIcon name="md-chevronright" scale="0.9" />
+      </button>
+      <button class="erail-btn" title="Search (/)" @click="browse.state.focusSearchTick++">
+        <OhVueIcon name="fa-search" scale="0.75" />
+      </button>
+      <div class="erail-sep" />
+      <span class="erail-star" title="Favorites">★</span>
+      <button
+        v-for="f in browse.favorites.value.slice(0, 12)"
+        :key="f.id"
+        class="erail-fav"
+        :title="f.name"
+        @click="openEntry(f.entity)"
+      >
+        <EntityOverviewThumb :item="f" :media="browse.def.media" :size="32" />
+      </button>
+      <div class="erail-spacer" />
+      <button v-if="browse.def.creatable" class="erail-btn erail-btn--new" :title="`New ${typeConfig?.label}`" @click="createEntry">
+        <OhVueIcon name="md-add" scale="0.9" />
+      </button>
+    </nav>
 
     <!-- ── Left panel: entity list ── -->
-    <div class="elist">
+    <div v-else class="elist">
 
       <div class="elist-head">
         <div class="elist-head-title" :style="{ color: typeConfig?.color }">
@@ -14,71 +39,56 @@
           <button v-if="type === 'session'" class="elist-vbtn" :class="{ active: route.path.endsWith('/log') }" @click="setView('log')">Log</button>
           <button v-if="type === 'location'" class="elist-vbtn" :class="{ active: route.path.endsWith('/map') }" :disabled="!activeEntryId" @click="setView('map')">Map</button>
         </div>
+        <button class="elist-icon-btn" :class="{ active: isOverview }" title="Gallery overview" @click="goToList()">
+          <OhVueIcon name="md-viewmodule" scale="0.8" />
+        </button>
+        <button v-if="isOverview" class="elist-icon-btn" title="Collapse to rail" @click="browse.state.listCollapsed = true">
+          <OhVueIcon name="md-chevronleft" scale="0.8" />
+        </button>
         <button class="elist-export-btn" title="Export as JSON" @click="exportEntries">↓ JSON</button>
-        <button v-if="type !== 'region'" class="btn-accent-sm" @click="createEntry">+ New</button>
+        <button v-if="browse.def.creatable" class="btn-accent-sm" @click="createEntry">+ New</button>
       </div>
 
       <div class="elist-search">
         <span class="elist-search-icon">⌕</span>
         <input
-          v-model="search"
+          v-model="browse.state.query"
           class="elist-search-input"
           :placeholder="`Search ${typeConfig?.plural?.toLowerCase() ?? ''}…`"
         />
-        <button v-if="qfConfigs.length" class="elist-filter-btn" :class="{ active: activeQFCount > 0 }" @click="showFilters = !showFilters">
-          <span v-if="activeQFCount" class="elist-filter-badge">{{ activeQFCount }}</span>
-          ⊕
-        </button>
       </div>
 
-      <!-- Active filter chips -->
-      <div v-if="activeQFCount > 0" class="elist-qf-chips">
-        <span v-for="[key, val] in activeQFEntries" :key="key" class="elist-qf-chip">
-          {{ qfChipLabel(key, val) }}
-          <button class="elist-chip-x" @click="toggleQF(key, val)">×</button>
-        </span>
-        <button class="elist-chip-clear" @click="clearQF">Clear</button>
-      </div>
-
-      <!-- Collapsible filter panel -->
-      <div v-if="showFilters && qfConfigs.length" class="elist-filter-panel">
-        <template v-for="cfg in qfConfigs" :key="cfg.key">
-          <div v-if="qfValuesFor(cfg.key).length" class="elist-fp-row">
-            <span class="elist-fp-label">{{ cfg.label }}</span>
-            <div class="elist-fp-pills">
-              <button
-                v-for="val in qfValuesFor(cfg.key)"
-                :key="val"
-                class="elist-qf-pill"
-                :class="{ active: activeQF[cfg.key] === val }"
-                @click="toggleQF(cfg.key, val)"
-              >{{ val }}</button>
-            </div>
-          </div>
-        </template>
+      <!-- Filter pills (shared with the overview) -->
+      <EntityFilterPills v-if="browse.def.filters.length" :browse="browse" size="sm" class="elist-pills">
+        <button v-if="browse.isFiltered.value" class="elist-chip-clear" @click="browse.clearAll()">Clear</button>
+      </EntityFilterPills>
+      <div class="elist-countline">
+        {{ browse.isFiltered.value
+          ? `${browse.items.value.length} of ${browse.allItems.value.length} shown`
+          : `${browse.allItems.value.length} ${typeConfig?.plural}` }}
       </div>
 
       <div class="elist-body">
-        <div v-if="!filteredEntries.length" class="elist-empty">
+        <div v-if="!browse.items.value.length" class="elist-empty">
           <div :style="{ color: typeConfig?.color, fontSize: '28px', opacity: 0.15 }">
             {{ typeConfig?.plural?.charAt(0) }}
           </div>
-          <span>{{ search ? 'No results' : `No ${typeConfig?.plural?.toLowerCase()} yet` }}</span>
-          <button v-if="type !== 'region'" class="btn-accent-sm" style="margin-top: 8px" @click="createEntry">Create one</button>
+          <span>{{ browse.isFiltered.value ? 'No results' : `No ${typeConfig?.plural?.toLowerCase()} yet` }}</span>
+          <button v-if="browse.def.creatable" class="btn-accent-sm" style="margin-top: 8px" @click="createEntry">Create one</button>
           <span v-else style="font-size:11px;color:var(--ink-ghost);margin-top:6px">Draw regions on the World Map</span>
         </div>
 
         <div
-          v-for="e in filteredEntries"
-          :key="e.id"
+          v-for="i in browse.items.value"
+          :key="i.id"
           class="erow"
-          :class="{ active: activeForList === e.id }"
+          :class="{ active: activeForList === i.id, dim: browse.state.archiveMode === 'dim' && i.archived }"
         >
           <component
             :is="ENTRY_COMPONENTS[type]"
-            :entry="e"
+            :entry="i.entity"
             :deletable="true"
-            @open="route.path.endsWith('/map') && type === 'location' ? selectMapLocation(e) : openEntry(e)"
+            @open="route.path.endsWith('/map') && type === 'location' ? selectMapLocation(i.entity) : openEntry(i.entity)"
             @delete="deleteEntry"
           />
         </div>
@@ -97,6 +107,7 @@
 
 <script setup lang="ts">
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
+import { useEntityBrowse } from '~/composables/useEntityBrowse'
 import type { EntityType } from '~/types/entities'
 import type { Entity } from '~/composables/useEntities'
 import NpcEntry         from '~/components/notes/NpcEntry.vue'
@@ -121,78 +132,21 @@ const props = defineProps<{ type: EntityType }>()
 const route = useRoute()
 const router = useRouter()
 const {
-  typeConfig, entries, openEntry, createEntry, deleteEntry, ensureLoaded,
+  typeConfig, entries, openEntry, createEntry, deleteEntry, ensureLoaded, goToList,
 } = useCampaignEntity(props.type)
 
 const campaignId = computed(() => Number(route.params.id))
 
-const search = ref('')
-
-// ── Quick filters ─────────────────────────────────────────────────────────────
-interface QFConfig { key: string; label: string }
-
-const QF_FIELDS: Partial<Record<string, QFConfig[]>> = {
-  npc:            [{ key: 'status', label: 'Status' }, { key: 'race', label: 'Race' }, { key: 'role', label: 'Class' }, { key: 'level', label: 'Level' }],
-  quest:          [{ key: 'status', label: 'Status' }],
-  session:        [{ key: 'mode', label: 'Mode' }],
-  location:       [{ key: 'locationType', label: 'Type' }, { key: 'status', label: 'Status' }],
-  event:          [{ key: 'significance', label: 'Significance' }],
-  faction:        [{ key: 'factionType', label: 'Type' }, { key: 'size', label: 'Size' }],
-  'random-table': [{ key: 'die', label: 'Die' }],
-  rumor:          [{ key: 'statuses', label: 'Status' }],
-}
-
-const activeQF = ref<Record<string, string | null>>({})
-const showFilters = ref(false)
-
-const qfConfigs = computed(() => QF_FIELDS[props.type] ?? [])
-const activeQFCount = computed(() => Object.values(activeQF.value).filter(v => v !== null).length)
-const activeQFEntries = computed(() =>
-  Object.entries(activeQF.value).filter((e): e is [string, string] => e[1] !== null)
-)
-
-function qfValuesFor(key: string): string[] {
-  const seen = new Set<string>()
-  for (const e of entries.value) {
-    const v = (e.attributes as any)?.[key]
-    if (Array.isArray(v)) { v.forEach((item: string) => seen.add(item)); continue }
-    if (v !== undefined && v !== null && v !== '') seen.add(String(v))
-  }
-  const arr = Array.from(seen)
-  const allNum = arr.every(v => !Number.isNaN(Number(v)))
-  return allNum ? arr.sort((a, b) => Number(a) - Number(b)) : arr.sort()
-}
-
-function toggleQF(key: string, val: string) {
-  activeQF.value = { ...activeQF.value, [key]: activeQF.value[key] === val ? null : val }
-}
-
-function clearQF() { activeQF.value = {} }
-
-function qfChipLabel(key: string, val: string): string {
-  const cfg = qfConfigs.value.find(c => c.key === key)
-  return `${cfg?.label ?? key}: ${val}`
-}
-
-const filteredEntries = computed(() => {
-  let result = entries.value
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    result = result.filter(e => e.name.toLowerCase().includes(q))
-  }
-  for (const [key, val] of Object.entries(activeQF.value)) {
-    if (!val) continue
-    result = result.filter(e => {
-      const v = (e.attributes as any)?.[key]
-      return Array.isArray(v) ? v.includes(val) : String(v ?? '') === val
-    })
-  }
-  return result
-})
+// The list shows the same ordered, filtered set the overview is browsing
+const browse = useEntityBrowse(props.type)
 
 const activeEntryId = computed(() =>
   route.params.entryId ? Number(route.params.entryId) : null
 )
+
+// Overview = the type's index route (no entry, no log/timeline view)
+const isOverview = computed(() => !activeEntryId.value && !/\/(log|timeline)$/.test(route.path))
+const railShown = computed(() => isOverview.value && browse.state.listCollapsed)
 
 // ── View mode ─────────────────────────────────────────────────────────────────
 const hasViewToggle = props.type === 'event' || props.type === 'session' || props.type === 'location'
@@ -244,6 +198,51 @@ onMounted(() => ensureLoaded())
 </script>
 
 <style scoped>
+/* ── Rail (list folded while the overview shows) ─────────────────────────── */
+.erail {
+  width: 52px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.erail-btn {
+  width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px;
+  background: transparent; color: var(--text2); cursor: pointer;
+}
+.erail-btn:hover { background: var(--surface-hi); color: var(--text); }
+.erail-btn--boxed { border: 1px solid var(--border-hi); background: var(--bg2); }
+.erail-btn--new { background: var(--accent-bg); color: var(--accent-l); }
+.erail-btn--new:hover { background: var(--accent-bhi); color: var(--accent-l); }
+.erail-sep { width: 22px; height: 1px; background: var(--border-hi); margin: 4px 0; flex: none; }
+.erail-star { color: var(--fav); font-size: 12px; line-height: 1; }
+.erail-fav { border: 0; padding: 0; background: transparent; cursor: pointer; border-radius: 50%; flex: none; }
+.erail-fav:hover :deep(.eot) { box-shadow: 0 0 0 2px var(--accent); }
+.erail-spacer { flex: 1; }
+
+/* ── List head icon buttons ──────────────────────────────────────────────── */
+.elist-icon-btn {
+  width: 24px; height: 24px; flex: none;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--r1);
+  background: transparent; color: var(--text3); cursor: pointer;
+}
+.elist-icon-btn:hover { color: var(--text); background: var(--surface-hi); }
+.elist-icon-btn.active { background: var(--accent-bg); color: var(--accent-l); }
+
+/* ── Filter pills (shared with the overview) ─────────────────────────────── */
+.elist-pills { padding: 7px 12px 2px; }
+.elist-countline { padding: 4px 14px 6px; font-size: 10.5px; color: var(--text3); border-bottom: 1px solid var(--border); }
+.erow.dim { opacity: .5; }
+.erow.dim:hover, .erow.dim.active { opacity: 1; }
+
 /* ── Export button ───────────────────────────────────────────────────────── */
 .elist-export-btn {
   padding: 3px 8px;

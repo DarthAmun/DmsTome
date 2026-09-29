@@ -787,13 +787,10 @@ function toggleNthTask(text: string, n: number): string {
 }
 
 // ── Emit debounce ─────────────────────────────────────────────────────────────
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+// Flushed on unmount, so edits made just before navigating away are kept
+const contentSave = useDebouncedSave(800);
 function scheduleContentEmit() {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(
-        () => emit("update:content", draftContent.value),
-        800,
-    );
+    contentSave.schedule(() => emit("update:content", draftContent.value));
 }
 
 // ── Edit mode input ───────────────────────────────────────────────────────────
@@ -821,6 +818,7 @@ function insertInto(
         selected +
         after +
         draft.value.slice(end);
+    scheduleContentEmit();
     nextTick(() => {
         el.setSelectionRange(
             start + before.length,
@@ -1064,6 +1062,7 @@ function applyAutocomplete(item: any) {
             ? `@ ${item.name}}}`
             : `{{${item.type}: ${item.name}}}`;
     setVal(`${before}${replacement}${after}`);
+    scheduleContentEmit();
     autocomplete.value.show = false;
     nextTick(() => {
         const p = before.length + replacement.length;
@@ -1282,7 +1281,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    if (saveTimer) clearTimeout(saveTimer);
     Object.keys(mixedRefs).forEach(k => delete mixedRefs[Number(k)]);
 });
 </script>

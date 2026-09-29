@@ -22,7 +22,7 @@ const ENTITY_TYPE_ALIASES: Record<string, string> = {
 
 // Allows apostrophes and other special chars in names — stops at @, |, or }
 // Groups: 1=type, 2=name, 3=snapshotLabel (@ sigil, optional), 4=meta (| sigil, optional)
-const ENTITY_REGEX = /\{\{([\w-]+):\s*([^@|}\n]+?)\s*(?:@\s*([^|}\n]+?)\s*)?(?:\|\s*([^}]*))?\}\}/g
+export const ENTITY_REGEX = /\{\{([\w-]+):\s*([^@|}\n]+?)\s*(?:@\s*([^|}\n]+?)\s*)?(?:\|\s*([^}]*))?\}\}/g
 
 function resolveType(raw: string): string {
   const lower = raw.toLowerCase()

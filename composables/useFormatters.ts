@@ -19,5 +19,17 @@ export function useFormatters() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  return { formatDate, formatDateShort }
+  /** "today", "3d ago", "2w ago", "5mo ago", "2y ago" — for ages of any length. */
+  function formatRelative(dt: string | undefined | null): string {
+    if (!dt) return ''
+    const d = Math.floor((Date.now() - new Date(dt).getTime()) / 86400000)
+    if (!Number.isFinite(d)) return ''
+    if (d < 1) return 'today'
+    if (d < 7) return `${d}d ago`
+    if (d < 60) return `${Math.round(d / 7)}w ago`
+    if (d < 730) return `${Math.round(d / 30)}mo ago`
+    return `${Math.round(d / 365)}y ago`
+  }
+
+  return { formatDate, formatDateShort, formatRelative }
 }

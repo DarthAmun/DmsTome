@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { dbApi, parseRecordData } from '~/composables/useDb'
-import type { DbEncounterWall } from '~/composables/useDb'
+import { dbApi, parseRecordData, imageTypeOf } from '~/composables/useDb'
+import { useEntities } from '~/composables/useEntities'
+import type { DbEncounterWall, DbToken } from '~/composables/useDb'
 import type { ShapeOverlay } from '~/composables/useEncounterCanvas'
 import { useStatBlockLinker } from '~/composables/useStatBlockLinker'
 import { evaluateFormula, dataToScope } from '~/composables/useFormulaEvaluator'
@@ -38,7 +39,19 @@ export interface Token {
   imageSource: string | null
   imageType: 'file' | 'url'
   linkedRecordId: number | null
+  linkedEntityId: number | null  // NPC entity this token represents
   isPlayerCharacter: boolean
+  syncImage: boolean             // image mirrors the linked NPC portrait / creature image
+}
+
+export interface LibraryTokenInput {
+  name: string
+  imageSource: string | null
+  imageType: 'file' | 'url'
+  linkedRecordId: number | null
+  linkedEntityId: number | null
+  isPlayerCharacter: boolean
+  syncImage: boolean
 }
 
 export interface TokenCondition {
@@ -72,6 +85,7 @@ export interface EncounterToken {
   initiative: number | null
   notes: string | null
   linkedRecordId: number | null
+  linkedEntityId: number | null
   visionRange: number | null  // tiles, null = infinite
   isPlayerToken: boolean      // default false
   elevation: number | null
@@ -184,14 +198,7 @@ export const useEncounterStore = defineStore('encounter', () => {
   async function loadTokenLibrary() {
     try {
       const items = await dbApi.tokens.list()
-      tokenLibrary.value = items.map(t => ({
-        id: t.id!,
-        name: t.name,
-        imageSource: t.image_source,
-        imageType: t.image_type,
-        linkedRecordId: t.linked_record_id ?? null,
-        isPlayerCharacter: Boolean(t.is_player_character),
-      }))
+      tokenLibrary.value = await Promise.all(items.map(normalizeLibraryToken))
     } catch (err) {
       console.error('[EncounterStore] loadTokenLibrary:', err)
     }
@@ -254,45 +261,44 @@ export const useEncounterStore = defineStore('encounter', () => {
   }
 
   // ── Actions — Tokens ──────────────────────────────────────────────────────
-  async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number): Promise<{ autoLinked: boolean }> {
-    if (!current.value) return { autoLinked: false }
+  /** Places a library token. `needsLinkPrompt` is true only for a plain token
+   *  with no creature, NPC or PC association — the caller then offers the
+   *  "Link to Stat Block?" dialog for the returned instance. */
+  async function addTokenToEncounter(tokenId: number, gridX: number, gridY: number): Promise<{ token: EncounterToken | null; needsLinkPrompt: boolean }> {
+    if (!current.value) return { token: null, needsLinkPrompt: false }
+    const libToken = tokenLibrary.value.find(t => t.id === tokenId)
+    const linkedRecordId = libToken?.linkedRecordId ?? null
+    const linkedEntityId = libToken?.linkedEntityId ?? null
+
+    let stats = { hpCurrent: null as number | null, hpMax: null as number | null, ac: null as number | null, size: 1 }
+    if (linkedRecordId) {
+      // A broken link (deleted record, missing system) must not block placement.
+      try { stats = await linkRecordToToken(linkedRecordId) }
+      catch (err) { console.warn('[EncounterStore] linked record lookup failed:', err) }
+    }
+
     try {
-      const libToken = tokenLibrary.value.find(t => t.id === tokenId)
-      let hpCurrent: number | null = null
-      let hpMax: number | null = null
-      let ac: number | null = null
-      let linkedRecordId: number | null = null
-      let autoLinked = false
-
-      let size = 1
-      if (libToken?.linkedRecordId) {
-        const stats = await linkRecordToToken(libToken.linkedRecordId)
-        hpMax = stats.hpMax
-        hpCurrent = stats.hpCurrent
-        ac = stats.ac
-        size = stats.size
-        linkedRecordId = libToken.linkedRecordId
-        autoLinked = true
-      }
-
       const result = await dbApi.encounterTokens.add({
         encounterId: current.value.id,
         tokenId,
         gridX,
         gridY,
-        size,
+        size: stats.size,
         isVisible: 1,
-        hpCurrent,
-        hpMax,
-        ac,
+        hpCurrent: stats.hpCurrent,
+        hpMax: stats.hpMax,
+        ac: stats.ac,
         linkedRecordId,
+        linkedEntityId,
       })
       current.value.tokens.push(normalizeToken(result))
       syncToPlayer()
-      return { autoLinked }
+      const needsLinkPrompt = !linkedRecordId && !linkedEntityId && !libToken?.isPlayerCharacter
+      // Return the reactive instance from the array, not the raw object
+      return { token: current.value.tokens[current.value.tokens.length - 1], needsLinkPrompt }
     } catch (err) {
       console.error('[EncounterStore] addTokenToEncounter:', err)
-      return { autoLinked: false }
+      return { token: null, needsLinkPrompt: false }
     }
   }
 
@@ -367,6 +373,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('notes' in updates) dbUpdates.notes = updates.notes
     if ('conditions' in updates) dbUpdates.conditions = JSON.stringify(updates.conditions)
     if ('linkedRecordId' in updates) dbUpdates.linkedRecordId = updates.linkedRecordId
+    if ('linkedEntityId' in updates) dbUpdates.linkedEntityId = updates.linkedEntityId
     if ('visionRange' in updates) dbUpdates.visionRange = updates.visionRange
     if ('isPlayerToken' in updates) dbUpdates.isPlayerToken = updates.isPlayerToken ? 1 : 0
     await dbApi.encounterTokens.update(dbUpdates)
@@ -423,32 +430,76 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
-  async function updateLibraryToken(id: number, name: string, imageSource: string | null, imageType: 'file' | 'url', linkedRecordId?: number | null, isPlayerCharacter?: boolean) {
+  /** With image sync on, the token and its linked entry share one image: a token
+   *  image that differs is written to the entry (the NPC portrait when an NPC is
+   *  linked, else the creature record's image field); an empty one adopts the
+   *  entry's image. Returns the input with the resolved image. */
+  async function syncLinkedImage(data: LibraryTokenInput): Promise<LibraryTokenInput> {
+    if (!data.syncImage || (!data.linkedEntityId && !data.linkedRecordId)) return data
+    const own = data.imageSource?.trim() || null
+    if (!own) {
+      const linked = await dbApi.linkedImages.get(data.linkedEntityId, data.linkedRecordId)
+      return linked ? { ...data, imageSource: linked.source, imageType: linked.type } : data
+    }
+    if (data.linkedEntityId) {
+      const entities = useEntities()
+      const ent = entities.entities.find(e => e.id === data.linkedEntityId)
+      const attrs = (ent?.attributes ?? parseRecordData((await dbApi.entities.get(data.linkedEntityId))?.attributes)) as Record<string, any>
+      if (attrs.portraitSource !== own) {
+        await entities.updateEntity(data.linkedEntityId, { attributes: { ...attrs, portraitSource: own, portraitType: imageTypeOf(own) } as any })
+      }
+    } else if (data.linkedRecordId) {
+      const current = await dbApi.linkedImages.get(null, data.linkedRecordId)
+      if (current?.source !== own) await dbApi.linkedImages.setOnRecord(data.linkedRecordId, own)
+    }
+    return { ...data, imageSource: own, imageType: imageTypeOf(own) }
+  }
+
+  async function updateLibraryToken(id: number, input: LibraryTokenInput) {
     try {
-      await dbApi.tokens.update(id, { name, imageSource, imageType, linkedRecordId, isPlayerCharacter })
+      const data = await syncLinkedImage(input)
+      await dbApi.tokens.update(id, data)
       const token = tokenLibrary.value.find(t => t.id === id)
-      if (token) Object.assign(token, { name, imageSource, imageType, linkedRecordId: linkedRecordId ?? token.linkedRecordId, isPlayerCharacter: isPlayerCharacter ?? token.isPlayerCharacter })
+      if (token) Object.assign(token, data)
+      // Placed instances of this token read their image through the library entry
+      for (const t of current.value?.tokens ?? []) {
+        if (t.tokenId === id) Object.assign(t, { name: data.name, imageSource: data.imageSource, imageType: data.imageType })
+      }
+      syncToPlayer()
     } catch (err) {
       console.error('[EncounterStore] updateLibraryToken:', err)
     }
   }
 
-  async function addToLibrary(name: string, imageSource: string | null, imageType: 'file' | 'url', linkedRecordId?: number | null, isPlayerCharacter?: boolean) {
+  async function addToLibrary(input: LibraryTokenInput): Promise<Token | null> {
     try {
-      const token = await dbApi.tokens.create({ name, imageSource, imageType, linkedRecordId, isPlayerCharacter })
-      tokenLibrary.value.push({
-        id: token!.id!,
-        name: token!.name,
-        imageSource: token!.image_source,
-        imageType: token!.image_type,
-        linkedRecordId: token!.linked_record_id ?? null,
-        isPlayerCharacter: Boolean(token!.is_player_character),
-      })
-      return token
+      const row = await dbApi.tokens.create(await syncLinkedImage(input))
+      if (!row) return null
+      const token = await normalizeLibraryToken(row)
+      tokenLibrary.value.push(token)
+      return tokenLibrary.value[tokenLibrary.value.length - 1]
     } catch (err) {
       console.error('[EncounterStore] addToLibrary:', err)
       return null
     }
+  }
+
+  async function normalizeLibraryToken(t: DbToken): Promise<Token> {
+    const token: Token = {
+      id: t.id!,
+      name: t.name,
+      imageSource: t.image_source,
+      imageType: t.image_type,
+      linkedRecordId: t.linked_record_id ?? null,
+      linkedEntityId: t.linked_entity_id ?? null,
+      isPlayerCharacter: Boolean(t.is_player_character),
+      syncImage: Boolean(t.sync_image),
+    }
+    if (token.syncImage) {
+      const img = await dbApi.linkedImages.get(token.linkedEntityId, token.linkedRecordId).catch(() => null)
+      if (img) { token.imageSource = img.source; token.imageType = img.type }
+    }
+    return token
   }
 
   // ── Actions — Windows ─────────────────────────────────────────────────────
@@ -645,6 +696,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       initiative: raw.initiative,
       notes: raw.notes,
       linkedRecordId: raw.linked_record_id ?? null,
+      linkedEntityId: raw.linked_entity_id ?? null,
       visionRange: raw.vision_range ?? null,
       isPlayerToken: Boolean(raw.is_player_token),
       elevation: raw.elevation ?? null,

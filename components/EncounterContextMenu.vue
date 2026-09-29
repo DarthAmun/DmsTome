@@ -78,6 +78,14 @@
           <OhVueIcon name="md-menubook" scale="0.85" class="ctx-icon" />
           View Entry
         </button>
+        <button
+          v-if="targetToken.linkedEntityId"
+          class="ctx-item"
+          @click="emit('view-npc', targetToken.id); emit('close')"
+        >
+          <OhVueIcon name="gi-person" scale="0.85" class="ctx-icon" />
+          View NPC
+        </button>
         <button class="ctx-item" @click="emit('toggle-visibility', targetToken.id); emit('close')">
           <OhVueIcon :name="targetToken.isVisible ? 'md-visibilityoff' : 'md-visibility'" scale="0.85" class="ctx-icon" />
           {{ targetToken.isVisible ? 'Hide from Players' : 'Show to Players' }}
@@ -120,6 +128,7 @@ const emit = defineEmits<{
   'set-initiative': [tokenId: number, value: number | null]
   'apply-damage': [tokenId: number, amount: number]
   'view-record': [tokenId: number]
+  'view-npc': [tokenId: number]
   'toggle-visibility': [tokenId: number]
   'toggle-dead': [tokenId: number]
   'remove-token': [tokenId: number]

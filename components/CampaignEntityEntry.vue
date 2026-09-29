@@ -1,88 +1,41 @@
 <template>
-  <template v-if="currentEntry">
-    <NpcEditor
-      v-if="props.type === 'npc'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <LocationEditor
-      v-else-if="props.type === 'location'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <FactionEditor
-      v-else-if="props.type === 'faction'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <QuestEditor
-      v-else-if="props.type === 'quest'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <EventEditor
-      v-else-if="props.type === 'event'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <SessionEditor
-      v-else-if="props.type === 'session'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <RandomTableEditor
-      v-else-if="props.type === 'random-table'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <RumorEditor
-      v-else-if="props.type === 'rumor'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <RegionEditor
-      v-else-if="props.type === 'region'"
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-    <NoteEditorSimple
-      v-else
-      :entity-id="currentEntry.id"
-      :campaign-id="campaignId"
-      @navigate="onNavigate"
-      @deleted="goToList()"
-    />
-  </template>
-  <template v-else>
-    <div class="edetail-empty">
-      <span>Entry not found.</span>
-      <button class="btn-accent-sm" @click="goToList()">← Back</button>
-    </div>
-  </template>
+  <!-- Keyed per entry: switching entries remounts the editor, which flushes its pending saves -->
+  <component
+    :is="EDITORS[props.type] ?? NoteEditorSimple"
+    v-if="currentEntry"
+    :key="currentEntry.id"
+    :entity-id="currentEntry.id"
+    :campaign-id="campaignId"
+    @navigate="onNavigate"
+    @deleted="goToList()"
+  />
+  <div v-else class="edetail-empty">
+    <span>Entry not found.</span>
+    <button class="btn-accent-sm" @click="goToList()">← Back</button>
+  </div>
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
 import { useCampaignEntity } from '~/composables/useCampaignEntity'
 import { ENTITY_TYPE_ROUTE } from '~/types/entities'
 import type { EntityType } from '~/types/entities'
+import NpcEditor from '~/components/editors/NpcEditor.vue'
+import LocationEditor from '~/components/editors/LocationEditor.vue'
+import FactionEditor from '~/components/editors/FactionEditor.vue'
+import QuestEditor from '~/components/editors/QuestEditor.vue'
+import EventEditor from '~/components/editors/EventEditor.vue'
+import SessionEditor from '~/components/editors/SessionEditor.vue'
+import RandomTableEditor from '~/components/editors/RandomTableEditor.vue'
+import RumorEditor from '~/components/editors/RumorEditor.vue'
+import RegionEditor from '~/components/editors/RegionEditor.vue'
+import NoteEditorSimple from '~/components/editors/NoteEditorSimple.vue'
+
+const EDITORS: Partial<Record<EntityType, Component>> = {
+  npc: NpcEditor, location: LocationEditor, faction: FactionEditor, quest: QuestEditor,
+  event: EventEditor, session: SessionEditor, 'random-table': RandomTableEditor,
+  rumor: RumorEditor, region: RegionEditor, note: NoteEditorSimple,
+}
 
 const props = defineProps<{ type: EntityType }>()
 

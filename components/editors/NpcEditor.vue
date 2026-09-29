@@ -114,7 +114,7 @@ const typeColor = ENTITY_TYPE_CONFIG.npc.color;
 // ── Draft state ───────────────────────────────────────────────────────────────
 const draftContent = ref("");
 const draftAttributes = ref<EntityAttributes>({});
-let attrSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const attrSave = useDebouncedSave(500);
 
 // ── Attributes panel ──────────────────────────────────────────────────────────
 const showAttributes = ref(false);
@@ -182,14 +182,13 @@ function onContentUpdate(value: string) {
 
 function onAttributesChange(attrs: EntityAttributes) {
     draftAttributes.value = attrs;
-    if (attrSaveTimer) clearTimeout(attrSaveTimer);
-    attrSaveTimer = setTimeout(() => {
+    attrSave.schedule(() => {
         if (viewingSnapshot.value) {
             store.updateSnapshotContent(viewingSnapshot.value.id, { attributes: attrs });
         } else {
             store.updateEntity(props.entityId, { attributes: attrs });
         }
-    }, 500);
+    });
 }
 
 async function onRename(name: string) {
@@ -255,7 +254,6 @@ function onSnapshotDeleted(id: number) {
 
 function onSnapshotSaved() {}
 
-onUnmounted(() => { if (attrSaveTimer) clearTimeout(attrSaveTimer) })
 </script>
 
 <style scoped>

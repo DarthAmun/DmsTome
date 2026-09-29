@@ -357,6 +357,7 @@
                     class="token-chip token-chip--pc"
                     draggable="true"
                     @dragstart="onTokenDragStart($event, token)"
+                    @dragend="onLibraryDragEnd"
                   >
                     <div class="token-thumb">
                       <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
@@ -378,6 +379,7 @@
                   class="token-chip"
                   draggable="true"
                   @dragstart="onTokenDragStart($event, token)"
+                    @dragend="onLibraryDragEnd"
                 >
                   <div class="token-thumb">
                     <img v-if="token.imageSource" :src="getImageUrl(token)" class="enc-token-img" />
@@ -395,7 +397,7 @@
               </div>
             </div>
             <div class="sidebar-section" style="flex-shrink:0">
-              <Button severity="secondary" style="width:100%;justify-content:center" @click="showAddToken = true">
+              <Button severity="secondary" style="width:100%;justify-content:center" @click="openAddTokenModal">
                 <OhVueIcon name="md-add" scale="0.8" /> Add Token
               </Button>
             </div>
@@ -414,6 +416,7 @@
                   class="token-chip creature-chip"
                   draggable="true"
                   @dragstart="onCreatureDragStart($event, rec)"
+                  @dragend="onLibraryDragEnd"
                 >
                   <div class="token-thumb">
                     <img v-if="rec.imageSource" :src="rec.imageSource" class="enc-token-img" />
@@ -623,7 +626,8 @@
                 @click="linkSelectedId = rec.id">
                 {{ rec.name }}
               </button>
-              <div v-if="!filteredLinkRecords.length" class="link-record-empty">
+              <div v-if="linkRecordsLoading" class="link-record-empty">Loading creatures…</div>
+              <div v-else-if="!filteredLinkRecords.length" class="link-record-empty">
                 {{ linkSearch ? 'No matches' : 'No creature records found' }}
               </div>
             </div>
@@ -724,9 +728,19 @@
         @set-initiative="onCtxSetInitiative"
         @apply-damage="onCtxApplyDamage"
         @view-record="onCtxViewRecord"
+        @view-npc="onCtxViewNpc"
         @toggle-visibility="onCtxToggleVisibility"
         @toggle-dead="onCtxToggleDead"
         @remove-token="onCtxRemoveToken"
+      />
+
+      <EntityQuickPanel
+        v-if="store.current"
+        type="npc"
+        :name="npcPanel.name"
+        :campaign-id="store.current.campaignId"
+        :open="npcPanel.open"
+        @close="npcPanel.open = false"
       />
 
       <!-- ── Condition Reference Panel ─────────────────────────────────────────── -->
@@ -768,35 +782,27 @@
                     <OhVueIcon name="fa-folder-open" scale="0.9" />
                   </Button>
                 </div>
-              </div>
-              <!-- Linked creature -->
-              <div>
-                <label class="f-label">Linked Creature <span class="f-hint">auto-fills HP &amp; AC on placement</span></label>
-                <div v-if="newToken.linkedRecordName" class="tok-linked-row">
-                  <span class="tok-linked-badge">{{ newToken.linkedRecordName }}</span>
-                  <button class="tok-clear-link" @click="clearTokenModalRecord('new')">× Clear</button>
-                </div>
-                <div v-else>
-                  <InputText
-                    v-model="tokenModalRecordSearch"
-                    placeholder="Search records…"
-                    style="width:100%"
-                    @input="filterTokenModalRecords"
-                    @focus="filterTokenModalRecords"
-                  />
-                  <div v-if="tokenModalRecordResults.length" class="tok-rec-dropdown">
-                    <button
-                      v-for="rec in tokenModalRecordResults"
-                      :key="rec.id"
-                      class="tok-rec-row"
-                      @click="selectTokenModalRecord(rec, 'new')"
-                    >
-                      <span class="tem-rec-type">{{ rec.entityTypeId }}</span>
-                      {{ rec.name }}
-                    </button>
-                  </div>
+                <div v-if="newToken.imageSource" class="mt-2" style="text-align:center">
+                  <img :src="newToken.imageSource" style="max-height:80px;border-radius:6px;object-fit:contain" />
                 </div>
               </div>
+              <TokenLinkPicker
+                label="Linked Creature" hint="auto-fills HP & AC on placement" placeholder="Search records…"
+                :selected="newToken.linkedRecordName" :results="recordPickerResults"
+                v-model:search="tokenModalRecordSearch"
+                @focus="filterTokenModalRecords" @select="selectTokenModalRecord($event, 'new')" @clear="clearTokenModalRecord('new')"
+              />
+              <TokenLinkPicker
+                label="Linked NPC" hint="campaign character this token represents" placeholder="Search NPCs…"
+                :selected="newToken.linkedEntityName" :results="tokenModalNpcResults" accent="#7cc44e"
+                v-model:search="tokenModalNpcSearch"
+                @select="selectTokenModalNpc($event, 'new')" @clear="clearTokenModalNpc('new')"
+              />
+              <!-- Image sync -->
+              <label v-if="newToken.linkedEntityId || newToken.linkedRecordId" class="tok-pc-row">
+                <input type="checkbox" v-model="newToken.syncImage" class="tem-checkbox" @change="pullLinkedImage('new')" />
+                <span>Sync image with linked entry <span class="f-hint">{{ newToken.linkedEntityId ? 'NPC portrait' : 'creature image' }} ↔ token — uncheck for a separate token image</span></span>
+              </label>
               <!-- PC flag -->
               <label class="tok-pc-row">
                 <input type="checkbox" v-model="newToken.isPlayerCharacter" class="tem-checkbox" />
@@ -845,34 +851,23 @@
                   <img :src="editLibraryTokenForm.imageSource" style="max-height:80px;border-radius:6px;object-fit:contain" />
                 </div>
               </div>
-              <!-- Linked creature -->
-              <div>
-                <label class="f-label">Linked Creature <span class="f-hint">auto-fills HP &amp; AC on placement</span></label>
-                <div v-if="editLibraryTokenForm.linkedRecordName" class="tok-linked-row">
-                  <span class="tok-linked-badge">{{ editLibraryTokenForm.linkedRecordName }}</span>
-                  <button class="tok-clear-link" @click="clearTokenModalRecord('edit')">× Clear</button>
-                </div>
-                <div v-else>
-                  <InputText
-                    v-model="tokenModalRecordSearch"
-                    placeholder="Search records…"
-                    style="width:100%"
-                    @input="filterTokenModalRecords"
-                    @focus="filterTokenModalRecords"
-                  />
-                  <div v-if="tokenModalRecordResults.length" class="tok-rec-dropdown">
-                    <button
-                      v-for="rec in tokenModalRecordResults"
-                      :key="rec.id"
-                      class="tok-rec-row"
-                      @click="selectTokenModalRecord(rec, 'edit')"
-                    >
-                      <span class="tem-rec-type">{{ rec.entityTypeId }}</span>
-                      {{ rec.name }}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <TokenLinkPicker
+                label="Linked Creature" hint="auto-fills HP & AC on placement" placeholder="Search records…"
+                :selected="editLibraryTokenForm.linkedRecordName" :results="recordPickerResults"
+                v-model:search="tokenModalRecordSearch"
+                @focus="filterTokenModalRecords" @select="selectTokenModalRecord($event, 'edit')" @clear="clearTokenModalRecord('edit')"
+              />
+              <TokenLinkPicker
+                label="Linked NPC" hint="campaign character this token represents" placeholder="Search NPCs…"
+                :selected="editLibraryTokenForm.linkedEntityName" :results="tokenModalNpcResults" accent="#7cc44e"
+                v-model:search="tokenModalNpcSearch"
+                @select="selectTokenModalNpc($event, 'edit')" @clear="clearTokenModalNpc('edit')"
+              />
+              <!-- Image sync -->
+              <label v-if="editLibraryTokenForm.linkedEntityId || editLibraryTokenForm.linkedRecordId" class="tok-pc-row">
+                <input type="checkbox" v-model="editLibraryTokenForm.syncImage" class="tem-checkbox" @change="pullLinkedImage('edit')" />
+                <span>Sync image with linked entry <span class="f-hint">{{ editLibraryTokenForm.linkedEntityId ? 'NPC portrait' : 'creature image' }} ↔ token — uncheck for a separate token image</span></span>
+              </label>
               <!-- PC flag -->
               <label class="tok-pc-row">
                 <input type="checkbox" v-model="editLibraryTokenForm.isPlayerCharacter" class="tem-checkbox" />
@@ -976,17 +971,19 @@
 import { useEncounterStore } from "~/stores/encounter";
 import type { EncounterToken } from "~/stores/encounter";
 import { useEncounterCanvas, type ShapeType, type ShapeOverlay } from "../../../composables/useEncounterCanvas";
-import { dbApi, parseRecordData } from "~/composables/useDb";
+import { dbApi, parseRecordData, imageTypeOf } from "~/composables/useDb";
 import { hexColorToNumber } from "~/composables/useConditions";
 import { useSystems } from "~/composables/useSystems";
 import { useConditionPanel } from "~/composables/useConditionPanel";
 import { useStatBlockLinker } from "~/composables/useStatBlockLinker";
 import { useSounds } from "~/composables/useSounds";
+import { useEntities } from "~/composables/useEntities";
 
 const { extractStatsFromData, getCombatantTypes, extractImageFromRecord } = useStatBlockLinker();
 
 const route = useRoute();
 const store = useEncounterStore();
+const entitiesStore = useEntities();
 const systemsStore = useSystems();
 const canvasContainer = ref<HTMLElement | null>(null);
 
@@ -1057,39 +1054,35 @@ const editingToken = ref<EncounterToken | null>(null);
 const linkModalOpen = ref(false);
 const linkPendingTokenId = ref<number | null>(null);
 const linkCampaignSystemId = ref<number | null>(null);
-const linkRecords = ref<Array<{ id: number; name: string; entityTypeId: string; data: string }>>([]);
+const linkRecordsLoading = ref(false);
 const linkSelectedId = ref<number | null>(null);
 const linkSearch = ref('');
 
 const filteredLinkRecords = computed(() =>
-  linkRecords.value.filter(r =>
+  creatureRecords.value.filter(r =>
     r.name.toLowerCase().includes(linkSearch.value.toLowerCase())
   )
 );
 
-
 async function openLinkModal(tokenId: number) {
-  if (!store.current) return;
-  const campaign = await dbApi.campaigns.get(store.current.campaignId);
-  const systemId: number | null | undefined = (campaign as any)?.system_id;
-  if (!systemId) return;
-
-  linkCampaignSystemId.value = systemId;
-  const creatureTypeIds = await getCombatantTypes(systemId);
-  if (!creatureTypeIds.length) return;
-
-  const rows: any[] = [];
-  for (const typeId of creatureTypeIds) {
-    const recs = await dbApi.records.list(systemId, typeId);
-    rows.push(...recs);
-  }
-  rows.sort((a, b) => a.name.localeCompare(b.name));
-
-  linkRecords.value = rows;
+  if (!linkCampaignSystemId.value) return;
   linkSelectedId.value = null;
   linkSearch.value = '';
   linkPendingTokenId.value = tokenId;
   linkModalOpen.value = true;
+  linkRecordsLoading.value = !creatureRecords.value.length;
+  await ensureCreatureRecords();
+  linkRecordsLoading.value = false;
+  if (linkModalOpen.value && linkPendingTokenId.value === tokenId && !creatureRecords.value.length) {
+    linkModalOpen.value = false;
+  }
+}
+
+/** Places a library token and, only when the token has no link of its own,
+ *  asks which stat block it should use. */
+async function placeLibraryToken(tokenId: number, gridX: number, gridY: number) {
+  const { token, needsLinkPrompt } = await store.addTokenToEncounter(tokenId, gridX, gridY);
+  if (token && needsLinkPrompt) await openLinkModal(token.id);
 }
 
 async function confirmLink() {
@@ -1248,13 +1241,10 @@ function onCtxAddTokenHere(gridX: number, gridY: number) {
 
 async function pickTokenForPlacement(token: any) {
   if (!pendingDropPos.value) return
-  const { autoLinked } = await store.addTokenToEncounter(token.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
-  if (!autoLinked) {
-    const placed = store.current?.tokens[store.current.tokens.length - 1]
-    if (placed) await openLinkModal(placed.id)
-  }
+  const { gridX, gridY } = pendingDropPos.value
   pendingDropPos.value = null
   showTokenPicker.value = false
+  await placeLibraryToken(token.id, gridX, gridY)
 }
 
 function openCreateTokenFromPicker() {
@@ -1318,6 +1308,15 @@ function onCtxSetInitiative(tokenId: number, value: number | null) {
 
 function onCtxApplyDamage(tokenId: number, amount: number) {
   store.applyDamage(tokenId, amount)
+}
+
+const npcPanel = ref<{ open: boolean; name: string }>({ open: false, name: '' })
+
+function onCtxViewNpc(tokenId: number) {
+  const token = store.getToken(tokenId)
+  if (!token?.linkedEntityId) return
+  const ent = entitiesStore.entities.find(e => e.id === token.linkedEntityId)
+  if (ent) npcPanel.value = { open: true, name: ent.name }
 }
 
 function onCtxViewRecord(tokenId: number) {
@@ -1447,14 +1446,26 @@ async function doClearLog() {
 const showAddToken = ref(false);
 const showEditLibraryToken = ref(false);
 const editLibraryTokenId = ref<number | null>(null);
-const editLibraryTokenForm = ref({
-  name: '',
-  imageSource: '',
-  imageType: 'file' as 'file' | 'url',
-  linkedRecordId: null as number | null,
-  linkedRecordName: null as string | null,
-  isPlayerCharacter: false,
-});
+type LibraryTokenForm = {
+  name: string
+  imageSource: string
+  imageType: 'file' | 'url'
+  linkedRecordId: number | null
+  linkedRecordName: string | null
+  linkedEntityId: number | null
+  linkedEntityName: string | null
+  isPlayerCharacter: boolean
+  syncImage: boolean
+}
+function emptyTokenForm(): LibraryTokenForm {
+  return {
+    name: '', imageSource: '', imageType: 'file',
+    linkedRecordId: null, linkedRecordName: null,
+    linkedEntityId: null, linkedEntityName: null,
+    isPlayerCharacter: false, syncImage: true,
+  }
+}
+const editLibraryTokenForm = ref<LibraryTokenForm>(emptyTokenForm());
 const showTokenPicker = ref(false);
 const tokenPickerSearch = ref("");
 
@@ -1472,19 +1483,11 @@ const filteredPickerTokens = computed(() => {
   return sortPcFirst(filtered)
 });
 const tokenSearch = ref("");
-const newToken = ref({
-  name: "",
-  imageSource: "",
-  imageType: "file" as "file" | "url",
-  linkedRecordId: null as number | null,
-  linkedRecordName: null as string | null,
-  isPlayerCharacter: false,
-});
+const newToken = ref<LibraryTokenForm>(emptyTokenForm());
 
 // ── Token library sidebar tab (Tokens | Creatures) ────────────────────────
 const libSidebarTab = ref<'tokens' | 'creatures'>('tokens')
 const creatureRecords = ref<Array<{ id: number; name: string; entityTypeId: string; imageSource: string | null }>>([])
-const creaturesLoaded = ref(false)
 const creatureSearch = ref('')
 const filteredCreatures = computed(() =>
   creatureRecords.value.filter(r =>
@@ -1493,30 +1496,38 @@ const filteredCreatures = computed(() =>
   )
 )
 
-async function loadCreatureRecords() {
-  if (!store.current || !linkCampaignSystemId.value) return
-  const systemId = linkCampaignSystemId.value
-  const creatureTypeIds = await getCombatantTypes(systemId)
-  if (!systemsStore.getSystem(systemId)) await systemsStore.loadAll()
-  const sys = systemsStore.getSystem(systemId)
-
-  const perType = await Promise.all(creatureTypeIds.map(async typeId => {
-    const recs = await dbApi.records.list(systemId, typeId)
-    const et: any = sys?.entityTypes?.find((e: any) => e.id === typeId)
-    const fields = et?.fields ?? []
-    return recs.map(r => {
-      const data: any = parseRecordData(r.data)
-      return { id: r.id!, name: r.name, entityTypeId: r.entityTypeId, imageSource: extractImageFromRecord(data, fields) }
+// Creature records back the Creatures tab, the "Link to Stat Block?" dialog and
+// the token modals' record search. They rarely change while an encounter is
+// open, so they're loaded once, in a single scan of the system's records.
+let creaturesPromise: Promise<void> | null = null
+function ensureCreatureRecords(): Promise<void> {
+  if (!creaturesPromise) {
+    creaturesPromise = (async () => {
+      const systemId = linkCampaignSystemId.value
+      if (!systemId) return
+      const typeIds = new Set(await getCombatantTypes(systemId))
+      const sys = systemsStore.getSystem(systemId)
+      const fieldsByType = new Map<string, any[]>((sys?.entityTypes ?? []).map((et: any) => [et.id, et.fields ?? []]))
+      const recs = await dbApi.records.list(systemId)
+      creatureRecords.value = recs
+        .filter(r => typeIds.has(r.entityTypeId))
+        .map(r => ({
+          id: r.id!, name: r.name, entityTypeId: r.entityTypeId,
+          imageSource: extractImageFromRecord(parseRecordData(r.data), fieldsByType.get(r.entityTypeId)),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    })().catch(err => {
+      console.error('[Encounter] loading creature records:', err)
+      creaturesPromise = null
     })
-  }))
-  creatureRecords.value = perType.flat().sort((a, b) => a.name.localeCompare(b.name))
-  creaturesLoaded.value = true
+  }
+  return creaturesPromise
 }
 
 const searchInputRef = ref<any>(null)
 
 watch(libSidebarTab, async (tab) => {
-  if (tab === 'creatures') loadCreatureRecords()
+  if (tab === 'creatures') ensureCreatureRecords()
   await nextTick()
   searchInputRef.value?.$el?.focus()
 })
@@ -1529,32 +1540,109 @@ async function filterTokenModalRecords() {
   if (!linkCampaignSystemId.value) return
   const q = tokenModalRecordSearch.value.toLowerCase()
   if (!q) { tokenModalRecordResults.value = []; return }
-  if (!creaturesLoaded.value) await loadCreatureRecords()
+  await ensureCreatureRecords()
   tokenModalRecordResults.value = creatureRecords.value
     .filter(r => r.name.toLowerCase().includes(q) || r.entityTypeId.toLowerCase().includes(q))
     .slice(0, 8)
 }
 
-function selectTokenModalRecord(rec: typeof tokenModalRecordResults.value[0], target: 'new' | 'edit') {
-  if (target === 'new') {
-    newToken.value.linkedRecordId = rec.id
-    newToken.value.linkedRecordName = rec.name
-  } else {
-    editLibraryTokenForm.value.linkedRecordId = rec.id
-    editLibraryTokenForm.value.linkedRecordName = rec.name
-  }
+function tokenForm(target: 'new' | 'edit') {
+  return target === 'new' ? newToken.value : editLibraryTokenForm.value
+}
+
+const recordPickerResults = computed(() =>
+  tokenModalRecordResults.value.map(r => ({ id: r.id, name: r.name, tag: r.entityTypeId }))
+)
+watch(tokenModalRecordSearch, filterTokenModalRecords)
+
+function selectTokenModalRecord(id: number, target: 'new' | 'edit') {
+  const rec = creatureRecords.value.find(r => r.id === id)
+  if (!rec) return
+  const form = tokenForm(target)
+  form.linkedRecordId = rec.id
+  form.linkedRecordName = rec.name
+  if (!form.name.trim()) form.name = rec.name
   tokenModalRecordSearch.value = ''
   tokenModalRecordResults.value = []
+  pullLinkedImage(target)
 }
 
 function clearTokenModalRecord(target: 'new' | 'edit') {
-  if (target === 'new') {
-    newToken.value.linkedRecordId = null
-    newToken.value.linkedRecordName = null
-  } else {
-    editLibraryTokenForm.value.linkedRecordId = null
-    editLibraryTokenForm.value.linkedRecordName = null
+  const form = tokenForm(target)
+  form.linkedRecordId = null
+  form.linkedRecordName = null
+}
+
+// ── NPC linking for library tokens ────────────────────────────────────────
+const campaignNpcs = computed(() => entitiesStore.byType.npc ?? [])
+const tokenModalNpcSearch = ref('')
+const tokenModalNpcResults = computed(() => {
+  const q = tokenModalNpcSearch.value.trim().toLowerCase()
+  if (!q) return []
+  return campaignNpcs.value
+    .filter(n => n.name.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map(n => ({ id: n.id, name: n.name, tag: (n.attributes as any).isPlayerCharacter ? 'PC' : 'NPC' }))
+})
+
+function selectTokenModalNpc(id: number, target: 'new' | 'edit') {
+  const npc = campaignNpcs.value.find(n => n.id === id)
+  if (!npc) return
+  const form = tokenForm(target)
+  form.linkedEntityId = npc.id
+  form.linkedEntityName = npc.name
+  if (!form.name.trim()) form.name = npc.name
+  if ((npc.attributes as any).isPlayerCharacter) form.isPlayerCharacter = true
+  tokenModalNpcSearch.value = ''
+  pullLinkedImage(target)
+}
+
+function clearTokenModalNpc(target: 'new' | 'edit') {
+  const form = tokenForm(target)
+  form.linkedEntityId = null
+  form.linkedEntityName = null
+}
+
+/** With sync on, show the linked entry's image in the form right away, so the
+ *  preview reflects what the token will look like after saving. */
+async function pullLinkedImage(target: 'new' | 'edit') {
+  const form = tokenForm(target)
+  if (!form.syncImage) return
+  const img = await dbApi.linkedImages.get(form.linkedEntityId, form.linkedRecordId)
+  if (img) { form.imageSource = img.source; form.imageType = img.type }
+}
+
+function formToLibraryInput(form: LibraryTokenForm) {
+  const img = form.imageSource.trim()
+  return {
+    name: form.name.trim(),
+    imageSource: img || null,
+    imageType: imageTypeOf(img),
+    linkedRecordId: form.linkedRecordId,
+    linkedEntityId: form.linkedEntityId,
+    isPlayerCharacter: form.isPlayerCharacter,
+    syncImage: form.syncImage,
   }
+}
+
+/** Image sync may have written the token image to the linked creature record. */
+function patchCreatureImage(form: LibraryTokenForm) {
+  if (!form.syncImage || form.linkedEntityId || !form.linkedRecordId || !form.imageSource.trim()) return
+  const rec = creatureRecords.value.find(r => r.id === form.linkedRecordId)
+  if (rec) rec.imageSource = form.imageSource.trim()
+}
+
+function resetTokenModalSearch() {
+  tokenModalRecordSearch.value = ''
+  tokenModalRecordResults.value = []
+  tokenModalNpcSearch.value = ''
+}
+
+function openAddTokenModal() {
+  pendingDropPos.value = null
+  newToken.value = emptyTokenForm()
+  resetTokenModalSearch()
+  showAddToken.value = true
 }
 
 // Dragging type: 'token' or 'creature'
@@ -1618,7 +1706,11 @@ onMounted(async () => {
   const camp = await dbApi.campaigns.get(store.current!.campaignId);
   if ((camp as any)?.system_id) {
     linkCampaignSystemId.value = (camp as any).system_id;
+    // Warm the creature list so the "Link to Stat Block?" dialog opens instantly
+    ensureCreatureRecords();
   }
+  // NPCs for token linking and the "View NPC" panel
+  entitiesStore.loadAll(store.current!.campaignId);
 
   if (!canvasContainer.value) return;
 
@@ -1770,17 +1862,21 @@ function onCreatureDragStart(e: DragEvent, record: any) {
 }
 
 async function onCanvasDrop(e: DragEvent) {
-  if (!canvas || !draggingPayload) return
-  const { gridX, gridY } = canvas.getGridPosFromScreen(e.offsetX, e.offsetY)
-  if (draggingPayload.type === 'creature') {
-    await store.addCreatureToEncounter(draggingPayload.recordId, gridX, gridY)
+  const payload = draggingPayload
+  draggingPayload = null
+  if (!canvas || !payload || !canvasContainer.value) return
+  // offsetX/Y are relative to whichever element was under the cursor (overlays,
+  // chips, …), so measure against the canvas container itself.
+  const rect = canvasContainer.value.getBoundingClientRect()
+  const { gridX, gridY } = canvas.getGridPosFromScreen(e.clientX - rect.left, e.clientY - rect.top)
+  if (payload.type === 'creature') {
+    await store.addCreatureToEncounter(payload.recordId, gridX, gridY)
   } else {
-    const { autoLinked } = await store.addTokenToEncounter(draggingPayload.tokenId, gridX, gridY)
-    if (!autoLinked) {
-      const placed = store.current?.tokens[store.current.tokens.length - 1]
-      if (placed) await openLinkModal(placed.id)
-    }
+    await placeLibraryToken(payload.tokenId, gridX, gridY)
   }
+}
+
+function onLibraryDragEnd() {
   draggingPayload = null
 }
 
@@ -1804,21 +1900,20 @@ async function browseTokenImage() {
 
 async function openEditLibraryToken(token: any) {
   editLibraryTokenId.value = token.id
-  let linkedRecordName: string | null = null
-  if (token.linkedRecordId) {
-    const rec = await dbApi.records.get(token.linkedRecordId)
-    linkedRecordName = rec?.name ?? null
-  }
+  const rec = token.linkedRecordId ? await dbApi.records.get(token.linkedRecordId) : null
+  const ent = token.linkedEntityId ? await dbApi.entities.get(token.linkedEntityId) : null
   editLibraryTokenForm.value = {
     name: token.name,
     imageSource: token.imageSource ?? '',
     imageType: token.imageType ?? 'file',
-    linkedRecordId: token.linkedRecordId ?? null,
-    linkedRecordName,
+    linkedRecordId: rec ? token.linkedRecordId : null,
+    linkedRecordName: rec?.name ?? null,
+    linkedEntityId: ent ? token.linkedEntityId : null,
+    linkedEntityName: ent?.name ?? null,
     isPlayerCharacter: token.isPlayerCharacter ?? false,
+    syncImage: token.syncImage ?? false,
   }
-  tokenModalRecordSearch.value = ''
-  tokenModalRecordResults.value = []
+  resetTokenModalSearch()
   showEditLibraryToken.value = true
 }
 
@@ -1831,36 +1926,24 @@ async function browseEditTokenImage() {
 }
 
 async function confirmEditLibraryToken() {
-  if (!editLibraryTokenId.value || !editLibraryTokenForm.value.name.trim()) return
-  const { name, imageSource, linkedRecordId, isPlayerCharacter } = editLibraryTokenForm.value
-  const imageType = imageSource.startsWith('http') ? 'url' : 'file'
-  await store.updateLibraryToken(editLibraryTokenId.value, name, imageSource || null, imageType, linkedRecordId, isPlayerCharacter)
+  const form = editLibraryTokenForm.value
+  if (!editLibraryTokenId.value || !form.name.trim()) return
+  await store.updateLibraryToken(editLibraryTokenId.value, formToLibraryInput(form))
   showEditLibraryToken.value = false
+  patchCreatureImage(form)
 }
 
 async function confirmAddToken() {
-  if (!newToken.value.name.trim()) return
-  const type = newToken.value.imageSource.startsWith("http") ? "url" : "file"
-  await store.addToLibrary(
-    newToken.value.name,
-    newToken.value.imageSource || null,
-    type,
-    newToken.value.linkedRecordId,
-    newToken.value.isPlayerCharacter,
-  )
-  const libraryToken = store.tokenLibrary[store.tokenLibrary.length - 1]
-  if (libraryToken && pendingDropPos.value) {
-    const { autoLinked } = await store.addTokenToEncounter(libraryToken.id, pendingDropPos.value.gridX, pendingDropPos.value.gridY)
-    if (!autoLinked) {
-      const placed = store.current?.tokens[store.current.tokens.length - 1]
-      if (placed) await openLinkModal(placed.id)
-    }
-  }
+  const form = newToken.value
+  if (!form.name.trim()) return
+  const libraryToken = await store.addToLibrary(formToLibraryInput(form))
+  patchCreatureImage(form)
+  const pos = pendingDropPos.value
   pendingDropPos.value = null
-  newToken.value = { name: "", imageSource: "", imageType: "file", linkedRecordId: null, linkedRecordName: null, isPlayerCharacter: false }
-  tokenModalRecordSearch.value = ''
-  tokenModalRecordResults.value = []
+  newToken.value = emptyTokenForm()
+  resetTokenModalSearch()
   showAddToken.value = false
+  if (libraryToken && pos) await placeLibraryToken(libraryToken.id, pos.gridX, pos.gridY)
 }
 
 function addShape(anchorCol: number, anchorRow: number, endCol: number, endRow: number) {
@@ -2374,59 +2457,6 @@ function getImageUrl(token: any): string {
 }
 
 /* ── Token modal: linked record row ── */
-.tok-linked-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 4px 0;
-}
-.tok-linked-badge {
-  flex: 1;
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--ink);
-  font-style: italic;
-}
-.tok-clear-link {
-  background: none;
-  border: 1px solid var(--parch-line);
-  border-radius: 2px;
-  font-family: var(--font-head);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  padding: 2px 7px;
-  cursor: pointer;
-  color: var(--ink-ghost);
-  transition: color 0.15s, border-color 0.15s;
-}
-.tok-clear-link:hover { color: var(--blood); border-color: var(--blood); }
-
-.tok-rec-dropdown {
-  border: 1px solid var(--parch-line);
-  border-top: none;
-  background: var(--parch);
-  border-radius: 0 0 2px 2px;
-  max-height: 140px;
-  overflow-y: auto;
-}
-.tok-rec-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 10px;
-  background: none;
-  border: none;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--ink);
-  cursor: pointer;
-}
-.tok-rec-row:hover { background: rgba(184,134,11,0.08); }
-
 .tok-pc-row {
   display: flex;
   align-items: center;

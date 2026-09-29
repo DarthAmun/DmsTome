@@ -92,7 +92,7 @@ const entity = computed(
 const draftScript = ref("");
 const draftNotes = ref("");
 const draftAttributes = ref<EntityAttributes>({});
-let attrSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const attrSave = useDebouncedSave(500);
 const showAttributes = ref(false);
 
 watch(
@@ -125,10 +125,9 @@ function onNotesUpdate(value: string) {
 
 function onAttributesChange(attrs: EntityAttributes) {
     draftAttributes.value = attrs;
-    if (attrSaveTimer) clearTimeout(attrSaveTimer);
-    attrSaveTimer = setTimeout(() => {
+    attrSave.schedule(() => {
         store.updateEntity(props.entityId, { attributes: attrs });
-    }, 500);
+    });
 }
 
 async function onRename(name: string) {
@@ -140,7 +139,6 @@ async function onDelete() {
     emit("deleted");
 }
 
-onUnmounted(() => { if (attrSaveTimer) clearTimeout(attrSaveTimer) })
 </script>
 
 <style scoped>
