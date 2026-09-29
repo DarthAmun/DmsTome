@@ -738,7 +738,7 @@ onUnmounted(() => { if (hoverTimer) clearTimeout(hoverTimer) })
 .eo-fb-initial.lg { width: 96px; height: 96px; font-size: 44px; }
 .eo-fb-note { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text3); }
 .eo-emblem { display: grid; place-items: center; background: var(--bg); }
-.eo-emblem img { width: 56%; aspect-ratio: 1; object-fit: contain; border-radius: 14px; }
+.eo-emblem img { width: 100%; height: 100%; object-fit: cover; }
 .eo-emblem .eo-fb-initial { border-radius: 14px; width: 46%; height: auto; aspect-ratio: 1; }
 .eo-swatch {
   display: grid; place-items: center;
