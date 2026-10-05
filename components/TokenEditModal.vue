@@ -110,12 +110,56 @@
             </div>
           </div>
 
+          <!-- ── TIMERS ───────────────────────────────────────────────────── -->
+          <div class="tem-section">
+            <div class="tem-section-label">
+              Timers
+              <span class="tem-hint-inline">count down at the start of this token's turn</span>
+            </div>
+            <div v-for="tmr in localTimers" :key="tmr.id" class="tem-timer-row">
+              <input v-model="tmr.name" class="tem-text-input tem-timer-name" placeholder="Name" />
+              <input
+                v-model.number="tmr.remaining"
+                type="number"
+                min="0"
+                class="tem-num-input tem-timer-num"
+                title="Turns left (0 = up)"
+              />
+              <span class="tem-timer-of">/</span>
+              <input
+                v-model.number="tmr.duration"
+                type="number"
+                min="1"
+                class="tem-num-input tem-timer-num"
+                title="Reset value"
+              />
+              <button
+                class="tem-timer-btn"
+                :class="{ 'tem-timer-btn--on': tmr.visibleToPlayers }"
+                :title="tmr.visibleToPlayers ? 'Shown to players' : 'DM only'"
+                @click="tmr.visibleToPlayers = !tmr.visibleToPlayers"
+              >
+                <OhVueIcon :name="tmr.visibleToPlayers ? 'md-visibility' : 'md-visibilityoff'" scale="0.75" />
+              </button>
+              <button class="tem-timer-btn tem-timer-btn--danger" title="Remove timer" @click="removeLocalTimer(tmr.id)">✕</button>
+            </div>
+            <div class="tem-timer-add">
+              <button class="tem-add-cond-btn" @click="addLocalTimer()">+ Add Timer</button>
+              <button
+                v-for="preset in TIMER_PRESETS"
+                :key="preset.name"
+                class="tem-timer-preset"
+                @click="addLocalTimer(preset.name, preset.turns)"
+              >{{ preset.name }} · {{ preset.turns }}</button>
+            </div>
+          </div>
+
           <!-- ── VISION ─────────────────────────────────────────────────────── -->
           <div class="tem-section">
             <div class="tem-section-label">Vision</div>
             <label class="tem-sync-row" style="margin-bottom:12px">
               <input type="checkbox" v-model="localIsPlayerToken" class="tem-checkbox" />
-              <span>Player Character Token</span>
+              <span>Player Character Token <span class="tem-hint-inline">shares vision, shows exact HP to players</span></span>
             </label>
             <div class="tem-field">
               <label class="tem-label">
@@ -172,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import type { EncounterToken, TokenCondition } from '~/stores/encounter'
+import type { EncounterToken, TokenCondition, TokenTimer } from '~/stores/encounter'
 import { getDb, parseRecordData } from '~/composables/useDb'
 import { useSystems } from '~/composables/useSystems'
 import { useStatBlockLinker, SIZE_STRING_MAP } from '~/composables/useStatBlockLinker'
@@ -204,6 +248,33 @@ const localLinkedRecordId = ref<number | null>(null)
 const localIsPlayerToken = ref(false)
 const localVisionRange = ref<number | null>(null)
 const localElevation = ref<number | null>(null)
+const localTimers = ref<TokenTimer[]>([])
+
+const TIMER_PRESETS = [
+  { name: 'Breath Weapon', turns: 2 },
+  { name: 'Concentration', turns: 10 },
+]
+
+function addLocalTimer(name = '', turns = 1) {
+  localTimers.value.push({
+    id: `tmr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name, remaining: turns, duration: turns, visibleToPlayers: false,
+  })
+}
+
+function removeLocalTimer(id: string) {
+  localTimers.value = localTimers.value.filter(t => t.id !== id)
+}
+
+/** Drops unnamed rows and clamps counts so a half-typed form can't store junk. */
+function cleanTimers(timers: TokenTimer[]): TokenTimer[] {
+  return timers
+    .filter(t => t.name.trim())
+    .map(t => {
+      const duration = Math.max(1, Math.floor(Number(t.duration) || 1))
+      return { ...t, name: t.name.trim(), duration, remaining: Math.max(0, Math.floor(Number(t.remaining) || 0)) }
+    })
+}
 
 // Reset local state whenever the token changes
 watch(() => props.token, (tok) => {
@@ -219,6 +290,7 @@ watch(() => props.token, (tok) => {
   localIsPlayerToken.value = tok.isPlayerToken ?? false
   localVisionRange.value = tok.visionRange ?? null
   localElevation.value = tok.elevation ?? null
+  localTimers.value = (tok.timers ?? []).map(t => ({ ...t }))
   linkedRecordName.value = null
   changingLink.value = false
   linkSearch.value = ''
@@ -321,6 +393,8 @@ function save() {
   if (localIsPlayerToken.value !== (props.token.isPlayerToken ?? false)) changes.isPlayerToken = localIsPlayerToken.value
   if (localVisionRange.value !== props.token.visionRange) changes.visionRange = localVisionRange.value || null
   if (localElevation.value !== props.token.elevation) changes.elevation = localElevation.value ?? null
+  const timers = cleanTimers(localTimers.value)
+  if (JSON.stringify(timers) !== JSON.stringify(props.token.timers ?? [])) changes.timers = timers
 
   // Optionally sync HP/AC from newly linked record
   if (pendingLink.value && syncHpAc.value) {
@@ -638,6 +712,53 @@ function save() {
   transition: all 0.15s;
 }
 .tem-add-cond-btn:hover { border-color: var(--ink-ghost); color: var(--ink); }
+
+/* Timers */
+.tem-timer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.tem-timer-name { flex: 1; min-width: 0; }
+.tem-timer-num { width: 52px; flex-shrink: 0; padding: 5px 4px; }
+.tem-timer-of { color: var(--ink-ghost); font-size: 12px; }
+.tem-timer-btn {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--parch-line);
+  border-radius: 2px;
+  color: var(--ink-ghost);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tem-timer-btn:hover { color: var(--ink); border-color: var(--ink-ghost); }
+.tem-timer-btn--on { color: var(--gold); border-color: var(--gold); }
+.tem-timer-btn--danger:hover { color: var(--blood); border-color: var(--blood); }
+.tem-timer-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.tem-timer-preset {
+  background: none;
+  border: 1px solid var(--parch-line);
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 11px;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tem-timer-preset:hover { color: var(--ink); border-color: var(--gold); }
 
 .tem-cond-adder { margin-top: 8px; }
 

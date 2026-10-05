@@ -27,7 +27,7 @@ export interface CombatLogEntry {
   timestamp: number
   tokenId: number
   tokenName: string
-  type: 'damage' | 'healing' | 'condition-added' | 'condition-removed' | 'death' | 'revival' | 'note'
+  type: 'damage' | 'healing' | 'condition-added' | 'condition-removed' | 'death' | 'revival' | 'note' | 'timer-up'
   value?: number
   conditionName?: string
   note?: string
@@ -62,6 +62,26 @@ export interface TokenCondition {
   icon?: string         // gi-* icon name resolved at add-time
 }
 
+/** Countdown on a token (e.g. a breath weapon recharge). Ticks down by one at
+ *  the start of the token's turn; 0 means it is up. */
+export interface TokenTimer {
+  id: string
+  name: string
+  remaining: number
+  duration: number             // value "Reset" restores
+  visibleToPlayers?: boolean   // DM-only unless set
+}
+
+export type TurnRailPosition = 'top' | 'left' | 'right'
+export type TurnRailSize = 'small' | 'medium' | 'large'
+export interface PlayerViewPrefs {
+  turnRailPosition: TurnRailPosition
+  turnRailSize: TurnRailSize
+}
+
+const PLAYER_VIEW_PREFS_KEY = 'dmstome.playerView'
+const DEFAULT_PLAYER_VIEW_PREFS: PlayerViewPrefs = { turnRailPosition: 'right', turnRailSize: 'medium' }
+
 export interface EncounterToken {
   id: number
   encounterId: number
@@ -89,6 +109,7 @@ export interface EncounterToken {
   visionRange: number | null  // tiles, null = infinite
   isPlayerToken: boolean      // default false
   elevation: number | null
+  timers: TokenTimer[]
   playerHealthState?: HealthState  // set only in player-sync payload; undefined in DM view
 }
 
@@ -125,6 +146,9 @@ export const useEncounterStore = defineStore('encounter', () => {
   const fovMode = ref<'gm' | 'active' | 'group'>('gm')
   const wallUndoStack = ref<number[]>([])
   const fovRecomputeTrigger = ref(0)
+  const playerViewPrefs = ref<PlayerViewPrefs>(loadPlayerViewPrefs())
+  // Timers ticked by nextTurn, so prevTurn can undo exactly those ticks (session-only)
+  const timerTickHistory: Array<{ tokenId: number; timerIds: string[]; logIds: number[] }> = []
 
   // ── Computed ───────────────────────────────────────────────────────────────
   const allTokens = computed(() => current.value?.tokens ?? [])
@@ -290,6 +314,7 @@ export const useEncounterStore = defineStore('encounter', () => {
         ac: stats.ac,
         linkedRecordId,
         linkedEntityId,
+        isPlayerToken: libToken?.isPlayerCharacter ?? false,
       })
       current.value.tokens.push(normalizeToken(result))
       syncToPlayer()
@@ -376,6 +401,8 @@ export const useEncounterStore = defineStore('encounter', () => {
     if ('linkedEntityId' in updates) dbUpdates.linkedEntityId = updates.linkedEntityId
     if ('visionRange' in updates) dbUpdates.visionRange = updates.visionRange
     if ('isPlayerToken' in updates) dbUpdates.isPlayerToken = updates.isPlayerToken ? 1 : 0
+    if ('elevation' in updates) dbUpdates.elevation = updates.elevation
+    if ('timers' in updates) dbUpdates.timers = JSON.stringify(updates.timers)
     await dbApi.encounterTokens.update(dbUpdates)
     if ('isPlayerToken' in updates && fovMode.value === 'group') {
       fovRecomputeTrigger.value++
@@ -460,11 +487,17 @@ export const useEncounterStore = defineStore('encounter', () => {
       const data = await syncLinkedImage(input)
       await dbApi.tokens.update(id, data)
       const token = tokenLibrary.value.find(t => t.id === id)
+      const pcChanged = !!token && token.isPlayerCharacter !== data.isPlayerCharacter
       if (token) Object.assign(token, data)
+      // A changed PC flag carries over to every placement of this token
+      if (pcChanged) await dbApi.encounterTokens.setPlayerFlagForLibraryToken(id, data.isPlayerCharacter)
       // Placed instances of this token read their image through the library entry
       for (const t of current.value?.tokens ?? []) {
-        if (t.tokenId === id) Object.assign(t, { name: data.name, imageSource: data.imageSource, imageType: data.imageType })
+        if (t.tokenId !== id) continue
+        Object.assign(t, { name: data.name, imageSource: data.imageSource, imageType: data.imageType })
+        if (pcChanged) t.isPlayerToken = data.isPlayerCharacter
       }
+      if (pcChanged) fovRecomputeTrigger.value++
       syncToPlayer()
     } catch (err) {
       console.error('[EncounterStore] updateLibraryToken:', err)
@@ -530,6 +563,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     } else {
       _activeTurnTokenId.value = order[idx + 1].id
     }
+    tickTurnStartTimers(_activeTurnTokenId.value)
     syncToPlayer()
     persistTurnState()
   }
@@ -538,6 +572,8 @@ export const useEncounterStore = defineStore('encounter', () => {
     const order = initiativeOrder.value
     if (!order.length) return
     const idx = currentTurnIndex.value
+    if (idx === 0 && roundNumber.value <= 1) return
+    untickTurnStartTimers(_activeTurnTokenId.value)
     if (idx === 0) {
       if (roundNumber.value > 1) {
         roundNumber.value--
@@ -548,6 +584,90 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
     syncToPlayer()
     persistTurnState()
+  }
+
+  // ── Actions — Timers ──────────────────────────────────────────────────────
+  function setTimers(tokenId: number, timers: TokenTimer[]) {
+    return updateToken(tokenId, { timers })
+  }
+
+  function addTimer(tokenId: number, name: string, turns: number, visibleToPlayers = false) {
+    const token = getToken(tokenId)
+    if (!token || !name.trim() || turns < 1) return
+    const timer: TokenTimer = { id: `tmr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: name.trim(), remaining: turns, duration: turns, visibleToPlayers }
+    return setTimers(tokenId, [...token.timers, timer])
+  }
+
+  function resetTimer(tokenId: number, timerId: string) {
+    const token = getToken(tokenId)
+    if (!token) return
+    return setTimers(tokenId, token.timers.map(t => t.id === timerId ? { ...t, remaining: t.duration } : t))
+  }
+
+  function removeTimer(tokenId: number, timerId: string) {
+    const token = getToken(tokenId)
+    if (!token) return
+    return setTimers(tokenId, token.timers.filter(t => t.id !== timerId))
+  }
+
+  /** Start of `tokenId`'s turn: count its running timers down by one. Callers sync. */
+  function tickTurnStartTimers(tokenId: number | null) {
+    const token = tokenId !== null ? getToken(tokenId) : undefined
+    const ticked: string[] = []
+    const logIds: number[] = []
+    if (token?.timers.length) {
+      token.timers = token.timers.map(t => {
+        if (t.remaining <= 0) return t
+        ticked.push(t.id)
+        if (t.remaining === 1) {
+          // appendLogEntry pushes synchronously, so the new entry is last
+          appendLogEntry({ tokenId: token.id, tokenName: token.label || token.name, type: 'timer-up', note: t.name })
+          const entry = current.value?.combatLog.at(-1)
+          if (entry) logIds.push(entry.id)
+        }
+        return { ...t, remaining: t.remaining - 1 }
+      })
+      if (ticked.length) dbApi.encounterTokens.update({ id: token.id, timers: JSON.stringify(token.timers) })
+    }
+    if (tokenId !== null) timerTickHistory.push({ tokenId, timerIds: ticked, logIds })
+    if (timerTickHistory.length > 200) timerTickHistory.shift()
+  }
+
+  /** Stepping back out of `tokenId`'s turn reverts the tick its turn start applied. */
+  function untickTurnStartTimers(tokenId: number | null) {
+    const last = timerTickHistory[timerTickHistory.length - 1]
+    if (!last || last.tokenId !== tokenId) return
+    timerTickHistory.pop()
+    if (last.logIds.length && current.value) {
+      const drop = new Set(last.logIds)
+      current.value.combatLog = current.value.combatLog.filter(e => !drop.has(e.id))
+      persistCombatLog()
+    }
+    const token = getToken(last.tokenId)
+    if (!token || !last.timerIds.length) return
+    const ids = new Set(last.timerIds)
+    token.timers = token.timers.map(t => ids.has(t.id) ? { ...t, remaining: Math.min(t.duration, t.remaining + 1) } : t)
+    dbApi.encounterTokens.update({ id: token.id, timers: JSON.stringify(token.timers) })
+  }
+
+  // ── Actions — Player view ─────────────────────────────────────────────────
+  function loadPlayerViewPrefs(): PlayerViewPrefs {
+    try {
+      const raw = import.meta.client ? localStorage.getItem(PLAYER_VIEW_PREFS_KEY) : null
+      if (raw) return { ...DEFAULT_PLAYER_VIEW_PREFS, ...JSON.parse(raw) }
+    } catch { /* storage unavailable or corrupt */ }
+    return { ...DEFAULT_PLAYER_VIEW_PREFS }
+  }
+
+  function setPlayerViewPrefs(changes: Partial<PlayerViewPrefs>) {
+    playerViewPrefs.value = { ...playerViewPrefs.value, ...changes }
+    try { localStorage.setItem(PLAYER_VIEW_PREFS_KEY, JSON.stringify(playerViewPrefs.value)) } catch { /* ignore */ }
+    syncToPlayer()
+  }
+
+  /** Pings a grid position on the player view; `focus` also pans the player view there. */
+  function sendPing(col: number, row: number, focus = false) {
+    dbApi.window.sendPing({ col, row, focus })
   }
 
   async function persistTurnState() {
@@ -570,8 +690,9 @@ export const useEncounterStore = defineStore('encounter', () => {
         .filter(t => t.isVisible)
         .map(t => {
           const raw = { ...toRaw(t) }
-          // Strip hidden conditions from player view
+          // Strip hidden conditions and DM-only timers from player view
           raw.conditions = raw.conditions.filter(c => !c.hidden)
+          raw.timers = raw.timers.filter(t => t.visibleToPlayers)
           // Replace exact HP with health state for non-PC tokens
           if (!raw.isPlayerToken) {
             raw.playerHealthState = healthState(raw)
@@ -591,6 +712,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       activeTurnTokenId: _activeTurnTokenId.value,
       roundNumber: roundNumber.value,
       wallDoorStates: walls.value.map(w => ({ id: w.id, isOpen: w.isOpen })),
+      playerViewPrefs: { ...playerViewPrefs.value },
     })
   }
 
@@ -700,6 +822,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       visionRange: raw.vision_range ?? null,
       isPlayerToken: Boolean(raw.is_player_token),
       elevation: raw.elevation ?? null,
+      timers: tryParseJson<TokenTimer[]>(raw.timers, []),
     }
   }
 
@@ -796,7 +919,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     current, tokenLibrary, isLoading, playerWindowOpen,
     currentTurnIndex, roundNumber, initiativeOrder,
     allTokens,
-    walls, fovMode, wallUndoStack, fovRecomputeTrigger,
+    walls, fovMode, wallUndoStack, fovRecomputeTrigger, playerViewPrefs,
     loadEncounter, loadTokenLibrary,
     setMap, updateGrid, updateViewport, updateName,
     setFogCell, hideAllFog, clearAllFog,
@@ -808,5 +931,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     nextTurn, prevTurn,
     getToken, applyDamage, rollAllInitiative, setInitiativeFormula, bulkRemoveTokens, bulkSetTokenVisibility, toggleCondition,
     addLogNote, clearCombatLog,
+    addTimer, resetTimer, removeTimer, setTimers,
+    setPlayerViewPrefs, sendPing,
   }
 })

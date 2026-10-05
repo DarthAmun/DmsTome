@@ -15,12 +15,14 @@
       :grid-offset-y="store.current.gridOffsetY"
     />
 
-    <!-- Initiative turn rail — top center -->
+    <!-- Initiative turn rail — docked where the DM chose (top / left / right) -->
     <TurnRail
       v-if="playerInitiativeOrder.length"
       :tokens="playerInitiativeOrder"
       :active-turn-token-id="playerActiveTurnTokenId"
       :round-number="playerRoundNumber"
+      :position="store.playerViewPrefs.turnRailPosition"
+      :size="store.playerViewPrefs.turnRailSize"
     />
 
     <div class="player-overlay">
@@ -130,6 +132,7 @@ onMounted(async () => {
     playerRoundNumber.value = data.roundNumber ?? 1
     playerActiveTurnTokenId.value = data.activeTurnTokenId ?? null
     playerInitiativeOrder.value = sortInitiative(data.tokens ?? [])
+    if (data.playerViewPrefs) store.playerViewPrefs = data.playerViewPrefs
 
     canvas?.drawGrid()
     canvas?.redrawFog()
@@ -151,6 +154,11 @@ onMounted(async () => {
     canvas?.recomputeFov()
   })
 
+  window.dmstome.window.onPing(({ col, row, focus }) => {
+    if (focus) canvas?.centerOn(col, row)
+    canvas?.showPing(col, row)
+  })
+
   // Notify DM window when this tab closes
   window.addEventListener('beforeunload', () => {
     const ch = new BroadcastChannel('dmforge-player')
@@ -161,6 +169,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.dmstome.window.offEncounterSync()
+  window.dmstome.window.offPing()
   canvas?.destroy()
 })
 </script>

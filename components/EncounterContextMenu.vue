@@ -70,6 +70,31 @@
           />
         </div>
 
+        <!-- Inline timer: name + turns, ticks down at the start of this token's turn -->
+        <div class="ctx-inline-row" title="Counts down at the start of this token's turn">
+          <OhVueIcon name="gi-hourglass" scale="0.85" class="ctx-icon ctx-inline-icon" />
+          <input
+            v-model="timerName"
+            type="text"
+            class="ctx-inline-input ctx-inline-input--text"
+            placeholder="Timer, e.g. Breath"
+            @keyup.enter="commitTimer"
+            @keyup.esc="emit('close')"
+            @click.stop
+          />
+          <input
+            v-model.number="timerTurns"
+            type="number"
+            min="1"
+            class="ctx-inline-input"
+            placeholder="turns"
+            title="Turns until it's up"
+            @keyup.enter="commitTimer"
+            @keyup.esc="emit('close')"
+            @click.stop
+          />
+        </div>
+
         <button
           v-if="targetToken.linkedRecordId"
           class="ctx-item"
@@ -89,6 +114,10 @@
         <button class="ctx-item" @click="emit('toggle-visibility', targetToken.id); emit('close')">
           <OhVueIcon :name="targetToken.isVisible ? 'md-visibilityoff' : 'md-visibility'" scale="0.85" class="ctx-icon" />
           {{ targetToken.isVisible ? 'Hide from Players' : 'Show to Players' }}
+        </button>
+        <button class="ctx-item" @click="emit('toggle-player-token', targetToken.id); emit('close')">
+          <OhVueIcon name="gi-crowned-heart" scale="0.85" class="ctx-icon" />
+          {{ targetToken.isPlayerToken ? 'Unmark Player Character' : 'Mark as Player Character' }}
         </button>
         <button class="ctx-item" @click="emit('toggle-dead', targetToken.id); emit('close')">
           <OhVueIcon name="fa-skull-crossbones" scale="0.85" class="ctx-icon" />
@@ -131,6 +160,8 @@ const emit = defineEmits<{
   'view-npc': [tokenId: number]
   'toggle-visibility': [tokenId: number]
   'toggle-dead': [tokenId: number]
+  'toggle-player-token': [tokenId: number]
+  'add-timer': [tokenId: number, name: string, turns: number]
   'remove-token': [tokenId: number]
 }>()
 
@@ -144,9 +175,11 @@ const menuEl = ref<HTMLElement | null>(null)
 
 const initValue = ref<number | null>(null)
 const dmgValue = ref<number | null>(null)
+const timerName = ref('')
+const timerTurns = ref<number | null>(null)
 
 const MENU_W = 220
-const MENU_H = 340
+const MENU_H = 420
 
 const adjustedX = computed(() => {
   const max = window.innerWidth - MENU_W - 8
@@ -162,11 +195,21 @@ watch(() => props.open, (val) => {
   if (!val) return
   initValue.value = props.targetToken?.initiative ?? null
   dmgValue.value = null
+  timerName.value = ''
+  timerTurns.value = null
 })
 
 function commitInit() {
   if (props.targetToken) {
     emit('set-initiative', props.targetToken.id, initValue.value)
+  }
+  emit('close')
+}
+
+function commitTimer() {
+  const turns = Math.floor(timerTurns.value ?? 0)
+  if (props.targetToken && timerName.value.trim() && turns >= 1) {
+    emit('add-timer', props.targetToken.id, timerName.value.trim(), turns)
   }
   emit('close')
 }
@@ -291,6 +334,14 @@ function onKey(e: KeyboardEvent) {
   text-align: center;
   outline: none;
   flex-shrink: 0;
+}
+.ctx-inline-input--text {
+  flex: 1;
+  flex-shrink: 1;
+  min-width: 0;
+  width: auto;
+  text-align: left;
+  font-family: var(--font-body);
 }
 .ctx-inline-input:focus {
   border-color: var(--gold);

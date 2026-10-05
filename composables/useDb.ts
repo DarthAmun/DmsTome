@@ -95,6 +95,7 @@ export interface DbEncounterToken {
   image_source: string | null // for creature-direct tokens (token_id = null)
   image_type: 'file' | 'url'
   elevation: number | null
+  timers?: string             // JSON TokenTimer[] — non-indexed, added without a version bump
 }
 
 export interface DbEncounterWall {
@@ -785,6 +786,7 @@ export const dbApi = {
         image_source: data.imageSource ?? null,
         image_type: (data.imageType ?? 'file') as 'file' | 'url',
         elevation: data.elevation ?? null,
+        timers: '[]',
       })
       const et = await db.encounterTokens.get(id)
       if (!et) throw new Error(`encounterTokens.add: row ${id} not found after insert`)
@@ -805,6 +807,11 @@ export const dbApi = {
     async remove(id: number) {
       const db = getDb()
       await db.encounterTokens.delete(id)
+    },
+    /** Mirrors a library token's PC flag onto every placement of it, in all encounters. */
+    async setPlayerFlagForLibraryToken(tokenId: number, isPlayer: boolean) {
+      const db = getDb()
+      await db.encounterTokens.where('token_id').equals(tokenId).modify({ is_player_token: isPlayer ? 1 : 0 })
     },
   },
 
@@ -969,6 +976,14 @@ export const dbApi = {
     sendPlayerReady(): void {
       this._ensureChannel().postMessage({ type: 'player-ready' })
     },
+    sendPing(ping: { col: number; row: number; focus: boolean }): void {
+      this._ensureChannel().postMessage({ type: 'ping', ...ping })
+    },
+    onPing(cb: (ping: { col: number; row: number; focus: boolean }) => void): void {
+      this._ensureChannel()
+      this._handlers.set('ping', (d) => cb({ col: d.col, row: d.row, focus: !!d.focus }))
+    },
+    offPing(): void { this._handlers.delete('ping') },
     // ── Map player ───────────────────────────────────────────────────────
     _mapChannel: null as BroadcastChannel | null,
     _mapHandlers: new Map<string, (data: any) => void>(),

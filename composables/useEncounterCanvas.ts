@@ -41,7 +41,16 @@ export interface CanvasOptions {
   }) => void;
   onTokenPointerEnter?: (tokenId: number) => void;
   onTokenPointerLeave?: (tokenId: number) => void;
+  /** Ping tool click, or a long press on the map in select mode. `focus` = Shift held. */
+  onPing?: (col: number, row: number, focus: boolean) => void;
 }
+
+const PING_COLOR = 0xffd24a;
+const PING_DURATION = 2200; // ms
+const PING_RIPPLES = [0, 350, 700]; // ripple start offsets (ms)
+const PING_RIPPLE_LIFE = 1100; // ms per ripple
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_SLOP = 6; // px of movement that cancels a long press
 
 export function useEncounterCanvas(options: CanvasOptions) {
   const store = useEncounterStore();
@@ -77,6 +86,12 @@ export function useEncounterCanvas(options: CanvasOptions) {
   let lastFovOutlinePolygons: Point[][] = [];
 
   const FOV_OUTLINE_COLORS = [0x4ecdc4, 0xff9f43, 0xff6b6b, 0xa29bfe, 0x55efc4, 0xfd79a8];
+
+  // ── Ping layer (screen-space, so ripples keep their size at any zoom) ─────
+  let pingLayer: PIXI.Container | null = null;
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let longPressStart: { x: number; y: number } | null = null;
+  let panTween: ((ticker: PIXI.Ticker) => void) | null = null;
 
   // ── Wall layers + state ───────────────────────────────────────────────────
   let wallsGraphics: PIXI.Graphics | null = null;
@@ -849,6 +864,12 @@ export function useEncounterCanvas(options: CanvasOptions) {
     (fovOutlineGraphics as any).zIndex = 901;
     app.stage.addChild(fovOutlineGraphics);
 
+    // Pings sit above the FOV darkness so they read even in unseen areas
+    pingLayer = new PIXI.Container();
+    pingLayer.eventMode = "none";
+    (pingLayer as any).zIndex = 950;
+    app.stage.addChild(pingLayer);
+
     setupInteraction();
     return app;
   }
@@ -1189,6 +1210,28 @@ export function useEncounterCanvas(options: CanvasOptions) {
       container.addChild(elvText);
     }
 
+    // ── Timer badge (top-left): soonest running timer, or ✓ when one is up ──
+    const timers: Array<{ remaining: number; visibleToPlayers?: boolean }> = (token.timers ?? [])
+      .filter((t: any) => options.isDmMode || t.visibleToPlayers);
+    if (timers.length) {
+      const anyUp = timers.some((t) => t.remaining <= 0);
+      const soonest = Math.min(...timers.filter((t) => t.remaining > 0).map((t) => t.remaining));
+      const tmrColor = anyUp ? 0xffd24a : 0xd9a066;
+      const tmrBg = new PIXI.Graphics();
+      tmrBg.circle(8, 8, 7.5);
+      tmrBg.fill({ color: anyUp ? 0x3a2a05 : 0x1a1208, alpha: 0.92 });
+      tmrBg.stroke({ color: tmrColor, width: anyUp ? 1.5 : 1, alpha: 0.95 });
+      container.addChild(tmrBg);
+      const tmrText = new PIXI.Text({
+        text: anyUp ? "✓" : String(soonest),
+        style: { fontSize: 8.5, fill: tmrColor, fontFamily: "system-ui", fontWeight: "bold", stroke: { color: 0x000000, width: 2 } },
+      });
+      tmrText.anchor.set(0.5);
+      tmrText.x = 8;
+      tmrText.y = 8;
+      container.addChild(tmrText);
+    }
+
     // ── Active-turn gold ring (placed outside the condition ring at R+4) ────
     if (options.getActiveTurnTokenId?.() === token.id) {
       const activeRing = new PIXI.Graphics();
@@ -1250,6 +1293,92 @@ export function useEncounterCanvas(options: CanvasOptions) {
     tokenContainer.addChild(container);
   }
 
+  // ── Ping ───────────────────────────────────────────────────────────────────
+  function screenToGrid(screenX: number, screenY: number) {
+    const enc = store.current;
+    if (!enc) return null;
+    return {
+      col: ((screenX - viewport.x) / viewport.scale - enc.gridOffsetX) / enc.gridSize,
+      row: ((screenY - viewport.y) / viewport.scale - enc.gridOffsetY) / enc.gridSize,
+    };
+  }
+
+  /** Plays the ping animation at a grid position (fractional col/row). */
+  function showPing(col: number, row: number) {
+    if (!app || !pingLayer) return;
+    const g = new PIXI.Graphics();
+    pingLayer.addChild(g);
+    const start = performance.now();
+    const easeOut = (p: number) => 1 - (1 - p) ** 3;
+
+    const tick = () => {
+      const t = performance.now() - start;
+      if (t >= PING_DURATION || !app) {
+        app?.ticker.remove(tick);
+        g.destroy();
+        return;
+      }
+      // Recompute every frame so the ping stays pinned to the map while panning
+      const s = gridToScreen({ x: col, y: row });
+      g.clear();
+      for (const offset of PING_RIPPLES) {
+        const p = (t - offset) / PING_RIPPLE_LIFE;
+        if (p < 0 || p > 1) continue;
+        g.circle(s.x, s.y, 10 + easeOut(p) * 62);
+        g.stroke({ color: PING_COLOR, width: 4 * (1 - p) + 1, alpha: 1 - p });
+      }
+      const fade = t > PING_DURATION - 400 ? (PING_DURATION - t) / 400 : 1;
+      const pulse = 1 + 0.18 * Math.sin(t / 90);
+      g.circle(s.x, s.y, 9 * pulse);
+      g.fill({ color: PING_COLOR, alpha: 0.35 * fade });
+      g.circle(s.x, s.y, 5);
+      g.fill({ color: PING_COLOR, alpha: 0.95 * fade });
+      g.stroke({ color: 0x000000, width: 1.5, alpha: 0.6 * fade });
+    };
+    app.ticker.add(tick);
+  }
+
+  /** Smoothly pans so the grid position sits at the centre of the canvas. */
+  function centerOn(col: number, row: number) {
+    const enc = store.current;
+    if (!app || !enc) return;
+    const worldX = enc.gridOffsetX + col * enc.gridSize;
+    const worldY = enc.gridOffsetY + row * enc.gridSize;
+    const from = { x: viewport.x, y: viewport.y };
+    const to = {
+      x: app.screen.width / 2 - worldX * viewport.scale,
+      y: app.screen.height / 2 - worldY * viewport.scale,
+    };
+    if (panTween) app.ticker.remove(panTween);
+    const start = performance.now();
+    const DURATION = 450;
+    panTween = () => {
+      const p = Math.min(1, (performance.now() - start) / DURATION);
+      const e = 1 - (1 - p) ** 3;
+      viewport.x = from.x + (to.x - from.x) * e;
+      viewport.y = from.y + (to.y - from.y) * e;
+      applyViewport();
+      if (p >= 1 && panTween) {
+        app?.ticker.remove(panTween);
+        panTween = null;
+      }
+    };
+    app.ticker.add(panTween);
+  }
+
+  function emitPing(screenX: number, screenY: number, focus: boolean) {
+    const pos = screenToGrid(screenX, screenY);
+    if (!pos) return;
+    showPing(pos.col, pos.row);
+    options.onPing?.(pos.col, pos.row, focus);
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer) clearTimeout(longPressTimer);
+    longPressTimer = null;
+    longPressStart = null;
+  }
+
   // ── Viewport / Interaction ─────────────────────────────────────────────────
   function setupInteraction() {
     if (!app) return;
@@ -1260,6 +1389,13 @@ export function useEncounterCanvas(options: CanvasOptions) {
     app.stage.on("pointerdown", (e) => {
       const tool = options.getActiveTool();
       const enc = store.current;
+      const shiftKey = !!(e.originalEvent as unknown as PointerEvent)?.shiftKey;
+
+      // Ping tool: every left click pings
+      if (options.isDmMode && tool === "ping" && e.button === 0) {
+        emitPing(e.global.x, e.global.y, shiftKey);
+        return;
+      }
 
       // Door toggle: select tool left-click on a door wall
       if (options.isDmMode && tool === "select" && e.button === 0) {
@@ -1271,6 +1407,22 @@ export function useEncounterCanvas(options: CanvasOptions) {
           });
           return;
         }
+      }
+
+      // Long press on the map (select tool) pings without switching tools.
+      // Token presses stop propagation, so this only fires on empty map.
+      if (
+        options.isDmMode && tool === "select" && e.button === 0 && options.onPing &&
+        !(e.originalEvent as unknown as PointerEvent)?.altKey
+      ) {
+        cancelLongPress();
+        const at = { x: e.global.x, y: e.global.y };
+        longPressStart = at;
+        longPressTimer = setTimeout(() => {
+          longPressTimer = null;
+          longPressStart = null;
+          emitPing(at.x, at.y, shiftKey);
+        }, LONG_PRESS_MS);
       }
 
       // Wall drawing
@@ -1350,6 +1502,13 @@ export function useEncounterCanvas(options: CanvasOptions) {
     });
 
     app.stage.on("pointermove", (e) => {
+      if (
+        longPressStart &&
+        Math.hypot(e.global.x - longPressStart.x, e.global.y - longPressStart.y) > LONG_PRESS_SLOP
+      ) {
+        cancelLongPress();
+      }
+
       if (fogPaintActive) {
         paintFogAtScreen(e.global.x, e.global.y);
         return;
@@ -1390,7 +1549,9 @@ export function useEncounterCanvas(options: CanvasOptions) {
       applyViewport();
     });
 
+    app.stage.on("pointerupoutside", cancelLongPress);
     app.stage.on("pointerup", () => {
+      cancelLongPress();
       fogPaintActive = false;
       if (isPanning) {
         isPanning = false;
@@ -1488,6 +1649,7 @@ export function useEncounterCanvas(options: CanvasOptions) {
   }
 
   function destroy() {
+    cancelLongPress();
     if (wallKeydownHandler)
       document.removeEventListener("keydown", wallKeydownHandler);
     app?.destroy(true);
@@ -1521,6 +1683,8 @@ export function useEncounterCanvas(options: CanvasOptions) {
     renderFovOverlay,
     renderFovOutlines,
     recomputeFov,
+    showPing,
+    centerOn,
     destroy,
   };
 }

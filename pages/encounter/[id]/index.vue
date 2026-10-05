@@ -1,7 +1,7 @@
 <template>
   <div
     class="encounter-page"
-    :class="{ 'fog-paint-mode': activeTool === 'fog' || activeTool === 'measure' || activeTool === 'shapes' }"
+    :class="{ 'fog-paint-mode': activeTool === 'fog' || activeTool === 'measure' || activeTool === 'shapes' || activeTool === 'ping' }"
   >
       <!-- ── Top toolbar ─────────────────────────────────────────────────────── -->
       <header class="encounter-toolbar">
@@ -62,6 +62,40 @@
           <OhVueIcon name="md-desktopmac" scale="0.85" />
           {{ playerWindowOpen ? "Close Player View" : "Open Player View" }}
         </button>
+        <div class="pv-prefs-wrap">
+          <button
+            class="back-btn pv-prefs-btn"
+            :class="{ 'back-btn--active': showPlayerViewPrefs }"
+            title="Player view layout"
+            @click="showPlayerViewPrefs = !showPlayerViewPrefs"
+          >
+            <OhVueIcon name="md-tune" scale="0.85" />
+          </button>
+          <template v-if="showPlayerViewPrefs">
+            <div class="ctx-back" @click="showPlayerViewPrefs = false" />
+            <div class="pv-prefs-pop">
+              <div class="pv-prefs-label">Turn order position</div>
+              <div class="pv-prefs-seg">
+                <button
+                  v-for="opt in TURN_RAIL_POSITIONS"
+                  :key="opt.value"
+                  :class="{ active: store.playerViewPrefs.turnRailPosition === opt.value }"
+                  @click="store.setPlayerViewPrefs({ turnRailPosition: opt.value })"
+                >{{ opt.label }}</button>
+              </div>
+              <div class="pv-prefs-label">Turn order size</div>
+              <div class="pv-prefs-seg">
+                <button
+                  v-for="opt in TURN_RAIL_SIZES"
+                  :key="opt.value"
+                  :class="{ active: store.playerViewPrefs.turnRailSize === opt.value }"
+                  @click="store.setPlayerViewPrefs({ turnRailSize: opt.value })"
+                >{{ opt.label }}</button>
+              </div>
+              <p class="pv-prefs-hint">Scales with the player screen; applies live.</p>
+            </div>
+          </template>
+        </div>
       </header>
 
       <!-- ── Main layout ─────────────────────────────────────────────────────── -->
@@ -294,6 +328,14 @@
 
           <!-- Floating tool buttons -->
           <div class="map-tool-dock">
+            <button
+              class="map-tool-btn"
+              :class="{ active: activeTool === 'ping' }"
+              title="Ping — click to ping the player view, Shift+click to also center it there. Tip: long-press the map to ping with any tool off."
+              @click="toggleTool('ping')"
+            >
+              <OhVueIcon name="gi-echo-ripples" scale="1.1" />
+            </button>
             <button
               class="map-tool-btn"
               :class="{ active: activeTool === 'fog' }"
@@ -546,6 +588,25 @@
                         <OhVueIcon :name="token.isVisible ? 'md-visibility' : 'md-visibilityoff'" scale="0.85" />
                       </button>
                     </div>
+                    <!-- Row 3: timers (tick down at the start of this token's turn) -->
+                    <div v-if="token.timers.length" class="order-row-3">
+                      <span
+                        v-for="tmr in token.timers"
+                        :key="tmr.id"
+                        class="order-timer"
+                        :class="{ 'order-timer--up': tmr.remaining <= 0 }"
+                        :title="tmr.remaining <= 0
+                          ? `${tmr.name} is up — click to reset to ${tmr.duration}`
+                          : `${tmr.name}: ${tmr.remaining} of ${tmr.duration} turns left — click to reset`"
+                        @click.stop="store.resetTimer(token.id, tmr.id)"
+                      >
+                        <OhVueIcon name="gi-hourglass" scale="0.6" />
+                        <span class="order-timer-name">{{ tmr.name }}</span>
+                        <b>{{ tmr.remaining <= 0 ? '✓' : tmr.remaining }}</b>
+                        <OhVueIcon v-if="tmr.visibleToPlayers" name="md-visibility" scale="0.55" class="order-timer-vis" />
+                        <button class="order-timer-x" title="Remove timer" @click.stop="store.removeTimer(token.id, tmr.id)">✕</button>
+                      </span>
+                    </div>
                   </div>
                   <p v-if="!encounterTokens.length" class="enc-hint" style="padding:12px 0;text-align:center">No tokens on map</p>
                 </div>
@@ -576,6 +637,7 @@
                     <template v-else-if="entry.type === 'death'">fell unconscious ☠</template>
                     <template v-else-if="entry.type === 'revival'">revived</template>
                     <template v-else-if="entry.type === 'note'">{{ entry.note }}</template>
+                    <template v-else-if="entry.type === 'timer-up'">⏳ {{ entry.note }} is up</template>
                   </span>
                 </div>
               </div>
@@ -731,6 +793,8 @@
         @view-npc="onCtxViewNpc"
         @toggle-visibility="onCtxToggleVisibility"
         @toggle-dead="onCtxToggleDead"
+        @toggle-player-token="onCtxTogglePlayerToken"
+        @add-timer="onCtxAddTimer"
         @remove-token="onCtxRemoveToken"
       />
 
@@ -987,7 +1051,20 @@ const entitiesStore = useEntities();
 const systemsStore = useSystems();
 const canvasContainer = ref<HTMLElement | null>(null);
 
-const activeTool = ref<"select" | "fog" | "measure" | "shapes" | "wall">("select");
+const activeTool = ref<"select" | "fog" | "measure" | "shapes" | "wall" | "ping">("select");
+
+// ── Player view layout ────────────────────────────────────────────────────
+const showPlayerViewPrefs = ref(false);
+const TURN_RAIL_POSITIONS = [
+  { value: 'top', label: 'Top' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+] as const;
+const TURN_RAIL_SIZES = [
+  { value: 'small', label: 'S' },
+  { value: 'medium', label: 'M' },
+  { value: 'large', label: 'L' },
+] as const;
 
 const COVER_TYPES = [
   { value: 'full',           label: 'Full',  color: 'rgba(255,255,255,0.9)' },
@@ -1334,6 +1411,15 @@ function onCtxToggleDead(tokenId: number) {
   if (token) store.updateToken(tokenId, { isDead: !token.isDead })
 }
 
+function onCtxTogglePlayerToken(tokenId: number) {
+  const token = store.getToken(tokenId)
+  if (token) store.updateToken(tokenId, { isPlayerToken: !token.isPlayerToken })
+}
+
+function onCtxAddTimer(tokenId: number, name: string, turns: number) {
+  store.addTimer(tokenId, name, turns)
+}
+
 function onCtxRemoveToken(tokenId: number) {
   store.removeToken(tokenId)
 }
@@ -1648,7 +1734,7 @@ function openAddTokenModal() {
 // Dragging type: 'token' or 'creature'
 let draggingPayload: { type: 'token'; tokenId: number } | { type: 'creature'; recordId: number } | null = null
 
-function toggleTool(tool: "fog" | "measure" | "shapes" | "wall") {
+function toggleTool(tool: "fog" | "measure" | "shapes" | "wall" | "ping") {
   activeTool.value = activeTool.value === tool ? "select" : tool;
 }
 
@@ -1743,6 +1829,9 @@ onMounted(async () => {
     },
     onTokenPointerLeave: (tokenId) => {
       if (hoveredTokenId.value === tokenId) hoveredTokenId.value = null;
+    },
+    onPing: (col, row, focus) => {
+      store.sendPing(col, row, focus);
     },
   });
 
@@ -3418,6 +3507,112 @@ function getImageUrl(token: any): string {
   transition: color 0.15s;
 }
 .order-vis-btn--hidden { color: var(--blood); }
+
+/* Row 3: timer chips */
+.order-row-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 33px;
+  margin-top: 4px;
+}
+.order-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 1px 4px 1px 5px;
+  border: 1px solid rgba(160, 110, 40, 0.45);
+  border-radius: 9px;
+  background: rgba(160, 110, 40, 0.08);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-faded, var(--ink-ghost));
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.order-timer:hover { background: rgba(160, 110, 40, 0.16); }
+.order-timer b { color: var(--ink); }
+.order-timer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+.order-timer--up {
+  border-color: var(--gold);
+  background: rgba(184, 134, 11, 0.22);
+  color: var(--ink);
+  box-shadow: 0 0 6px rgba(184, 134, 11, 0.35);
+}
+.order-timer--up b { color: var(--gold); }
+.order-timer-vis { opacity: 0.6; }
+.order-timer-x {
+  background: none;
+  border: none;
+  padding: 0 1px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.order-timer:hover .order-timer-x { opacity: 1; }
+.order-timer-x:hover { color: var(--blood); }
+
+/* ── Player view layout popover ── */
+.pv-prefs-wrap { position: relative; }
+.pv-prefs-btn { padding-left: 8px; padding-right: 8px; }
+.pv-prefs-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 210px;
+  padding: 10px 12px;
+  background: var(--parch, #f2e8d4);
+  border: 1px solid var(--parch-line);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: var(--z-modal-top);
+}
+.pv-prefs-label {
+  font-family: var(--font-head);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  margin: 2px 0 5px;
+}
+.pv-prefs-seg {
+  display: flex;
+  margin-bottom: 10px;
+  border: 1px solid var(--parch-line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pv-prefs-seg button {
+  flex: 1;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--parch-line);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pv-prefs-seg button:last-child { border-right: none; }
+.pv-prefs-seg button.active {
+  background: rgba(184, 134, 11, 0.22);
+  color: var(--ink);
+  font-weight: 700;
+}
+.pv-prefs-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-ghost);
+}
 .order-vis-btn:hover { color: var(--ink); }
 .order-vis-btn--hidden:hover { opacity: 0.7; }
 

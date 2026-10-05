@@ -52,6 +52,9 @@ interface Window {
       onPlayerReady: (cb: () => void) => void
       offPlayerReady: () => void
       sendPlayerReady: () => void
+      sendPing: (ping: { col: number; row: number; focus: boolean }) => void
+      onPing: (cb: (ping: { col: number; row: number; focus: boolean }) => void) => void
+      offPing: () => void
       openMapPlayer: (campaignId: number, locationId: number) => Promise<void>
       syncMap: (locationId: number | null) => void
       onMapSync: (cb: (locationId: number | null) => void) => void
