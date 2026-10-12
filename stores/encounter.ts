@@ -77,10 +77,24 @@ export type TurnRailSize = 'small' | 'medium' | 'large'
 export interface PlayerViewPrefs {
   turnRailPosition: TurnRailPosition
   turnRailSize: TurnRailSize
+  turnRailShowNames: boolean   // names beside portraits in the side docks
+  hiddenTurns: 'omit' | 'mystery'  // hidden combatants: left out, or shown as "?"
+}
+
+/** Player-safe turn-rail entry; `isMystery` entries are hidden combatants shown as "?". */
+export interface TurnOrderEntry {
+  id: number
+  name: string
+  label: string | null
+  imageSource: string | null
+  initiative: number | null
+  isDead: boolean
+  isPlayerToken: boolean
+  isMystery?: boolean
 }
 
 const PLAYER_VIEW_PREFS_KEY = 'dmstome.playerView'
-const DEFAULT_PLAYER_VIEW_PREFS: PlayerViewPrefs = { turnRailPosition: 'right', turnRailSize: 'medium' }
+const DEFAULT_PLAYER_VIEW_PREFS: PlayerViewPrefs = { turnRailPosition: 'right', turnRailSize: 'medium', turnRailShowNames: true, hiddenTurns: 'omit' }
 
 export interface EncounterToken {
   id: number
@@ -96,6 +110,7 @@ export interface EncounterToken {
   size: number // 1 = 1x1, 2 = 2x2, etc.
   // State
   isVisible: boolean
+  actsWhileHidden: boolean    // stays in the turn order while hidden from players
   isDead: boolean
   label: string | null
   conditions: TokenCondition[]
@@ -153,10 +168,11 @@ export const useEncounterStore = defineStore('encounter', () => {
   // ── Computed ───────────────────────────────────────────────────────────────
   const allTokens = computed(() => current.value?.tokens ?? [])
 
-  // Tokens that participate in turn order: visible and alive, sorted by initiative descending
+  // Tokens that participate in turn order: alive and visible (or hidden but marked
+  // to keep acting), sorted by initiative descending
   const initiativeOrder = computed(() =>
     (current.value?.tokens ?? [])
-      .filter(t => t.isVisible && !t.isDead)
+      .filter(t => (t.isVisible || t.actsWhileHidden) && !t.isDead)
       .sort((a, b) => {
         if (a.initiative === null && b.initiative === null) return 0
         if (a.initiative === null) return 1
@@ -388,6 +404,7 @@ export const useEncounterStore = defineStore('encounter', () => {
     Object.assign(token, updates)
     const dbUpdates: Record<string, any> = { id: instanceId }
     if ('isVisible' in updates) dbUpdates.isVisible = updates.isVisible ? 1 : 0
+    if ('actsWhileHidden' in updates) dbUpdates.actsWhileHidden = updates.actsWhileHidden ? 1 : 0
     if ('isDead' in updates) dbUpdates.isDead = updates.isDead ? 1 : 0
     if ('size' in updates) dbUpdates.size = updates.size
     if ('hpCurrent' in updates) dbUpdates.hpCurrent = updates.hpCurrent
@@ -683,6 +700,21 @@ export const useEncounterStore = defineStore('encounter', () => {
     }
   }
 
+  /** The turn order as players may see it: hidden combatants are dropped, or
+   *  reduced to an anonymous "?" entry when the player view asks for that. */
+  function playerTurnOrder(): TurnOrderEntry[] {
+    const mystery = playerViewPrefs.value.hiddenTurns === 'mystery'
+    const entries: TurnOrderEntry[] = []
+    for (const t of initiativeOrder.value) {
+      if (t.isVisible) {
+        entries.push({ id: t.id, name: t.name, label: t.label, imageSource: t.imageSource, initiative: t.initiative, isDead: t.isDead, isPlayerToken: t.isPlayerToken })
+      } else if (mystery) {
+        entries.push({ id: t.id, name: '?', label: null, imageSource: null, initiative: t.initiative, isDead: false, isPlayerToken: false, isMystery: true })
+      }
+    }
+    return entries
+  }
+
   function syncToPlayer() {
     if (!current.value) return
     dbApi.window.syncEncounter({
@@ -711,6 +743,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       currentTurnIndex: currentTurnIndex.value,
       activeTurnTokenId: _activeTurnTokenId.value,
       roundNumber: roundNumber.value,
+      turnOrder: playerTurnOrder(),
       wallDoorStates: walls.value.map(w => ({ id: w.id, isOpen: w.isOpen })),
       playerViewPrefs: { ...playerViewPrefs.value },
     })
@@ -809,6 +842,7 @@ export const useEncounterStore = defineStore('encounter', () => {
       gridY: raw.grid_y ?? 0,
       size: raw.size ?? 1,
       isVisible: Boolean(raw.is_visible),
+      actsWhileHidden: Boolean(raw.acts_while_hidden),
       isDead: Boolean(raw.is_dead),
       label: raw.label,
       conditions: tryParseJson<TokenCondition[]>(raw.conditions, []),
@@ -932,6 +966,6 @@ export const useEncounterStore = defineStore('encounter', () => {
     getToken, applyDamage, rollAllInitiative, setInitiativeFormula, bulkRemoveTokens, bulkSetTokenVisibility, toggleCondition,
     addLogNote, clearCombatLog,
     addTimer, resetTimer, removeTimer, setTimers,
-    setPlayerViewPrefs, sendPing,
+    setPlayerViewPrefs, sendPing, playerTurnOrder,
   }
 })

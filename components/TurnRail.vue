@@ -16,12 +16,13 @@
       :class="{
         'turn-rail-entry--active': token.id === activeTurnTokenId,
         'turn-rail-entry--dead': token.isDead,
+        'turn-rail-entry--mystery': token.isMystery,
       }"
     >
       <div
         class="turn-rail-token"
         :style="{ borderColor: borderColor(token) }"
-        :title="token.label || token.name"
+        :title="showNames ? token.label || token.name : undefined"
       >
         <img
           v-if="token.imageSource"
@@ -31,7 +32,7 @@
         />
         <span v-else class="turn-rail-initial">{{ (token.label || token.name).charAt(0) }}</span>
       </div>
-      <span v-if="vertical" class="turn-rail-name">{{ token.label || token.name }}</span>
+      <span v-if="vertical && showNames" class="turn-rail-name">{{ token.isMystery ? 'Unknown' : token.label || token.name }}</span>
     </div>
 
     <!-- overflow indicator -->
@@ -42,17 +43,19 @@
 </template>
 
 <script setup lang="ts">
-import type { EncounterToken, TurnRailPosition, TurnRailSize } from '~/stores/encounter'
+import type { TurnOrderEntry, TurnRailPosition, TurnRailSize } from '~/stores/encounter'
 
 const props = withDefaults(defineProps<{
-  tokens: EncounterToken[]
+  tokens: TurnOrderEntry[]
   activeTurnTokenId: number | null
   roundNumber: number
   position?: TurnRailPosition
   size?: TurnRailSize
+  showNames?: boolean
 }>(), {
   position: 'top',
   size: 'medium',
+  showNames: true,
 })
 
 const GOLD  = '#ffd700'
@@ -86,13 +89,13 @@ const windowSize = computed(() => {
   return Math.max(3, Math.floor((viewportH.value * 0.85 - unit.value * 1.6) / perEntry))
 })
 
-function borderColor(token: EncounterToken): string {
+function borderColor(token: TurnOrderEntry): string {
   if (token.id === props.activeTurnTokenId) return GOLD
   if (token.isDead) return DEAD
   return token.isPlayerToken ? ALLY : ENEMY
 }
 
-const windowedTokens = computed<EncounterToken[]>(() => {
+const windowedTokens = computed<TurnOrderEntry[]>(() => {
   const all = props.tokens
   const n = all.length
   const activeIdx = all.findIndex(t => t.id === props.activeTurnTokenId)
@@ -175,6 +178,11 @@ const windowedTokens = computed<EncounterToken[]>(() => {
 .turn-rail--right .turn-rail-entry { flex-direction: row-reverse; }
 
 .turn-rail-entry--dead { opacity: 0.45; }
+
+/* Hidden combatant shown anonymously */
+.turn-rail-entry--mystery .turn-rail-token { border-style: dashed; }
+.turn-rail-entry--mystery .turn-rail-initial { color: #8a8ab0; }
+.turn-rail-entry--mystery .turn-rail-name { font-style: italic; }
 
 .turn-rail-token {
   width: var(--u);

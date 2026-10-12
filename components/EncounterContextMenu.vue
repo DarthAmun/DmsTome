@@ -115,6 +115,15 @@
           <OhVueIcon :name="targetToken.isVisible ? 'md-visibilityoff' : 'md-visibility'" scale="0.85" class="ctx-icon" />
           {{ targetToken.isVisible ? 'Hide from Players' : 'Show to Players' }}
         </button>
+        <button
+          v-if="!targetToken.isVisible"
+          class="ctx-item"
+          title="Whether this hidden token still takes its turn"
+          @click="emit('toggle-acts-while-hidden', targetToken.id); emit('close')"
+        >
+          <OhVueIcon name="gi-sands-of-time" scale="0.85" class="ctx-icon" />
+          {{ targetToken.actsWhileHidden ? 'Skip Turns While Hidden' : 'Keep in Turn Order' }}
+        </button>
         <button class="ctx-item" @click="emit('toggle-player-token', targetToken.id); emit('close')">
           <OhVueIcon name="gi-crowned-heart" scale="0.85" class="ctx-icon" />
           {{ targetToken.isPlayerToken ? 'Unmark Player Character' : 'Mark as Player Character' }}
@@ -161,6 +170,7 @@ const emit = defineEmits<{
   'toggle-visibility': [tokenId: number]
   'toggle-dead': [tokenId: number]
   'toggle-player-token': [tokenId: number]
+  'toggle-acts-while-hidden': [tokenId: number]
   'add-timer': [tokenId: number, name: string, turns: number]
   'remove-token': [tokenId: number]
 }>()

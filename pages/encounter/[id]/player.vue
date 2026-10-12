@@ -23,6 +23,7 @@
       :round-number="playerRoundNumber"
       :position="store.playerViewPrefs.turnRailPosition"
       :size="store.playerViewPrefs.turnRailSize"
+      :show-names="store.playerViewPrefs.turnRailShowNames"
     />
 
     <div class="player-overlay">
@@ -94,8 +95,9 @@ onMounted(async () => {
   canvas.redrawFog()
   canvas.recomputeFov()
 
-  // Seed initiative state from the store (already computed + sorted) so turn rail shows immediately
-  playerInitiativeOrder.value = [...store.initiativeOrder]
+  // Seed initiative state from the store so the turn rail shows immediately. Goes
+  // through playerTurnOrder: the store loaded hidden tokens with their real names.
+  playerInitiativeOrder.value = store.playerTurnOrder()
   playerActiveTurnTokenId.value = store.initiativeOrder[store.currentTurnIndex]?.id ?? null
   playerRoundNumber.value = store.roundNumber
 
@@ -131,7 +133,7 @@ onMounted(async () => {
     // the correct token when renderTokens reads getActiveTurnTokenId()
     playerRoundNumber.value = data.roundNumber ?? 1
     playerActiveTurnTokenId.value = data.activeTurnTokenId ?? null
-    playerInitiativeOrder.value = sortInitiative(data.tokens ?? [])
+    playerInitiativeOrder.value = data.turnOrder ?? sortInitiative(data.tokens ?? [])
     if (data.playerViewPrefs) store.playerViewPrefs = data.playerViewPrefs
 
     canvas?.drawGrid()

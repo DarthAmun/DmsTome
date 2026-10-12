@@ -92,7 +92,31 @@
                   @click="store.setPlayerViewPrefs({ turnRailSize: opt.value })"
                 >{{ opt.label }}</button>
               </div>
-              <p class="pv-prefs-hint">Scales with the player screen; applies live.</p>
+              <div class="pv-prefs-label">Token names</div>
+              <div class="pv-prefs-seg">
+                <button
+                  :class="{ active: store.playerViewPrefs.turnRailShowNames }"
+                  @click="store.setPlayerViewPrefs({ turnRailShowNames: true })"
+                >Show</button>
+                <button
+                  :class="{ active: !store.playerViewPrefs.turnRailShowNames }"
+                  @click="store.setPlayerViewPrefs({ turnRailShowNames: false })"
+                >Hide</button>
+              </div>
+              <div class="pv-prefs-label">Hidden combatants' turns</div>
+              <div class="pv-prefs-seg">
+                <button
+                  :class="{ active: store.playerViewPrefs.hiddenTurns === 'omit' }"
+                  title="Players don't see hidden tokens' turns at all"
+                  @click="store.setPlayerViewPrefs({ hiddenTurns: 'omit' })"
+                >Leave out</button>
+                <button
+                  :class="{ active: store.playerViewPrefs.hiddenTurns === 'mystery' }"
+                  title="Players see an anonymous “?” entry when a hidden token acts"
+                  @click="store.setPlayerViewPrefs({ hiddenTurns: 'mystery' })"
+                >Show “?”</button>
+              </div>
+              <p class="pv-prefs-hint">Names appear in the Left/Right docks. Scales with the player screen; applies live.</p>
             </div>
           </template>
         </div>
@@ -532,6 +556,7 @@
                       'order-token-row--selected': editingToken?.id === token.id || selectedTokenIds.has(token.id),
                       'order-token-row--dead': token.isDead,
                       'order-token-row--bulk': selectedTokenIds.has(token.id),
+                      'order-token-row--skipped': !token.isVisible && !token.actsWhileHidden && !token.isDead,
                     }"
                     @click="onOrderRowClick($event, token)"
                     @contextmenu.prevent="onTokenRowRightClick($event, token)"
@@ -579,6 +604,15 @@
                           @keyup.esc="($event.target as HTMLInputElement).value = ''"
                         />
                       </template>
+                      <button
+                        v-if="!token.isVisible"
+                        class="order-vis-btn order-turn-btn"
+                        :class="{ 'order-turn-btn--on': token.actsWhileHidden }"
+                        :title="token.actsWhileHidden ? 'Hidden, but takes its turn — click to skip it' : 'Hidden and skipped in the turn order — click to keep its turn'"
+                        @click.stop="store.updateToken(token.id, { actsWhileHidden: !token.actsWhileHidden })"
+                      >
+                        <OhVueIcon name="gi-sands-of-time" scale="0.75" />
+                      </button>
                       <button
                         class="order-vis-btn"
                         :class="{ 'order-vis-btn--hidden': !token.isVisible }"
@@ -794,6 +828,7 @@
         @toggle-visibility="onCtxToggleVisibility"
         @toggle-dead="onCtxToggleDead"
         @toggle-player-token="onCtxTogglePlayerToken"
+        @toggle-acts-while-hidden="onCtxToggleActsWhileHidden"
         @add-timer="onCtxAddTimer"
         @remove-token="onCtxRemoveToken"
       />
@@ -1409,6 +1444,11 @@ function onCtxToggleVisibility(tokenId: number) {
 function onCtxToggleDead(tokenId: number) {
   const token = store.getToken(tokenId)
   if (token) store.updateToken(tokenId, { isDead: !token.isDead })
+}
+
+function onCtxToggleActsWhileHidden(tokenId: number) {
+  const token = store.getToken(tokenId)
+  if (token) store.updateToken(tokenId, { actsWhileHidden: !token.actsWhileHidden })
 }
 
 function onCtxTogglePlayerToken(tokenId: number) {
@@ -3507,6 +3547,13 @@ function getImageUrl(token: any): string {
   transition: color 0.15s;
 }
 .order-vis-btn--hidden { color: var(--blood); }
+.order-turn-btn { margin-left: auto; color: var(--ink-ghost); opacity: 0.6; }
+.order-turn-btn + .order-vis-btn { margin-left: 0; }
+.order-turn-btn--on { color: var(--gold); opacity: 1; }
+/* Hidden and not acting — listed for the GM but skipped by Next Turn */
+.order-token-row--skipped .order-row-1,
+.order-token-row--skipped .order-row-3 { opacity: 0.5; }
+.order-token-row--skipped .order-token-name { font-style: italic; }
 
 /* Row 3: timer chips */
 .order-row-3 {

@@ -96,6 +96,7 @@ export interface DbEncounterToken {
   image_type: 'file' | 'url'
   elevation: number | null
   timers?: string             // JSON TokenTimer[] — non-indexed, added without a version bump
+  acts_while_hidden?: number  // 0 | 1 — hidden token still takes its turn
 }
 
 export interface DbEncounterWall {
@@ -787,6 +788,7 @@ export const dbApi = {
         image_type: (data.imageType ?? 'file') as 'file' | 'url',
         elevation: data.elevation ?? null,
         timers: '[]',
+        acts_while_hidden: 0,
       })
       const et = await db.encounterTokens.get(id)
       if (!et) throw new Error(`encounterTokens.add: row ${id} not found after insert`)
